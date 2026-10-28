@@ -1,0 +1,18 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o ./tmp/relay ./cmd/relay"
+  entrypoint = ["./tmp/relay", "api"]
+  include_ext = ["go", "sql"]
+  exclude_dir = ["tmp", "bin", "openapi", "db/gen"]
+  delay = 200
+  kill_delay = "2s"
+  send_interrupt = true
+  stop_on_error = true
+
+[log]
+  time = false
+
+[misc]
+  clean_on_exit = true

@@ -1,0 +1,154 @@
+version: "3"
+
+dotenv: [".env"]
+
+vars:
+  API_DIR: apps/api
+  WEB_DIR: apps/web
+  COMPOSE: docker compose -f deploy/docker-compose.yml
+
+tasks:
+  default:
+    cmds:
+      - task --list
+
+  setup:
+    desc: Install dependencies and create .env
+    cmds:
+      - cmd: cp -n .env.example .env || true
+        platforms: [darwin, linux]
+      - pnpm install
+      - cd {{.API_DIR}} && go mod download
+
+  # --- Local services ---
+  up:
+    desc: Start local services (Postgres, Mailpit, S3)
+    cmds:
+      - "{{.COMPOSE}} up -d --wait"
+
+  down:
+    desc: Stop local services
+    cmds:
+      - "{{.COMPOSE}} down"
+
+  reset:
+    desc: Stop local services and delete their data
+    prompt: This deletes local Postgres and S3 data. Continue?
+    cmds:
+      - "{{.COMPOSE}} down -v"
+
+  # --- Dev ---
+  dev:
+    desc: Start services, API (hot reload) and web
+    deps: [up]
+    cmds:
+      - task: dev:all
+
+  dev:all:
+    internal: true
+    deps: [dev:api, dev:web]
+
+  dev:api:
+    desc: Run the API with hot reload
+    dir: "{{.API_DIR}}"
+    cmds:
+      # `go install` puts air in GOPATH/bin, which isn't always on PATH.
+      - PATH="$PATH:$(go env GOPATH)/bin" air
+
+  dev:web:
+    desc: Run the web dev server
+    dir: "{{.WEB_DIR}}"
+    cmds:
+      - pnpm dev
+
+  # --- Build ---
+  build:
+    desc: Build API and web
+    cmds:
+      - task: build:api
+      - task: build:web
+
+  build:api:
+    dir: "{{.API_DIR}}"
+    cmds:
+      - CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o bin/relay ./cmd/relay
+
+  build:web:
+    dir: "{{.WEB_DIR}}"
+    cmds:
+      - pnpm build
+
+  # --- Quality ---
+  lint:
+    desc: Lint Go and TypeScript
+    cmds:
+      - cd {{.API_DIR}} && golangci-lint run
+      - pnpm check
+
+  fmt:
+    desc: Format Go and TypeScript
+    cmds:
+      - cd {{.API_DIR}} && golangci-lint fmt
+      - pnpm check:fix
+
+  typecheck:
+    desc: Type-check TypeScript
+    cmds:
+      - pnpm typecheck
+
+  test:
+    desc: Run all tests
+    cmds:
+      - cd {{.API_DIR}} && go test -race ./...
+
+  # --- Codegen ---
+  gen:
+    desc: Run all code generators (sqlc, OpenAPI, TS client)
+    cmds:
+      - task: gen:sqlc
+      - task: gen:openapi
+      - task: gen:client
+
+  gen:sqlc:
+    dir: "{{.API_DIR}}"
+    cmds:
+      # sqlc errors when there are no queries; skip until the first feature adds one.
+      - |
+        if ls internal/features/*/queries.sql >/dev/null 2>&1; then
+          sqlc generate -f db/sqlc.yaml
+        else
+          echo "gen:sqlc: no queries yet, skipping"
+        fi
+
+  gen:openapi:
+    dir: "{{.API_DIR}}"
+    cmds:
+      - go run ./cmd/relay openapi > openapi/openapi.json
+
+  gen:client:
+    cmds:
+      - pnpm --filter @relay/api-client gen
+
+  # --- Database ---
+  migrate:up:
+    desc: Apply migrations
+    dir: "{{.API_DIR}}"
+    cmds:
+      - goose -dir db/migrations postgres "$DATABASE_DIRECT_URL" up
+
+  migrate:down:
+    desc: Roll back the last migration
+    dir: "{{.API_DIR}}"
+    cmds:
+      - goose -dir db/migrations postgres "$DATABASE_DIRECT_URL" down
+
+  migrate:status:
+    dir: "{{.API_DIR}}"
+    cmds:
+      - goose -dir db/migrations postgres "$DATABASE_DIRECT_URL" status
+
+  migrate:new:
+    desc: "Create a migration: task migrate:new -- add_users"
+    dir: "{{.API_DIR}}"
+    cmds:
+      - goose -dir db/migrations -s create {{.CLI_ARGS}} sql
