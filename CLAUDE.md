@@ -51,7 +51,7 @@ A new feature starts with only the files it needs. Do not create empty placehold
 - Every tenant-owned table has `workspace_id`, and every repository method on tenant data takes `workspaceID` as a parameter.
 - Return `shared/apperr` errors from services; never write HTTP status codes outside `handler.go` / `platform/httpx`.
 - **No `SELECT *`, ever.** Every query lists exactly the columns it needs, including `RETURNING` clauses and subqueries. This keeps secrets out of results, keeps sqlc's generated structs small, and stops a new column from silently changing existing queries.
-- **Secrets never leave their query.** `users.password_hash` is selected only by the login and change-password queries. It is never part of a user model, DTO or API response, and never logged. The same applies to every stored token hash (`refresh_tokens.token_hash`, `email_tokens.token_hash`, `oauth_flows.state_hash`).
+- **Secrets never leave their query.** `users.password_hash` is selected only by the login and change-password queries. It is never part of a user model, DTO or API response, and never logged. The same applies to every stored token hash (`refresh_tokens.token_hash`, `email_tokens.token_hash`, `oauth_flows.state_hash`, `oauth_flows.completion_token_hash`) and to OAuth flow secrets (`oauth_flows.code_verifier`, `nonce`), which only `ConsumeOAuthFlow` reads.
 
 ### Frontend dependency rules
 
@@ -92,6 +92,7 @@ If any answer is no, write a plain constructor.
 | `platform/jwt`                                                                                         | token `kid`                                    | Keys loaded at startup; picking one is a map lookup |
 | Webhook / job handler registry                                                                         | event type                                     | Map filled at startup                               |
 | Per-workspace external clients (e.g. messaging providers)                                              | provider + credentials stored on the workspace | Per workspace, **cached**                           |
+| `features/auth` OAuth provider registry ([ADR 0001](docs/adr/0001-oauth-provider-registry.md))         | `{provider}` path value; only configured ones  | Built once at startup                               |
 
 Adding a factory that is not in this table requires an ADR in `docs/adr/` **and** a new row here. Ask the user first.
 

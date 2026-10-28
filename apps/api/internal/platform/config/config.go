@@ -82,6 +82,21 @@ type Auth struct {
 	CookieSecure bool   `env:"COOKIE_SECURE" envDefault:"true"`
 
 	PasswordBreachCheck bool `env:"PASSWORD_BREACH_CHECK" envDefault:"true"`
+
+	// APIBaseURL builds OAuth callback URLs: {API_BASE_URL}/v1/auth/oauth/{provider}/callback.
+	APIBaseURL string `env:"API_BASE_URL" envDefault:"http://localhost:8080"`
+	// AllowedRedirects are the exact URLs a social sign-in may return to
+	// (web pages and mobile deep links). APP_BASE_URL is always allowed.
+	AllowedRedirects []string `env:"AUTH_ALLOWED_REDIRECTS" envSeparator:","`
+	// ReauthMaxAge is how recent a sign-in must be for sensitive actions
+	// (set a password, connect or disconnect a provider).
+	ReauthMaxAge time.Duration `env:"REAUTH_MAX_AGE" envDefault:"10m"`
+
+	// Social providers: one with no credentials is simply not offered.
+	GoogleClientID     string `env:"GOOGLE_CLIENT_ID"`
+	GoogleClientSecret string `env:"GOOGLE_CLIENT_SECRET"`
+	FacebookAppID      string `env:"FACEBOOK_APP_ID"`
+	FacebookAppSecret  string `env:"FACEBOOK_APP_SECRET"`
 }
 
 // Storage configures object storage.

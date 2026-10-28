@@ -6,6 +6,7 @@ package gen
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -13,22 +14,42 @@ import (
 type Querier interface {
 	// Atomically marks a valid token used and returns who it belongs to.
 	ConsumeEmailToken(ctx context.Context, arg ConsumeEmailTokenParams) (ConsumeEmailTokenRow, error)
+	// Single use: the row is deleted as it is read. Secrets are needed here to finish the exchange.
+	ConsumeOAuthFlow(ctx context.Context, arg ConsumeOAuthFlowParams) (ConsumeOAuthFlowRow, error)
+	ConsumePendingOAuthFlow(ctx context.Context, arg ConsumePendingOAuthFlowParams) (ConsumePendingOAuthFlowRow, error)
+	CountIdentities(ctx context.Context, userID uuid.UUID) (int64, error)
 	CreateEmailToken(ctx context.Context, arg CreateEmailTokenParams) error
+	CreateIdentity(ctx context.Context, arg CreateIdentityParams) error
+	CreateOAuthFlow(ctx context.Context, arg CreateOAuthFlowParams) error
+	// Second stage of a flow: 'awaiting_email' (Facebook gave no email) or 'ready'
+	// (a mobile sign-in waiting for the app to redeem its one-time code).
+	CreatePendingOAuthFlow(ctx context.Context, arg CreatePendingOAuthFlowParams) error
 	CreatePreferences(ctx context.Context, arg CreatePreferencesParams) error
 	// Rules (CLAUDE.md): list columns explicitly, never SELECT *.
 	CreateProfile(ctx context.Context, arg CreateProfileParams) error
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) error
 	CreateSession(ctx context.Context, arg CreateSessionParams) error
+	// A user created by social sign-in: no password; verified only if the provider vouched.
+	CreateSocialUser(ctx context.Context, arg CreateSocialUserParams) error
 	// Rules (CLAUDE.md): list columns explicitly, never SELECT *. password_hash and
 	// token hashes are selected only where they are needed.
 	CreateUser(ctx context.Context, arg CreateUserParams) error
+	DeleteIdentity(ctx context.Context, arg DeleteIdentityParams) (int64, error)
+	// Meta's data-deletion callback: identifies the Facebook user only.
+	DeleteIdentityByProviderUser(ctx context.Context, arg DeleteIdentityByProviderUserParams) (uuid.UUID, error)
+	// A password reset proves who owns the email: identities whose provider never
+	// vouched for that email (e.g. Facebook) can't keep access to the account.
+	DeleteUnverifiedIdentities(ctx context.Context, userID uuid.UUID) (int64, error)
 	ExtendSession(ctx context.Context, arg ExtendSessionParams) error
 	GetAccount(ctx context.Context, id uuid.UUID) (GetAccountRow, error)
 	GetAccountByEmail(ctx context.Context, email string) (GetAccountByEmailRow, error)
+	GetIdentity(ctx context.Context, arg GetIdentityParams) (GetIdentityRow, error)
 	GetPasswordHash(ctx context.Context, id uuid.UUID) (*string, error)
 	GetProfile(ctx context.Context, userID uuid.UUID) (GetProfileRow, error)
 	// Locks the token row so two concurrent refreshes can't both rotate it.
 	GetRefreshTokenForUpdate(ctx context.Context, tokenHash []byte) (GetRefreshTokenForUpdateRow, error)
+	// When this session last proved who it is (password or social sign-in), for sensitive actions.
+	GetSessionAuthenticatedAt(ctx context.Context, arg GetSessionAuthenticatedAtParams) (time.Time, error)
 	// The only query besides GetPasswordHash that reads password_hash.
 	GetUserForLogin(ctx context.Context, email string) (GetUserForLoginRow, error)
 	InsertAuthEvent(ctx context.Context, arg InsertAuthEventParams) error
@@ -38,6 +59,7 @@ type Querier interface {
 	IsSessionActive(ctx context.Context, arg IsSessionActiveParams) (bool, error)
 	ListActiveSessions(ctx context.Context, userID uuid.UUID) ([]ListActiveSessionsRow, error)
 	ListAuthEvents(ctx context.Context, userID *uuid.UUID) ([]ListAuthEventsRow, error)
+	ListIdentities(ctx context.Context, userID uuid.UUID) ([]ListIdentitiesRow, error)
 	MarkEmailVerified(ctx context.Context, id uuid.UUID) error
 	MarkRefreshTokenUsed(ctx context.Context, id uuid.UUID) error
 	RevokeSession(ctx context.Context, arg RevokeSessionParams) (int64, error)
@@ -45,6 +67,10 @@ type Querier interface {
 	// Revokes every active session of a user, optionally keeping one (the current device).
 	RevokeUserSessions(ctx context.Context, arg RevokeUserSessionsParams) (int64, error)
 	SetPasswordHash(ctx context.Context, arg SetPasswordHashParams) error
+	// POST /auth/password/set: only for accounts that have no password yet.
+	SetPasswordIfUnset(ctx context.Context, arg SetPasswordIfUnsetParams) (int64, error)
+	// Refresh what the provider reports on every sign-in. Never touches the profile.
+	TouchIdentity(ctx context.Context, arg TouchIdentityParams) error
 	TouchLastLogin(ctx context.Context, id uuid.UUID) error
 	UpdatePreferences(ctx context.Context, arg UpdatePreferencesParams) error
 	// A NULL argument keeps the current value; an empty string clears an optional field.

@@ -33,9 +33,10 @@ const (
 // --- test harness ---
 
 type authEnv struct {
-	t *testing.T
-	a *App
-	h http.Handler
+	t    *testing.T
+	a    *App
+	h    http.Handler
+	fake *fakeProvider
 }
 
 func newAuthEnv(t *testing.T) *authEnv {
@@ -49,6 +50,7 @@ func newAuthEnv(t *testing.T) *authEnv {
 	if err != nil {
 		t.Fatal(err)
 	}
+	fake := newFakeProvider(t)
 	a := &App{
 		cfg: config.Config{
 			AppBaseURL: testOrigin,
@@ -60,9 +62,10 @@ func newAuthEnv(t *testing.T) *authEnv {
 			Auth: config.Auth{
 				JWTSigningKey: seed, JWTSigningKeyID: "test", JWTIssuer: "relay-api", JWTAudience: "relay",
 				AccessTokenTTL: 15 * time.Minute, RefreshTokenTTL: 720 * time.Hour, CookieSecure: true,
+				APIBaseURL: testAPI, AllowedRedirects: []string{testAppRedirect}, ReauthMaxAge: 10 * time.Minute,
 			},
 		},
-		log: slog.Default(), db: pool, queue: q,
+		log: slog.Default(), db: pool, queue: q, oauth: fake.config(),
 	}
 	if err := a.buildFeatures(); err != nil {
 		t.Fatal(err)
@@ -71,7 +74,7 @@ func newAuthEnv(t *testing.T) *authEnv {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &authEnv{t: t, a: a, h: h}
+	return &authEnv{t: t, a: a, h: h, fake: fake}
 }
 
 // browser is one client: it keeps cookies like a browser, or a bearer token like the app.
@@ -81,6 +84,7 @@ type browser struct {
 	ua      string
 	cookies map[string]*http.Cookie
 	bearer  string
+	device  string // X-Device-Name, as the mobile app sends it
 }
 
 func (e *authEnv) browser(ua string) *browser {
@@ -95,6 +99,7 @@ type resp struct {
 	body    map[string]any
 	raw     string
 	cookies []*http.Cookie
+	header  http.Header
 }
 
 func (b *browser) do(method, path string, body any) resp {
@@ -112,6 +117,9 @@ func (b *browser) do(method, path string, body any) resp {
 	if b.bearer != "" {
 		req.Header.Set("Authorization", "Bearer "+b.bearer)
 	}
+	if b.device != "" {
+		req.Header.Set("X-Device-Name", b.device)
+	}
 	for _, c := range b.cookies {
 		if strings.HasPrefix(path, c.Path) {
 			req.AddCookie(c)
@@ -121,7 +129,7 @@ func (b *browser) do(method, path string, body any) resp {
 	rec := httptest.NewRecorder()
 	b.env.h.ServeHTTP(rec, req)
 
-	out := resp{code: rec.Code, raw: rec.Body.String(), cookies: rec.Result().Cookies()}
+	out := resp{code: rec.Code, raw: rec.Body.String(), cookies: rec.Result().Cookies(), header: rec.Header()}
 	_ = json.Unmarshal(rec.Body.Bytes(), &out.body)
 	for _, c := range out.cookies {
 		if c.MaxAge < 0 {

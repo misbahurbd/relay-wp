@@ -9,6 +9,14 @@ export type ChangePasswordInputBody = {
     new_password: string;
 };
 
+export type DataDeletionOutputBody = {
+    confirmation_code: string;
+    /**
+     * Page where the person can check the deletion status
+     */
+    url: string;
+};
+
 export type Detail = {
     field?: string;
     message: string;
@@ -46,6 +54,21 @@ export type EventsOutputBody = {
     events: Array<EventDto> | null;
 };
 
+export type IdentitiesOutputBody = {
+    has_password: boolean;
+    identities: Array<IdentityDto> | null;
+};
+
+export type IdentityDto = {
+    created_at: string;
+    /**
+     * What the provider reported
+     */
+    email?: string;
+    last_used_at: string;
+    provider: 'google' | 'facebook' | 'apple';
+};
+
 export type LoginInputBody = {
     /**
      * web gets httpOnly cookies; mobile gets tokens in the body
@@ -65,6 +88,29 @@ export type MessageOutputBody = {
     message: string;
 };
 
+export type OauthCompleteInputBody = {
+    /**
+     * Mobile only: the PKCE verifier
+     */
+    code_verifier?: string;
+    email: string;
+    /**
+     * complete_token from the callback redirect
+     */
+    token: string;
+};
+
+export type OauthTokenInputBody = {
+    /**
+     * code from the callback redirect
+     */
+    code: string;
+    /**
+     * PKCE verifier matching the code_challenge sent to start
+     */
+    code_verifier: string;
+};
+
 export type PreferencesDto = {
     locale: string;
     timezone: string;
@@ -78,6 +124,13 @@ export type ProfileDto = {
     display_name: string | null;
     first_name: string;
     last_name: string | null;
+};
+
+export type ProvidersOutputBody = {
+    /**
+     * Social sign-in providers this server offers
+     */
+    providers: Array<string> | null;
 };
 
 export type RefreshInputBody = {
@@ -109,6 +162,10 @@ export type SessionDto = {
 
 export type SessionsOutputBody = {
     sessions: Array<SessionDto> | null;
+};
+
+export type SetPasswordInputBody = {
+    new_password: string;
 };
 
 export type SignupInputBody = {
@@ -256,6 +313,72 @@ export type ListAuthEventsResponses = {
 
 export type ListAuthEventsResponse = ListAuthEventsResponses[keyof ListAuthEventsResponses];
 
+export type ListIdentitiesData = {
+    body?: never;
+    headers?: {
+        'User-Agent'?: string;
+        /**
+         * Device name sent by the mobile app, e.g. iPhone 15
+         */
+        'X-Device-Name'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/auth/identities';
+};
+
+export type ListIdentitiesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListIdentitiesError = ListIdentitiesErrors[keyof ListIdentitiesErrors];
+
+export type ListIdentitiesResponses = {
+    /**
+     * OK
+     */
+    200: IdentitiesOutputBody;
+};
+
+export type ListIdentitiesResponse = ListIdentitiesResponses[keyof ListIdentitiesResponses];
+
+export type UnlinkIdentityData = {
+    body?: never;
+    headers?: {
+        'User-Agent'?: string;
+        /**
+         * Device name sent by the mobile app, e.g. iPhone 15
+         */
+        'X-Device-Name'?: string;
+    };
+    path: {
+        provider: 'google' | 'facebook' | 'apple';
+    };
+    query?: never;
+    url: '/v1/auth/identities/{provider}';
+};
+
+export type UnlinkIdentityErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UnlinkIdentityError = UnlinkIdentityErrors[keyof UnlinkIdentityErrors];
+
+export type UnlinkIdentityResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type UnlinkIdentityResponse = UnlinkIdentityResponses[keyof UnlinkIdentityResponses];
+
 export type LoginData = {
     body: LoginInputBody;
     headers?: {
@@ -352,6 +475,219 @@ export type LogoutAllResponses = {
 
 export type LogoutAllResponse = LogoutAllResponses[keyof LogoutAllResponses];
 
+export type OauthCompleteData = {
+    body: OauthCompleteInputBody;
+    headers?: {
+        'User-Agent'?: string;
+        /**
+         * Device name sent by the mobile app, e.g. iPhone 15
+         */
+        'X-Device-Name'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/auth/oauth/complete';
+};
+
+export type OauthCompleteErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type OauthCompleteError = OauthCompleteErrors[keyof OauthCompleteErrors];
+
+export type OauthCompleteResponses = {
+    /**
+     * OK
+     */
+    200: TokenBody;
+};
+
+export type OauthCompleteResponse = OauthCompleteResponses[keyof OauthCompleteResponses];
+
+export type FacebookDataDeletionData = {
+    body: Blob | File;
+    headers?: {
+        'User-Agent'?: string;
+        /**
+         * Device name sent by the mobile app, e.g. iPhone 15
+         */
+        'X-Device-Name'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/auth/oauth/facebook/data-deletion';
+};
+
+export type FacebookDataDeletionErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type FacebookDataDeletionError = FacebookDataDeletionErrors[keyof FacebookDataDeletionErrors];
+
+export type FacebookDataDeletionResponses = {
+    /**
+     * OK
+     */
+    200: DataDeletionOutputBody;
+};
+
+export type FacebookDataDeletionResponse = FacebookDataDeletionResponses[keyof FacebookDataDeletionResponses];
+
+export type OauthTokenData = {
+    body: OauthTokenInputBody;
+    headers?: {
+        'User-Agent'?: string;
+        /**
+         * Device name sent by the mobile app, e.g. iPhone 15
+         */
+        'X-Device-Name'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/auth/oauth/token';
+};
+
+export type OauthTokenErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type OauthTokenError = OauthTokenErrors[keyof OauthTokenErrors];
+
+export type OauthTokenResponses = {
+    /**
+     * OK
+     */
+    200: TokenBody;
+};
+
+export type OauthTokenResponse = OauthTokenResponses[keyof OauthTokenResponses];
+
+export type OauthCallbackData = {
+    body?: never;
+    headers?: {
+        'User-Agent'?: string;
+        /**
+         * Device name sent by the mobile app, e.g. iPhone 15
+         */
+        'X-Device-Name'?: string;
+    };
+    path: {
+        provider: 'google' | 'facebook' | 'apple';
+    };
+    query?: {
+        code?: string;
+        state?: string;
+        /**
+         * Set by the provider when the person cancels or it fails
+         */
+        error?: string;
+    };
+    url: '/v1/auth/oauth/{provider}/callback';
+};
+
+export type OauthCallbackErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type OauthCallbackError = OauthCallbackErrors[keyof OauthCallbackErrors];
+
+export type OauthCallbackResponses = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type OauthCallbackResponse = OauthCallbackResponses[keyof OauthCallbackResponses];
+
+export type OauthLinkData = {
+    body?: never;
+    path: {
+        provider: 'google' | 'facebook' | 'apple';
+    };
+    query?: {
+        /**
+         * Settings page to return to
+         */
+        redirect_to?: string;
+    };
+    url: '/v1/auth/oauth/{provider}/link';
+};
+
+export type OauthLinkErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type OauthLinkError = OauthLinkErrors[keyof OauthLinkErrors];
+
+export type OauthLinkResponses = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type OauthLinkResponse = OauthLinkResponses[keyof OauthLinkResponses];
+
+export type OauthStartData = {
+    body?: never;
+    path: {
+        provider: 'google' | 'facebook' | 'apple';
+    };
+    query?: {
+        /**
+         * web ends with auth cookies; mobile ends at redirect_to with a one-time code
+         */
+        client?: 'web' | 'mobile';
+        /**
+         * Where to land afterwards. Any page of the web app, or an exact AUTH_ALLOWED_REDIRECTS entry (required for mobile).
+         */
+        redirect_to?: string;
+        /**
+         * IANA timezone, used if this sign-in creates the account
+         */
+        timezone?: string;
+        /**
+         * Mobile only: PKCE S256 challenge of the verifier the app sends to POST /v1/auth/oauth/token
+         */
+        code_challenge?: string;
+    };
+    url: '/v1/auth/oauth/{provider}/start';
+};
+
+export type OauthStartErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type OauthStartError = OauthStartErrors[keyof OauthStartErrors];
+
+export type OauthStartResponses = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type OauthStartResponse = OauthStartResponses[keyof OauthStartResponses];
+
 export type ChangePasswordData = {
     body: ChangePasswordInputBody;
     headers?: {
@@ -447,6 +783,63 @@ export type ResetPasswordResponses = {
 };
 
 export type ResetPasswordResponse = ResetPasswordResponses[keyof ResetPasswordResponses];
+
+export type SetPasswordData = {
+    body: SetPasswordInputBody;
+    headers?: {
+        'User-Agent'?: string;
+        /**
+         * Device name sent by the mobile app, e.g. iPhone 15
+         */
+        'X-Device-Name'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/auth/password/set';
+};
+
+export type SetPasswordErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SetPasswordError = SetPasswordErrors[keyof SetPasswordErrors];
+
+export type SetPasswordResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type SetPasswordResponse = SetPasswordResponses[keyof SetPasswordResponses];
+
+export type ListOauthProvidersData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/providers';
+};
+
+export type ListOauthProvidersErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListOauthProvidersError = ListOauthProvidersErrors[keyof ListOauthProvidersErrors];
+
+export type ListOauthProvidersResponses = {
+    /**
+     * OK
+     */
+    200: ProvidersOutputBody;
+};
+
+export type ListOauthProvidersResponse = ListOauthProvidersResponses[keyof ListOauthProvidersResponses];
 
 export type ListSessionsData = {
     body?: never;

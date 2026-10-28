@@ -1,6 +1,6 @@
 # Phase 2 plan: authentication and profiles
 
-Status: **PR 1 built** (build steps 1–7: password auth, sessions, events, profiles). Still to do: social login (steps 8–11), `auth_cleanup` job and remaining docs (steps 12–13). `POST /auth/password/set`, the identities endpoints and the data-deletion callback come with social login, since they only apply to social accounts. Follows the rules in [CLAUDE.md](../CLAUDE.md) and the architecture in [ARCHITECTURE.md](ARCHITECTURE.md).
+Status: **PR 1 merged** (steps 1–7: password auth, sessions, events, profiles). **PR 2 built** (steps 8, 9 and 11: OAuth framework, Google, Facebook with the add-email step and the data-deletion callback, linking and unlinking, `password/set`). Still to do: Apple (step 10), the `auth_cleanup` job and remaining docs (steps 12–13). Follows the rules in [CLAUDE.md](../CLAUDE.md) and the architecture in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
@@ -172,6 +172,7 @@ Events: `signup`, `login_succeeded`, `login_failed`, `logout`, `logout_all`, `em
 | -------------------- | ---------------------------------------------------------------- |
 | `00002_auth.sql`     | `citext` extension, the 7 auth tables, indexes, CHECKs, triggers |
 | `00003_profiles.sql` | `user_profiles`, `user_preferences`                              |
+| `00004_social_login.sql` | `oauth_flows`: `timezone`, `app_code_challenge`, `user_id`, status `ready`; revoke reason `account_claimed` |
 
 Both have working `Down` sections; CI already runs up → down → up.
 
@@ -209,9 +210,12 @@ All under `/v1`. Errors use the standard `{code, message, details}` shape. "Auth
 
 | Method and path                                  | Auth                          | What it does                                                                                                                                                                             |
 | ------------------------------------------------ | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /auth/oauth/{provider}/start`               | – (or Auth for `intent=link`) | `client`, `redirect_to`, `intent`. Creates an `oauth_flows` row, redirects to the provider.                                                                                              |
+| `GET /auth/providers` | – | Which providers this server offers (only configured ones), so the frontend knows which buttons to show. |
+| `GET /auth/oauth/{provider}/start` | – | `client`, `redirect_to`, `timezone`, and `code_challenge` (mobile). Creates an `oauth_flows` row, sets the `relay_oauth` state cookie, redirects to the provider. |
+| `GET /auth/oauth/{provider}/link` | Auth, recent sign-in | Same as start with `intent = link`, for connecting a provider from settings (web). |
 | `GET` and `POST /auth/oauth/{provider}/callback` | –                             | Apple uses form POST. Validates state, PKCE, nonce and ID token; signs in or links (see section 4).                                                                                      |
-| `POST /auth/oauth/complete`                      | Completion token              | Facebook without email: `email` → creates the account unverified, sends a verification link, signs in.                                                                                   |
+| `POST /auth/oauth/complete` | Completion token | Facebook without email: `email` → creates the account unverified, sends a verification link, signs in. Mobile also sends `code_verifier`. |
+| `POST /auth/oauth/token` | One-time code + PKCE verifier | Mobile: redeems the `code` the callback sent to the app's deep link for tokens. A wrong verifier spends the code. |
 | `POST /auth/oauth/facebook/data-deletion`        | Signed request from Meta      | **Required by Meta before go-live.** Verifies Meta's `signed_request`, removes that Facebook identity, logs `identity_unlinked`, and returns the confirmation URL and code Meta expects. |
 | `GET /auth/identities`                           | Auth                          | Connected providers, and whether a password is set.                                                                                                                                      |
 | `DELETE /auth/identities/{provider}`             | Auth, recent sign-in          | Disconnect a provider. **Refused if it's the last sign-in method.**                                                                                                                      |
@@ -232,7 +236,7 @@ Changing email is out of scope for this phase (it needs its own verify-the-new-a
 
 ### Social sign-in (callback)
 
-1. Load the `oauth_flows` row by `state_hash`; reject if missing or expired; **delete it**.
+1. The `state` must equal the `relay_oauth` cookie set at start (HttpOnly, SameSite=Lax, path `/v1/auth/oauth`, 10 minutes). This binds the attempt to the browser that began it, so a callback link sent by an attacker can't sign a victim into the attacker's account. Load the `oauth_flows` row by `state_hash`; reject if missing or expired; **delete it**.
 2. Exchange the code with PKCE; verify the ID token (signature, issuer, audience, expiry, `nonce`). Facebook has no ID token in this flow; fetch `/me?fields=id,email,first_name,last_name,picture`.
 3. Normalise to `{provider, provider_user_id, email?, email_verified, first_name?, last_name?, avatar_url?}`. Facebook: `email_verified = false`. Apple: names come only on the first authorisation; keep them for step 4.
 4. In one transaction:
@@ -244,7 +248,7 @@ Changing email is out of scope for this phase (it needs its own verify-the-new-a
    - **No identity, no verified match, email present** → create user (+ verified if the provider vouched), identity, profile (names + avatar), preferences.
    - **No email (Facebook)** → keep the flow as `awaiting_email` with `pending_identity`; return a completion token; the frontend asks for an email (`POST /auth/oauth/complete`).
    - **Email matches an existing user but isn't provider-verified** → never link. Respond `409 email_in_use_sign_in_first` so the user signs in and links from settings.
-5. Refuse if the user is `disabled`. Create the session (`client` from the flow, `device_name` and `device_type` as described under "Device names", `created_ip` = `last_ip` = request IP, `authenticated_at` = now) and its refresh token. For Apple, store the encrypted Apple refresh token on the identity. Write `auth_events`, return tokens.
+5. Refuse if the user is `disabled`. **Web:** create the session, set the cookies and redirect to `redirect_to`. **Mobile:** the callback runs in the system browser, which can't hand tokens to the app. It stores a `ready` flow holding the user ID and redirects to the app's deep link with a one-time `code` (2 minutes). The app redeems it at `POST /auth/oauth/token` with the PKCE verifier matching the `code_challenge` it sent to start; another app that intercepts the deep link can't use the code. The session is created at redemption, so it gets the app's `X-Device-Name`. Failures redirect to `redirect_to?error=<code>`. To create the session: (`client` from the flow, `device_name` and `device_type` as described under "Device names", `created_ip` = `last_ip` = request IP, `authenticated_at` = now) and its refresh token. For Apple, store the encrypted Apple refresh token on the identity. Write `auth_events`, return tokens.
 
 ### Refresh
 
@@ -279,6 +283,8 @@ Verify signature (`kid` → key), `exp`, `iss`, `aud`. Then one primary-key look
 - **Secrets never leave their query** (CLAUDE.md): password and token hashes are never in models, DTOs, responses or logs. No `SELECT *`.
 - **Password reset and change** revoke sessions; reset links are single-use.
 - **Disabled users** can't log in, refresh or complete OAuth.
+- **Password reset on an unverified account** removes identities whose provider didn't vouch for the email (Facebook). The reset link proves who owns the address; a Facebook login someone attached before then may not be theirs.
+- **Connecting a provider** needs a recent sign-in, like disconnecting one, so a stolen session can't add the thief's Google account as a permanent way in.
 - **Recent sign-in for sensitive actions**: setting a password and disconnecting a provider require `auth_sessions.authenticated_at` within `REAUTH_MAX_AGE` (10 minutes); otherwise `403 reauthentication_required` and the frontend asks the user to sign in again. Later: change email, delete account.
 - **Encrypted, not hashed**: the Apple refresh token must be sent back to Apple, so it is encrypted (AES-256-GCM) rather than hashed. Like hashes, it is never in a model, DTO, response or log.
 
@@ -319,7 +325,7 @@ apps/api/internal/
 | Thing                               | Factory?                | Why                                                                                                                                |
 | ----------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `platform/jwt` key ring             | Yes (already approved)  | Key chosen by `kid`                                                                                                                |
-| OAuth provider registry             | **Yes, needs approval** | 3 implementations, chosen by the `{provider}` path value, built once at startup. Requires an ADR and a row in the CLAUDE.md table. |
+| OAuth provider registry | **Yes, approved** ([ADR 0001](adr/0001-oauth-provider-registry.md)) | 3 implementations, chosen by the `{provider}` path value, built once at startup. |
 | Breach checker                      | No                      | One real implementation; tests pass a fake to `New`                                                                                |
 | Auth/profile services, repositories | No                      | Plain constructors                                                                                                                 |
 
@@ -348,7 +354,7 @@ Emails are enqueued in the same transaction as the change that triggers them.
 | `REFRESH_TOKEN_TTL`                                                     | `720h`                       | 30 days                                                                               |
 | `APP_BASE_URL`                                                          | `http://localhost:3010`      | Links in emails                                                                       |
 | `API_BASE_URL`                                                          | `http://localhost:8080`      | OAuth callback URLs                                                                   |
-| `AUTH_ALLOWED_REDIRECTS`                                                | comma-separated URLs         |                                                                                       |
+| `AUTH_ALLOWED_REDIRECTS` | `relay://auth/callback` | Extra exact URLs (mobile deep links). Any page of `APP_BASE_URL` is always allowed. |
 | `COOKIE_DOMAIN`, `COOKIE_SECURE`                                        | `localhost`, `false` locally |                                                                                       |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`                              |                              |                                                                                       |
 | `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`                                |                              |                                                                                       |

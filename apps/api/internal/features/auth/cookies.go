@@ -47,3 +47,18 @@ func (c CookieConfig) cookie(name, value, path string, ttl time.Duration) http.C
 		SameSite: http.SameSiteLaxMode,
 	}
 }
+
+// oauthStateCookie binds a social sign-in to the browser that started it.
+// SameSite=Lax is sent on the provider's top-level redirect back to us.
+const (
+	oauthStateCookie = "relay_oauth"
+	oauthCookiePath  = "/v1/auth/oauth"
+)
+
+func (c CookieConfig) oauthState(state string) http.Cookie {
+	return c.cookie(oauthStateCookie, state, oauthCookiePath, oauthFlowTTL)
+}
+
+func (c CookieConfig) clearOAuthState() http.Cookie {
+	return c.cookie(oauthStateCookie, "", oauthCookiePath, -1)
+}

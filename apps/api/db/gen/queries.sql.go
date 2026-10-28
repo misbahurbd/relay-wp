@@ -41,6 +41,92 @@ func (q *Queries) ConsumeEmailToken(ctx context.Context, arg ConsumeEmailTokenPa
 	return i, err
 }
 
+const consumeOAuthFlow = `-- name: ConsumeOAuthFlow :one
+DELETE FROM oauth_flows
+WHERE state_hash = $1 AND provider = $2 AND status = 'started' AND expires_at > now()
+RETURNING intent, link_user_id, code_verifier, nonce, redirect_to, client, timezone, app_code_challenge
+`
+
+type ConsumeOAuthFlowParams struct {
+	StateHash []byte
+	Provider  string
+}
+
+type ConsumeOAuthFlowRow struct {
+	Intent           string
+	LinkUserID       *uuid.UUID
+	CodeVerifier     string
+	Nonce            string
+	RedirectTo       string
+	Client           string
+	Timezone         string
+	AppCodeChallenge *string
+}
+
+// Single use: the row is deleted as it is read. Secrets are needed here to finish the exchange.
+func (q *Queries) ConsumeOAuthFlow(ctx context.Context, arg ConsumeOAuthFlowParams) (ConsumeOAuthFlowRow, error) {
+	row := q.db.QueryRow(ctx, consumeOAuthFlow, arg.StateHash, arg.Provider)
+	var i ConsumeOAuthFlowRow
+	err := row.Scan(
+		&i.Intent,
+		&i.LinkUserID,
+		&i.CodeVerifier,
+		&i.Nonce,
+		&i.RedirectTo,
+		&i.Client,
+		&i.Timezone,
+		&i.AppCodeChallenge,
+	)
+	return i, err
+}
+
+const consumePendingOAuthFlow = `-- name: ConsumePendingOAuthFlow :one
+DELETE FROM oauth_flows
+WHERE completion_token_hash = $1 AND status = $2 AND expires_at > now()
+RETURNING provider, client, timezone, app_code_challenge, pending_identity, user_id
+`
+
+type ConsumePendingOAuthFlowParams struct {
+	CompletionTokenHash []byte
+	Status              string
+}
+
+type ConsumePendingOAuthFlowRow struct {
+	Provider         string
+	Client           string
+	Timezone         string
+	AppCodeChallenge *string
+	PendingIdentity  []byte
+	UserID           *uuid.UUID
+}
+
+func (q *Queries) ConsumePendingOAuthFlow(ctx context.Context, arg ConsumePendingOAuthFlowParams) (ConsumePendingOAuthFlowRow, error) {
+	row := q.db.QueryRow(ctx, consumePendingOAuthFlow, arg.CompletionTokenHash, arg.Status)
+	var i ConsumePendingOAuthFlowRow
+	err := row.Scan(
+		&i.Provider,
+		&i.Client,
+		&i.Timezone,
+		&i.AppCodeChallenge,
+		&i.PendingIdentity,
+		&i.UserID,
+	)
+	return i, err
+}
+
+const countIdentities = `-- name: CountIdentities :one
+SELECT count(*)
+FROM user_identities
+WHERE user_id = $1
+`
+
+func (q *Queries) CountIdentities(ctx context.Context, userID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countIdentities, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createEmailToken = `-- name: CreateEmailToken :exec
 INSERT INTO email_tokens (id, user_id, purpose, email, token_hash, expires_at)
 VALUES ($1, $2, $3, $4, $5, $6)
@@ -62,6 +148,121 @@ func (q *Queries) CreateEmailToken(ctx context.Context, arg CreateEmailTokenPara
 		arg.Purpose,
 		arg.Email,
 		arg.TokenHash,
+		arg.ExpiresAt,
+	)
+	return err
+}
+
+const createIdentity = `-- name: CreateIdentity :exec
+INSERT INTO user_identities (id, user_id, provider, provider_user_id, email, email_verified)
+VALUES ($1, $2, $3, $4, $5, $6)
+`
+
+type CreateIdentityParams struct {
+	ID             uuid.UUID
+	UserID         uuid.UUID
+	Provider       string
+	ProviderUserID string
+	Email          *string
+	EmailVerified  bool
+}
+
+func (q *Queries) CreateIdentity(ctx context.Context, arg CreateIdentityParams) error {
+	_, err := q.db.Exec(ctx, createIdentity,
+		arg.ID,
+		arg.UserID,
+		arg.Provider,
+		arg.ProviderUserID,
+		arg.Email,
+		arg.EmailVerified,
+	)
+	return err
+}
+
+const createOAuthFlow = `-- name: CreateOAuthFlow :exec
+INSERT INTO oauth_flows (
+    id, state_hash, provider, intent, link_user_id, code_verifier, nonce,
+    redirect_to, client, timezone, app_code_challenge, expires_at
+) VALUES (
+    $1, $2, $3, $4, $5, $6, $7,
+    $8, $9, $10, $11, $12
+)
+`
+
+type CreateOAuthFlowParams struct {
+	ID               uuid.UUID
+	StateHash        []byte
+	Provider         string
+	Intent           string
+	LinkUserID       *uuid.UUID
+	CodeVerifier     string
+	Nonce            string
+	RedirectTo       string
+	Client           string
+	Timezone         string
+	AppCodeChallenge *string
+	ExpiresAt        time.Time
+}
+
+func (q *Queries) CreateOAuthFlow(ctx context.Context, arg CreateOAuthFlowParams) error {
+	_, err := q.db.Exec(ctx, createOAuthFlow,
+		arg.ID,
+		arg.StateHash,
+		arg.Provider,
+		arg.Intent,
+		arg.LinkUserID,
+		arg.CodeVerifier,
+		arg.Nonce,
+		arg.RedirectTo,
+		arg.Client,
+		arg.Timezone,
+		arg.AppCodeChallenge,
+		arg.ExpiresAt,
+	)
+	return err
+}
+
+const createPendingOAuthFlow = `-- name: CreatePendingOAuthFlow :exec
+INSERT INTO oauth_flows (
+    id, state_hash, provider, intent, code_verifier, nonce, redirect_to, client, timezone,
+    app_code_challenge, status, pending_identity, completion_token_hash, user_id, expires_at
+) VALUES (
+    $1, $2, $3, 'login', '', '', $4, $5, $6,
+    $7, $8, $9, $10,
+    $11, $12
+)
+`
+
+type CreatePendingOAuthFlowParams struct {
+	ID                  uuid.UUID
+	StateHash           []byte
+	Provider            string
+	RedirectTo          string
+	Client              string
+	Timezone            string
+	AppCodeChallenge    *string
+	Status              string
+	PendingIdentity     []byte
+	CompletionTokenHash []byte
+	UserID              *uuid.UUID
+	ExpiresAt           time.Time
+}
+
+// Second stage of a flow: 'awaiting_email' (Facebook gave no email) or 'ready'
+// (a mobile sign-in waiting for the app to redeem its one-time code).
+func (q *Queries) CreatePendingOAuthFlow(ctx context.Context, arg CreatePendingOAuthFlowParams) error {
+	_, err := q.db.Exec(ctx, createPendingOAuthFlow,
+		arg.ID,
+		arg.StateHash,
+		arg.Provider,
+		arg.RedirectTo,
+		arg.Client,
+		arg.Timezone,
+		arg.AppCodeChallenge,
+		arg.Status,
+		arg.PendingIdentity,
+		arg.CompletionTokenHash,
+		arg.UserID,
 		arg.ExpiresAt,
 	)
 	return err
@@ -168,6 +369,23 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) er
 	return err
 }
 
+const createSocialUser = `-- name: CreateSocialUser :exec
+INSERT INTO users (id, email, email_verified_at)
+VALUES ($1, $2, $3)
+`
+
+type CreateSocialUserParams struct {
+	ID              uuid.UUID
+	Email           string
+	EmailVerifiedAt *time.Time
+}
+
+// A user created by social sign-in: no password; verified only if the provider vouched.
+func (q *Queries) CreateSocialUser(ctx context.Context, arg CreateSocialUserParams) error {
+	_, err := q.db.Exec(ctx, createSocialUser, arg.ID, arg.Email, arg.EmailVerifiedAt)
+	return err
+}
+
 const createUser = `-- name: CreateUser :exec
 
 INSERT INTO users (id, email, password_hash)
@@ -185,6 +403,58 @@ type CreateUserParams struct {
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 	_, err := q.db.Exec(ctx, createUser, arg.ID, arg.Email, arg.PasswordHash)
 	return err
+}
+
+const deleteIdentity = `-- name: DeleteIdentity :execrows
+DELETE FROM user_identities
+WHERE user_id = $1 AND provider = $2
+`
+
+type DeleteIdentityParams struct {
+	UserID   uuid.UUID
+	Provider string
+}
+
+func (q *Queries) DeleteIdentity(ctx context.Context, arg DeleteIdentityParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteIdentity, arg.UserID, arg.Provider)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteIdentityByProviderUser = `-- name: DeleteIdentityByProviderUser :one
+DELETE FROM user_identities
+WHERE provider = $1 AND provider_user_id = $2
+RETURNING user_id
+`
+
+type DeleteIdentityByProviderUserParams struct {
+	Provider       string
+	ProviderUserID string
+}
+
+// Meta's data-deletion callback: identifies the Facebook user only.
+func (q *Queries) DeleteIdentityByProviderUser(ctx context.Context, arg DeleteIdentityByProviderUserParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, deleteIdentityByProviderUser, arg.Provider, arg.ProviderUserID)
+	var user_id uuid.UUID
+	err := row.Scan(&user_id)
+	return user_id, err
+}
+
+const deleteUnverifiedIdentities = `-- name: DeleteUnverifiedIdentities :execrows
+DELETE FROM user_identities
+WHERE user_id = $1 AND email_verified = false
+`
+
+// A password reset proves who owns the email: identities whose provider never
+// vouched for that email (e.g. Facebook) can't keep access to the account.
+func (q *Queries) DeleteUnverifiedIdentities(ctx context.Context, userID uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteUnverifiedIdentities, userID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const extendSession = `-- name: ExtendSession :exec
@@ -255,6 +525,29 @@ func (q *Queries) GetAccountByEmail(ctx context.Context, email string) (GetAccou
 		&i.Status,
 		&i.HasPassword,
 	)
+	return i, err
+}
+
+const getIdentity = `-- name: GetIdentity :one
+SELECT id, user_id
+FROM user_identities
+WHERE provider = $1 AND provider_user_id = $2
+`
+
+type GetIdentityParams struct {
+	Provider       string
+	ProviderUserID string
+}
+
+type GetIdentityRow struct {
+	ID     uuid.UUID
+	UserID uuid.UUID
+}
+
+func (q *Queries) GetIdentity(ctx context.Context, arg GetIdentityParams) (GetIdentityRow, error) {
+	row := q.db.QueryRow(ctx, getIdentity, arg.Provider, arg.ProviderUserID)
+	var i GetIdentityRow
+	err := row.Scan(&i.ID, &i.UserID)
 	return i, err
 }
 
@@ -347,6 +640,25 @@ func (q *Queries) GetRefreshTokenForUpdate(ctx context.Context, tokenHash []byte
 		&i.UserStatus,
 	)
 	return i, err
+}
+
+const getSessionAuthenticatedAt = `-- name: GetSessionAuthenticatedAt :one
+SELECT authenticated_at
+FROM auth_sessions
+WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL
+`
+
+type GetSessionAuthenticatedAtParams struct {
+	ID     uuid.UUID
+	UserID uuid.UUID
+}
+
+// When this session last proved who it is (password or social sign-in), for sensitive actions.
+func (q *Queries) GetSessionAuthenticatedAt(ctx context.Context, arg GetSessionAuthenticatedAtParams) (time.Time, error) {
+	row := q.db.QueryRow(ctx, getSessionAuthenticatedAt, arg.ID, arg.UserID)
+	var authenticated_at time.Time
+	err := row.Scan(&authenticated_at)
+	return authenticated_at, err
 }
 
 const getUserForLogin = `-- name: GetUserForLogin :one
@@ -537,6 +849,45 @@ func (q *Queries) ListAuthEvents(ctx context.Context, userID *uuid.UUID) ([]List
 	return items, nil
 }
 
+const listIdentities = `-- name: ListIdentities :many
+SELECT provider, email, last_used_at, created_at
+FROM user_identities
+WHERE user_id = $1
+ORDER BY created_at
+`
+
+type ListIdentitiesRow struct {
+	Provider   string
+	Email      *string
+	LastUsedAt time.Time
+	CreatedAt  time.Time
+}
+
+func (q *Queries) ListIdentities(ctx context.Context, userID uuid.UUID) ([]ListIdentitiesRow, error) {
+	rows, err := q.db.Query(ctx, listIdentities, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListIdentitiesRow{}
+	for rows.Next() {
+		var i ListIdentitiesRow
+		if err := rows.Scan(
+			&i.Provider,
+			&i.Email,
+			&i.LastUsedAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markEmailVerified = `-- name: MarkEmailVerified :exec
 UPDATE users
 SET email_verified_at = COALESCE(email_verified_at, now())
@@ -631,6 +982,44 @@ type SetPasswordHashParams struct {
 
 func (q *Queries) SetPasswordHash(ctx context.Context, arg SetPasswordHashParams) error {
 	_, err := q.db.Exec(ctx, setPasswordHash, arg.PasswordHash, arg.ID)
+	return err
+}
+
+const setPasswordIfUnset = `-- name: SetPasswordIfUnset :execrows
+UPDATE users
+SET password_hash = $1
+WHERE id = $2 AND password_hash IS NULL
+`
+
+type SetPasswordIfUnsetParams struct {
+	PasswordHash *string
+	ID           uuid.UUID
+}
+
+// POST /auth/password/set: only for accounts that have no password yet.
+func (q *Queries) SetPasswordIfUnset(ctx context.Context, arg SetPasswordIfUnsetParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setPasswordIfUnset, arg.PasswordHash, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const touchIdentity = `-- name: TouchIdentity :exec
+UPDATE user_identities
+SET email = $1, email_verified = $2, last_used_at = now()
+WHERE id = $3
+`
+
+type TouchIdentityParams struct {
+	Email         *string
+	EmailVerified bool
+	ID            uuid.UUID
+}
+
+// Refresh what the provider reports on every sign-in. Never touches the profile.
+func (q *Queries) TouchIdentity(ctx context.Context, arg TouchIdentityParams) error {
+	_, err := q.db.Exec(ctx, touchIdentity, arg.Email, arg.EmailVerified, arg.ID)
 	return err
 }
 

@@ -3,8 +3,8 @@
 import { queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { changePassword, forgotPassword, getMe, health, listAuthEvents, listSessions, login, logout, logoutAll, type Options, ready, refreshToken, resendVerification, resetPassword, revokeSession, signup, updatePreferences, updateProfile, verifyEmail } from '../sdk.gen';
-import type { ChangePasswordData, ChangePasswordError, ChangePasswordResponse, ForgotPasswordData, ForgotPasswordError, ForgotPasswordResponse, GetMeData, GetMeError, GetMeResponse, HealthData, HealthError, HealthResponse, ListAuthEventsData, ListAuthEventsError, ListAuthEventsResponse, ListSessionsData, ListSessionsError, ListSessionsResponse, LoginData, LoginError, LoginResponse, LogoutAllData, LogoutAllError, LogoutAllResponse, LogoutData, LogoutError, LogoutResponse, ReadyData, ReadyError, ReadyResponse, RefreshTokenData, RefreshTokenError, RefreshTokenResponse, ResendVerificationData, ResendVerificationError, ResendVerificationResponse, ResetPasswordData, ResetPasswordError, ResetPasswordResponse, RevokeSessionData, RevokeSessionError, RevokeSessionResponse, SignupData, SignupError, SignupResponse, UpdatePreferencesData, UpdatePreferencesError, UpdatePreferencesResponse, UpdateProfileData, UpdateProfileError, UpdateProfileResponse, VerifyEmailData, VerifyEmailError, VerifyEmailResponse } from '../types.gen';
+import { changePassword, facebookDataDeletion, forgotPassword, getMe, health, listAuthEvents, listIdentities, listOauthProviders, listSessions, login, logout, logoutAll, oauthCallback, oauthComplete, oauthLink, oauthStart, oauthToken, type Options, ready, refreshToken, resendVerification, resetPassword, revokeSession, setPassword, signup, unlinkIdentity, updatePreferences, updateProfile, verifyEmail } from '../sdk.gen';
+import type { ChangePasswordData, ChangePasswordError, ChangePasswordResponse, FacebookDataDeletionData, FacebookDataDeletionError, FacebookDataDeletionResponse, ForgotPasswordData, ForgotPasswordError, ForgotPasswordResponse, GetMeData, GetMeError, GetMeResponse, HealthData, HealthError, HealthResponse, ListAuthEventsData, ListAuthEventsError, ListAuthEventsResponse, ListIdentitiesData, ListIdentitiesError, ListIdentitiesResponse, ListOauthProvidersData, ListOauthProvidersError, ListOauthProvidersResponse, ListSessionsData, ListSessionsError, ListSessionsResponse, LoginData, LoginError, LoginResponse, LogoutAllData, LogoutAllError, LogoutAllResponse, LogoutData, LogoutError, LogoutResponse, OauthCallbackData, OauthCallbackError, OauthCallbackResponse, OauthCompleteData, OauthCompleteError, OauthCompleteResponse, OauthLinkData, OauthLinkError, OauthLinkResponse, OauthStartData, OauthStartError, OauthStartResponse, OauthTokenData, OauthTokenError, OauthTokenResponse, ReadyData, ReadyError, ReadyResponse, RefreshTokenData, RefreshTokenError, RefreshTokenResponse, ResendVerificationData, ResendVerificationError, ResendVerificationResponse, ResetPasswordData, ResetPasswordError, ResetPasswordResponse, RevokeSessionData, RevokeSessionError, RevokeSessionResponse, SetPasswordData, SetPasswordError, SetPasswordResponse, SignupData, SignupError, SignupResponse, UnlinkIdentityData, UnlinkIdentityError, UnlinkIdentityResponse, UpdatePreferencesData, UpdatePreferencesError, UpdatePreferencesResponse, UpdateProfileData, UpdateProfileError, UpdateProfileResponse, VerifyEmailData, VerifyEmailError, VerifyEmailResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -97,6 +97,41 @@ export const listAuthEventsOptions = (options?: Options<ListAuthEventsData>) => 
     queryKey: listAuthEventsQueryKey(options)
 });
 
+export const listIdentitiesQueryKey = (options?: Options<ListIdentitiesData>) => createQueryKey('listIdentities', options);
+
+/**
+ * Connected sign-in providers, and whether a password is set
+ */
+export const listIdentitiesOptions = (options?: Options<ListIdentitiesData>) => queryOptions<ListIdentitiesResponse, ListIdentitiesError, ListIdentitiesResponse, ReturnType<typeof listIdentitiesQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listIdentities({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listIdentitiesQueryKey(options)
+});
+
+/**
+ * Disconnect a provider (needs a recent sign-in; never the last sign-in method)
+ */
+export const unlinkIdentityMutation = (options?: Partial<Options<UnlinkIdentityData>>): UseMutationOptions<UnlinkIdentityResponse, UnlinkIdentityError, Options<UnlinkIdentityData>> => {
+    const mutationOptions: UseMutationOptions<UnlinkIdentityResponse, UnlinkIdentityError, Options<UnlinkIdentityData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await unlinkIdentity({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
 /**
  * Sign in with email and password
  */
@@ -149,6 +184,111 @@ export const logoutAllMutation = (options?: Partial<Options<LogoutAllData>>): Us
 };
 
 /**
+ * Finish a social sign-in whose provider gave no email
+ */
+export const oauthCompleteMutation = (options?: Partial<Options<OauthCompleteData>>): UseMutationOptions<OauthCompleteResponse, OauthCompleteError, Options<OauthCompleteData>> => {
+    const mutationOptions: UseMutationOptions<OauthCompleteResponse, OauthCompleteError, Options<OauthCompleteData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await oauthComplete({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Meta data-deletion callback: disconnects that Facebook account
+ */
+export const facebookDataDeletionMutation = (options?: Partial<Options<FacebookDataDeletionData>>): UseMutationOptions<FacebookDataDeletionResponse, FacebookDataDeletionError, Options<FacebookDataDeletionData>> => {
+    const mutationOptions: UseMutationOptions<FacebookDataDeletionResponse, FacebookDataDeletionError, Options<FacebookDataDeletionData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await facebookDataDeletion({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Mobile: redeem the one-time code from the callback for tokens
+ */
+export const oauthTokenMutation = (options?: Partial<Options<OauthTokenData>>): UseMutationOptions<OauthTokenResponse, OauthTokenError, Options<OauthTokenData>> => {
+    const mutationOptions: UseMutationOptions<OauthTokenResponse, OauthTokenError, Options<OauthTokenData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await oauthToken({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const oauthCallbackQueryKey = (options: Options<OauthCallbackData>) => createQueryKey('oauthCallback', options);
+
+/**
+ * Provider callback: signs in, then redirects to redirect_to
+ */
+export const oauthCallbackOptions = (options: Options<OauthCallbackData>) => queryOptions<OauthCallbackResponse, OauthCallbackError, OauthCallbackResponse, ReturnType<typeof oauthCallbackQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await oauthCallback({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: oauthCallbackQueryKey(options)
+});
+
+export const oauthLinkQueryKey = (options: Options<OauthLinkData>) => createQueryKey('oauthLink', options);
+
+/**
+ * Connect a provider from settings (needs a recent sign-in)
+ */
+export const oauthLinkOptions = (options: Options<OauthLinkData>) => queryOptions<OauthLinkResponse, OauthLinkError, OauthLinkResponse, ReturnType<typeof oauthLinkQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await oauthLink({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: oauthLinkQueryKey(options)
+});
+
+export const oauthStartQueryKey = (options: Options<OauthStartData>) => createQueryKey('oauthStart', options);
+
+/**
+ * Start social sign-in: redirects to the provider
+ */
+export const oauthStartOptions = (options: Options<OauthStartData>) => queryOptions<OauthStartResponse, OauthStartError, OauthStartResponse, ReturnType<typeof oauthStartQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await oauthStart({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: oauthStartQueryKey(options)
+});
+
+/**
  * Change password; signs out every other device
  */
 export const changePasswordMutation = (options?: Partial<Options<ChangePasswordData>>): UseMutationOptions<ChangePasswordResponse, ChangePasswordError, Options<ChangePasswordData>> => {
@@ -198,6 +338,41 @@ export const resetPasswordMutation = (options?: Partial<Options<ResetPasswordDat
     };
     return mutationOptions;
 };
+
+/**
+ * Add a password to an account that only uses social sign-in (needs a recent sign-in)
+ */
+export const setPasswordMutation = (options?: Partial<Options<SetPasswordData>>): UseMutationOptions<SetPasswordResponse, SetPasswordError, Options<SetPasswordData>> => {
+    const mutationOptions: UseMutationOptions<SetPasswordResponse, SetPasswordError, Options<SetPasswordData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await setPassword({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const listOauthProvidersQueryKey = (options?: Options<ListOauthProvidersData>) => createQueryKey('listOauthProviders', options);
+
+/**
+ * Social sign-in providers this server offers
+ */
+export const listOauthProvidersOptions = (options?: Options<ListOauthProvidersData>) => queryOptions<ListOauthProvidersResponse, ListOauthProvidersError, ListOauthProvidersResponse, ReturnType<typeof listOauthProvidersQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listOauthProviders({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listOauthProvidersQueryKey(options)
+});
 
 export const listSessionsQueryKey = (options?: Options<ListSessionsData>) => createQueryKey('listSessions', options);
 

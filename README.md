@@ -235,7 +235,7 @@ Run `task` on its own to list every available task.
 
 ## 9. Authentication
 
-Password sign-in is built (social login comes next). The full design is in [docs/PHASE-2-AUTH.md](docs/PHASE-2-AUTH.md).
+Password sign-in, Google and Facebook are built (Apple comes later). The full design is in [docs/PHASE-2-AUTH.md](docs/PHASE-2-AUTH.md).
 
 | Flow                 | Endpoints                                                                                                |
 | -------------------- | -------------------------------------------------------------------------------------------------------- |
@@ -244,9 +244,39 @@ Password sign-in is built (social login comes next). The full design is in [docs
 | Passwords            | `POST /v1/auth/password/forgot`, `POST /v1/auth/password/reset`, `POST /v1/auth/password/change`         |
 | Devices and activity | `GET /v1/auth/sessions`, `DELETE /v1/auth/sessions/{id}`, `GET /v1/auth/events`                          |
 | Profile              | `GET /v1/me`, `PATCH /v1/me/profile`, `PATCH /v1/me/preferences`                                         |
+| Social sign-in       | `GET /v1/auth/providers`, `GET /v1/auth/oauth/{provider}/start`, `…/callback`, `POST /v1/auth/oauth/complete`, `POST /v1/auth/oauth/token` |
+| Connected accounts   | `GET /v1/auth/identities`, `GET /v1/auth/oauth/{provider}/link`, `DELETE /v1/auth/identities/{provider}`, `POST /v1/auth/password/set` |
+| Meta compliance      | `POST /v1/auth/oauth/facebook/data-deletion`                                                             |
+
 - **Web** (`client` omitted or `web`): tokens arrive as httpOnly cookies: `relay_access` (15 minutes) and `relay_refresh` (30 days, sent only to the refresh endpoint). Requests that change data using cookies must come from an origin in `CORS_ALLOWED_ORIGINS`.
 - **Mobile** (`"client": "mobile"` on login): tokens arrive in the response body. Send `Authorization: Bearer <access_token>`, and `{"refresh_token": …}` to refresh. Send `X-Device-Name` so the sessions list shows the device.
 - **Try it locally**: sign up from the API docs (`/docs`), then find the verification link in Mailpit. The link points at the web app's `/verify-email` page; until that page exists, post its `token` to `POST /v1/auth/verify-email`.
+
+### Social sign-in
+
+- **Web:** link the button to `GET /v1/auth/oauth/google/start?redirect_to=<page>&timezone=<IANA>`. After the provider, the browser lands on `redirect_to` signed in (cookies set). On failure it lands there with `?error=<code>`: `oauth_cancelled`, `email_in_use_sign_in_first`, `account_disabled`, `invalid_oauth_state`, `oauth_failed` or `server_error`.
+- **Facebook without an email** (phone-number accounts): the browser lands on `redirect_to?complete_token=…`. Ask for an email and `POST /v1/auth/oauth/complete` with `{token, email}`.
+- **Mobile:** open `…/start?client=mobile&redirect_to=<deep link in AUTH_ALLOWED_REDIRECTS>&code_challenge=<PKCE S256>` in the system browser. The app receives `<deep link>?code=…` and redeems it at `POST /v1/auth/oauth/token` with `{code, code_verifier}`.
+- **Connecting from settings:** `GET /v1/auth/oauth/{provider}/link?redirect_to=<settings page>` needs a sign-in within `REAUTH_MAX_AGE`. The browser returns with `?linked=google`, or `?error=reauthentication_required` / `identity_in_use`.
+- **Rules:** an email the provider doesn't vouch for is never attached to an existing account, and Facebook never vouches. The last sign-in method can't be disconnected.
+
+**Setting up the providers** (development):
+
+1. **Google:** in [Google Cloud Console](https://console.cloud.google.com), open Google Auth Platform:
+   - Set the audience to **External** in **Testing**, and add your Gmail under **Test users**.
+   - Add the scopes `openid`, `email` and `profile`.
+   - Create a **Web application** client with the redirect URI `http://localhost:8080/v1/auth/oauth/google/callback`.
+   - Put its ID and secret in `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+2. **Facebook:** in [Meta for Developers](https://developers.facebook.com), create an app with the **Facebook Login** use case:
+   - Add the `email` and `public_profile` permissions.
+   - Add the valid OAuth redirect URI `http://localhost:8080/v1/auth/oauth/facebook/callback`.
+   - Copy the app ID and secret from **App settings → Basic** into `FACEBOOK_APP_ID` and `FACEBOOK_APP_SECRET`.
+   - While the app is in Development mode, only people with a role on the app can sign in.
+3. Restart the API. The log line `social sign-in providers enabled=[…]` lists what's on.
+4. **Production:**
+   - Register `https://<api domain>/v1/auth/oauth/{provider}/callback` with each provider.
+   - Set `API_BASE_URL`.
+   - Before switching Meta to Live, give it the data-deletion callback `https://<api domain>/v1/auth/oauth/facebook/data-deletion`.
 
 **Rotating the signing key:** generate one with `task keygen`, move the old key's `kid:public-key` into `JWT_PREVIOUS_PUBLIC_KEYS`, and deploy. Remove the old entry after 15 minutes, once every token signed with it has expired.
 

@@ -52,16 +52,48 @@ func Register(api huma.API, h *Handler, requireAuth func(huma.Context, func(huma
 		"Sign out one device", http.StatusNoContent), h.revokeSession)
 	huma.Register(api, authed("list-auth-events", http.MethodGet, "/v1/auth/events",
 		"Recent security activity", http.StatusOK), h.listEvents)
+
+	// Social sign-in (docs/PHASE-2-AUTH.md section 4; flow notes in oauth.go).
+	huma.Register(api, public("list-oauth-providers", http.MethodGet, "/v1/auth/providers",
+		"Social sign-in providers this server offers", http.StatusOK), h.listProviders)
+	huma.Register(api, public("oauth-start", http.MethodGet, "/v1/auth/oauth/{provider}/start",
+		"Start social sign-in: redirects to the provider", http.StatusFound), h.oauthStart)
+	huma.Register(api, public("oauth-callback", http.MethodGet, "/v1/auth/oauth/{provider}/callback",
+		"Provider callback: signs in, then redirects to redirect_to", http.StatusFound), h.oauthCallback)
+	huma.Register(api, public("oauth-complete", http.MethodPost, "/v1/auth/oauth/complete",
+		"Finish a social sign-in whose provider gave no email", http.StatusOK), h.oauthComplete)
+	huma.Register(api, public("oauth-token", http.MethodPost, "/v1/auth/oauth/token",
+		"Mobile: redeem the one-time code from the callback for tokens", http.StatusOK), h.oauthToken)
+	huma.Register(api, public("facebook-data-deletion", http.MethodPost, "/v1/auth/oauth/facebook/data-deletion",
+		"Meta data-deletion callback: disconnects that Facebook account", http.StatusOK), h.facebookDataDeletion)
+	huma.Register(api, authed("oauth-link", http.MethodGet, "/v1/auth/oauth/{provider}/link",
+		"Connect a provider from settings (needs a recent sign-in)", http.StatusFound), h.oauthLink)
+	huma.Register(api, authed("list-identities", http.MethodGet, "/v1/auth/identities",
+		"Connected sign-in providers, and whether a password is set", http.StatusOK), h.listIdentities)
+	huma.Register(api, authed("unlink-identity", http.MethodDelete, "/v1/auth/identities/{provider}",
+		"Disconnect a provider (needs a recent sign-in; never the last sign-in method)", http.StatusNoContent), h.unlinkIdentity)
+	huma.Register(api, authed("set-password", http.MethodPost, "/v1/auth/password/set",
+		"Add a password to an account that only uses social sign-in (needs a recent sign-in)", http.StatusNoContent), h.setPassword)
 }
 
 // RateLimits are per-IP limits for auth endpoints, on top of the global limit.
 func RateLimits() []middleware.RouteLimit {
-	return []middleware.RouteLimit{
+	limits := []middleware.RouteLimit{
 		{Method: http.MethodPost, Path: "/v1/auth/login", Requests: 10, Window: time.Minute},
 		{Method: http.MethodPost, Path: "/v1/auth/signup", Requests: 5, Window: time.Hour},
 		{Method: http.MethodPost, Path: "/v1/auth/verify-email/resend", Requests: 5, Window: time.Hour},
 		{Method: http.MethodPost, Path: "/v1/auth/password/forgot", Requests: 5, Window: time.Hour},
 		{Method: http.MethodPost, Path: "/v1/auth/password/reset", Requests: 10, Window: time.Hour},
 		{Method: http.MethodPost, Path: "/v1/auth/token/refresh", Requests: 60, Window: time.Minute},
+		{Method: http.MethodPost, Path: "/v1/auth/oauth/complete", Requests: 10, Window: time.Hour},
+		{Method: http.MethodPost, Path: "/v1/auth/oauth/token", Requests: 30, Window: time.Minute},
+		{Method: http.MethodPost, Path: "/v1/auth/password/set", Requests: 10, Window: time.Hour},
 	}
+	for _, p := range []string{providerGoogle, providerFacebook, "apple"} {
+		limits = append(limits,
+			middleware.RouteLimit{Method: http.MethodGet, Path: "/v1/auth/oauth/" + p + "/start", Requests: 30, Window: time.Minute},
+			middleware.RouteLimit{Method: http.MethodGet, Path: "/v1/auth/oauth/" + p + "/callback", Requests: 30, Window: time.Minute},
+		)
+	}
+	return limits
 }

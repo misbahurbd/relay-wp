@@ -14,8 +14,25 @@ const (
 	clientMobile = "mobile"
 )
 
-// Sign-in providers recorded on sessions and events.
-const providerPassword = "password"
+// Sign-in providers recorded on sessions, identities and events.
+const (
+	providerPassword = "password"
+	providerGoogle   = "google"
+	providerFacebook = "facebook"
+)
+
+// OAuth flow settings.
+const (
+	intentLogin = "login"
+	intentLink  = "link"
+
+	flowStatusAwaitingEmail = "awaiting_email"
+	flowStatusReady         = "ready"
+
+	oauthFlowTTL     = 10 * time.Minute // provider round trip
+	oauthReadyTTL    = 2 * time.Minute  // mobile app redeeming its one-time code
+	oauthAwaitingTTL = 30 * time.Minute // user typing an email address
+)
 
 // Email token purposes and lifetimes.
 const (
@@ -34,6 +51,7 @@ const (
 	revokePasswordReset   = "password_reset"
 	revokeReuseDetected   = "reuse_detected"
 	revokeByUser          = "revoked_by_user"
+	revokeAccountClaimed  = "account_claimed"
 )
 
 // Security events written to auth_events.
@@ -50,6 +68,9 @@ const (
 	eventPasswordResetCompleted = "password_reset_completed"
 	eventSessionRevoked         = "session_revoked"
 	eventRefreshReuseDetected   = "refresh_reuse_detected"
+	eventPasswordSet            = "password_set"
+	eventIdentityLinked         = "identity_linked"
+	eventIdentityUnlinked       = "identity_unlinked"
 )
 
 // RequestMeta describes who is calling, for sessions and the event log.
@@ -99,4 +120,36 @@ type Event struct {
 	IP        string
 	Device    string
 	CreatedAt time.Time
+}
+
+// OAuthStart begins a social sign-in or a link from settings.
+type OAuthStart struct {
+	Provider   string
+	Intent     string // login or link
+	LinkUserID uuid.UUID
+	SessionID  uuid.UUID // link only: the session must have signed in recently
+	Client     string
+	RedirectTo string
+	Timezone   string
+	// AppCodeChallenge is the mobile app's PKCE S256 challenge (required for mobile).
+	AppCodeChallenge string
+}
+
+// OAuthResult is where a callback sends the browser next. Exactly one outcome is set.
+type OAuthResult struct {
+	RedirectTo string
+	Tokens     *Tokens // web sign-in: set cookies
+	AppCode    string  // mobile sign-in: one-time code for POST /auth/oauth/token
+	// CompleteToken means the provider gave no email: ask for one (POST /auth/oauth/complete).
+	CompleteToken string
+	Linked        string // provider connected from settings
+	ErrorCode     string // sign-in failed; shown by the page at RedirectTo
+}
+
+// Identity is one connected social account, as shown to its owner.
+type Identity struct {
+	Provider   string
+	Email      string
+	LastUsedAt time.Time
+	CreatedAt  time.Time
 }

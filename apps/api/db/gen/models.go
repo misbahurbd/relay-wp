@@ -66,6 +66,9 @@ type OauthFlow struct {
 	CompletionTokenHash []byte
 	ExpiresAt           time.Time
 	CreatedAt           time.Time
+	Timezone            string
+	AppCodeChallenge    *string
+	UserID              *uuid.UUID
 }
 
 type RefreshToken struct {

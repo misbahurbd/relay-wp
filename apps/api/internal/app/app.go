@@ -54,6 +54,9 @@ type App struct {
 	auth     *auth.Service
 	accounts *auth.Accounts
 	profiles *profiles.Service
+
+	// oauth overrides the provider config built from cfg; tests point it at a fake provider.
+	oauth *auth.ProvidersConfig
 }
 
 // New connects to every dependency. Any misconfiguration fails here, not on the first request.
@@ -107,9 +110,26 @@ func (a *App) buildFeatures() (err error) {
 	if a.cfg.Auth.PasswordBreachCheck {
 		breach = auth.NewHIBP()
 	}
-	a.auth, err = auth.New(a.db, a.jwt, a.queue, a.profiles, breach, auth.Config{
-		RefreshTTL: a.cfg.Auth.RefreshTokenTTL,
-		AppBaseURL: a.cfg.AppBaseURL,
+	oauthCfg := auth.ProvidersConfig{
+		Google:   auth.GoogleConfig{ClientID: a.cfg.Auth.GoogleClientID, ClientSecret: a.cfg.Auth.GoogleClientSecret},
+		Facebook: auth.FacebookConfig{AppID: a.cfg.Auth.FacebookAppID, AppSecret: a.cfg.Auth.FacebookAppSecret},
+	}
+	if a.oauth != nil {
+		oauthCfg = *a.oauth
+	}
+	providers, err := auth.NewProviders(oauthCfg)
+	if err != nil {
+		return err
+	}
+	if a.log != nil {
+		a.log.Info("social sign-in providers", "enabled", providers.Names())
+	}
+	a.auth, err = auth.New(a.db, a.jwt, a.queue, a.profiles, breach, providers, auth.Config{
+		RefreshTTL:       a.cfg.Auth.RefreshTokenTTL,
+		AppBaseURL:       a.cfg.AppBaseURL,
+		APIBaseURL:       a.cfg.Auth.APIBaseURL,
+		AllowedRedirects: a.cfg.Auth.AllowedRedirects,
+		ReauthMaxAge:     a.cfg.Auth.ReauthMaxAge,
 	})
 	return err
 }

@@ -21,6 +21,23 @@
         ],
         "type": "object"
       },
+      "DataDeletionOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmation_code": {
+            "type": "string"
+          },
+          "url": {
+            "description": "Page where the person can check the deletion status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "confirmation_code"
+        ],
+        "type": "object"
+      },
       "Detail": {
         "additionalProperties": false,
         "properties": {
@@ -139,6 +156,59 @@
         ],
         "type": "object"
       },
+      "IdentitiesOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "has_password": {
+            "type": "boolean"
+          },
+          "identities": {
+            "items": {
+              "$ref": "#/components/schemas/IdentityDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "has_password",
+          "identities"
+        ],
+        "type": "object"
+      },
+      "IdentityDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "email": {
+            "description": "What the provider reported",
+            "type": "string"
+          },
+          "last_used_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "provider": {
+            "enum": [
+              "google",
+              "facebook",
+              "apple"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "last_used_at",
+          "created_at"
+        ],
+        "type": "object"
+      },
       "LoginInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -198,6 +268,54 @@
         ],
         "type": "object"
       },
+      "OauthCompleteInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "code_verifier": {
+            "description": "Mobile only: the PKCE verifier",
+            "maxLength": 128,
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "maxLength": 254,
+            "type": "string"
+          },
+          "token": {
+            "description": "complete_token from the callback redirect",
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "email"
+        ],
+        "type": "object"
+      },
+      "OauthTokenInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "description": "code from the callback redirect",
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          },
+          "code_verifier": {
+            "description": "PKCE verifier matching the code_challenge sent to start",
+            "maxLength": 128,
+            "minLength": 43,
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "code_verifier"
+        ],
+        "type": "object"
+      },
       "PreferencesDTO": {
         "additionalProperties": false,
         "properties": {
@@ -251,6 +369,31 @@
           "last_name",
           "display_name",
           "avatar_url"
+        ],
+        "type": "object"
+      },
+      "ProvidersOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "providers": {
+            "description": "Social sign-in providers this server offers",
+            "examples": [
+              [
+                "google",
+                "facebook"
+              ]
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "providers"
         ],
         "type": "object"
       },
@@ -368,6 +511,20 @@
         },
         "required": [
           "sessions"
+        ],
+        "type": "object"
+      },
+      "SetPasswordInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "new_password": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "new_password"
         ],
         "type": "object"
       },
@@ -674,6 +831,126 @@
         ]
       }
     },
+    "/v1/auth/identities": {
+      "get": {
+        "operationId": "list-identities",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Device name sent by the mobile app, e.g. iPhone 15",
+            "in": "header",
+            "name": "X-Device-Name",
+            "schema": {
+              "description": "Device name sent by the mobile app, e.g. iPhone 15",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentitiesOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Connected sign-in providers, and whether a password is set",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/identities/{provider}": {
+      "delete": {
+        "operationId": "unlink-identity",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Device name sent by the mobile app, e.g. iPhone 15",
+            "in": "header",
+            "name": "X-Device-Name",
+            "schema": {
+              "description": "Device name sent by the mobile app, e.g. iPhone 15",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "enum": [
+                "google",
+                "facebook",
+                "apple"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Disconnect a provider (needs a recent sign-in; never the last sign-in method)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/v1/auth/login": {
       "post": {
         "operationId": "login",
@@ -854,6 +1131,488 @@
         ]
       }
     },
+    "/v1/auth/oauth/complete": {
+      "post": {
+        "operationId": "oauth-complete",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Device name sent by the mobile app, e.g. iPhone 15",
+            "in": "header",
+            "name": "X-Device-Name",
+            "schema": {
+              "description": "Device name sent by the mobile app, e.g. iPhone 15",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OauthCompleteInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenBody"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Finish a social sign-in whose provider gave no email",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/oauth/facebook/data-deletion": {
+      "post": {
+        "operationId": "facebook-data-deletion",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Device name sent by the mobile app, e.g. iPhone 15",
+            "in": "header",
+            "name": "X-Device-Name",
+            "schema": {
+              "description": "Device name sent by the mobile app, e.g. iPhone 15",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "contentMediaType": "application/octet-stream",
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataDeletionOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Meta data-deletion callback: disconnects that Facebook account",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/oauth/token": {
+      "post": {
+        "operationId": "oauth-token",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Device name sent by the mobile app, e.g. iPhone 15",
+            "in": "header",
+            "name": "X-Device-Name",
+            "schema": {
+              "description": "Device name sent by the mobile app, e.g. iPhone 15",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OauthTokenInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenBody"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Mobile: redeem the one-time code from the callback for tokens",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/oauth/{provider}/callback": {
+      "get": {
+        "operationId": "oauth-callback",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Device name sent by the mobile app, e.g. iPhone 15",
+            "in": "header",
+            "name": "X-Device-Name",
+            "schema": {
+              "description": "Device name sent by the mobile app, e.g. iPhone 15",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "enum": [
+                "google",
+                "facebook",
+                "apple"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "code",
+            "schema": {
+              "maxLength": 2048,
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "state",
+            "schema": {
+              "maxLength": 256,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Set by the provider when the person cancels or it fails",
+            "explode": false,
+            "in": "query",
+            "name": "error",
+            "schema": {
+              "description": "Set by the provider when the person cancels or it fails",
+              "maxLength": 256,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Binds the attempt to the browser that started it",
+            "in": "cookie",
+            "name": "relay_oauth",
+            "schema": {
+              "description": "Binds the attempt to the browser that started it",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Found",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Provider callback: signs in, then redirects to redirect_to",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/oauth/{provider}/link": {
+      "get": {
+        "operationId": "oauth-link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "enum": [
+                "google",
+                "facebook",
+                "apple"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Settings page to return to",
+            "explode": false,
+            "in": "query",
+            "name": "redirect_to",
+            "schema": {
+              "description": "Settings page to return to",
+              "maxLength": 2048,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Found",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Connect a provider from settings (needs a recent sign-in)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/oauth/{provider}/start": {
+      "get": {
+        "operationId": "oauth-start",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "enum": [
+                "google",
+                "facebook",
+                "apple"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "web ends with auth cookies; mobile ends at redirect_to with a one-time code",
+            "explode": false,
+            "in": "query",
+            "name": "client",
+            "schema": {
+              "default": "web",
+              "description": "web ends with auth cookies; mobile ends at redirect_to with a one-time code",
+              "enum": [
+                "web",
+                "mobile"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Where to land afterwards. Any page of the web app, or an exact AUTH_ALLOWED_REDIRECTS entry (required for mobile).",
+            "explode": false,
+            "in": "query",
+            "name": "redirect_to",
+            "schema": {
+              "description": "Where to land afterwards. Any page of the web app, or an exact AUTH_ALLOWED_REDIRECTS entry (required for mobile).",
+              "maxLength": 2048,
+              "type": "string"
+            }
+          },
+          {
+            "description": "IANA timezone, used if this sign-in creates the account",
+            "explode": false,
+            "in": "query",
+            "name": "timezone",
+            "schema": {
+              "description": "IANA timezone, used if this sign-in creates the account",
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Mobile only: PKCE S256 challenge of the verifier the app sends to POST /v1/auth/oauth/token",
+            "explode": false,
+            "in": "query",
+            "name": "code_challenge",
+            "schema": {
+              "description": "Mobile only: PKCE S256 challenge of the verifier the app sends to POST /v1/auth/oauth/token",
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Found",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Start social sign-in: redirects to the provider",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/v1/auth/password/change": {
       "post": {
         "operationId": "change-password",
@@ -1020,6 +1779,97 @@
           }
         },
         "summary": "Set a new password from the emailed link; signs out every device",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/password/set": {
+      "post": {
+        "operationId": "set-password",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Device name sent by the mobile app, e.g. iPhone 15",
+            "in": "header",
+            "name": "X-Device-Name",
+            "schema": {
+              "description": "Device name sent by the mobile app, e.g. iPhone 15",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetPasswordInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Add a password to an account that only uses social sign-in (needs a recent sign-in)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/providers": {
+      "get": {
+        "operationId": "list-oauth-providers",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProvidersOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Social sign-in providers this server offers",
         "tags": [
           "auth"
         ]

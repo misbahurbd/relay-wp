@@ -42,6 +42,14 @@ type ProfileCreator interface {
 type Config struct {
 	RefreshTTL time.Duration
 	AppBaseURL string
+
+	// APIBaseURL builds OAuth callback URLs.
+	APIBaseURL string
+	// AllowedRedirects are extra exact URLs a social sign-in may return to
+	// (e.g. mobile deep links). Any page on AppBaseURL is always allowed.
+	AllowedRedirects []string
+	// ReauthMaxAge is how recent a sign-in must be for sensitive actions.
+	ReauthMaxAge time.Duration
 }
 
 // Service implements every auth flow. Handlers call it; it never sees HTTP.
@@ -51,6 +59,7 @@ type Service struct {
 	queue    Enqueuer
 	profiles ProfileCreator
 	breach   BreachChecker // nil disables the breach check
+	oauth    Providers     // only configured providers
 	cfg      Config
 
 	loginFailures *failureLimiter
@@ -58,14 +67,14 @@ type Service struct {
 	now           func() time.Time
 }
 
-// New builds the service. breach may be nil.
-func New(pool *pgxpool.Pool, tokens TokenIssuer, queue Enqueuer, profiles ProfileCreator, breach BreachChecker, cfg Config) (*Service, error) {
+// New builds the service. breach may be nil; providers may be empty.
+func New(pool *pgxpool.Pool, tokens TokenIssuer, queue Enqueuer, profiles ProfileCreator, breach BreachChecker, providers Providers, cfg Config) (*Service, error) {
 	dummy, err := hashPassword("not-a-real-password-Aa1!")
 	if err != nil {
 		return nil, err
 	}
 	return &Service{
-		pool: pool, tokens: tokens, queue: queue, profiles: profiles, breach: breach, cfg: cfg,
+		pool: pool, tokens: tokens, queue: queue, profiles: profiles, breach: breach, oauth: providers, cfg: cfg,
 		loginFailures: newFailureLimiter(5, 15*time.Minute),
 		dummyHash:     dummy,
 		now:           func() time.Time { return time.Now().UTC() },
@@ -391,6 +400,24 @@ func (s *Service) ResetPassword(ctx context.Context, token, newPassword string, 
 		}
 		if err != nil {
 			return fmt.Errorf("consume reset token: %w", err)
+		}
+		acc, err := r.GetAccount(ctx, row.UserID)
+		if err != nil {
+			return fmt.Errorf("load account: %w", err)
+		}
+		if acc.EmailVerifiedAt == nil {
+			// The link proves who owns this email. A social account the provider
+			// didn't vouch for (Facebook) may have been someone else's: disconnect it.
+			n, err := r.DeleteUnverifiedIdentities(ctx, row.UserID)
+			if err != nil {
+				return fmt.Errorf("remove unverified identities: %w", err)
+			}
+			if n > 0 {
+				if err := s.record(ctx, r, &row.UserID, eventIdentityUnlinked, "", meta,
+					map[string]any{"reason": "password_reset_unverified"}); err != nil {
+					return err
+				}
+			}
 		}
 		if err := r.SetPasswordHash(ctx, gen.SetPasswordHashParams{ID: row.UserID, PasswordHash: &hash}); err != nil {
 			return fmt.Errorf("set password: %w", err)
