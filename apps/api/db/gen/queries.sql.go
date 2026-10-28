@@ -13,6 +13,44 @@ import (
 	"github.com/google/uuid"
 )
 
+const addWorkspaceMember = `-- name: AddWorkspaceMember :exec
+INSERT INTO workspace_members (workspace_id, user_id, role)
+VALUES ($1, $2, $3)
+`
+
+type AddWorkspaceMemberParams struct {
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+	Role        string
+}
+
+func (q *Queries) AddWorkspaceMember(ctx context.Context, arg AddWorkspaceMemberParams) error {
+	_, err := q.db.Exec(ctx, addWorkspaceMember, arg.WorkspaceID, arg.UserID, arg.Role)
+	return err
+}
+
+const bumpReminderCount = `-- name: BumpReminderCount :exec
+UPDATE workspace_onboarding
+SET reminder_count = reminder_count + 1
+WHERE workspace_id = $1
+`
+
+func (q *Queries) BumpReminderCount(ctx context.Context, workspaceID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, bumpReminderCount, workspaceID)
+	return err
+}
+
+const completeOnboarding = `-- name: CompleteOnboarding :exec
+UPDATE workspace_onboarding
+SET completed_at = COALESCE(completed_at, now())
+WHERE workspace_id = $1
+`
+
+func (q *Queries) CompleteOnboarding(ctx context.Context, workspaceID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, completeOnboarding, workspaceID)
+	return err
+}
+
 const consumeEmailToken = `-- name: ConsumeEmailToken :one
 UPDATE email_tokens
 SET used_at = now()
@@ -127,6 +165,114 @@ func (q *Queries) CountIdentities(ctx context.Context, userID uuid.UUID) (int64,
 	return count, err
 }
 
+const countPasswordFailures = `-- name: CountPasswordFailures :one
+SELECT
+    count(*) FILTER (WHERE e.ip = $1::inet)::int AS from_ip,
+    count(*)::int AS total
+FROM auth_events e
+WHERE e.metadata ? 'key'
+  AND e.metadata ->> 'key' = $2::text
+  AND e.event = 'login_failed'
+  AND e.created_at > GREATEST($3::timestamptz, COALESCE((
+      SELECT max(s.created_at) FROM auth_events s
+      WHERE s.metadata ? 'key' AND s.metadata ->> 'key' = $2::text AND s.event = 'login_succeeded'
+  ), '-infinity'::timestamptz))
+`
+
+type CountPasswordFailuresParams struct {
+	ClientIp *netip.Addr
+	Key      string
+	Since    time.Time
+}
+
+type CountPasswordFailuresRow struct {
+	FromIp int32
+	Total  int32
+}
+
+// Wrong passwords for one email (metadata.key) since @since and since its last
+// successful sign-in: from this IP, and from anywhere.
+func (q *Queries) CountPasswordFailures(ctx context.Context, arg CountPasswordFailuresParams) (CountPasswordFailuresRow, error) {
+	row := q.db.QueryRow(ctx, countPasswordFailures, arg.ClientIp, arg.Key, arg.Since)
+	var i CountPasswordFailuresRow
+	err := row.Scan(&i.FromIp, &i.Total)
+	return i, err
+}
+
+const countRecentEmailCodes = `-- name: CountRecentEmailCodes :one
+SELECT count(*)::int
+FROM email_codes
+WHERE user_id = $1 AND purpose = $2 AND created_at > $3
+`
+
+type CountRecentEmailCodesParams struct {
+	UserID  uuid.UUID
+	Purpose string
+	Since   time.Time
+}
+
+// Codes sent to a user lately: resends are capped per account, not just per IP.
+func (q *Queries) CountRecentEmailCodes(ctx context.Context, arg CountRecentEmailCodesParams) (int32, error) {
+	row := q.db.QueryRow(ctx, countRecentEmailCodes, arg.UserID, arg.Purpose, arg.Since)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const countRecentTestMessages = `-- name: CountRecentTestMessages :one
+SELECT count(*)
+FROM whatsapp_test_messages
+WHERE workspace_id = $1 AND created_at > now() - interval '1 hour'
+`
+
+func (q *Queries) CountRecentTestMessages(ctx context.Context, workspaceID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countRecentTestMessages, workspaceID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countTrialWorkspacesOwned = `-- name: CountTrialWorkspacesOwned :one
+SELECT count(*)
+FROM workspace_members m
+JOIN workspaces w ON w.id = m.workspace_id
+WHERE m.user_id = $1 AND m.role = 'owner' AND w.activated_at IS NULL
+`
+
+// Workspaces this user owns that haven't sent a real message yet.
+func (q *Queries) CountTrialWorkspacesOwned(ctx context.Context, userID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countTrialWorkspacesOwned, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const createEmailCode = `-- name: CreateEmailCode :exec
+INSERT INTO email_codes (id, user_id, purpose, email, code_hash, expires_at)
+VALUES ($1, $2, $3, $4, $5, $6)
+`
+
+type CreateEmailCodeParams struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	Purpose   string
+	Email     string
+	CodeHash  []byte
+	ExpiresAt time.Time
+}
+
+func (q *Queries) CreateEmailCode(ctx context.Context, arg CreateEmailCodeParams) error {
+	_, err := q.db.Exec(ctx, createEmailCode,
+		arg.ID,
+		arg.UserID,
+		arg.Purpose,
+		arg.Email,
+		arg.CodeHash,
+		arg.ExpiresAt,
+	)
+	return err
+}
+
 const createEmailToken = `-- name: CreateEmailToken :exec
 INSERT INTO email_tokens (id, user_id, purpose, email, token_hash, expires_at)
 VALUES ($1, $2, $3, $4, $5, $6)
@@ -218,6 +364,28 @@ func (q *Queries) CreateOAuthFlow(ctx context.Context, arg CreateOAuthFlowParams
 		arg.Timezone,
 		arg.AppCodeChallenge,
 		arg.ExpiresAt,
+	)
+	return err
+}
+
+const createOnboarding = `-- name: CreateOnboarding :exec
+INSERT INTO workspace_onboarding (workspace_id, first_goal, sample_data, completed_at)
+VALUES ($1, $2, $3, $4)
+`
+
+type CreateOnboardingParams struct {
+	WorkspaceID uuid.UUID
+	FirstGoal   string
+	SampleData  bool
+	CompletedAt *time.Time
+}
+
+func (q *Queries) CreateOnboarding(ctx context.Context, arg CreateOnboardingParams) error {
+	_, err := q.db.Exec(ctx, createOnboarding,
+		arg.WorkspaceID,
+		arg.FirstGoal,
+		arg.SampleData,
+		arg.CompletedAt,
 	)
 	return err
 }
@@ -386,6 +554,28 @@ func (q *Queries) CreateSocialUser(ctx context.Context, arg CreateSocialUserPara
 	return err
 }
 
+const createTestMessage = `-- name: CreateTestMessage :exec
+INSERT INTO whatsapp_test_messages (id, workspace_id, number_id, to_phone)
+VALUES ($1, $2, $3, $4)
+`
+
+type CreateTestMessageParams struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	NumberID    uuid.UUID
+	ToPhone     string
+}
+
+func (q *Queries) CreateTestMessage(ctx context.Context, arg CreateTestMessageParams) error {
+	_, err := q.db.Exec(ctx, createTestMessage,
+		arg.ID,
+		arg.WorkspaceID,
+		arg.NumberID,
+		arg.ToPhone,
+	)
+	return err
+}
+
 const createUser = `-- name: CreateUser :exec
 
 INSERT INTO users (id, email, password_hash)
@@ -403,6 +593,97 @@ type CreateUserParams struct {
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 	_, err := q.db.Exec(ctx, createUser, arg.ID, arg.Email, arg.PasswordHash)
 	return err
+}
+
+const createWorkspace = `-- name: CreateWorkspace :exec
+INSERT INTO workspaces (id, name, trial_ends_at, created_by)
+VALUES ($1, $2, $3, $4)
+`
+
+type CreateWorkspaceParams struct {
+	ID          uuid.UUID
+	Name        string
+	TrialEndsAt *time.Time
+	CreatedBy   *uuid.UUID
+}
+
+func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) error {
+	_, err := q.db.Exec(ctx, createWorkspace,
+		arg.ID,
+		arg.Name,
+		arg.TrialEndsAt,
+		arg.CreatedBy,
+	)
+	return err
+}
+
+const deleteEndedSessions = `-- name: DeleteEndedSessions :execrows
+DELETE FROM auth_sessions
+WHERE revoked_at < now() - interval '30 days'
+   OR expires_at < now() - interval '30 days'
+`
+
+func (q *Queries) DeleteEndedSessions(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteEndedSessions)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteExpiredEmailCodes = `-- name: DeleteExpiredEmailCodes :execrows
+DELETE FROM email_codes
+WHERE expires_at < now()
+`
+
+func (q *Queries) DeleteExpiredEmailCodes(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredEmailCodes)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteExpiredEmailTokens = `-- name: DeleteExpiredEmailTokens :execrows
+DELETE FROM email_tokens
+WHERE expires_at < now()
+`
+
+func (q *Queries) DeleteExpiredEmailTokens(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredEmailTokens)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteExpiredOAuthFlows = `-- name: DeleteExpiredOAuthFlows :execrows
+
+DELETE FROM oauth_flows
+WHERE expires_at < now()
+`
+
+// Cleanup (CleanupWorker, hourly). Ended sessions are kept 30 days for the
+// sessions page history; their refresh tokens go with them (ON DELETE CASCADE).
+func (q *Queries) DeleteExpiredOAuthFlows(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredOAuthFlows)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteExpiredRefreshTokens = `-- name: DeleteExpiredRefreshTokens :execrows
+DELETE FROM refresh_tokens
+WHERE expires_at < now()
+`
+
+func (q *Queries) DeleteExpiredRefreshTokens(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredRefreshTokens)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const deleteIdentity = `-- name: DeleteIdentity :execrows
@@ -442,6 +723,30 @@ func (q *Queries) DeleteIdentityByProviderUser(ctx context.Context, arg DeleteId
 	return user_id, err
 }
 
+const deleteOAuthFlow = `-- name: DeleteOAuthFlow :exec
+DELETE FROM oauth_flows
+WHERE id = $1
+`
+
+func (q *Queries) DeleteOAuthFlow(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteOAuthFlow, id)
+	return err
+}
+
+const deleteOldAuthEvents = `-- name: DeleteOldAuthEvents :execrows
+DELETE FROM auth_events
+WHERE created_at < now() - interval '180 days'
+`
+
+// auth_events is kept 180 days (00002_auth.sql).
+func (q *Queries) DeleteOldAuthEvents(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteOldAuthEvents)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteUnverifiedIdentities = `-- name: DeleteUnverifiedIdentities :execrows
 DELETE FROM user_identities
 WHERE user_id = $1 AND email_verified = false
@@ -455,6 +760,38 @@ func (q *Queries) DeleteUnverifiedIdentities(ctx context.Context, userID uuid.UU
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const disconnectAccountNumbers = `-- name: DisconnectAccountNumbers :exec
+UPDATE whatsapp_numbers
+SET status = 'disconnected'
+WHERE workspace_id = $1 AND account_id = $2
+`
+
+type DisconnectAccountNumbersParams struct {
+	WorkspaceID uuid.UUID
+	AccountID   uuid.UUID
+}
+
+func (q *Queries) DisconnectAccountNumbers(ctx context.Context, arg DisconnectAccountNumbersParams) error {
+	_, err := q.db.Exec(ctx, disconnectAccountNumbers, arg.WorkspaceID, arg.AccountID)
+	return err
+}
+
+const disconnectWhatsAppAccount = `-- name: DisconnectWhatsAppAccount :exec
+UPDATE whatsapp_accounts
+SET status = 'disconnected'
+WHERE workspace_id = $1 AND id = $2
+`
+
+type DisconnectWhatsAppAccountParams struct {
+	WorkspaceID uuid.UUID
+	ID          uuid.UUID
+}
+
+func (q *Queries) DisconnectWhatsAppAccount(ctx context.Context, arg DisconnectWhatsAppAccountParams) error {
+	_, err := q.db.Exec(ctx, disconnectWhatsAppAccount, arg.WorkspaceID, arg.ID)
+	return err
 }
 
 const extendSession = `-- name: ExtendSession :exec
@@ -528,6 +865,85 @@ func (q *Queries) GetAccountByEmail(ctx context.Context, email string) (GetAccou
 	return i, err
 }
 
+const getAccountToken = `-- name: GetAccountToken :one
+SELECT waba_id, access_token
+FROM whatsapp_accounts
+WHERE workspace_id = $1 AND id = $2 AND status = 'active'
+`
+
+type GetAccountTokenParams struct {
+	WorkspaceID uuid.UUID
+	ID          uuid.UUID
+}
+
+type GetAccountTokenRow struct {
+	WabaID      string
+	AccessToken []byte
+}
+
+// The only query that reads access_token, and only for a Graph call.
+func (q *Queries) GetAccountToken(ctx context.Context, arg GetAccountTokenParams) (GetAccountTokenRow, error) {
+	row := q.db.QueryRow(ctx, getAccountToken, arg.WorkspaceID, arg.ID)
+	var i GetAccountTokenRow
+	err := row.Scan(&i.WabaID, &i.AccessToken)
+	return i, err
+}
+
+const getActiveEmailCode = `-- name: GetActiveEmailCode :one
+SELECT id, code_hash, attempts
+FROM email_codes
+WHERE user_id = $1 AND purpose = $2 AND used_at IS NULL AND expires_at > now()
+ORDER BY created_at DESC
+LIMIT 1
+FOR UPDATE
+`
+
+type GetActiveEmailCodeParams struct {
+	UserID  uuid.UUID
+	Purpose string
+}
+
+type GetActiveEmailCodeRow struct {
+	ID       uuid.UUID
+	CodeHash []byte
+	Attempts int32
+}
+
+// The only query that reads code_hash. Locks the row so concurrent tries count correctly.
+func (q *Queries) GetActiveEmailCode(ctx context.Context, arg GetActiveEmailCodeParams) (GetActiveEmailCodeRow, error) {
+	row := q.db.QueryRow(ctx, getActiveEmailCode, arg.UserID, arg.Purpose)
+	var i GetActiveEmailCodeRow
+	err := row.Scan(&i.ID, &i.CodeHash, &i.Attempts)
+	return i, err
+}
+
+const getAwaitingOAuthFlow = `-- name: GetAwaitingOAuthFlow :one
+SELECT id, client, app_code_challenge, email_code_sends
+FROM oauth_flows
+WHERE completion_token_hash = $1 AND status = 'awaiting_email' AND expires_at > now()
+FOR UPDATE
+`
+
+type GetAwaitingOAuthFlowRow struct {
+	ID               uuid.UUID
+	Client           string
+	AppCodeChallenge *string
+	EmailCodeSends   int32
+}
+
+// The "add your email" step of a social sign-up. Locks the row while a code is sent.
+func (q *Queries) GetAwaitingOAuthFlow(ctx context.Context, completionTokenHash []byte) (GetAwaitingOAuthFlowRow, error) {
+	row := q.db.QueryRow(ctx, getAwaitingOAuthFlow, completionTokenHash)
+	var i GetAwaitingOAuthFlowRow
+	err := row.Scan(
+		&i.ID,
+		&i.Client,
+		&i.AppCodeChallenge,
+		&i.EmailCodeSends,
+	)
+	return i, err
+}
+
 const getIdentity = `-- name: GetIdentity :one
 SELECT id, user_id
 FROM user_identities
@@ -551,12 +967,160 @@ func (q *Queries) GetIdentity(ctx context.Context, arg GetIdentityParams) (GetId
 	return i, err
 }
 
+const getMemberRole = `-- name: GetMemberRole :one
+SELECT role
+FROM workspace_members
+WHERE workspace_id = $1 AND user_id = $2
+`
+
+type GetMemberRoleParams struct {
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+}
+
+func (q *Queries) GetMemberRole(ctx context.Context, arg GetMemberRoleParams) (string, error) {
+	row := q.db.QueryRow(ctx, getMemberRole, arg.WorkspaceID, arg.UserID)
+	var role string
+	err := row.Scan(&role)
+	return role, err
+}
+
+const getMemberState = `-- name: GetMemberState :one
+SELECT tour_seen_at, checklist_hidden_at
+FROM onboarding_member_state
+WHERE workspace_id = $1 AND user_id = $2
+`
+
+type GetMemberStateParams struct {
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+}
+
+type GetMemberStateRow struct {
+	TourSeenAt        *time.Time
+	ChecklistHiddenAt *time.Time
+}
+
+func (q *Queries) GetMemberState(ctx context.Context, arg GetMemberStateParams) (GetMemberStateRow, error) {
+	row := q.db.QueryRow(ctx, getMemberState, arg.WorkspaceID, arg.UserID)
+	var i GetMemberStateRow
+	err := row.Scan(&i.TourSeenAt, &i.ChecklistHiddenAt)
+	return i, err
+}
+
+const getNumberPin = `-- name: GetNumberPin :one
+SELECT registration_pin
+FROM whatsapp_numbers
+WHERE workspace_id = $1 AND id = $2
+`
+
+type GetNumberPinParams struct {
+	WorkspaceID uuid.UUID
+	ID          uuid.UUID
+}
+
+// The only query that reads registration_pin.
+func (q *Queries) GetNumberPin(ctx context.Context, arg GetNumberPinParams) ([]byte, error) {
+	row := q.db.QueryRow(ctx, getNumberPin, arg.WorkspaceID, arg.ID)
+	var registration_pin []byte
+	err := row.Scan(&registration_pin)
+	return registration_pin, err
+}
+
+const getNumberWorkspace = `-- name: GetNumberWorkspace :one
+SELECT workspace_id
+FROM whatsapp_numbers
+WHERE phone_number_id = $1
+`
+
+func (q *Queries) GetNumberWorkspace(ctx context.Context, phoneNumberID string) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, getNumberWorkspace, phoneNumberID)
+	var workspace_id uuid.UUID
+	err := row.Scan(&workspace_id)
+	return workspace_id, err
+}
+
+const getOAuthFlowEmailCode = `-- name: GetOAuthFlowEmailCode :one
+SELECT id, provider, client, timezone, app_code_challenge, pending_identity,
+       pending_email, email_code_hash, email_code_expires_at, email_code_attempts
+FROM oauth_flows
+WHERE completion_token_hash = $1 AND status = 'awaiting_email' AND expires_at > now()
+FOR UPDATE
+`
+
+type GetOAuthFlowEmailCodeRow struct {
+	ID                 uuid.UUID
+	Provider           string
+	Client             string
+	Timezone           string
+	AppCodeChallenge   *string
+	PendingIdentity    []byte
+	PendingEmail       *string
+	EmailCodeHash      []byte
+	EmailCodeExpiresAt *time.Time
+	EmailCodeAttempts  int32
+}
+
+// The only query that reads oauth_flows.email_code_hash. Locks the row so tries count correctly.
+func (q *Queries) GetOAuthFlowEmailCode(ctx context.Context, completionTokenHash []byte) (GetOAuthFlowEmailCodeRow, error) {
+	row := q.db.QueryRow(ctx, getOAuthFlowEmailCode, completionTokenHash)
+	var i GetOAuthFlowEmailCodeRow
+	err := row.Scan(
+		&i.ID,
+		&i.Provider,
+		&i.Client,
+		&i.Timezone,
+		&i.AppCodeChallenge,
+		&i.PendingIdentity,
+		&i.PendingEmail,
+		&i.EmailCodeHash,
+		&i.EmailCodeExpiresAt,
+		&i.EmailCodeAttempts,
+	)
+	return i, err
+}
+
+const getOnboarding = `-- name: GetOnboarding :one
+SELECT workspace_id, first_goal, sample_data, business_done_at, whatsapp_skipped_at,
+       test_message_sent_at, completed_at, reminder_count
+FROM workspace_onboarding
+WHERE workspace_id = $1
+`
+
+type GetOnboardingRow struct {
+	WorkspaceID       uuid.UUID
+	FirstGoal         string
+	SampleData        bool
+	BusinessDoneAt    *time.Time
+	WhatsappSkippedAt *time.Time
+	TestMessageSentAt *time.Time
+	CompletedAt       *time.Time
+	ReminderCount     int32
+}
+
+func (q *Queries) GetOnboarding(ctx context.Context, workspaceID uuid.UUID) (GetOnboardingRow, error) {
+	row := q.db.QueryRow(ctx, getOnboarding, workspaceID)
+	var i GetOnboardingRow
+	err := row.Scan(
+		&i.WorkspaceID,
+		&i.FirstGoal,
+		&i.SampleData,
+		&i.BusinessDoneAt,
+		&i.WhatsappSkippedAt,
+		&i.TestMessageSentAt,
+		&i.CompletedAt,
+		&i.ReminderCount,
+	)
+	return i, err
+}
+
 const getPasswordHash = `-- name: GetPasswordHash :one
 SELECT password_hash
 FROM users
 WHERE id = $1
 `
 
+// Change password, and confirming the password on the verify-link page.
 func (q *Queries) GetPasswordHash(ctx context.Context, id uuid.UUID) (*string, error) {
 	row := q.db.QueryRow(ctx, getPasswordHash, id)
 	var password_hash *string
@@ -604,7 +1168,9 @@ SELECT
     s.client,
     s.revoked_at AS session_revoked_at,
     s.expires_at AS session_expires_at,
-    u.status AS user_status
+    s.created_at AS session_created_at,
+    u.status AS user_status,
+    u.email_verified_at AS user_email_verified_at
 FROM refresh_tokens rt
 JOIN auth_sessions s ON s.id = rt.session_id
 JOIN users u ON u.id = s.user_id
@@ -613,15 +1179,17 @@ FOR UPDATE OF rt
 `
 
 type GetRefreshTokenForUpdateRow struct {
-	ID               uuid.UUID
-	SessionID        uuid.UUID
-	ExpiresAt        time.Time
-	UsedAt           *time.Time
-	UserID           uuid.UUID
-	Client           string
-	SessionRevokedAt *time.Time
-	SessionExpiresAt time.Time
-	UserStatus       string
+	ID                  uuid.UUID
+	SessionID           uuid.UUID
+	ExpiresAt           time.Time
+	UsedAt              *time.Time
+	UserID              uuid.UUID
+	Client              string
+	SessionRevokedAt    *time.Time
+	SessionExpiresAt    time.Time
+	SessionCreatedAt    time.Time
+	UserStatus          string
+	UserEmailVerifiedAt *time.Time
 }
 
 // Locks the token row so two concurrent refreshes can't both rotate it.
@@ -637,7 +1205,9 @@ func (q *Queries) GetRefreshTokenForUpdate(ctx context.Context, tokenHash []byte
 		&i.Client,
 		&i.SessionRevokedAt,
 		&i.SessionExpiresAt,
+		&i.SessionCreatedAt,
 		&i.UserStatus,
+		&i.UserEmailVerifiedAt,
 	)
 	return i, err
 }
@@ -659,6 +1229,40 @@ func (q *Queries) GetSessionAuthenticatedAt(ctx context.Context, arg GetSessionA
 	var authenticated_at time.Time
 	err := row.Scan(&authenticated_at)
 	return authenticated_at, err
+}
+
+const getTestMessage = `-- name: GetTestMessage :one
+SELECT id, number_id, to_phone, status, error_code, created_at
+FROM whatsapp_test_messages
+WHERE workspace_id = $1 AND id = $2
+`
+
+type GetTestMessageParams struct {
+	WorkspaceID uuid.UUID
+	ID          uuid.UUID
+}
+
+type GetTestMessageRow struct {
+	ID        uuid.UUID
+	NumberID  uuid.UUID
+	ToPhone   string
+	Status    string
+	ErrorCode *string
+	CreatedAt time.Time
+}
+
+func (q *Queries) GetTestMessage(ctx context.Context, arg GetTestMessageParams) (GetTestMessageRow, error) {
+	row := q.db.QueryRow(ctx, getTestMessage, arg.WorkspaceID, arg.ID)
+	var i GetTestMessageRow
+	err := row.Scan(
+		&i.ID,
+		&i.NumberID,
+		&i.ToPhone,
+		&i.Status,
+		&i.ErrorCode,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const getUserForLogin = `-- name: GetUserForLogin :one
@@ -685,6 +1289,145 @@ func (q *Queries) GetUserForLogin(ctx context.Context, email string) (GetUserFor
 		&i.Status,
 	)
 	return i, err
+}
+
+const getWhatsAppAccountByWABA = `-- name: GetWhatsAppAccountByWABA :one
+SELECT id, workspace_id, status
+FROM whatsapp_accounts
+WHERE waba_id = $1
+`
+
+type GetWhatsAppAccountByWABARow struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	Status      string
+}
+
+func (q *Queries) GetWhatsAppAccountByWABA(ctx context.Context, wabaID string) (GetWhatsAppAccountByWABARow, error) {
+	row := q.db.QueryRow(ctx, getWhatsAppAccountByWABA, wabaID)
+	var i GetWhatsAppAccountByWABARow
+	err := row.Scan(&i.ID, &i.WorkspaceID, &i.Status)
+	return i, err
+}
+
+const getWhatsAppNumber = `-- name: GetWhatsAppNumber :one
+SELECT id, account_id, phone_number_id, display_phone_number, number_type, verified_name, name_status,
+       quality_rating, messaging_limit, status, setup_tasks, last_error, created_at
+FROM whatsapp_numbers
+WHERE workspace_id = $1 AND id = $2
+`
+
+type GetWhatsAppNumberParams struct {
+	WorkspaceID uuid.UUID
+	ID          uuid.UUID
+}
+
+type GetWhatsAppNumberRow struct {
+	ID                 uuid.UUID
+	AccountID          uuid.UUID
+	PhoneNumberID      string
+	DisplayPhoneNumber string
+	NumberType         string
+	VerifiedName       string
+	NameStatus         string
+	QualityRating      *string
+	MessagingLimit     *string
+	Status             string
+	SetupTasks         []byte
+	LastError          []byte
+	CreatedAt          time.Time
+}
+
+func (q *Queries) GetWhatsAppNumber(ctx context.Context, arg GetWhatsAppNumberParams) (GetWhatsAppNumberRow, error) {
+	row := q.db.QueryRow(ctx, getWhatsAppNumber, arg.WorkspaceID, arg.ID)
+	var i GetWhatsAppNumberRow
+	err := row.Scan(
+		&i.ID,
+		&i.AccountID,
+		&i.PhoneNumberID,
+		&i.DisplayPhoneNumber,
+		&i.NumberType,
+		&i.VerifiedName,
+		&i.NameStatus,
+		&i.QualityRating,
+		&i.MessagingLimit,
+		&i.Status,
+		&i.SetupTasks,
+		&i.LastError,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getWorkspace = `-- name: GetWorkspace :one
+SELECT id, name, industry, website, country, team_size, goals, plan, trial_ends_at, activated_at
+FROM workspaces
+WHERE id = $1
+`
+
+type GetWorkspaceRow struct {
+	ID          uuid.UUID
+	Name        string
+	Industry    *string
+	Website     *string
+	Country     *string
+	TeamSize    *string
+	Goals       []string
+	Plan        string
+	TrialEndsAt *time.Time
+	ActivatedAt *time.Time
+}
+
+func (q *Queries) GetWorkspace(ctx context.Context, workspaceID uuid.UUID) (GetWorkspaceRow, error) {
+	row := q.db.QueryRow(ctx, getWorkspace, workspaceID)
+	var i GetWorkspaceRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Industry,
+		&i.Website,
+		&i.Country,
+		&i.TeamSize,
+		&i.Goals,
+		&i.Plan,
+		&i.TrialEndsAt,
+		&i.ActivatedAt,
+	)
+	return i, err
+}
+
+const getWorkspaceOwner = `-- name: GetWorkspaceOwner :one
+SELECT w.name, m.user_id
+FROM workspaces w
+JOIN workspace_members m ON m.workspace_id = w.id AND m.role = 'owner'
+WHERE w.id = $1
+ORDER BY m.created_at
+LIMIT 1
+`
+
+type GetWorkspaceOwnerRow struct {
+	Name   string
+	UserID uuid.UUID
+}
+
+func (q *Queries) GetWorkspaceOwner(ctx context.Context, workspaceID uuid.UUID) (GetWorkspaceOwnerRow, error) {
+	row := q.db.QueryRow(ctx, getWorkspaceOwner, workspaceID)
+	var i GetWorkspaceOwnerRow
+	err := row.Scan(&i.Name, &i.UserID)
+	return i, err
+}
+
+const hasConnectedNumber = `-- name: HasConnectedNumber :one
+SELECT EXISTS (
+    SELECT 1 FROM whatsapp_numbers WHERE workspace_id = $1 AND status = 'connected'
+)
+`
+
+func (q *Queries) HasConnectedNumber(ctx context.Context, workspaceID uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, hasConnectedNumber, workspaceID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const insertAuthEvent = `-- name: InsertAuthEvent :exec
@@ -715,6 +1458,22 @@ func (q *Queries) InsertAuthEvent(ctx context.Context, arg InsertAuthEventParams
 	return err
 }
 
+const invalidateEmailCodes = `-- name: InvalidateEmailCodes :exec
+UPDATE email_codes
+SET used_at = now()
+WHERE user_id = $1 AND purpose = $2 AND used_at IS NULL
+`
+
+type InvalidateEmailCodesParams struct {
+	UserID  uuid.UUID
+	Purpose string
+}
+
+func (q *Queries) InvalidateEmailCodes(ctx context.Context, arg InvalidateEmailCodesParams) error {
+	_, err := q.db.Exec(ctx, invalidateEmailCodes, arg.UserID, arg.Purpose)
+	return err
+}
+
 const invalidateEmailTokens = `-- name: InvalidateEmailTokens :exec
 UPDATE email_tokens
 SET used_at = now()
@@ -741,6 +1500,7 @@ SELECT EXISTS (
       AND s.revoked_at IS NULL
       AND s.expires_at > now()
       AND u.status = 'active'
+      AND u.email_verified_at IS NOT NULL
 )::boolean AS active
 `
 
@@ -749,8 +1509,9 @@ type IsSessionActiveParams struct {
 	UserID uuid.UUID
 }
 
-// Checked on every authenticated request, so a revoked session, an expired one
-// or a disabled user stops working at once instead of when the access token expires.
+// Checked on every authenticated request, so a revoked session, an expired one,
+// a disabled user or an unproven email stops working at once instead of when
+// the access token expires.
 func (q *Queries) IsSessionActive(ctx context.Context, arg IsSessionActiveParams) (bool, error) {
 	row := q.db.QueryRow(ctx, isSessionActive, arg.ID, arg.UserID)
 	var active bool
@@ -888,6 +1649,117 @@ func (q *Queries) ListIdentities(ctx context.Context, userID uuid.UUID) ([]ListI
 	return items, nil
 }
 
+const listMemberWorkspaces = `-- name: ListMemberWorkspaces :many
+SELECT w.id, w.name, m.role, m.last_active_at, w.activated_at
+FROM workspace_members m
+JOIN workspaces w ON w.id = m.workspace_id
+WHERE m.user_id = $1
+ORDER BY m.last_active_at DESC, w.created_at DESC
+`
+
+type ListMemberWorkspacesRow struct {
+	ID           uuid.UUID
+	Name         string
+	Role         string
+	LastActiveAt time.Time
+	ActivatedAt  *time.Time
+}
+
+func (q *Queries) ListMemberWorkspaces(ctx context.Context, userID uuid.UUID) ([]ListMemberWorkspacesRow, error) {
+	rows, err := q.db.Query(ctx, listMemberWorkspaces, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMemberWorkspacesRow{}
+	for rows.Next() {
+		var i ListMemberWorkspacesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Role,
+			&i.LastActiveAt,
+			&i.ActivatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listWhatsAppNumbers = `-- name: ListWhatsAppNumbers :many
+SELECT id, account_id, phone_number_id, display_phone_number, number_type, verified_name, name_status,
+       quality_rating, messaging_limit, status, setup_tasks, last_error, created_at
+FROM whatsapp_numbers
+WHERE workspace_id = $1
+ORDER BY created_at
+`
+
+type ListWhatsAppNumbersRow struct {
+	ID                 uuid.UUID
+	AccountID          uuid.UUID
+	PhoneNumberID      string
+	DisplayPhoneNumber string
+	NumberType         string
+	VerifiedName       string
+	NameStatus         string
+	QualityRating      *string
+	MessagingLimit     *string
+	Status             string
+	SetupTasks         []byte
+	LastError          []byte
+	CreatedAt          time.Time
+}
+
+func (q *Queries) ListWhatsAppNumbers(ctx context.Context, workspaceID uuid.UUID) ([]ListWhatsAppNumbersRow, error) {
+	rows, err := q.db.Query(ctx, listWhatsAppNumbers, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListWhatsAppNumbersRow{}
+	for rows.Next() {
+		var i ListWhatsAppNumbersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.PhoneNumberID,
+			&i.DisplayPhoneNumber,
+			&i.NumberType,
+			&i.VerifiedName,
+			&i.NameStatus,
+			&i.QualityRating,
+			&i.MessagingLimit,
+			&i.Status,
+			&i.SetupTasks,
+			&i.LastError,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const markBusinessDone = `-- name: MarkBusinessDone :exec
+UPDATE workspace_onboarding
+SET business_done_at = COALESCE(business_done_at, now())
+WHERE workspace_id = $1
+`
+
+func (q *Queries) MarkBusinessDone(ctx context.Context, workspaceID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, markBusinessDone, workspaceID)
+	return err
+}
+
 const markEmailVerified = `-- name: MarkEmailVerified :exec
 UPDATE users
 SET email_verified_at = COALESCE(email_verified_at, now())
@@ -901,13 +1773,72 @@ func (q *Queries) MarkEmailVerified(ctx context.Context, id uuid.UUID) error {
 
 const markRefreshTokenUsed = `-- name: MarkRefreshTokenUsed :exec
 UPDATE refresh_tokens
-SET used_at = now()
-WHERE id = $1
+SET used_at = $1
+WHERE id = $2
 `
 
-func (q *Queries) MarkRefreshTokenUsed(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, markRefreshTokenUsed, id)
+type MarkRefreshTokenUsedParams struct {
+	UsedAt *time.Time
+	ID     uuid.UUID
+}
+
+// used_at comes from the service clock, which also checks the reuse grace window.
+func (q *Queries) MarkRefreshTokenUsed(ctx context.Context, arg MarkRefreshTokenUsedParams) error {
+	_, err := q.db.Exec(ctx, markRefreshTokenUsed, arg.UsedAt, arg.ID)
 	return err
+}
+
+const markTestMessageSent = `-- name: MarkTestMessageSent :exec
+UPDATE workspace_onboarding
+SET test_message_sent_at = COALESCE(test_message_sent_at, now())
+WHERE workspace_id = $1
+`
+
+func (q *Queries) MarkTestMessageSent(ctx context.Context, workspaceID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, markTestMessageSent, workspaceID)
+	return err
+}
+
+const markWorkspaceActivated = `-- name: MarkWorkspaceActivated :execrows
+UPDATE workspaces
+SET activated_at = now()
+WHERE id = $1 AND activated_at IS NULL
+`
+
+func (q *Queries) MarkWorkspaceActivated(ctx context.Context, workspaceID uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, markWorkspaceActivated, workspaceID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const recordEmailCodeAttempt = `-- name: RecordEmailCodeAttempt :one
+UPDATE email_codes
+SET attempts = attempts + 1
+WHERE id = $1
+RETURNING attempts
+`
+
+func (q *Queries) RecordEmailCodeAttempt(ctx context.Context, id uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, recordEmailCodeAttempt, id)
+	var attempts int32
+	err := row.Scan(&attempts)
+	return attempts, err
+}
+
+const recordOAuthFlowCodeAttempt = `-- name: RecordOAuthFlowCodeAttempt :one
+UPDATE oauth_flows
+SET email_code_attempts = email_code_attempts + 1
+WHERE id = $1
+RETURNING email_code_attempts
+`
+
+func (q *Queries) RecordOAuthFlowCodeAttempt(ctx context.Context, id uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, recordOAuthFlowCodeAttempt, id)
+	var email_code_attempts int32
+	err := row.Scan(&email_code_attempts)
+	return email_code_attempts, err
 }
 
 const revokeSession = `-- name: RevokeSession :execrows
@@ -969,6 +1900,93 @@ func (q *Queries) RevokeUserSessions(ctx context.Context, arg RevokeUserSessions
 	return result.RowsAffected(), nil
 }
 
+const setNumberPin = `-- name: SetNumberPin :exec
+UPDATE whatsapp_numbers
+SET registration_pin = $1
+WHERE workspace_id = $2 AND id = $3
+`
+
+type SetNumberPinParams struct {
+	RegistrationPin []byte
+	WorkspaceID     uuid.UUID
+	ID              uuid.UUID
+}
+
+func (q *Queries) SetNumberPin(ctx context.Context, arg SetNumberPinParams) error {
+	_, err := q.db.Exec(ctx, setNumberPin, arg.RegistrationPin, arg.WorkspaceID, arg.ID)
+	return err
+}
+
+const setNumberStatus = `-- name: SetNumberStatus :exec
+UPDATE whatsapp_numbers
+SET status = $1, last_error = $2
+WHERE workspace_id = $3 AND id = $4
+`
+
+type SetNumberStatusParams struct {
+	Status      string
+	LastError   []byte
+	WorkspaceID uuid.UUID
+	ID          uuid.UUID
+}
+
+func (q *Queries) SetNumberStatus(ctx context.Context, arg SetNumberStatusParams) error {
+	_, err := q.db.Exec(ctx, setNumberStatus,
+		arg.Status,
+		arg.LastError,
+		arg.WorkspaceID,
+		arg.ID,
+	)
+	return err
+}
+
+const setNumberTask = `-- name: SetNumberTask :exec
+UPDATE whatsapp_numbers
+SET setup_tasks = jsonb_set(setup_tasks, ARRAY[$1::text], to_jsonb($2::text))
+WHERE workspace_id = $3 AND id = $4
+`
+
+type SetNumberTaskParams struct {
+	Task        string
+	State       string
+	WorkspaceID uuid.UUID
+	ID          uuid.UUID
+}
+
+func (q *Queries) SetNumberTask(ctx context.Context, arg SetNumberTaskParams) error {
+	_, err := q.db.Exec(ctx, setNumberTask,
+		arg.Task,
+		arg.State,
+		arg.WorkspaceID,
+		arg.ID,
+	)
+	return err
+}
+
+const setOAuthFlowEmailCode = `-- name: SetOAuthFlowEmailCode :exec
+UPDATE oauth_flows
+SET pending_email = $1, email_code_hash = $2, email_code_expires_at = $3,
+    email_code_attempts = 0, email_code_sends = email_code_sends + 1
+WHERE id = $4
+`
+
+type SetOAuthFlowEmailCodeParams struct {
+	PendingEmail       *string
+	EmailCodeHash      []byte
+	EmailCodeExpiresAt *time.Time
+	ID                 uuid.UUID
+}
+
+func (q *Queries) SetOAuthFlowEmailCode(ctx context.Context, arg SetOAuthFlowEmailCodeParams) error {
+	_, err := q.db.Exec(ctx, setOAuthFlowEmailCode,
+		arg.PendingEmail,
+		arg.EmailCodeHash,
+		arg.EmailCodeExpiresAt,
+		arg.ID,
+	)
+	return err
+}
+
 const setPasswordHash = `-- name: SetPasswordHash :exec
 UPDATE users
 SET password_hash = $1
@@ -1005,6 +2023,67 @@ func (q *Queries) SetPasswordIfUnset(ctx context.Context, arg SetPasswordIfUnset
 	return result.RowsAffected(), nil
 }
 
+const setTermsAccepted = `-- name: SetTermsAccepted :exec
+UPDATE users
+SET terms_accepted_at = now(), terms_version = $1
+WHERE id = $2
+`
+
+type SetTermsAcceptedParams struct {
+	TermsVersion *string
+	ID           uuid.UUID
+}
+
+func (q *Queries) SetTermsAccepted(ctx context.Context, arg SetTermsAcceptedParams) error {
+	_, err := q.db.Exec(ctx, setTermsAccepted, arg.TermsVersion, arg.ID)
+	return err
+}
+
+const setTestMessageFailed = `-- name: SetTestMessageFailed :exec
+UPDATE whatsapp_test_messages
+SET status = 'failed', error_code = $1
+WHERE workspace_id = $2 AND id = $3
+`
+
+type SetTestMessageFailedParams struct {
+	ErrorCode   *string
+	WorkspaceID uuid.UUID
+	ID          uuid.UUID
+}
+
+func (q *Queries) SetTestMessageFailed(ctx context.Context, arg SetTestMessageFailedParams) error {
+	_, err := q.db.Exec(ctx, setTestMessageFailed, arg.ErrorCode, arg.WorkspaceID, arg.ID)
+	return err
+}
+
+const setTestMessageSent = `-- name: SetTestMessageSent :exec
+UPDATE whatsapp_test_messages
+SET wamid = $1, status = 'sent'
+WHERE workspace_id = $2 AND id = $3
+`
+
+type SetTestMessageSentParams struct {
+	Wamid       *string
+	WorkspaceID uuid.UUID
+	ID          uuid.UUID
+}
+
+func (q *Queries) SetTestMessageSent(ctx context.Context, arg SetTestMessageSentParams) error {
+	_, err := q.db.Exec(ctx, setTestMessageSent, arg.Wamid, arg.WorkspaceID, arg.ID)
+	return err
+}
+
+const skipWhatsAppStep = `-- name: SkipWhatsAppStep :exec
+UPDATE workspace_onboarding
+SET whatsapp_skipped_at = now(), completed_at = COALESCE(completed_at, now())
+WHERE workspace_id = $1
+`
+
+func (q *Queries) SkipWhatsAppStep(ctx context.Context, workspaceID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, skipWhatsAppStep, workspaceID)
+	return err
+}
+
 const touchIdentity = `-- name: TouchIdentity :exec
 UPDATE user_identities
 SET email = $1, email_verified = $2, last_used_at = now()
@@ -1031,6 +2110,103 @@ WHERE id = $1
 
 func (q *Queries) TouchLastLogin(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, touchLastLogin, id)
+	return err
+}
+
+const touchWorkspaceMember = `-- name: TouchWorkspaceMember :exec
+UPDATE workspace_members
+SET last_active_at = now()
+WHERE workspace_id = $1 AND user_id = $2
+`
+
+type TouchWorkspaceMemberParams struct {
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+}
+
+func (q *Queries) TouchWorkspaceMember(ctx context.Context, arg TouchWorkspaceMemberParams) error {
+	_, err := q.db.Exec(ctx, touchWorkspaceMember, arg.WorkspaceID, arg.UserID)
+	return err
+}
+
+const updateNumberNameStatus = `-- name: UpdateNumberNameStatus :exec
+UPDATE whatsapp_numbers
+SET name_status = $1
+WHERE workspace_id = $2 AND account_id = $3
+  AND regexp_replace(display_phone_number, '[^0-9]', '', 'g') = $4
+`
+
+type UpdateNumberNameStatusParams struct {
+	NameStatus  string
+	WorkspaceID uuid.UUID
+	AccountID   uuid.UUID
+	Digits      string
+}
+
+func (q *Queries) UpdateNumberNameStatus(ctx context.Context, arg UpdateNumberNameStatusParams) error {
+	_, err := q.db.Exec(ctx, updateNumberNameStatus,
+		arg.NameStatus,
+		arg.WorkspaceID,
+		arg.AccountID,
+		arg.Digits,
+	)
+	return err
+}
+
+const updateNumberProfile = `-- name: UpdateNumberProfile :exec
+UPDATE whatsapp_numbers
+SET display_phone_number = $1, verified_name = $2,
+    name_status = $3, quality_rating = $4, messaging_limit = $5
+WHERE workspace_id = $6 AND id = $7
+`
+
+type UpdateNumberProfileParams struct {
+	DisplayPhoneNumber string
+	VerifiedName       string
+	NameStatus         string
+	QualityRating      *string
+	MessagingLimit     *string
+	WorkspaceID        uuid.UUID
+	ID                 uuid.UUID
+}
+
+func (q *Queries) UpdateNumberProfile(ctx context.Context, arg UpdateNumberProfileParams) error {
+	_, err := q.db.Exec(ctx, updateNumberProfile,
+		arg.DisplayPhoneNumber,
+		arg.VerifiedName,
+		arg.NameStatus,
+		arg.QualityRating,
+		arg.MessagingLimit,
+		arg.WorkspaceID,
+		arg.ID,
+	)
+	return err
+}
+
+const updateNumberQuality = `-- name: UpdateNumberQuality :exec
+UPDATE whatsapp_numbers
+SET quality_rating = COALESCE($1, quality_rating),
+    messaging_limit = COALESCE($2, messaging_limit)
+WHERE workspace_id = $3 AND account_id = $4
+  AND regexp_replace(display_phone_number, '[^0-9]', '', 'g') = $5
+`
+
+type UpdateNumberQualityParams struct {
+	QualityRating  *string
+	MessagingLimit *string
+	WorkspaceID    uuid.UUID
+	AccountID      uuid.UUID
+	Digits         string
+}
+
+func (q *Queries) UpdateNumberQuality(ctx context.Context, arg UpdateNumberQualityParams) error {
+	_, err := q.db.Exec(ctx, updateNumberQuality,
+		arg.QualityRating,
+		arg.MessagingLimit,
+		arg.WorkspaceID,
+		arg.AccountID,
+		arg.Digits,
+	)
 	return err
 }
 
@@ -1075,5 +2251,199 @@ func (q *Queries) UpdateProfile(ctx context.Context, arg UpdateProfileParams) er
 		arg.DisplayName,
 		arg.UserID,
 	)
+	return err
+}
+
+const updateTestMessageStatus = `-- name: UpdateTestMessageStatus :one
+UPDATE whatsapp_test_messages
+SET status = $1, error_code = $2
+WHERE workspace_id = $3 AND wamid = $4
+  AND array_position(ARRAY['queued', 'sent', 'delivered', 'read', 'failed'], status)
+      < array_position(ARRAY['queued', 'sent', 'delivered', 'read', 'failed'], $1::text)
+RETURNING id, status
+`
+
+type UpdateTestMessageStatusParams struct {
+	Status      string
+	ErrorCode   *string
+	WorkspaceID uuid.UUID
+	Wamid       *string
+}
+
+type UpdateTestMessageStatusRow struct {
+	ID     uuid.UUID
+	Status string
+}
+
+// Statuses only move forward: a late "sent" never overwrites "delivered".
+func (q *Queries) UpdateTestMessageStatus(ctx context.Context, arg UpdateTestMessageStatusParams) (UpdateTestMessageStatusRow, error) {
+	row := q.db.QueryRow(ctx, updateTestMessageStatus,
+		arg.Status,
+		arg.ErrorCode,
+		arg.WorkspaceID,
+		arg.Wamid,
+	)
+	var i UpdateTestMessageStatusRow
+	err := row.Scan(&i.ID, &i.Status)
+	return i, err
+}
+
+const updateWorkspaceBusiness = `-- name: UpdateWorkspaceBusiness :exec
+UPDATE workspaces
+SET name = $1, industry = $2, website = $3, country = $4,
+    team_size = $5, goals = $6
+WHERE id = $7
+`
+
+type UpdateWorkspaceBusinessParams struct {
+	Name        string
+	Industry    *string
+	Website     *string
+	Country     *string
+	TeamSize    *string
+	Goals       []string
+	WorkspaceID uuid.UUID
+}
+
+func (q *Queries) UpdateWorkspaceBusiness(ctx context.Context, arg UpdateWorkspaceBusinessParams) error {
+	_, err := q.db.Exec(ctx, updateWorkspaceBusiness,
+		arg.Name,
+		arg.Industry,
+		arg.Website,
+		arg.Country,
+		arg.TeamSize,
+		arg.Goals,
+		arg.WorkspaceID,
+	)
+	return err
+}
+
+const upsertMemberState = `-- name: UpsertMemberState :exec
+INSERT INTO onboarding_member_state (workspace_id, user_id, tour_seen_at, checklist_hidden_at)
+VALUES ($1, $2,
+        CASE WHEN $3::boolean THEN now() END,
+        CASE WHEN $4::boolean THEN now() END)
+ON CONFLICT (workspace_id, user_id) DO UPDATE
+SET tour_seen_at = CASE
+        WHEN $3::boolean IS NULL THEN onboarding_member_state.tour_seen_at
+        WHEN $3::boolean THEN COALESCE(onboarding_member_state.tour_seen_at, now())
+    END,
+    checklist_hidden_at = CASE
+        WHEN $4::boolean IS NULL THEN onboarding_member_state.checklist_hidden_at
+        WHEN $4::boolean THEN COALESCE(onboarding_member_state.checklist_hidden_at, now())
+    END
+`
+
+type UpsertMemberStateParams struct {
+	WorkspaceID     uuid.UUID
+	UserID          uuid.UUID
+	TourSeen        *bool
+	ChecklistHidden *bool
+}
+
+// A null flag leaves that column as it is; true stamps it once; false clears it.
+func (q *Queries) UpsertMemberState(ctx context.Context, arg UpsertMemberStateParams) error {
+	_, err := q.db.Exec(ctx, upsertMemberState,
+		arg.WorkspaceID,
+		arg.UserID,
+		arg.TourSeen,
+		arg.ChecklistHidden,
+	)
+	return err
+}
+
+const upsertWhatsAppAccount = `-- name: UpsertWhatsAppAccount :one
+INSERT INTO whatsapp_accounts (id, workspace_id, waba_id, business_id, name, access_token, connected_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (waba_id) DO UPDATE
+SET business_id = EXCLUDED.business_id, name = EXCLUDED.name, access_token = EXCLUDED.access_token,
+    connected_by = EXCLUDED.connected_by, status = 'active'
+WHERE whatsapp_accounts.workspace_id = EXCLUDED.workspace_id
+RETURNING id
+`
+
+type UpsertWhatsAppAccountParams struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	WabaID      string
+	BusinessID  *string
+	Name        string
+	AccessToken []byte
+	ConnectedBy *uuid.UUID
+}
+
+// Reconnecting a WABA replaces its token. The caller has checked it belongs to this workspace.
+func (q *Queries) UpsertWhatsAppAccount(ctx context.Context, arg UpsertWhatsAppAccountParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, upsertWhatsAppAccount,
+		arg.ID,
+		arg.WorkspaceID,
+		arg.WabaID,
+		arg.BusinessID,
+		arg.Name,
+		arg.AccessToken,
+		arg.ConnectedBy,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const upsertWhatsAppNumber = `-- name: UpsertWhatsAppNumber :one
+INSERT INTO whatsapp_numbers (id, workspace_id, account_id, phone_number_id, display_phone_number,
+                              number_type, verified_name, name_status, quality_rating, messaging_limit,
+                              status, setup_tasks, last_error)
+VALUES ($1, $2, $3, $4, $5, $6,
+        $7, $8, $9, $10, 'setting_up', $11, NULL)
+ON CONFLICT (phone_number_id) DO UPDATE
+SET account_id = EXCLUDED.account_id, display_phone_number = EXCLUDED.display_phone_number,
+    number_type = EXCLUDED.number_type, verified_name = EXCLUDED.verified_name,
+    name_status = EXCLUDED.name_status, quality_rating = EXCLUDED.quality_rating,
+    messaging_limit = EXCLUDED.messaging_limit, status = 'setting_up',
+    setup_tasks = EXCLUDED.setup_tasks, last_error = NULL
+WHERE whatsapp_numbers.workspace_id = EXCLUDED.workspace_id
+RETURNING id
+`
+
+type UpsertWhatsAppNumberParams struct {
+	ID                 uuid.UUID
+	WorkspaceID        uuid.UUID
+	AccountID          uuid.UUID
+	PhoneNumberID      string
+	DisplayPhoneNumber string
+	NumberType         string
+	VerifiedName       string
+	NameStatus         string
+	QualityRating      *string
+	MessagingLimit     *string
+	SetupTasks         []byte
+}
+
+func (q *Queries) UpsertWhatsAppNumber(ctx context.Context, arg UpsertWhatsAppNumberParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, upsertWhatsAppNumber,
+		arg.ID,
+		arg.WorkspaceID,
+		arg.AccountID,
+		arg.PhoneNumberID,
+		arg.DisplayPhoneNumber,
+		arg.NumberType,
+		arg.VerifiedName,
+		arg.NameStatus,
+		arg.QualityRating,
+		arg.MessagingLimit,
+		arg.SetupTasks,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const useEmailCode = `-- name: UseEmailCode :exec
+UPDATE email_codes
+SET used_at = now()
+WHERE id = $1
+`
+
+func (q *Queries) UseEmailCode(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, useEmailCode, id)
 	return err
 }

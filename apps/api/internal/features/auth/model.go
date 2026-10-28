@@ -29,10 +29,16 @@ const (
 	flowStatusAwaitingEmail = "awaiting_email"
 	flowStatusReady         = "ready"
 
-	oauthFlowTTL     = 10 * time.Minute // provider round trip
-	oauthReadyTTL    = 2 * time.Minute  // mobile app redeeming its one-time code
-	oauthAwaitingTTL = 30 * time.Minute // user typing an email address
+	oauthFlowTTL      = 10 * time.Minute // provider round trip
+	oauthReadyTTL     = 2 * time.Minute  // mobile app redeeming its one-time code
+	oauthAwaitingTTL  = 30 * time.Minute // user typing an email address
+	oauthCodeMaxSends = 3                // codes one "add your email" step may send
 )
+
+// refreshReuseGrace lets a just-rotated refresh token be presented again for a
+// moment: browser tabs share one cookie and may refresh at the same time. Reuse
+// after the window means the token was copied.
+const refreshReuseGrace = 30 * time.Second
 
 // Email token purposes and lifetimes.
 const (
@@ -41,6 +47,13 @@ const (
 
 	verifyTokenTTL = 24 * time.Hour
 	resetTokenTTL  = time.Hour
+
+	// Sign-up codes: short-lived, and dead after a few wrong tries.
+	verifyCodeTTL         = 10 * time.Minute
+	verifyCodeMaxAttempts = 5
+	// verifyCodesPerHour caps codes per account (sign-up plus resends), so
+	// at most verifyCodesPerHour*verifyCodeMaxAttempts guesses an hour.
+	verifyCodesPerHour = 4
 )
 
 // Session revoke reasons (match the CHECK constraint in 00002_auth.sql).
@@ -92,11 +105,12 @@ type Tokens struct {
 
 // SignupInput is a new password account.
 type SignupInput struct {
-	Email     string
-	Password  string
-	FirstName string
-	LastName  *string
-	Timezone  string
+	Email       string
+	Password    string
+	FirstName   string
+	LastName    *string
+	Timezone    string
+	AcceptTerms bool
 }
 
 // Session is one signed-in device, as shown to its owner.
@@ -140,8 +154,9 @@ type OAuthResult struct {
 	RedirectTo string
 	Tokens     *Tokens // web sign-in: set cookies
 	AppCode    string  // mobile sign-in: one-time code for POST /auth/oauth/token
-	// CompleteToken means the provider gave no email: ask for one (POST /auth/oauth/complete).
+	// CompleteToken means the email needs proving: ask for one (POST /auth/oauth/complete).
 	CompleteToken string
+	PendingEmail  string // the provider's email, to prefill that form
 	Linked        string // provider connected from settings
 	ErrorCode     string // sign-in failed; shown by the page at RedirectTo
 }

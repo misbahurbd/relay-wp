@@ -2,7 +2,7 @@
 
 import { type Client, type ClientMeta, type Options as Options2, type RequestResult, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { ChangePasswordData, ChangePasswordErrors, ChangePasswordResponses, FacebookDataDeletionData, FacebookDataDeletionErrors, FacebookDataDeletionResponses, ForgotPasswordData, ForgotPasswordErrors, ForgotPasswordResponses, GetMeData, GetMeErrors, GetMeResponses, HealthData, HealthErrors, HealthResponses, ListAuthEventsData, ListAuthEventsErrors, ListAuthEventsResponses, ListIdentitiesData, ListIdentitiesErrors, ListIdentitiesResponses, ListOauthProvidersData, ListOauthProvidersErrors, ListOauthProvidersResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, LoginData, LoginErrors, LoginResponses, LogoutAllData, LogoutAllErrors, LogoutAllResponses, LogoutData, LogoutErrors, LogoutResponses, OauthCallbackData, OauthCallbackErrors, OauthCallbackResponses, OauthCompleteData, OauthCompleteErrors, OauthCompleteResponses, OauthLinkData, OauthLinkErrors, OauthLinkResponses, OauthStartData, OauthStartErrors, OauthStartResponses, OauthTokenData, OauthTokenErrors, OauthTokenResponses, ReadyData, ReadyErrors, ReadyResponses, RefreshTokenData, RefreshTokenErrors, RefreshTokenResponses, ResendVerificationData, ResendVerificationErrors, ResendVerificationResponses, ResetPasswordData, ResetPasswordErrors, ResetPasswordResponses, RevokeSessionData, RevokeSessionErrors, RevokeSessionResponses, SetPasswordData, SetPasswordErrors, SetPasswordResponses, SignupData, SignupErrors, SignupResponses, UnlinkIdentityData, UnlinkIdentityErrors, UnlinkIdentityResponses, UpdatePreferencesData, UpdatePreferencesErrors, UpdatePreferencesResponses, UpdateProfileData, UpdateProfileErrors, UpdateProfileResponses, VerifyEmailData, VerifyEmailErrors, VerifyEmailResponses } from './types.gen';
+import type { ChangePasswordData, ChangePasswordErrors, ChangePasswordResponses, CompleteOnboardingData, CompleteOnboardingErrors, CompleteOnboardingResponses, ConnectWhatsappData, ConnectWhatsappErrors, ConnectWhatsappResponses, CreateWorkspaceData, CreateWorkspaceErrors, CreateWorkspaceResponses, FacebookDataDeletionData, FacebookDataDeletionErrors, FacebookDataDeletionResponses, ForgotPasswordData, ForgotPasswordErrors, ForgotPasswordResponses, GetMeData, GetMeErrors, GetMeResponses, GetOnboardingData, GetOnboardingErrors, GetOnboardingResponses, GetTestMessageData, GetTestMessageErrors, GetTestMessageResponses, GetWhatsappNumberData, GetWhatsappNumberErrors, GetWhatsappNumberResponses, GetWorkspaceData, GetWorkspaceErrors, GetWorkspaceResponses, HealthData, HealthErrors, HealthResponses, ListAuthEventsData, ListAuthEventsErrors, ListAuthEventsResponses, ListIdentitiesData, ListIdentitiesErrors, ListIdentitiesResponses, ListOauthProvidersData, ListOauthProvidersErrors, ListOauthProvidersResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListWhatsappNumbersData, ListWhatsappNumbersErrors, ListWhatsappNumbersResponses, ListWorkspacesData, ListWorkspacesErrors, ListWorkspacesResponses, LoginData, LoginErrors, LoginResponses, LogoutAllData, LogoutAllErrors, LogoutAllResponses, LogoutData, LogoutErrors, LogoutResponses, OauthCallbackData, OauthCallbackErrors, OauthCallbackResponses, OauthCompleteData, OauthCompleteErrors, OauthCompleteResponses, OauthCompleteVerifyData, OauthCompleteVerifyErrors, OauthCompleteVerifyResponses, OauthLinkData, OauthLinkErrors, OauthLinkResponses, OauthStartData, OauthStartErrors, OauthStartResponses, OauthTokenData, OauthTokenErrors, OauthTokenResponses, ReadyData, ReadyErrors, ReadyResponses, RefreshTokenData, RefreshTokenErrors, RefreshTokenResponses, ResendVerificationData, ResendVerificationErrors, ResendVerificationResponses, ResetPasswordData, ResetPasswordErrors, ResetPasswordResponses, RevokeSessionData, RevokeSessionErrors, RevokeSessionResponses, SaveBusinessData, SaveBusinessErrors, SaveBusinessResponses, SendTestMessageData, SendTestMessageErrors, SendTestMessageResponses, SetPasswordData, SetPasswordErrors, SetPasswordResponses, SignupData, SignupErrors, SignupResponses, SkipWhatsappData, SkipWhatsappErrors, SkipWhatsappResponses, UnlinkIdentityData, UnlinkIdentityErrors, UnlinkIdentityResponses, UpdateOnboardingMemberData, UpdateOnboardingMemberErrors, UpdateOnboardingMemberResponses, UpdatePreferencesData, UpdatePreferencesErrors, UpdatePreferencesResponses, UpdateProfileData, UpdateProfileErrors, UpdateProfileResponses, VerifyEmailCodeData, VerifyEmailCodeErrors, VerifyEmailCodeResponses, VerifyEmailData, VerifyEmailErrors, VerifyEmailResponses, WhatsappSignupConfigData, WhatsappSignupConfigErrors, WhatsappSignupConfigResponses, WhatsappWebhookData, WhatsappWebhookErrors, WhatsappWebhookResponses, WhatsappWebhookVerifyData, WhatsappWebhookVerifyErrors, WhatsappWebhookVerifyResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -110,10 +110,22 @@ export const logoutAll = <ThrowOnError extends boolean = false>(options?: Option
 });
 
 /**
- * Finish a social sign-in whose provider gave no email
+ * Social sign-in without a provider-verified email: email a code to the address given
  */
 export const oauthComplete = <ThrowOnError extends boolean = false>(options: Options<OauthCompleteData, ThrowOnError>): RequestResult<OauthCompleteResponses, OauthCompleteErrors, ThrowOnError> => (options.client ?? client).post<OauthCompleteResponses, OauthCompleteErrors, ThrowOnError>({
     url: '/v1/auth/oauth/complete',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Finish that sign-in with the emailed code
+ */
+export const oauthCompleteVerify = <ThrowOnError extends boolean = false>(options: Options<OauthCompleteVerifyData, ThrowOnError>): RequestResult<OauthCompleteVerifyResponses, OauthCompleteVerifyErrors, ThrowOnError> => (options.client ?? client).post<OauthCompleteVerifyResponses, OauthCompleteVerifyErrors, ThrowOnError>({
+    url: '/v1/auth/oauth/complete/verify',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -283,10 +295,22 @@ export const refreshToken = <ThrowOnError extends boolean = false>(options?: Opt
 });
 
 /**
- * Verify an email address from the emailed link
+ * Verify an email address from the emailed link (with the account's password, if it has one)
  */
 export const verifyEmail = <ThrowOnError extends boolean = false>(options: Options<VerifyEmailData, ThrowOnError>): RequestResult<VerifyEmailResponses, VerifyEmailErrors, ThrowOnError> => (options.client ?? client).post<VerifyEmailResponses, VerifyEmailErrors, ThrowOnError>({
     url: '/v1/auth/verify-email',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Verify an email address with the emailed 6-digit code and sign in
+ */
+export const verifyEmailCode = <ThrowOnError extends boolean = false>(options: Options<VerifyEmailCodeData, ThrowOnError>): RequestResult<VerifyEmailCodeResponses, VerifyEmailCodeErrors, ThrowOnError> => (options.client ?? client).post<VerifyEmailCodeResponses, VerifyEmailCodeErrors, ThrowOnError>({
+    url: '/v1/auth/verify-email/code',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -351,4 +375,224 @@ export const updateProfile = <ThrowOnError extends boolean = false>(options: Opt
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * Meta's webhook subscription handshake
+ */
+export const whatsappWebhookVerify = <ThrowOnError extends boolean = false>(options?: Options<WhatsappWebhookVerifyData, ThrowOnError>): RequestResult<WhatsappWebhookVerifyResponses, WhatsappWebhookVerifyErrors, ThrowOnError> => (options?.client ?? client).get<WhatsappWebhookVerifyResponses, WhatsappWebhookVerifyErrors, ThrowOnError>({ url: '/v1/webhooks/whatsapp', ...options });
+
+/**
+ * Meta's WhatsApp webhook (signed with the app secret)
+ */
+export const whatsappWebhook = <ThrowOnError extends boolean = false>(options: Options<WhatsappWebhookData, ThrowOnError>): RequestResult<WhatsappWebhookResponses, WhatsappWebhookErrors, ThrowOnError> => (options.client ?? client).post<WhatsappWebhookResponses, WhatsappWebhookErrors, ThrowOnError>({
+    bodySerializer: null,
+    url: '/v1/webhooks/whatsapp',
+    ...options,
+    headers: {
+        'Content-Type': 'application/octet-stream',
+        ...options.headers
+    }
+});
+
+/**
+ * Public values for opening Meta's Embedded Signup
+ */
+export const whatsappSignupConfig = <ThrowOnError extends boolean = false>(options?: Options<WhatsappSignupConfigData, ThrowOnError>): RequestResult<WhatsappSignupConfigResponses, WhatsappSignupConfigErrors, ThrowOnError> => (options?.client ?? client).get<WhatsappSignupConfigResponses, WhatsappSignupConfigErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/whatsapp/signup-config',
+    ...options
+});
+
+/**
+ * My workspaces, with enough setup state to choose where to go
+ */
+export const listWorkspaces = <ThrowOnError extends boolean = false>(options?: Options<ListWorkspacesData, ThrowOnError>): RequestResult<ListWorkspacesResponses, ListWorkspacesErrors, ThrowOnError> => (options?.client ?? client).get<ListWorkspacesResponses, ListWorkspacesErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces',
+    ...options
+});
+
+/**
+ * Create a workspace from the Welcome screen and start its trial
+ */
+export const createWorkspace = <ThrowOnError extends boolean = false>(options: Options<CreateWorkspaceData, ThrowOnError>): RequestResult<CreateWorkspaceResponses, CreateWorkspaceErrors, ThrowOnError> => (options.client ?? client).post<CreateWorkspaceResponses, CreateWorkspaceErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Business details, plan and trial
+ */
+export const getWorkspace = <ThrowOnError extends boolean = false>(options: Options<GetWorkspaceData, ThrowOnError>): RequestResult<GetWorkspaceResponses, GetWorkspaceErrors, ThrowOnError> => (options.client ?? client).get<GetWorkspaceResponses, GetWorkspaceErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}',
+    ...options
+});
+
+/**
+ * Setup progress, checklist and this member's tour state
+ */
+export const getOnboarding = <ThrowOnError extends boolean = false>(options: Options<GetOnboardingData, ThrowOnError>): RequestResult<GetOnboardingResponses, GetOnboardingErrors, ThrowOnError> => (options.client ?? client).get<GetOnboardingResponses, GetOnboardingErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/onboarding',
+    ...options
+});
+
+/**
+ * Save setup step 1: business details
+ */
+export const saveBusiness = <ThrowOnError extends boolean = false>(options: Options<SaveBusinessData, ThrowOnError>): RequestResult<SaveBusinessResponses, SaveBusinessErrors, ThrowOnError> => (options.client ?? client).put<SaveBusinessResponses, SaveBusinessErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/onboarding/business',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Finish setup after connecting WhatsApp
+ */
+export const completeOnboarding = <ThrowOnError extends boolean = false>(options: Options<CompleteOnboardingData, ThrowOnError>): RequestResult<CompleteOnboardingResponses, CompleteOnboardingErrors, ThrowOnError> => (options.client ?? client).post<CompleteOnboardingResponses, CompleteOnboardingErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/onboarding/complete',
+    ...options
+});
+
+/**
+ * Record that this member saw the tour or hid the checklist
+ */
+export const updateOnboardingMember = <ThrowOnError extends boolean = false>(options: Options<UpdateOnboardingMemberData, ThrowOnError>): RequestResult<UpdateOnboardingMemberResponses, UpdateOnboardingMemberErrors, ThrowOnError> => (options.client ?? client).patch<UpdateOnboardingMemberResponses, UpdateOnboardingMemberErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/onboarding/me',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Finish setup without connecting WhatsApp
+ */
+export const skipWhatsapp = <ThrowOnError extends boolean = false>(options: Options<SkipWhatsappData, ThrowOnError>): RequestResult<SkipWhatsappResponses, SkipWhatsappErrors, ThrowOnError> => (options.client ?? client).post<SkipWhatsappResponses, SkipWhatsappErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/onboarding/skip-whatsapp',
+    ...options
+});
+
+/**
+ * Finish Embedded Signup: save the number and start setting it up
+ */
+export const connectWhatsapp = <ThrowOnError extends boolean = false>(options: Options<ConnectWhatsappData, ThrowOnError>): RequestResult<ConnectWhatsappResponses, ConnectWhatsappErrors, ThrowOnError> => (options.client ?? client).post<ConnectWhatsappResponses, ConnectWhatsappErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/whatsapp/connections',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * The workspace's numbers and their setup progress
+ */
+export const listWhatsappNumbers = <ThrowOnError extends boolean = false>(options: Options<ListWhatsappNumbersData, ThrowOnError>): RequestResult<ListWhatsappNumbersResponses, ListWhatsappNumbersErrors, ThrowOnError> => (options.client ?? client).get<ListWhatsappNumbersResponses, ListWhatsappNumbersErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/whatsapp/numbers',
+    ...options
+});
+
+/**
+ * One number
+ */
+export const getWhatsappNumber = <ThrowOnError extends boolean = false>(options: Options<GetWhatsappNumberData, ThrowOnError>): RequestResult<GetWhatsappNumberResponses, GetWhatsappNumberErrors, ThrowOnError> => (options.client ?? client).get<GetWhatsappNumberResponses, GetWhatsappNumberErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/whatsapp/numbers/{numberId}',
+    ...options
+});
+
+/**
+ * Send the hello_world template to check the number works
+ */
+export const sendTestMessage = <ThrowOnError extends boolean = false>(options: Options<SendTestMessageData, ThrowOnError>): RequestResult<SendTestMessageResponses, SendTestMessageErrors, ThrowOnError> => (options.client ?? client).post<SendTestMessageResponses, SendTestMessageErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/whatsapp/numbers/{numberId}/test-messages',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * A test message's delivery status
+ */
+export const getTestMessage = <ThrowOnError extends boolean = false>(options: Options<GetTestMessageData, ThrowOnError>): RequestResult<GetTestMessageResponses, GetTestMessageErrors, ThrowOnError> => (options.client ?? client).get<GetTestMessageResponses, GetTestMessageErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/whatsapp/test-messages/{messageId}',
+    ...options
 });

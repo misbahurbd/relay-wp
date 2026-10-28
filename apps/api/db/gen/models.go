@@ -40,6 +40,18 @@ type AuthSession struct {
 	CreatedAt       time.Time
 }
 
+type EmailCode struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	Purpose   string
+	Email     string
+	CodeHash  []byte
+	Attempts  int32
+	ExpiresAt time.Time
+	UsedAt    *time.Time
+	CreatedAt time.Time
+}
+
 type EmailToken struct {
 	ID        uuid.UUID
 	UserID    uuid.UUID
@@ -69,6 +81,20 @@ type OauthFlow struct {
 	Timezone            string
 	AppCodeChallenge    *string
 	UserID              *uuid.UUID
+	PendingEmail        *string
+	EmailCodeHash       []byte
+	EmailCodeExpiresAt  *time.Time
+	EmailCodeAttempts   int32
+	EmailCodeSends      int32
+}
+
+type OnboardingMemberState struct {
+	WorkspaceID       uuid.UUID
+	UserID            uuid.UUID
+	TourSeenAt        *time.Time
+	ChecklistHiddenAt *time.Time
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }
 
 type RefreshToken struct {
@@ -89,6 +115,8 @@ type User struct {
 	LastLoginAt     *time.Time
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+	TermsAcceptedAt *time.Time
+	TermsVersion    *string
 }
 
 type UserIdentity struct {
@@ -120,4 +148,86 @@ type UserProfile struct {
 	AvatarUrl   *string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+}
+
+type WhatsappAccount struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	WabaID      string
+	BusinessID  *string
+	Name        string
+	AccessToken []byte
+	Status      string
+	ConnectedBy *uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type WhatsappNumber struct {
+	ID                 uuid.UUID
+	WorkspaceID        uuid.UUID
+	AccountID          uuid.UUID
+	PhoneNumberID      string
+	DisplayPhoneNumber string
+	NumberType         string
+	VerifiedName       string
+	NameStatus         string
+	QualityRating      *string
+	MessagingLimit     *string
+	RegistrationPin    []byte
+	Status             string
+	SetupTasks         []byte
+	LastError          []byte
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+}
+
+type WhatsappTestMessage struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	NumberID    uuid.UUID
+	ToPhone     string
+	Wamid       *string
+	Status      string
+	ErrorCode   *string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type Workspace struct {
+	ID          uuid.UUID
+	Name        string
+	Industry    *string
+	Website     *string
+	Country     *string
+	TeamSize    *string
+	Goals       []string
+	Plan        string
+	TrialEndsAt *time.Time
+	ActivatedAt *time.Time
+	CreatedBy   *uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type WorkspaceMember struct {
+	WorkspaceID  uuid.UUID
+	UserID       uuid.UUID
+	Role         string
+	LastActiveAt time.Time
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+type WorkspaceOnboarding struct {
+	WorkspaceID       uuid.UUID
+	FirstGoal         string
+	SampleData        bool
+	BusinessDoneAt    *time.Time
+	WhatsappSkippedAt *time.Time
+	TestMessageSentAt *time.Time
+	CompletedAt       *time.Time
+	ReminderCount     int32
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }

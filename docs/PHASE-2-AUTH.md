@@ -187,12 +187,12 @@ All under `/v1`. Errors use the standard `{code, message, details}` shape. "Auth
 | Method and path                  | Auth                 | What it does                                                                                                                                                                                                                                                   |
 | -------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `POST /auth/signup`              | –                    | `email`, `password`, `first_name`, `last_name?`, `timezone?`. Creates user + profile + preferences, queues a verification email. **Same 202 response whether or not the email exists**; an existing owner gets an "you already have an account" email instead. |
-| `POST /auth/verify-email`        | –                    | `token`. Sets `email_verified_at`. Does not log in.                                                                                                                                                                                                            |
-| `POST /auth/verify-email/resend` | –                    | `email`. Always 202. Rate-limited.                                                                                                                                                                                                                             |
+| `POST /auth/verify-email`        | –                    | `token`, plus `password` when the account has one (`422 password_required` / `wrong_password`, and the link stays usable): the link proves the inbox, not who chose the password. Sets `email_verified_at`. Does not log in.                                   |
+| `POST /auth/verify-email/resend` | –                    | `email`. Always 202. Rate-limited per IP, and at most 4 codes per account per hour.                                                                                                                                                                            |
 | `POST /auth/login`               | –                    | `email`, `password`. Unverified with correct password → `403 email_not_verified`. Wrong email or password → `401 invalid_credentials` (same response and timing either way).                                                                                   |
 | `POST /auth/password/forgot`     | –                    | `email`. Always 202; sends a reset link if the account exists.                                                                                                                                                                                                 |
 | `POST /auth/password/reset`      | –                    | `token`, `new_password`. Sets the password, revokes **all** sessions.                                                                                                                                                                                          |
-| `POST /auth/password/change`     | Auth                 | `current_password`, `new_password`. Revokes all other sessions.                                                                                                                                                                                                |
+| `POST /auth/password/change`     | Auth                 | `current_password`, `new_password`. Wrong guesses count toward the login limits. Revokes all other sessions.                                                                                                                                                   |
 | `POST /auth/password/set`        | Auth, recent sign-in | `new_password`, for social-only users adding a password. Requires a verified email.                                                                                                                                                                            |
 
 ### Sessions and tokens
@@ -214,7 +214,8 @@ All under `/v1`. Errors use the standard `{code, message, details}` shape. "Auth
 | `GET /auth/oauth/{provider}/start`               | –                             | `client`, `redirect_to`, `timezone`, and `code_challenge` (mobile). Creates an `oauth_flows` row, sets the `relay_oauth` state cookie, redirects to the provider.                        |
 | `GET /auth/oauth/{provider}/link`                | Auth, recent sign-in          | Same as start with `intent = link`, for connecting a provider from settings (web).                                                                                                       |
 | `GET` and `POST /auth/oauth/{provider}/callback` | –                             | Apple uses form POST. Validates state, PKCE, nonce and ID token; signs in or links (see section 4).                                                                                      |
-| `POST /auth/oauth/complete`                      | Completion token              | Facebook without email: `email` → creates the account unverified, sends a verification link, signs in. Mobile also sends `code_verifier`.                                                |
+| `POST /auth/oauth/complete`                      | Completion token              | No provider-verified email: `email` → emails a 6-digit code to it (3 codes per flow). Mobile also sends `code_verifier`.                                                                 |
+| `POST /auth/oauth/complete/verify`               | Completion token + code       | `code` → creates or links the account with the proven email, signs in. Mobile also sends `code_verifier`.                                                                                |
 | `POST /auth/oauth/token`                         | One-time code + PKCE verifier | Mobile: redeems the `code` the callback sent to the app's deep link for tokens. A wrong verifier spends the code.                                                                        |
 | `POST /auth/oauth/facebook/data-deletion`        | Signed request from Meta      | **Required by Meta before go-live.** Verifies Meta's `signed_request`, removes that Facebook identity, logs `identity_unlinked`, and returns the confirmation URL and code Meta expects. |
 | `GET /auth/identities`                           | Auth                          | Connected providers, and whether a password is set.                                                                                                                                      |
@@ -245,19 +246,18 @@ Changing email is out of scope for this phase (it needs its own verify-the-new-a
    - **No identity, provider-verified email matches a user**:
      - existing user's email verified → link the identity;
      - existing user's email **not** verified → this is the real owner: mark verified, **clear `password_hash`**, revoke that user's sessions, link.
-   - **No identity, no verified match, email present** → create user (+ verified if the provider vouched), identity, profile (names + avatar), preferences.
-   - **No email (Facebook)** → keep the flow as `awaiting_email` with `pending_identity`; return a completion token; the frontend asks for an email (`POST /auth/oauth/complete`).
-   - **Email matches an existing user but isn't provider-verified** → never link. Respond `409 email_in_use_sign_in_first` so the user signs in and links from settings.
+   - **No identity, provider-verified email, no match** → create the user (verified), identity, profile (names + avatar), preferences.
+   - **No identity and no provider-verified email** (Facebook always, or no email at all) → nothing is created or linked yet. Keep the flow as `awaiting_email` with `pending_identity`; redirect with a completion token and the provider's email (if any) to prefill. The frontend asks for an address; `POST /auth/oauth/complete` emails it a 6-digit code (answering the same whether or not the address has an account); `POST /auth/oauth/complete/verify` checks the code (5 wrong tries end the flow) and then applies the provider-verified rules above with that address. Nobody can attach a provider to an address they can't read.
 5. Refuse if the user is `disabled`. **Web:** create the session, set the cookies and redirect to `redirect_to`. **Mobile:** the callback runs in the system browser, which can't hand tokens to the app. It stores a `ready` flow holding the user ID and redirects to the app's deep link with a one-time `code` (2 minutes). The app redeems it at `POST /auth/oauth/token` with the PKCE verifier matching the `code_challenge` it sent to start; another app that intercepts the deep link can't use the code. The session is created at redemption, so it gets the app's `X-Device-Name`. Failures redirect to `redirect_to?error=<code>`. To create the session: (`client` from the flow, `device_name` and `device_type` as described under "Device names", `created_ip` = `last_ip` = request IP, `authenticated_at` = now) and its refresh token. For Apple, store the encrypted Apple refresh token on the identity. Write `auth_events`, return tokens.
 
 ### Refresh
 
 1. Hash the presented token; load it with its session.
-2. Already `used_at` → **reuse**: revoke the session (`reuse_detected`), log `refresh_reuse_detected`, `401`.
-3. Expired, session revoked or user disabled → `401`.
-4. Mark it used, insert a new token (expires now + 30 days), extend `auth_sessions.expires_at`, update `last_used_at` and `last_ip` (never `authenticated_at`); issue a new 15-minute access token, as cookies or JSON depending on the session's `client`.
+2. Used more than 30 seconds ago → **reuse**: revoke the session (`reuse_detected`), log `refresh_reuse_detected`, `401`. Used within 30 seconds → another tab refreshed with the same cookie: issue a new token without marking anything.
+3. Expired, session revoked, user disabled or email not verified → `401`.
+4. Mark it used, insert a new token (expires now + 30 days, never more than `SESSION_MAX_AGE`, 90 days, after sign-in), extend `auth_sessions.expires_at` the same way, update `last_used_at` and `last_ip` (never `authenticated_at`); issue a new 15-minute access token, as cookies or JSON depending on the session's `client`.
 
-Concurrent refreshes from two browser tabs: the frontend serialises refresh calls, so a second tab never presents an already-rotated token.
+Within one tab the frontend shares a single refresh between concurrent requests; across tabs the 30-second window covers it.
 
 ### Device names (every new session, password or social)
 
@@ -276,7 +276,7 @@ Verify signature (`kid` → key), `exp`, `iss`, `aud`. Then one primary-key look
 ## 5. Security rules
 
 - **No account enumeration**: signup, resend, forgot-password always answer 202; login errors don't reveal which part was wrong; responses take similar time (dummy argon2 verify for unknown emails).
-- **Rate limits** (per IP, in addition to the global limit): login 10/min, signup 5/hour, forgot/resend 5/hour; plus per email: 5 failed logins per 15 minutes → `429` for that email.
+- **Rate limits** (per IP, in addition to the global limit): login 10/min, signup 5/hour, forgot/resend 5/hour. **Wrong passwords** (login, verify link or code, change password) are counted in `auth_events` by a keyed hash of the email, for unknown emails too: 5 per IP or 50 in total per 15 minutes (reset by a successful sign-in) → `429`. Counting per IP means a stranger can't lock the owner out, and the database count holds across instances and restarts.
 - **Redirects**: `redirect_to` must match `AUTH_ALLOWED_REDIRECTS` exactly; otherwise the default.
 - **Cookies**: `access_token` (Path=/, 15 min) and `refresh_token` (Path=/v1/auth/token/refresh, 30 days); both `HttpOnly`, `Secure`, `SameSite=Lax`.
 - **CSRF** for cookie requests that change data: `Origin` must be in `CORS_ALLOWED_ORIGINS`. Bearer requests are exempt.

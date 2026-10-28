@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -271,6 +272,32 @@ func (e *authEnv) exec(sql string, args ...any) {
 	}
 }
 
+// facebookSignUp runs a Facebook sign-in through the "add your email" step:
+// Facebook never vouches for email, so the address is proven with a code.
+func (b *browser) facebookSignUp(p profile, email string) {
+	b.env.t.Helper()
+	token := b.social("facebook", p).param("complete_token")
+	if token == "" {
+		b.env.t.Fatal("expected the add-email step")
+	}
+	expect(b.env.t, b.do("POST", "/v1/auth/oauth/complete", map[string]any{"token": token, "email": email}), http.StatusAccepted)
+	expect(b.env.t, b.do("POST", "/v1/auth/oauth/complete/verify", map[string]any{"token": token, "code": b.env.lastCode(email)}),
+		http.StatusOK)
+}
+
+// legacyUnverifiedFacebook builds what older versions allowed: an unverified
+// account with a Facebook identity whose email nobody proved. Returns its subject.
+func (e *authEnv) legacyUnverifiedFacebook(email string) string {
+	e.t.Helper()
+	expect(e.t, e.browser(chromeMac).do("POST", "/v1/auth/signup", map[string]any{
+		"email": email, "password": testPassword, "first_name": "Squatter", "accept_terms": true,
+	}), http.StatusAccepted)
+	subject := "fb-" + uuid.NewString()[:12]
+	e.exec(`INSERT INTO user_identities (id, user_id, provider, provider_user_id, email, email_verified)
+		SELECT $1, id, 'facebook', $2, email, false FROM users WHERE email = $3`, uuid.New(), subject, email)
+	return subject
+}
+
 func googleUser(email string) profile {
 	return profile{
 		Subject: "g-" + uuid.NewString(), Email: email, EmailVerified: true,
@@ -360,7 +387,7 @@ func TestGoogleClaimsUnverifiedAccount(t *testing.T) {
 	email := newEmail()
 	// Someone signs up with this email but never verifies it.
 	expect(t, e.browser(chromeMac).do("POST", "/v1/auth/signup", map[string]any{
-		"email": email, "password": testPassword, "first_name": "Squatter",
+		"email": email, "password": testPassword, "first_name": "Squatter", "accept_terms": true,
 	}), http.StatusAccepted)
 
 	// The real owner proves the email through Google.
@@ -375,24 +402,51 @@ func TestGoogleClaimsUnverifiedAccount(t *testing.T) {
 		http.StatusUnauthorized, "invalid_credentials")
 }
 
+func TestGoogleClaimDropsSquattersFacebook(t *testing.T) {
+	e := newAuthEnv(t)
+	email := newEmail()
+	// Older versions let a Facebook account sit on an unproven email.
+	subject := e.legacyUnverifiedFacebook(email)
+
+	// The real owner proves the email through Google and takes the account.
+	owner := e.browser(chromeMac)
+	owner.social("google", googleUser(email))
+	if _, ids := e.identities(owner); len(ids) != 1 || ids[0] != "google" {
+		t.Errorf("identities after claim = %v", ids)
+	}
+
+	// The squatter's Facebook no longer signs in to the owner's account.
+	squatter := facebookUser("")
+	squatter.Subject = subject
+	again := e.browser(chromeMac)
+	if res := again.social("facebook", squatter); res.param("complete_token") == "" || again.cookies["relay_access"] != nil {
+		t.Errorf("squatter facebook sign-in landed on %s", res.location)
+	}
+}
+
 func TestUnverifiedProviderEmailNeverLinks(t *testing.T) {
 	e := newAuthEnv(t)
 	email := e.verifiedUser()
 
-	fb := e.browser(chromeMac).social("facebook", facebookUser(email))
-	if fb.param("error") != "email_in_use_sign_in_first" || fb.location.Path != "/dashboard" {
-		t.Errorf("facebook with a taken email landed on %s", fb.location)
-	}
+	// A provider email nobody proved never reaches an account: both stop at the add-email step.
+	fb := e.browser(chromeMac)
 	unverified := googleUser(email)
 	unverified.EmailVerified = false
-	g := e.browser(chromeMac).social("google", unverified)
-	if g.param("error") != "email_in_use_sign_in_first" {
-		t.Errorf("unverified google email landed on %s", g.location)
-	}
-	for _, c := range g.cookies {
-		if c.Name == "relay_access" && c.MaxAge > 0 {
-			t.Error("a refused sign-in must not set auth cookies")
+	g := e.browser(chromeMac)
+	for _, res := range []oauthResult{fb.social("facebook", facebookUser(email)), g.social("google", unverified)} {
+		if res.param("complete_token") == "" || res.location.Path != "/dashboard" {
+			t.Errorf("unproven email landed on %s", res.location)
 		}
+		for _, c := range res.cookies {
+			if c.Name == "relay_access" && c.MaxAge > 0 {
+				t.Error("an unproven email must not set auth cookies")
+			}
+		}
+	}
+	owner := e.browser(chromeMac)
+	owner.login(email)
+	if _, ids := e.identities(owner); len(ids) != 0 {
+		t.Errorf("identities = %v", ids)
 	}
 }
 
@@ -402,55 +456,133 @@ func TestFacebookSignUp(t *testing.T) {
 	person := facebookUser(email)
 	person.Silhouette = true
 
+	// Facebook never vouches for email: nothing is created until the address is proven.
 	b := e.browser(chromeMac)
 	res := b.social("facebook", person)
-	if res.param("error") != "" {
-		t.Fatalf("landed on %s", res.location)
+	token := res.param("complete_token")
+	if token == "" || res.param("email") != email || b.cookies["relay_access"] != nil {
+		t.Fatalf("expected the add-email step prefilled with %s, landed on %s", email, res.location)
 	}
+	expect(t, e.browser(chromeMac).do("POST", "/v1/auth/password/forgot", map[string]any{"email": email}), http.StatusAccepted)
+	var users int
+	if err := e.a.db.QueryRow(t.Context(), `SELECT count(*) FROM users WHERE email = $1`, email).Scan(&users); err != nil || users != 0 {
+		t.Fatalf("users with that email before proof = %d (%v)", users, err)
+	}
+
+	expect(t, b.do("POST", "/v1/auth/oauth/complete", map[string]any{"token": token, "email": email}), http.StatusAccepted)
+	code := e.lastCode(email)
+	wrong := fmt.Sprintf("%06d", (mustAtoi(t, code)+1)%1_000_000)
+	expect(t, b.do("POST", "/v1/auth/oauth/complete/verify", map[string]any{"token": token, "code": wrong}),
+		http.StatusUnprocessableEntity, "invalid_code")
+	expect(t, b.do("POST", "/v1/auth/oauth/complete/verify", map[string]any{"token": token, "code": code}), http.StatusOK)
+
 	me := e.me(b)
-	// Facebook never vouches for email: the account is unverified and gets a link.
-	if field(me, "user", "email_verified") != false || field(me, "profile", "avatar_url") != nil ||
+	if field(me, "user", "email_verified") != true || field(me, "profile", "avatar_url") != nil ||
 		field(me, "profile", "first_name") != "Linus" {
 		t.Errorf("/me = %v", me)
 	}
-	if subject, _ := e.lastEmail(email); subject != "Verify your email address" {
-		t.Errorf("email subject = %q", subject)
+	// The flow is spent; next time the same Facebook account signs straight in.
+	expect(t, b.do("POST", "/v1/auth/oauth/complete/verify", map[string]any{"token": token, "code": code}),
+		http.StatusUnprocessableEntity, "invalid_oauth_state")
+	again := e.browser(chromeMac)
+	if r := again.social("facebook", person); r.param("complete_token") != "" || again.cookies["relay_access"] == nil {
+		t.Errorf("second facebook sign-in landed on %s", r.location)
 	}
 }
 
 func TestFacebookWithoutEmail(t *testing.T) {
 	e := newAuthEnv(t)
-	person := facebookUser("")
-
 	b := e.browser(chromeMac)
-	res := b.social("facebook", person)
+	res := b.social("facebook", facebookUser(""))
 	token := res.param("complete_token")
-	if token == "" || b.cookies["relay_access"] != nil {
+	if token == "" || res.param("email") != "" || b.cookies["relay_access"] != nil {
 		t.Fatalf("expected the add-email step, landed on %s", res.location)
 	}
 
+	// The answer is the same for a taken address: nothing to probe.
 	taken := e.verifiedUser()
-	expect(t, b.do("POST", "/v1/auth/oauth/complete", map[string]any{"token": token, "email": taken}),
-		http.StatusConflict, "email_in_use_sign_in_first")
+	expect(t, b.do("POST", "/v1/auth/oauth/complete", map[string]any{"token": token, "email": taken}), http.StatusAccepted)
+	// Proving a taken address links Facebook to it, as a provider-verified email would.
+	expect(t, b.do("POST", "/v1/auth/oauth/complete/verify", map[string]any{"token": token, "code": e.lastCode(taken)}), http.StatusOK)
+	if field(e.me(b), "user", "email") != taken {
+		t.Error("account must be the one with the proven email")
+	}
+	owner := e.browser(chromeMac)
+	owner.login(taken)
+	if _, ids := e.identities(owner); len(ids) != 1 || ids[0] != "facebook" {
+		t.Errorf("identities = %v", ids)
+	}
+}
 
+func TestFacebookEmailCodeLimits(t *testing.T) {
+	e := newAuthEnv(t)
+	b := e.browser(chromeMac)
+	token := b.social("facebook", facebookUser("")).param("complete_token")
 	email := newEmail()
-	expect(t, b.do("POST", "/v1/auth/oauth/complete", map[string]any{"token": token, "email": email}), http.StatusOK)
-	if b.cookies["relay_access"] == nil {
-		t.Fatal("completing the sign-in must set auth cookies")
-	}
-	if field(e.me(b), "user", "email") != email {
-		t.Error("account must use the typed email")
-	}
-	if subject, _ := e.lastEmail(email); subject != "Verify your email address" {
-		t.Errorf("email subject = %q", subject)
-	}
-	expect(t, b.do("POST", "/v1/auth/oauth/complete", map[string]any{"token": token, "email": newEmail()}),
-		http.StatusUnprocessableEntity, "invalid_oauth_state")
 
-	// Next time, the same Facebook account signs straight in.
-	again := e.browser(chromeMac)
-	if r := again.social("facebook", person); r.param("complete_token") != "" || again.cookies["relay_access"] == nil {
-		t.Errorf("second facebook sign-in landed on %s", r.location)
+	// Three codes per sign-in attempt.
+	for range 3 {
+		expect(t, b.do("POST", "/v1/auth/oauth/complete", map[string]any{"token": token, "email": email}), http.StatusAccepted)
+	}
+	expect(t, b.do("POST", "/v1/auth/oauth/complete", map[string]any{"token": token, "email": email}),
+		http.StatusTooManyRequests, "too_many_codes")
+
+	// Five wrong codes end the attempt, even for the right code after.
+	code := e.lastCode(email)
+	wrong := fmt.Sprintf("%06d", (mustAtoi(t, code)+1)%1_000_000)
+	for range 4 {
+		expect(t, b.do("POST", "/v1/auth/oauth/complete/verify", map[string]any{"token": token, "code": wrong}),
+			http.StatusUnprocessableEntity, "invalid_code")
+	}
+	expect(t, b.do("POST", "/v1/auth/oauth/complete/verify", map[string]any{"token": token, "code": wrong}),
+		http.StatusTooManyRequests, "too_many_attempts")
+	expect(t, b.do("POST", "/v1/auth/oauth/complete/verify", map[string]any{"token": token, "code": code}),
+		http.StatusUnprocessableEntity, "invalid_oauth_state")
+}
+
+func TestMobileFacebookEmailStepNeedsVerifier(t *testing.T) {
+	e := newAuthEnv(t)
+	app := e.browser("RelayApp/1.0 okhttp/4.12")
+	verifier := oauth2.GenerateVerifier()
+	authURL := app.startOAuth("/v1/auth/oauth/facebook/start?client=mobile&redirect_to=" + url.QueryEscape(testAppRedirect) +
+		"&code_challenge=" + oauth2.S256ChallengeFromVerifier(verifier))
+	token := app.callback("facebook", authURL, e.fake.approve(authURL, facebookUser(""))).param("complete_token")
+	email := newEmail()
+
+	// Another app that caught the deep link can't use the token without the verifier.
+	expect(t, app.do("POST", "/v1/auth/oauth/complete", map[string]any{"token": token, "email": email}),
+		http.StatusUnauthorized, "invalid_code")
+	expect(t, app.do("POST", "/v1/auth/oauth/complete", map[string]any{"token": token, "email": email, "code_verifier": verifier}),
+		http.StatusAccepted)
+	code := e.lastCode(email)
+	expect(t, app.do("POST", "/v1/auth/oauth/complete/verify", map[string]any{"token": token, "code": code}),
+		http.StatusUnauthorized, "invalid_code")
+	r := app.do("POST", "/v1/auth/oauth/complete/verify", map[string]any{"token": token, "code": code, "code_verifier": verifier})
+	expect(t, r, http.StatusOK)
+	if r.body["access_token"] == nil {
+		t.Error("mobile gets tokens in the body")
+	}
+}
+
+func TestFacebookSquatterCantTakeAnEmail(t *testing.T) {
+	e := newAuthEnv(t)
+	victim := newEmail()
+
+	// A phone-only Facebook account types the victim's address. The code goes to
+	// the victim's inbox, so without it nothing is created and nothing signs in.
+	sq := e.browser(chromeMac)
+	token := sq.social("facebook", facebookUser("")).param("complete_token")
+	expect(t, sq.do("POST", "/v1/auth/oauth/complete", map[string]any{"token": token, "email": victim}), http.StatusAccepted)
+	for range 4 {
+		expect(t, sq.do("POST", "/v1/auth/oauth/complete/verify", map[string]any{"token": token, "code": "000000"}),
+			http.StatusUnprocessableEntity, "invalid_code")
+	}
+	var users int
+	if err := e.a.db.QueryRow(t.Context(), `SELECT count(*) FROM users WHERE email = $1`, victim).Scan(&users); err != nil || users != 0 {
+		t.Errorf("accounts for the victim's email = %d (%v)", users, err)
+	}
+	if sq.cookies["relay_access"] != nil {
+		t.Error("the squatter must not be signed in")
 	}
 }
 
@@ -611,11 +743,6 @@ func TestSetPasswordForSocialUser(t *testing.T) {
 		t.Error("has_password must be true")
 	}
 
-	// Facebook accounts must verify their email first.
-	fb := e.browser(chromeMac)
-	fb.social("facebook", facebookUser(newEmail()))
-	expect(t, fb.do("POST", "/v1/auth/password/set", map[string]any{"new_password": testPassword}), http.StatusForbidden, "email_not_verified")
-
 	// And it needs a recent sign-in.
 	stale := e.browser(chromeMac)
 	stale.social("google", googleUser(newEmail()))
@@ -626,8 +753,7 @@ func TestSetPasswordForSocialUser(t *testing.T) {
 func TestPasswordResetDropsUnverifiedFacebook(t *testing.T) {
 	e := newAuthEnv(t)
 	email := newEmail()
-	person := facebookUser(email)
-	e.browser(chromeMac).social("facebook", person)
+	subject := e.legacyUnverifiedFacebook(email)
 
 	// The real owner of the email resets the password: the Facebook link goes.
 	expect(t, e.browser(chromeMac).do("POST", "/v1/auth/password/forgot", map[string]any{"email": email}), http.StatusAccepted)
@@ -639,7 +765,10 @@ func TestPasswordResetDropsUnverifiedFacebook(t *testing.T) {
 	if _, ids := e.identities(owner); len(ids) != 0 {
 		t.Errorf("identities after reset = %v", ids)
 	}
-	if res := e.browser(chromeMac).social("facebook", person); res.param("error") != "email_in_use_sign_in_first" {
+	person := facebookUser("")
+	person.Subject = subject
+	again := e.browser(chromeMac)
+	if res := again.social("facebook", person); res.param("complete_token") == "" || again.cookies["relay_access"] != nil {
 		t.Errorf("old facebook sign-in landed on %s", res.location)
 	}
 }
@@ -659,9 +788,10 @@ func TestDisabledUserCannotUseSocialSignIn(t *testing.T) {
 
 func TestFacebookDataDeletion(t *testing.T) {
 	e := newAuthEnv(t)
-	person := facebookUser(newEmail())
+	email := newEmail()
+	person := facebookUser(email)
 	b := e.browser(chromeMac)
-	b.social("facebook", person)
+	b.facebookSignUp(person, email)
 
 	signed := func(secret string) string {
 		payload := base64.RawURLEncoding.EncodeToString([]byte(`{"algorithm":"HMAC-SHA256","issued_at":1730000000,"user_id":"` + person.Subject + `"}`))

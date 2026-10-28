@@ -9,11 +9,37 @@ import (
 
 // Email bodies for auth flows. Links point at the web app (APP_BASE_URL).
 
-func verifyEmail(to, link string) mailer.Message {
-	return message(to, "Verify your email address",
-		"Confirm this is your email address to finish creating your Relay account.",
-		"Verify email", link,
-		"This link expires in 24 hours. If you didn't create an account, you can ignore this email.")
+// verifyEmail carries the 6-digit code the sign-up page asks for, plus a link for
+// people who open the email on another device.
+func verifyEmail(to, code, link string) mailer.Message {
+	const footer = "The code expires in 10 minutes and the link in 24 hours. If you didn't create an account, you can ignore this email."
+	return mailer.Message{
+		To:      []string{to},
+		Subject: code + " is your Relay verification code",
+		Text: fmt.Sprintf("Your Relay verification code is %s. Enter it on the sign-up page to confirm your email address.\n\nOr verify with this link: %s\n\n%s\n",
+			code, link, footer),
+		HTML: fmt.Sprintf(`<p>Your Relay verification code is</p>`+
+			`<p style="font-size:28px;font-weight:700;letter-spacing:6px">%s</p>`+
+			`<p>Enter it on the sign-up page, or <a href="%s">verify with this link</a>.</p>`+
+			`<p style="color:#666">%s</p>`,
+			html.EscapeString(code), html.EscapeString(link), html.EscapeString(footer)),
+	}
+}
+
+// confirmEmailCode proves an address typed during a social sign-in. No account
+// exists for it yet, so there is no link: the code is entered in the same window.
+func confirmEmailCode(to, code string) mailer.Message {
+	const footer = "The code expires in 10 minutes. If you didn't try to sign in to Relay, you can ignore this email."
+	return mailer.Message{
+		To:      []string{to},
+		Subject: code + " is your Relay confirmation code",
+		Text:    fmt.Sprintf("Your Relay confirmation code is %s. Enter it where you signed in to confirm this email address.\n\n%s\n", code, footer),
+		HTML: fmt.Sprintf(`<p>Your Relay confirmation code is</p>`+
+			`<p style="font-size:28px;font-weight:700;letter-spacing:6px">%s</p>`+
+			`<p>Enter it where you signed in to confirm this email address.</p>`+
+			`<p style="color:#666">%s</p>`,
+			html.EscapeString(code), html.EscapeString(footer)),
+	}
 }
 
 // finishSignupEmail goes to an address that already has an unverified account.

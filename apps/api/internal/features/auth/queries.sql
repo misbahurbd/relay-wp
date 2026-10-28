@@ -12,6 +12,7 @@ FROM users
 WHERE email = @email;
 
 -- name: GetPasswordHash :one
+-- Change password, and confirming the password on the verify-link page.
 SELECT password_hash
 FROM users
 WHERE id = @id;
@@ -84,7 +85,9 @@ SELECT
     s.client,
     s.revoked_at AS session_revoked_at,
     s.expires_at AS session_expires_at,
-    u.status AS user_status
+    s.created_at AS session_created_at,
+    u.status AS user_status,
+    u.email_verified_at AS user_email_verified_at
 FROM refresh_tokens rt
 JOIN auth_sessions s ON s.id = rt.session_id
 JOIN users u ON u.id = s.user_id
@@ -92,8 +95,9 @@ WHERE rt.token_hash = @token_hash
 FOR UPDATE OF rt;
 
 -- name: MarkRefreshTokenUsed :exec
+-- used_at comes from the service clock, which also checks the reuse grace window.
 UPDATE refresh_tokens
-SET used_at = now()
+SET used_at = @used_at
 WHERE id = @id;
 
 -- name: ExtendSession :exec
@@ -120,8 +124,9 @@ WHERE user_id = @user_id
   AND (sqlc.narg(keep_id)::uuid IS NULL OR id <> sqlc.narg(keep_id)::uuid);
 
 -- name: IsSessionActive :one
--- Checked on every authenticated request, so a revoked session, an expired one
--- or a disabled user stops working at once instead of when the access token expires.
+-- Checked on every authenticated request, so a revoked session, an expired one,
+-- a disabled user or an unproven email stops working at once instead of when
+-- the access token expires.
 SELECT EXISTS (
     SELECT 1
     FROM auth_sessions s
@@ -131,6 +136,7 @@ SELECT EXISTS (
       AND s.revoked_at IS NULL
       AND s.expires_at > now()
       AND u.status = 'active'
+      AND u.email_verified_at IS NOT NULL
 )::boolean AS active;
 
 -- name: ListActiveSessions :many
@@ -240,3 +246,118 @@ INSERT INTO oauth_flows (
 DELETE FROM oauth_flows
 WHERE completion_token_hash = @completion_token_hash AND status = @status AND expires_at > now()
 RETURNING provider, client, timezone, app_code_challenge, pending_identity, user_id;
+
+-- name: SetTermsAccepted :exec
+UPDATE users
+SET terms_accepted_at = now(), terms_version = @terms_version
+WHERE id = @id;
+
+-- name: InvalidateEmailCodes :exec
+UPDATE email_codes
+SET used_at = now()
+WHERE user_id = @user_id AND purpose = @purpose AND used_at IS NULL;
+
+-- name: CreateEmailCode :exec
+INSERT INTO email_codes (id, user_id, purpose, email, code_hash, expires_at)
+VALUES (@id, @user_id, @purpose, @email, @code_hash, @expires_at);
+
+-- name: GetActiveEmailCode :one
+-- The only query that reads code_hash. Locks the row so concurrent tries count correctly.
+SELECT id, code_hash, attempts
+FROM email_codes
+WHERE user_id = @user_id AND purpose = @purpose AND used_at IS NULL AND expires_at > now()
+ORDER BY created_at DESC
+LIMIT 1
+FOR UPDATE;
+
+-- name: RecordEmailCodeAttempt :one
+UPDATE email_codes
+SET attempts = attempts + 1
+WHERE id = @id
+RETURNING attempts;
+
+-- name: UseEmailCode :exec
+UPDATE email_codes
+SET used_at = now()
+WHERE id = @id;
+
+-- name: CountRecentEmailCodes :one
+-- Codes sent to a user lately: resends are capped per account, not just per IP.
+SELECT count(*)::int
+FROM email_codes
+WHERE user_id = @user_id AND purpose = @purpose AND created_at > @since;
+
+-- name: CountPasswordFailures :one
+-- Wrong passwords for one email (metadata.key) since @since and since its last
+-- successful sign-in: from this IP, and from anywhere.
+SELECT
+    count(*) FILTER (WHERE e.ip = sqlc.narg(client_ip)::inet)::int AS from_ip,
+    count(*)::int AS total
+FROM auth_events e
+WHERE e.metadata ? 'key'
+  AND e.metadata ->> 'key' = @key::text
+  AND e.event = 'login_failed'
+  AND e.created_at > GREATEST(@since::timestamptz, COALESCE((
+      SELECT max(s.created_at) FROM auth_events s
+      WHERE s.metadata ? 'key' AND s.metadata ->> 'key' = @key::text AND s.event = 'login_succeeded'
+  ), '-infinity'::timestamptz));
+
+-- name: GetAwaitingOAuthFlow :one
+-- The "add your email" step of a social sign-up. Locks the row while a code is sent.
+SELECT id, client, app_code_challenge, email_code_sends
+FROM oauth_flows
+WHERE completion_token_hash = @completion_token_hash AND status = 'awaiting_email' AND expires_at > now()
+FOR UPDATE;
+
+-- name: SetOAuthFlowEmailCode :exec
+UPDATE oauth_flows
+SET pending_email = @pending_email, email_code_hash = @email_code_hash, email_code_expires_at = @email_code_expires_at,
+    email_code_attempts = 0, email_code_sends = email_code_sends + 1
+WHERE id = @id;
+
+-- name: GetOAuthFlowEmailCode :one
+-- The only query that reads oauth_flows.email_code_hash. Locks the row so tries count correctly.
+SELECT id, provider, client, timezone, app_code_challenge, pending_identity,
+       pending_email, email_code_hash, email_code_expires_at, email_code_attempts
+FROM oauth_flows
+WHERE completion_token_hash = @completion_token_hash AND status = 'awaiting_email' AND expires_at > now()
+FOR UPDATE;
+
+-- name: RecordOAuthFlowCodeAttempt :one
+UPDATE oauth_flows
+SET email_code_attempts = email_code_attempts + 1
+WHERE id = @id
+RETURNING email_code_attempts;
+
+-- name: DeleteOAuthFlow :exec
+DELETE FROM oauth_flows
+WHERE id = @id;
+
+-- Cleanup (CleanupWorker, hourly). Ended sessions are kept 30 days for the
+-- sessions page history; their refresh tokens go with them (ON DELETE CASCADE).
+
+-- name: DeleteExpiredOAuthFlows :execrows
+DELETE FROM oauth_flows
+WHERE expires_at < now();
+
+-- name: DeleteExpiredEmailTokens :execrows
+DELETE FROM email_tokens
+WHERE expires_at < now();
+
+-- name: DeleteExpiredEmailCodes :execrows
+DELETE FROM email_codes
+WHERE expires_at < now();
+
+-- name: DeleteExpiredRefreshTokens :execrows
+DELETE FROM refresh_tokens
+WHERE expires_at < now();
+
+-- name: DeleteEndedSessions :execrows
+DELETE FROM auth_sessions
+WHERE revoked_at < now() - interval '30 days'
+   OR expires_at < now() - interval '30 days';
+
+-- name: DeleteOldAuthEvents :execrows
+-- auth_events is kept 180 days (00002_auth.sql).
+DELETE FROM auth_events
+WHERE created_at < now() - interval '180 days';

@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
@@ -35,8 +36,11 @@ import (
 //     browser goes to the app's redirect_to with a one-time code, which the app
 //     redeems at POST /oauth/token with its own PKCE verifier.
 //
-// A provider that gives no email (Facebook phone-number accounts) ends in
-// "awaiting_email": the client asks for an address and calls POST /oauth/complete.
+// A new sign-in whose provider doesn't vouch for the email (Facebook, or one
+// that gives no email at all) ends in "awaiting_email": the client asks for an
+// address (prefilled with the provider's), POST /oauth/complete emails it a code,
+// and POST /oauth/complete/verify creates or links the account once the code
+// matches. Nobody can attach a provider to an address they can't read.
 
 // Callback error codes that aren't apperr errors.
 const (
@@ -46,7 +50,7 @@ const (
 
 var (
 	// errNeedEmail: the provider gave no usable email; ask the user for one.
-	errNeedEmail = errors.New("provider gave no email")
+	errNeedEmail = errors.New("provider gave no verified email")
 	// pkceChallenge is an S256 code challenge: 43 base64url characters.
 	pkceChallenge = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`)
 	// ErrVerifyEmailFirst blocks setting a password until the email is proven.
@@ -178,6 +182,9 @@ func (s *Service) signInWithIdentity(ctx context.Context, id ProviderIdentity, f
 			}
 			res.CompleteToken, err = s.createPendingFlow(ctx, r, flowStatusAwaitingEmail, id.Provider, flow.Client,
 				flow.RedirectTo, flow.Timezone, flow.AppCodeChallenge, pending, nil, oauthAwaitingTTL)
+			if e := providerEmail(id); e != nil {
+				res.PendingEmail = *e // prefills the form; the person still proves it
+			}
 			return err
 		}
 		if err != nil {
@@ -221,7 +228,8 @@ func (s *Service) resolveIdentity(ctx context.Context, tx pgx.Tx, r repository, 
 	}
 
 	email, err := normalizeEmail(id.Email)
-	if err != nil {
+	if err != nil || !id.EmailVerified {
+		// Never create or attach an account on an email nobody has proven.
 		return uuid.Nil, errNeedEmail
 	}
 	id.Email = email
@@ -229,10 +237,6 @@ func (s *Service) resolveIdentity(ctx context.Context, tx pgx.Tx, r repository, 
 	acc, err := r.GetAccountByEmail(ctx, email)
 	switch {
 	case err == nil:
-		if !id.EmailVerified {
-			// Never attach an account on an email nobody has proven.
-			return uuid.Nil, ErrEmailInUse
-		}
 		if acc.EmailVerifiedAt == nil {
 			// The provider proves this person owns the email, so whoever created the
 			// unverified account didn't: their password and sessions go.
@@ -261,22 +265,30 @@ func (s *Service) claimUnverifiedAccount(ctx context.Context, r repository, user
 	if _, err := r.RevokeUserSessions(ctx, gen.RevokeUserSessionsParams{UserID: userID, Reason: &reason}); err != nil {
 		return fmt.Errorf("revoke sessions: %w", err)
 	}
+	// A social login whose provider never vouched for the email (Facebook) was
+	// attached by the same unproven creator: it must not keep access either.
+	n, err := r.DeleteUnverifiedIdentities(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("remove unverified identities: %w", err)
+	}
+	if n > 0 {
+		if err := s.record(ctx, r, &userID, eventIdentityUnlinked, "", meta,
+			map[string]any{"reason": "claimed_by_provider"}); err != nil {
+			return err
+		}
+	}
 	return s.record(ctx, r, &userID, eventEmailVerified, "", meta, map[string]any{"reason": "claimed_by_provider"})
 }
 
-// createSocialUser creates the user, identity, profile and preferences. An
-// email the provider didn't vouch for gets a verification link.
+// createSocialUser creates the user, identity, profile and preferences. The
+// email is always proven by now (by the provider or by an emailed code).
 func (s *Service) createSocialUser(ctx context.Context, tx pgx.Tx, r repository, id ProviderIdentity, tz string, meta RequestMeta) (uuid.UUID, error) {
 	userID, err := uuid.NewV7()
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("user id: %w", err)
 	}
-	var verifiedAt *time.Time
-	if id.EmailVerified {
-		now := s.now()
-		verifiedAt = &now
-	}
-	if err := r.CreateSocialUser(ctx, gen.CreateSocialUserParams{ID: userID, Email: id.Email, EmailVerifiedAt: verifiedAt}); err != nil {
+	now := s.now()
+	if err := r.CreateSocialUser(ctx, gen.CreateSocialUserParams{ID: userID, Email: id.Email, EmailVerifiedAt: &now}); err != nil {
 		if isUniqueViolation(err) {
 			return uuid.Nil, ErrEmailInUse // a concurrent signup took the email
 		}
@@ -287,11 +299,6 @@ func (s *Service) createSocialUser(ctx context.Context, tx pgx.Tx, r repository,
 	}
 	if err := s.profiles.CreateForUser(ctx, tx, userID, firstNameFor(id), nonEmpty(id.LastName), nonEmpty(id.AvatarURL), tz); err != nil {
 		return uuid.Nil, fmt.Errorf("create profile: %w", err)
-	}
-	if !id.EmailVerified {
-		if err := s.sendVerifyLink(ctx, tx, r, userID, id.Email); err != nil {
-			return uuid.Nil, err
-		}
 	}
 	return userID, s.record(ctx, r, &userID, eventSignup, id.Provider, meta, nil)
 }
@@ -336,36 +343,91 @@ func (s *Service) linkIdentity(ctx context.Context, id ProviderIdentity, userID 
 
 // --- Second stage: add an email, or redeem a mobile code ---
 
-// CompleteOAuthSignup finishes a sign-in whose provider gave no email: it
-// creates the account with the address the user typed (unverified, with a
-// verification link) and signs in. Mobile flows must present their PKCE verifier.
-func (s *Service) CompleteOAuthSignup(ctx context.Context, token, rawEmail, codeVerifier string, meta RequestMeta) (Tokens, error) {
+// SendOAuthEmailCode is the first half of the "add your email" step: it emails
+// a code to the address the person typed. It answers the same whether or not
+// the address has an account. Mobile flows must present their PKCE verifier.
+func (s *Service) SendOAuthEmailCode(ctx context.Context, token, rawEmail, codeVerifier string) error {
 	email, err := normalizeEmail(rawEmail)
 	if err != nil {
-		return Tokens{}, err
+		return err
 	}
-	var tokens Tokens
-	err = database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+	return database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
 		r := newRepository(tx)
-		row, err := r.ConsumePendingOAuthFlow(ctx, gen.ConsumePendingOAuthFlowParams{
-			CompletionTokenHash: hashToken(token), Status: flowStatusAwaitingEmail,
-		})
+		flow, err := r.GetAwaitingOAuthFlow(ctx, hashToken(token))
 		if isNoRows(err) {
 			return ErrInvalidOAuthState
 		}
 		if err != nil {
-			return fmt.Errorf("consume pending flow: %w", err)
+			return fmt.Errorf("load pending flow: %w", err)
+		}
+		if flow.Client == clientMobile && !challengeMatches(flow.AppCodeChallenge, codeVerifier) {
+			return ErrInvalidAppCode
+		}
+		if flow.EmailCodeSends >= oauthCodeMaxSends {
+			return ErrTooManyCodeSends
+		}
+		code, hash, err := newEmailCode(s.cfg.EmailCodeKey)
+		if err != nil {
+			return err
+		}
+		exp := s.now().Add(verifyCodeTTL)
+		if err := r.SetOAuthFlowEmailCode(ctx, gen.SetOAuthFlowEmailCodeParams{
+			ID: flow.ID, PendingEmail: &email, EmailCodeHash: hash, EmailCodeExpiresAt: &exp,
+		}); err != nil {
+			return fmt.Errorf("store code: %w", err)
+		}
+		return s.enqueue(ctx, tx, confirmEmailCode(email, code))
+	})
+}
+
+// CompleteOAuthSignup is the second half: with the right code the email is
+// proven, so the sign-in creates the account (or links an existing one, as a
+// provider-verified email would) and signs in. After verifyCodeMaxAttempts
+// wrong codes the flow is gone and the sign-in must start again.
+func (s *Service) CompleteOAuthSignup(ctx context.Context, token, code, codeVerifier string, meta RequestMeta) (Tokens, error) {
+	given := hashEmailCode(s.cfg.EmailCodeKey, strings.TrimSpace(code))
+	var (
+		tokens  Tokens
+		tooMany bool
+	)
+	err := database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+		r := newRepository(tx)
+		row, err := r.GetOAuthFlowEmailCode(ctx, hashToken(token))
+		if isNoRows(err) {
+			return ErrInvalidOAuthState
+		}
+		if err != nil {
+			return fmt.Errorf("load pending flow: %w", err)
 		}
 		if row.Client == clientMobile && !challengeMatches(row.AppCodeChallenge, codeVerifier) {
 			return ErrInvalidAppCode
 		}
+		if row.PendingEmail == nil || row.EmailCodeExpiresAt == nil || !s.now().Before(*row.EmailCodeExpiresAt) {
+			return ErrInvalidCode
+		}
+		if !hmac.Equal(row.EmailCodeHash, given) {
+			attempts, err := r.RecordOAuthFlowCodeAttempt(ctx, row.ID)
+			if err != nil {
+				return fmt.Errorf("count attempt: %w", err)
+			}
+			if attempts >= verifyCodeMaxAttempts {
+				// The flow is spent: guessing must start over at the provider.
+				if err := r.DeleteOAuthFlow(ctx, row.ID); err != nil {
+					return fmt.Errorf("end flow: %w", err)
+				}
+				tooMany = true
+			}
+			return nil // commit the count; the answer is decided after
+		}
+		if err := r.DeleteOAuthFlow(ctx, row.ID); err != nil {
+			return fmt.Errorf("consume flow: %w", err)
+		}
+
 		var id ProviderIdentity
 		if err := json.Unmarshal(row.PendingIdentity, &id); err != nil {
 			return fmt.Errorf("pending identity: %w", err)
 		}
-		id.Email, id.EmailVerified = email, false
-
-		// Errors below roll back, so the token stays usable with a different email.
+		id.Email, id.EmailVerified = *row.PendingEmail, true // the code proved it
 		userID, err := s.resolveIdentity(ctx, tx, r, id, row.Timezone, meta)
 		if err != nil {
 			return err
@@ -377,7 +439,15 @@ func (s *Service) CompleteOAuthSignup(ctx context.Context, token, rawEmail, code
 		tokens, err = s.signIn(ctx, r, userID, id.Provider, meta)
 		return err
 	})
-	return tokens, err
+	switch {
+	case err != nil:
+		return Tokens{}, err
+	case tokens.AccessToken == "" && tooMany:
+		return Tokens{}, ErrTooManyCodeAttempts
+	case tokens.AccessToken == "":
+		return Tokens{}, ErrInvalidCode
+	}
+	return tokens, nil
 }
 
 // RedeemAppCode turns a mobile one-time code into tokens. The code is spent
@@ -591,6 +661,8 @@ func (s *Service) requireRecentSignIn(ctx context.Context, r repository, userID,
 	return nil
 }
 
+// checkActive refuses a disabled account, and one whose email was never proven
+// (sessions need both; see IsSessionActive).
 func checkActive(ctx context.Context, r repository, userID uuid.UUID) error {
 	acc, err := r.GetAccount(ctx, userID)
 	if err != nil {
@@ -598,6 +670,9 @@ func checkActive(ctx context.Context, r repository, userID uuid.UUID) error {
 	}
 	if acc.Status != "active" {
 		return ErrAccountDisabled
+	}
+	if acc.EmailVerifiedAt == nil {
+		return ErrEmailNotVerified
 	}
 	return nil
 }
@@ -692,6 +767,7 @@ func (r OAuthResult) URL() string {
 	set("linked", r.Linked)
 	set("code", r.AppCode)
 	set("complete_token", r.CompleteToken)
+	set("email", r.PendingEmail)
 	u.RawQuery = q.Encode()
 	return u.String()
 }

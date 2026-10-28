@@ -2,7 +2,9 @@ package auth
 
 import (
 	"context"
+	"crypto/hmac"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/mail"
 	"slices"
@@ -41,7 +43,9 @@ type ProfileCreator interface {
 // Config holds the values the service needs from configuration.
 type Config struct {
 	RefreshTTL time.Duration
-	AppBaseURL string
+	// SessionMaxAge caps a session's life however often it refreshes.
+	SessionMaxAge time.Duration
+	AppBaseURL    string
 
 	// APIBaseURL builds OAuth callback URLs.
 	APIBaseURL string
@@ -50,6 +54,10 @@ type Config struct {
 	AllowedRedirects []string
 	// ReauthMaxAge is how recent a sign-in must be for sensitive actions.
 	ReauthMaxAge time.Duration
+	// EmailCodeKey keys the HMAC of sign-up verification codes.
+	EmailCodeKey []byte
+	// TermsVersion is stored with each sign-up's acceptance of the terms.
+	TermsVersion string
 }
 
 // Service implements every auth flow. Handlers call it; it never sees HTTP.
@@ -62,22 +70,23 @@ type Service struct {
 	oauth    Providers     // only configured providers
 	cfg      Config
 
-	loginFailures *failureLimiter
-	dummyHash     string // verified against for unknown emails so timing doesn't reveal them
-	now           func() time.Time
+	dummyHash string // verified against for unknown emails so timing doesn't reveal them
+	now       func() time.Time
 }
 
 // New builds the service. breach may be nil; providers may be empty.
 func New(pool *pgxpool.Pool, tokens TokenIssuer, queue Enqueuer, profiles ProfileCreator, breach BreachChecker, providers Providers, cfg Config) (*Service, error) {
+	if len(cfg.EmailCodeKey) != 32 {
+		return nil, errors.New("auth: EMAIL_CODE_KEY must be 32 bytes")
+	}
 	dummy, err := hashPassword("not-a-real-password-Aa1!")
 	if err != nil {
 		return nil, err
 	}
 	return &Service{
 		pool: pool, tokens: tokens, queue: queue, profiles: profiles, breach: breach, oauth: providers, cfg: cfg,
-		loginFailures: newFailureLimiter(5, 15*time.Minute),
-		dummyHash:     dummy,
-		now:           func() time.Time { return time.Now().UTC() },
+		dummyHash: dummy,
+		now:       func() time.Time { return time.Now().UTC() },
 	}, nil
 }
 
@@ -94,6 +103,9 @@ func (s *Service) Signup(ctx context.Context, in SignupInput, meta RequestMeta) 
 	firstName := strings.TrimSpace(in.FirstName)
 	if firstName == "" {
 		return ErrInvalidInput.WithDetails(apperr.Detail{Field: "first_name", Message: "Enter your first name"})
+	}
+	if !in.AcceptTerms {
+		return ErrTermsRequired
 	}
 	tz, err := normalizeTimezone(in.Timezone)
 	if err != nil {
@@ -126,6 +138,9 @@ func (s *Service) Signup(ctx context.Context, in SignupInput, meta RequestMeta) 
 			}
 			return fmt.Errorf("create user: %w", err)
 		}
+		if err := r.SetTermsAccepted(ctx, gen.SetTermsAcceptedParams{ID: id, TermsVersion: &s.cfg.TermsVersion}); err != nil {
+			return fmt.Errorf("record terms: %w", err)
+		}
 		if err := s.profiles.CreateForUser(ctx, tx, id, firstName, trimmedOrNil(in.LastName), nil, tz); err != nil {
 			return fmt.Errorf("create profile: %w", err)
 		}
@@ -151,7 +166,12 @@ func (s *Service) emailExistingAccount(ctx context.Context, tx pgx.Tx, r reposit
 }
 
 // VerifyEmail marks the email verified. It does not sign the user in.
-func (s *Service) VerifyEmail(ctx context.Context, token string, meta RequestMeta) error {
+//
+// The link only proves who owns the inbox. Anyone can sign up with someone
+// else's address, so an account with a password must also confirm it here;
+// otherwise the owner clicking the link would activate a stranger's password.
+// A missing or wrong password rolls back, leaving the link usable.
+func (s *Service) VerifyEmail(ctx context.Context, token, password string, meta RequestMeta) error {
 	return database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
 		r := newRepository(tx)
 		row, err := r.ConsumeEmailToken(ctx, gen.ConsumeEmailTokenParams{TokenHash: hashToken(token), Purpose: purposeVerify})
@@ -161,11 +181,132 @@ func (s *Service) VerifyEmail(ctx context.Context, token string, meta RequestMet
 		if err != nil {
 			return fmt.Errorf("consume verify token: %w", err)
 		}
+		if err := s.confirmPassword(ctx, r, row.UserID, row.Email, password, meta); err != nil {
+			return err
+		}
 		if err := r.MarkEmailVerified(ctx, row.UserID); err != nil {
 			return fmt.Errorf("mark verified: %w", err)
 		}
 		return s.record(ctx, r, &row.UserID, eventEmailVerified, "", meta, nil)
 	})
+}
+
+// confirmPassword checks password against the account's own, if it has one.
+// Wrong guesses count toward the same limits as login.
+func (s *Service) confirmPassword(ctx context.Context, r repository, userID uuid.UUID, email, password string, meta RequestMeta) error {
+	stored, err := r.GetPasswordHash(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("load password: %w", err)
+	}
+	if stored == nil {
+		return nil // social-only account: nobody chose a password
+	}
+	if password == "" {
+		return ErrPasswordRequired
+	}
+	key := s.passwordKey(email)
+	if blocked, err := s.passwordBlocked(ctx, key, meta); err != nil {
+		return err
+	} else if blocked {
+		return ErrTooManyAttempts
+	}
+	ok, _, err := verifyPassword(password, *stored)
+	if err != nil {
+		return fmt.Errorf("verify password: %w", err)
+	}
+	if !ok {
+		s.recordFailedLogin(ctx, &userID, meta, "wrong_password", key)
+		return ErrVerifyWrongPassword
+	}
+	return nil
+}
+
+// VerifyEmailCode checks the 6-digit code from the sign-up email, marks the email
+// verified and signs the user in. The code proves who owns the inbox; the
+// password proves they also chose it (anyone can sign up with someone else's
+// address). The code is checked first, so a password answer never tells someone
+// without the code that an account exists.
+//
+// A wrong code, an expired code and an email with no account waiting all get
+// ErrInvalidCode. After verifyCodeMaxAttempts wrong tries the code is dead.
+func (s *Service) VerifyEmailCode(ctx context.Context, rawEmail, code, password string, meta RequestMeta) (Tokens, error) {
+	email, err := normalizeEmail(rawEmail)
+	if err != nil {
+		return Tokens{}, err
+	}
+	code = strings.TrimSpace(code)
+	given := hashEmailCode(s.cfg.EmailCodeKey, code)
+
+	var tokens Tokens
+	var tooMany bool
+	err = database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+		r := newRepository(tx)
+		acc, err := r.GetAccountByEmail(ctx, email)
+		if isNoRows(err) {
+			return ErrInvalidCode
+		}
+		if err != nil {
+			return fmt.Errorf("look up email: %w", err)
+		}
+		if acc.EmailVerifiedAt != nil || acc.Status != "active" {
+			return ErrInvalidCode
+		}
+		row, err := r.GetActiveEmailCode(ctx, gen.GetActiveEmailCodeParams{UserID: acc.ID, Purpose: purposeVerify})
+		if isNoRows(err) {
+			return ErrInvalidCode
+		}
+		if err != nil {
+			return fmt.Errorf("load code: %w", err)
+		}
+		if row.Attempts >= verifyCodeMaxAttempts {
+			return ErrTooManyCodeAttempts
+		}
+		if !hmac.Equal(row.CodeHash, given) {
+			attempts, err := r.RecordEmailCodeAttempt(ctx, row.ID)
+			if err != nil {
+				return fmt.Errorf("count attempt: %w", err)
+			}
+			// Commit the attempt count; the answer is decided after the transaction.
+			tooMany = attempts >= verifyCodeMaxAttempts
+			return nil
+		}
+		// A missing or wrong password rolls back: the code stays usable.
+		if err := s.confirmPassword(ctx, r, acc.ID, acc.Email, password, meta); err != nil {
+			return err
+		}
+
+		if err := r.UseEmailCode(ctx, row.ID); err != nil {
+			return fmt.Errorf("use code: %w", err)
+		}
+		// The emailed link would verify the same address; retire it too.
+		if err := r.InvalidateEmailTokens(ctx, gen.InvalidateEmailTokensParams{UserID: acc.ID, Purpose: purposeVerify}); err != nil {
+			return fmt.Errorf("retire verify link: %w", err)
+		}
+		if err := r.MarkEmailVerified(ctx, acc.ID); err != nil {
+			return fmt.Errorf("mark verified: %w", err)
+		}
+		if err := s.record(ctx, r, &acc.ID, eventEmailVerified, "", meta, nil); err != nil {
+			return err
+		}
+		now := s.now()
+		if tokens, err = s.startSession(ctx, r, acc.ID, providerPassword, meta, now); err != nil {
+			return err
+		}
+		if err := r.TouchLastLogin(ctx, acc.ID); err != nil {
+			return fmt.Errorf("touch last login: %w", err)
+		}
+		return s.record(ctx, r, &acc.ID, eventLoginSucceeded, providerPassword, meta,
+			map[string]any{"key": s.passwordKey(acc.Email)})
+	})
+	switch {
+	case err != nil:
+		return Tokens{}, err
+	case tokens.AccessToken == "" && tooMany:
+		return Tokens{}, ErrTooManyCodeAttempts
+	case tokens.AccessToken == "":
+		return Tokens{}, ErrInvalidCode
+	}
+	return tokens, nil
 }
 
 // ResendVerification emails a new link if the account exists and isn't verified.
@@ -187,6 +328,17 @@ func (s *Service) ResendVerification(ctx context.Context, rawEmail string, meta 
 		if acc.EmailVerifiedAt != nil || acc.Status != "active" {
 			return nil
 		}
+		// Each code gets a few tries, so cap codes per account too: otherwise
+		// asking for new ones from many IPs would allow unlimited guesses.
+		sent, err := r.CountRecentEmailCodes(ctx, gen.CountRecentEmailCodesParams{
+			UserID: acc.ID, Purpose: purposeVerify, Since: s.now().Add(-time.Hour),
+		})
+		if err != nil {
+			return fmt.Errorf("count codes: %w", err)
+		}
+		if sent >= verifyCodesPerHour {
+			return nil // same answer; the latest code still works
+		}
 		if err := s.sendVerifyLink(ctx, tx, r, acc.ID, acc.Email); err != nil {
 			return err
 		}
@@ -202,10 +354,13 @@ func (s *Service) Login(ctx context.Context, rawEmail, password string, meta Req
 	if err != nil {
 		return Tokens{}, ErrInvalidCredentials
 	}
-	now := s.now()
-	if s.loginFailures.blocked(email, now) {
+	key := s.passwordKey(email)
+	if blocked, err := s.passwordBlocked(ctx, key, meta); err != nil {
+		return Tokens{}, err
+	} else if blocked {
 		return Tokens{}, ErrTooManyAttempts
 	}
+	now := s.now()
 
 	r := newRepository(s.pool)
 	user, err := r.GetUserForLogin(ctx, email)
@@ -215,12 +370,11 @@ func (s *Service) Login(ctx context.Context, rawEmail, password string, meta Req
 	if err != nil || user.PasswordHash == nil {
 		// Unknown email or social-only account: spend the same time, give the same answer.
 		_, _, _ = verifyPassword(password, s.dummyHash)
-		s.loginFailures.fail(email, now)
 		var uid *uuid.UUID
 		if err == nil {
 			uid = &user.ID
 		}
-		s.recordFailedLogin(ctx, uid, meta, "invalid_credentials")
+		s.recordFailedLogin(ctx, uid, meta, "invalid_credentials", key)
 		return Tokens{}, ErrInvalidCredentials
 	}
 
@@ -229,20 +383,18 @@ func (s *Service) Login(ctx context.Context, rawEmail, password string, meta Req
 		return Tokens{}, fmt.Errorf("verify password: %w", err)
 	}
 	if !ok {
-		s.loginFailures.fail(email, now)
-		s.recordFailedLogin(ctx, &user.ID, meta, "invalid_credentials")
+		s.recordFailedLogin(ctx, &user.ID, meta, "invalid_credentials", key)
 		return Tokens{}, ErrInvalidCredentials
 	}
 	// Only now, with the right password, is it safe to say why sign-in can't proceed.
 	if user.Status != "active" {
-		s.recordFailedLogin(ctx, &user.ID, meta, "account_disabled")
+		s.recordFailedLogin(ctx, &user.ID, meta, "account_disabled", "")
 		return Tokens{}, ErrAccountDisabled
 	}
 	if user.EmailVerifiedAt == nil {
-		s.recordFailedLogin(ctx, &user.ID, meta, "email_not_verified")
+		s.recordFailedLogin(ctx, &user.ID, meta, "email_not_verified", "")
 		return Tokens{}, ErrEmailNotVerified
 	}
-	s.loginFailures.reset(email)
 
 	var tokens Tokens
 	err = database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
@@ -260,13 +412,15 @@ func (s *Service) Login(ctx context.Context, rawEmail, password string, meta Req
 		if err := r.TouchLastLogin(ctx, user.ID); err != nil {
 			return fmt.Errorf("touch last login: %w", err)
 		}
-		return s.record(ctx, r, &user.ID, eventLoginSucceeded, providerPassword, meta, nil)
+		// The key restarts the wrong-password count (see attempts.go).
+		return s.record(ctx, r, &user.ID, eventLoginSucceeded, providerPassword, meta, map[string]any{"key": key})
 	})
 	return tokens, err
 }
 
 // Refresh rotates a refresh token and issues a new access token. Presenting a
-// token that was already rotated means it was copied: the whole session is revoked.
+// token that was already rotated means it was copied: the whole session is
+// revoked, unless it was rotated less than refreshReuseGrace ago.
 func (s *Service) Refresh(ctx context.Context, rawToken string, meta RequestMeta) (Tokens, error) {
 	if rawToken == "" {
 		return Tokens{}, ErrInvalidRefresh
@@ -285,7 +439,10 @@ func (s *Service) Refresh(ctx context.Context, rawToken string, meta RequestMeta
 			return fmt.Errorf("load refresh token: %w", err)
 		}
 
-		if row.UsedAt != nil {
+		// Inside the grace window a used token gets a sibling instead of a revocation
+		// (another tab refreshed with the same cookie a moment ago).
+		graced := row.UsedAt != nil && now.Sub(*row.UsedAt) < refreshReuseGrace
+		if row.UsedAt != nil && !graced {
 			// Commit the revocation, then report failure after the transaction.
 			reused = true
 			reason := revokeReuseDetected
@@ -295,14 +452,21 @@ func (s *Service) Refresh(ctx context.Context, rawToken string, meta RequestMeta
 			return s.record(ctx, r, &row.UserID, eventRefreshReuseDetected, "", meta,
 				map[string]any{"session_id": row.SessionID})
 		}
-		if row.SessionRevokedAt != nil || !now.Before(row.ExpiresAt) || !now.Before(row.SessionExpiresAt) || row.UserStatus != "active" {
+		if row.SessionRevokedAt != nil || !now.Before(row.ExpiresAt) || !now.Before(row.SessionExpiresAt) ||
+			row.UserStatus != "active" || row.UserEmailVerifiedAt == nil {
 			return ErrInvalidRefresh
 		}
 
-		if err := r.MarkRefreshTokenUsed(ctx, row.ID); err != nil {
-			return fmt.Errorf("mark refresh token used: %w", err)
+		if !graced {
+			if err := r.MarkRefreshTokenUsed(ctx, gen.MarkRefreshTokenUsedParams{ID: row.ID, UsedAt: &now}); err != nil {
+				return fmt.Errorf("mark refresh token used: %w", err)
+			}
 		}
-		refresh, refreshExp, err := s.newRefreshToken(ctx, r, row.SessionID, now)
+		exp := s.sessionExpiry(row.SessionCreatedAt, now)
+		if !now.Before(exp) {
+			return ErrInvalidRefresh // past SessionMaxAge: sign in again
+		}
+		refresh, refreshExp, err := s.newRefreshToken(ctx, r, row.SessionID, exp)
 		if err != nil {
 			return err
 		}
@@ -436,18 +600,31 @@ func (s *Service) ResetPassword(ctx context.Context, token, newPassword string, 
 // ChangePassword replaces the password after checking the current one, and
 // signs out every other device.
 func (s *Service) ChangePassword(ctx context.Context, userID, sessionID uuid.UUID, current, next string, meta RequestMeta) error {
-	stored, err := newRepository(s.pool).GetPasswordHash(ctx, userID)
+	r := newRepository(s.pool)
+	acc, err := r.GetAccount(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("load account: %w", err)
+	}
+	stored, err := r.GetPasswordHash(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("load password: %w", err)
 	}
 	if stored == nil {
 		return ErrNoPassword
 	}
+	// A stolen session must not be a way to guess the password without limits.
+	key := s.passwordKey(acc.Email)
+	if blocked, err := s.passwordBlocked(ctx, key, meta); err != nil {
+		return err
+	} else if blocked {
+		return ErrTooManyAttempts
+	}
 	ok, _, err := verifyPassword(current, *stored)
 	if err != nil {
 		return fmt.Errorf("verify password: %w", err)
 	}
 	if !ok {
+		s.recordFailedLogin(ctx, &userID, meta, "wrong_current_password", key)
 		return ErrWrongPassword.WithDetails(apperr.Detail{Field: "current_password", Message: "Current password is incorrect"})
 	}
 	hash, err := s.newPasswordHash(ctx, next)
@@ -566,11 +743,11 @@ func (s *Service) startSession(ctx context.Context, r repository, userID uuid.UU
 	if err := r.CreateSession(ctx, gen.CreateSessionParams{
 		ID: sessionID, UserID: userID, Provider: provider, Client: client,
 		UserAgent: truncate(meta.UserAgent, 512), DeviceName: name, DeviceType: kind,
-		Ip: parseIP(meta.IP), Now: now, ExpiresAt: now.Add(s.cfg.RefreshTTL),
+		Ip: parseIP(meta.IP), Now: now, ExpiresAt: s.sessionExpiry(now, now),
 	}); err != nil {
 		return Tokens{}, fmt.Errorf("create session: %w", err)
 	}
-	refresh, refreshExp, err := s.newRefreshToken(ctx, r, sessionID, now)
+	refresh, refreshExp, err := s.newRefreshToken(ctx, r, sessionID, s.sessionExpiry(now, now))
 	if err != nil {
 		return Tokens{}, err
 	}
@@ -584,7 +761,19 @@ func (s *Service) startSession(ctx context.Context, r repository, userID uuid.UU
 	}, nil
 }
 
-func (s *Service) newRefreshToken(ctx context.Context, r repository, sessionID uuid.UUID, now time.Time) (string, time.Time, error) {
+// sessionExpiry is when a session started at created ends if refreshed at now:
+// RefreshTTL after the last refresh, but never past SessionMaxAge.
+func (s *Service) sessionExpiry(created, now time.Time) time.Time {
+	exp := now.Add(s.cfg.RefreshTTL)
+	if s.cfg.SessionMaxAge > 0 {
+		if limit := created.Add(s.cfg.SessionMaxAge); limit.Before(exp) {
+			return limit
+		}
+	}
+	return exp
+}
+
+func (s *Service) newRefreshToken(ctx context.Context, r repository, sessionID uuid.UUID, exp time.Time) (string, time.Time, error) {
 	raw, hash, err := newToken()
 	if err != nil {
 		return "", time.Time{}, err
@@ -593,7 +782,6 @@ func (s *Service) newRefreshToken(ctx context.Context, r repository, sessionID u
 	if err != nil {
 		return "", time.Time{}, fmt.Errorf("refresh token id: %w", err)
 	}
-	exp := now.Add(s.cfg.RefreshTTL)
 	if err := r.CreateRefreshToken(ctx, gen.CreateRefreshTokenParams{ID: id, SessionID: sessionID, TokenHash: hash, ExpiresAt: exp}); err != nil {
 		return "", time.Time{}, fmt.Errorf("create refresh token: %w", err)
 	}
@@ -621,13 +809,29 @@ func (s *Service) issueEmailToken(ctx context.Context, r repository, userID uuid
 	return raw, nil
 }
 
-// sendVerifyLink issues a verification link and queues the email.
+// sendVerifyLink issues a verification code and link, retiring earlier ones, and queues the email.
 func (s *Service) sendVerifyLink(ctx context.Context, tx pgx.Tx, r repository, userID uuid.UUID, email string) error {
 	raw, err := s.issueEmailToken(ctx, r, userID, email, purposeVerify, verifyTokenTTL)
 	if err != nil {
 		return err
 	}
-	return s.enqueue(ctx, tx, verifyEmail(email, s.link("/verify-email", raw)))
+	if err := r.InvalidateEmailCodes(ctx, gen.InvalidateEmailCodesParams{UserID: userID, Purpose: purposeVerify}); err != nil {
+		return fmt.Errorf("invalidate old codes: %w", err)
+	}
+	code, hash, err := newEmailCode(s.cfg.EmailCodeKey)
+	if err != nil {
+		return err
+	}
+	id, err := uuid.NewV7()
+	if err != nil {
+		return fmt.Errorf("email code id: %w", err)
+	}
+	if err := r.CreateEmailCode(ctx, gen.CreateEmailCodeParams{
+		ID: id, UserID: userID, Purpose: purposeVerify, Email: email, CodeHash: hash, ExpiresAt: s.now().Add(verifyCodeTTL),
+	}); err != nil {
+		return fmt.Errorf("create email code: %w", err)
+	}
+	return s.enqueue(ctx, tx, verifyEmail(email, code, s.link("/verify-email", raw)))
 }
 
 func (s *Service) enqueue(ctx context.Context, tx pgx.Tx, msg mailer.Message) error {
@@ -664,14 +868,6 @@ func (s *Service) record(ctx context.Context, r repository, userID *uuid.UUID, e
 		return fmt.Errorf("record %s: %w", event, err)
 	}
 	return nil
-}
-
-// recordFailedLogin logs outside any transaction; a logging failure must not change the answer.
-func (s *Service) recordFailedLogin(ctx context.Context, userID *uuid.UUID, meta RequestMeta, reason string) {
-	if err := s.record(ctx, newRepository(s.pool), userID, eventLoginFailed, providerPassword, meta,
-		map[string]any{"reason": reason}); err != nil {
-		logger.FromContext(ctx).Error("record failed login", "err", err)
-	}
 }
 
 func normalizeEmail(raw string) (string, error) {

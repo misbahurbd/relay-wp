@@ -4,9 +4,51 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type BusinessInputBody = {
+    /**
+     * ISO 3166-1 alpha-2
+     */
+    country: string;
+    goals: Array<'marketing' | 'support' | 'sales'> | null;
+    industry: 'retail_ecommerce' | 'food_restaurants' | 'education' | 'health_clinics' | 'travel' | 'real_estate' | 'other';
+    name: string;
+    team_size: 'just_me' | '2_5' | '6_20' | '20_plus';
+    website?: string;
+};
+
 export type ChangePasswordInputBody = {
     current_password: string;
     new_password: string;
+};
+
+export type ChecklistItemDto = {
+    done: boolean;
+    id: 'account' | 'whatsapp' | 'template' | 'contacts' | 'broadcast' | 'team';
+};
+
+export type ConnectInputBody = {
+    /**
+     * From the FB.login callback
+     */
+    code: string;
+    number_type: 'new' | 'coexistence' | 'migration';
+    /**
+     * From the WA_EMBEDDED_SIGNUP message
+     */
+    phone_number_id: string;
+    /**
+     * From the WA_EMBEDDED_SIGNUP message
+     */
+    waba_id: string;
+};
+
+export type CreateInputBody = {
+    first_goal: 'offers' | 'support' | 'automate';
+    /**
+     * Default name, e.g. "Ada's workspace"; setup step 1 replaces it
+     */
+    name: string;
+    start_mode: 'setup' | 'sample';
 };
 
 export type DataDeletionOutputBody = {
@@ -69,6 +111,10 @@ export type IdentityDto = {
     provider: 'google' | 'facebook' | 'apple';
 };
 
+export type ListOutputBody = {
+    workspaces: Array<SummaryDto> | null;
+};
+
 export type LoginInputBody = {
     /**
      * web gets httpOnly cookies; mobile gets tokens in the body
@@ -84,8 +130,35 @@ export type MeOutputBody = {
     user: UserDto;
 };
 
+export type MemberStateInputBody = {
+    checklist_hidden?: boolean;
+    tour_seen?: boolean;
+};
+
 export type MessageOutputBody = {
     message: string;
+};
+
+export type NumberDto = {
+    created_at: string;
+    display_phone_number: string;
+    id: string;
+    /**
+     * Why setup failed, when status is failed
+     */
+    last_error?: SetupErrorDto;
+    messaging_limit: string | null;
+    name_status: 'pending_review' | 'approved' | 'declined';
+    number_type: 'new' | 'coexistence' | 'migration';
+    quality_rating: 'green' | 'yellow' | 'red';
+    setup_tasks: SetupTasksDto;
+    status: 'setting_up' | 'connected' | 'failed' | 'disconnected';
+    verified_name: string;
+    wa_link: string;
+};
+
+export type NumbersOutputBody = {
+    numbers: Array<NumberDto> | null;
 };
 
 export type OauthCompleteInputBody = {
@@ -94,6 +167,21 @@ export type OauthCompleteInputBody = {
      */
     code_verifier?: string;
     email: string;
+    /**
+     * complete_token from the callback redirect
+     */
+    token: string;
+};
+
+export type OauthCompleteVerifyInputBody = {
+    /**
+     * The 6-digit code emailed by POST /v1/auth/oauth/complete
+     */
+    code: string;
+    /**
+     * Mobile only: the PKCE verifier
+     */
+    code_verifier?: string;
     /**
      * complete_token from the callback redirect
      */
@@ -109,6 +197,29 @@ export type OauthTokenInputBody = {
      * PKCE verifier matching the code_challenge sent to start
      */
     code_verifier: string;
+};
+
+export type OnboardingDto = {
+    activated: boolean;
+    checklist: Array<ChecklistItemDto> | null;
+    /**
+     * This member's own state
+     */
+    checklist_hidden: boolean;
+    /**
+     * Setup finished or skipped: open the dashboard
+     */
+    completed: boolean;
+    current_step: 'business' | 'whatsapp' | 'test_message' | 'done';
+    first_goal: 'offers' | 'support' | 'automate';
+    sample_data: boolean;
+    steps: Array<StepDto> | null;
+    /**
+     * This member's own state
+     */
+    tour_seen: boolean;
+    trial_ends_at: string | null;
+    whatsapp_skipped: boolean;
 };
 
 export type PreferencesDto = {
@@ -145,6 +256,13 @@ export type ResetPasswordInputBody = {
     token: string;
 };
 
+export type SendTestInputBody = {
+    /**
+     * E.164, e.g. +8801712345678
+     */
+    to: string;
+};
+
 export type SessionDto = {
     client: 'web' | 'mobile';
     created_at: string;
@@ -168,7 +286,34 @@ export type SetPasswordInputBody = {
     new_password: string;
 };
 
+export type SetupErrorDto = {
+    code: string;
+    message: string;
+    meta_code?: number;
+};
+
+export type SetupTasksDto = {
+    import_profile: 'waiting' | 'running' | 'done' | 'failed';
+    register: 'waiting' | 'running' | 'done' | 'failed';
+    subscribe_webhooks: 'waiting' | 'running' | 'done' | 'failed';
+    sync_templates: 'waiting' | 'running' | 'done' | 'failed';
+};
+
+export type SignupConfigOutputBody = {
+    app_id: string;
+    /**
+     * Embedded Signup configuration ID
+     */
+    config_id: string;
+    /**
+     * False: this server can't connect WhatsApp; setup can only skip the step
+     */
+    enabled: boolean;
+    graph_version: string;
+};
+
 export type SignupInputBody = {
+    accept_terms: boolean;
     email: string;
     first_name: string;
     last_name?: string;
@@ -183,6 +328,36 @@ export type StatusOutputBody = {
     status: string;
 };
 
+export type StepDto = {
+    id: 'business' | 'whatsapp' | 'test_message';
+    status: 'done' | 'current' | 'upcoming' | 'skipped';
+};
+
+export type SummaryDto = {
+    /**
+     * A real customer message has been sent
+     */
+    activated: boolean;
+    /**
+     * Setup finished or skipped: open the dashboard
+     */
+    completed: boolean;
+    current_step: 'business' | 'whatsapp' | 'test_message' | 'done';
+    id: string;
+    last_active_at: string;
+    name: string;
+    role: 'owner';
+};
+
+export type TestMessageOutputBody = {
+    created_at: string;
+    error_code: string | null;
+    id: string;
+    number_id: string;
+    status: 'queued' | 'sent' | 'delivered' | 'read' | 'failed';
+    to_phone: string;
+};
+
 export type TokenBody = {
     access_expires_at: string;
     /**
@@ -194,10 +369,6 @@ export type TokenBody = {
      * Mobile only
      */
     refresh_token?: string;
-};
-
-export type TokenInputBody = {
-    token: string;
 };
 
 export type UpdatePreferencesInputBody = {
@@ -225,6 +396,46 @@ export type UserDto = {
      */
     has_password: boolean;
     id: string;
+};
+
+export type VerifyCodeInputBody = {
+    /**
+     * web gets httpOnly cookies; mobile gets tokens in the body
+     */
+    client?: 'web' | 'mobile';
+    /**
+     * The 6-digit code from the verification email
+     */
+    code: string;
+    email: string;
+    /**
+     * Required when the account has a password: the code alone doesn't prove who chose it
+     */
+    password?: string;
+};
+
+export type VerifyEmailInputBody = {
+    /**
+     * Required when the account has a password: the link alone doesn't prove who chose it
+     */
+    password?: string;
+    token: string;
+};
+
+export type WorkspaceDto = {
+    activated_at: string | null;
+    /**
+     * ISO 3166-1 alpha-2
+     */
+    country: string | null;
+    goals: Array<'marketing' | 'support' | 'sales'> | null;
+    id: string;
+    industry: 'retail_ecommerce' | 'food_restaurants' | 'education' | 'health_clinics' | 'travel' | 'real_estate' | 'other';
+    name: string;
+    plan: 'growth';
+    team_size: 'just_me' | '2_5' | '6_20' | '20_plus';
+    trial_ends_at: string | null;
+    website: string | null;
 };
 
 export type HealthData = {
@@ -500,12 +711,44 @@ export type OauthCompleteError = OauthCompleteErrors[keyof OauthCompleteErrors];
 
 export type OauthCompleteResponses = {
     /**
+     * Accepted
+     */
+    202: MessageOutputBody;
+};
+
+export type OauthCompleteResponse = OauthCompleteResponses[keyof OauthCompleteResponses];
+
+export type OauthCompleteVerifyData = {
+    body: OauthCompleteVerifyInputBody;
+    headers?: {
+        'User-Agent'?: string;
+        /**
+         * Device name sent by the mobile app, e.g. iPhone 15
+         */
+        'X-Device-Name'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/auth/oauth/complete/verify';
+};
+
+export type OauthCompleteVerifyErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type OauthCompleteVerifyError = OauthCompleteVerifyErrors[keyof OauthCompleteVerifyErrors];
+
+export type OauthCompleteVerifyResponses = {
+    /**
      * OK
      */
     200: TokenBody;
 };
 
-export type OauthCompleteResponse = OauthCompleteResponses[keyof OauthCompleteResponses];
+export type OauthCompleteVerifyResponse = OauthCompleteVerifyResponses[keyof OauthCompleteVerifyResponses];
 
 export type FacebookDataDeletionData = {
     body: Blob | File;
@@ -974,7 +1217,7 @@ export type RefreshTokenResponses = {
 export type RefreshTokenResponse = RefreshTokenResponses[keyof RefreshTokenResponses];
 
 export type VerifyEmailData = {
-    body: TokenInputBody;
+    body: VerifyEmailInputBody;
     headers?: {
         'User-Agent'?: string;
         /**
@@ -1004,6 +1247,38 @@ export type VerifyEmailResponses = {
 };
 
 export type VerifyEmailResponse = VerifyEmailResponses[keyof VerifyEmailResponses];
+
+export type VerifyEmailCodeData = {
+    body: VerifyCodeInputBody;
+    headers?: {
+        'User-Agent'?: string;
+        /**
+         * Device name sent by the mobile app, e.g. iPhone 15
+         */
+        'X-Device-Name'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/auth/verify-email/code';
+};
+
+export type VerifyEmailCodeErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type VerifyEmailCodeError = VerifyEmailCodeErrors[keyof VerifyEmailCodeErrors];
+
+export type VerifyEmailCodeResponses = {
+    /**
+     * OK
+     */
+    200: TokenBody;
+};
+
+export type VerifyEmailCodeResponse = VerifyEmailCodeResponses[keyof VerifyEmailCodeResponses];
 
 export type ResendVerificationData = {
     body: EmailInputBody;
@@ -1111,3 +1386,433 @@ export type UpdateProfileResponses = {
 };
 
 export type UpdateProfileResponse = UpdateProfileResponses[keyof UpdateProfileResponses];
+
+export type WhatsappWebhookVerifyData = {
+    body?: never;
+    path?: never;
+    query?: {
+        'hub.mode'?: string;
+        'hub.verify_token'?: string;
+        'hub.challenge'?: string;
+    };
+    url: '/v1/webhooks/whatsapp';
+};
+
+export type WhatsappWebhookVerifyErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type WhatsappWebhookVerifyError = WhatsappWebhookVerifyErrors[keyof WhatsappWebhookVerifyErrors];
+
+export type WhatsappWebhookVerifyResponses = {
+    /**
+     * OK
+     */
+    200: string;
+};
+
+export type WhatsappWebhookVerifyResponse = WhatsappWebhookVerifyResponses[keyof WhatsappWebhookVerifyResponses];
+
+export type WhatsappWebhookData = {
+    body: Blob | File;
+    headers?: {
+        'X-Hub-Signature-256'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/webhooks/whatsapp';
+};
+
+export type WhatsappWebhookErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type WhatsappWebhookError = WhatsappWebhookErrors[keyof WhatsappWebhookErrors];
+
+export type WhatsappWebhookResponses = {
+    /**
+     * OK
+     */
+    200: unknown;
+};
+
+export type WhatsappSignupConfigData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/whatsapp/signup-config';
+};
+
+export type WhatsappSignupConfigErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type WhatsappSignupConfigError = WhatsappSignupConfigErrors[keyof WhatsappSignupConfigErrors];
+
+export type WhatsappSignupConfigResponses = {
+    /**
+     * OK
+     */
+    200: SignupConfigOutputBody;
+};
+
+export type WhatsappSignupConfigResponse = WhatsappSignupConfigResponses[keyof WhatsappSignupConfigResponses];
+
+export type ListWorkspacesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/workspaces';
+};
+
+export type ListWorkspacesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListWorkspacesError = ListWorkspacesErrors[keyof ListWorkspacesErrors];
+
+export type ListWorkspacesResponses = {
+    /**
+     * OK
+     */
+    200: ListOutputBody;
+};
+
+export type ListWorkspacesResponse = ListWorkspacesResponses[keyof ListWorkspacesResponses];
+
+export type CreateWorkspaceData = {
+    body: CreateInputBody;
+    path?: never;
+    query?: never;
+    url: '/v1/workspaces';
+};
+
+export type CreateWorkspaceErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CreateWorkspaceError = CreateWorkspaceErrors[keyof CreateWorkspaceErrors];
+
+export type CreateWorkspaceResponses = {
+    /**
+     * Created
+     */
+    201: SummaryDto;
+};
+
+export type CreateWorkspaceResponse = CreateWorkspaceResponses[keyof CreateWorkspaceResponses];
+
+export type GetWorkspaceData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}';
+};
+
+export type GetWorkspaceErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetWorkspaceError = GetWorkspaceErrors[keyof GetWorkspaceErrors];
+
+export type GetWorkspaceResponses = {
+    /**
+     * OK
+     */
+    200: WorkspaceDto;
+};
+
+export type GetWorkspaceResponse = GetWorkspaceResponses[keyof GetWorkspaceResponses];
+
+export type GetOnboardingData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/onboarding';
+};
+
+export type GetOnboardingErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetOnboardingError = GetOnboardingErrors[keyof GetOnboardingErrors];
+
+export type GetOnboardingResponses = {
+    /**
+     * OK
+     */
+    200: OnboardingDto;
+};
+
+export type GetOnboardingResponse = GetOnboardingResponses[keyof GetOnboardingResponses];
+
+export type SaveBusinessData = {
+    body: BusinessInputBody;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/onboarding/business';
+};
+
+export type SaveBusinessErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SaveBusinessError = SaveBusinessErrors[keyof SaveBusinessErrors];
+
+export type SaveBusinessResponses = {
+    /**
+     * OK
+     */
+    200: WorkspaceDto;
+};
+
+export type SaveBusinessResponse = SaveBusinessResponses[keyof SaveBusinessResponses];
+
+export type CompleteOnboardingData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/onboarding/complete';
+};
+
+export type CompleteOnboardingErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CompleteOnboardingError = CompleteOnboardingErrors[keyof CompleteOnboardingErrors];
+
+export type CompleteOnboardingResponses = {
+    /**
+     * OK
+     */
+    200: OnboardingDto;
+};
+
+export type CompleteOnboardingResponse = CompleteOnboardingResponses[keyof CompleteOnboardingResponses];
+
+export type UpdateOnboardingMemberData = {
+    body: MemberStateInputBody;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/onboarding/me';
+};
+
+export type UpdateOnboardingMemberErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UpdateOnboardingMemberError = UpdateOnboardingMemberErrors[keyof UpdateOnboardingMemberErrors];
+
+export type UpdateOnboardingMemberResponses = {
+    /**
+     * OK
+     */
+    200: OnboardingDto;
+};
+
+export type UpdateOnboardingMemberResponse = UpdateOnboardingMemberResponses[keyof UpdateOnboardingMemberResponses];
+
+export type SkipWhatsappData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/onboarding/skip-whatsapp';
+};
+
+export type SkipWhatsappErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SkipWhatsappError = SkipWhatsappErrors[keyof SkipWhatsappErrors];
+
+export type SkipWhatsappResponses = {
+    /**
+     * OK
+     */
+    200: OnboardingDto;
+};
+
+export type SkipWhatsappResponse = SkipWhatsappResponses[keyof SkipWhatsappResponses];
+
+export type ConnectWhatsappData = {
+    body: ConnectInputBody;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/whatsapp/connections';
+};
+
+export type ConnectWhatsappErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ConnectWhatsappError = ConnectWhatsappErrors[keyof ConnectWhatsappErrors];
+
+export type ConnectWhatsappResponses = {
+    /**
+     * Accepted
+     */
+    202: NumberDto;
+};
+
+export type ConnectWhatsappResponse = ConnectWhatsappResponses[keyof ConnectWhatsappResponses];
+
+export type ListWhatsappNumbersData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/whatsapp/numbers';
+};
+
+export type ListWhatsappNumbersErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListWhatsappNumbersError = ListWhatsappNumbersErrors[keyof ListWhatsappNumbersErrors];
+
+export type ListWhatsappNumbersResponses = {
+    /**
+     * OK
+     */
+    200: NumbersOutputBody;
+};
+
+export type ListWhatsappNumbersResponse = ListWhatsappNumbersResponses[keyof ListWhatsappNumbersResponses];
+
+export type GetWhatsappNumberData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+        numberId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/whatsapp/numbers/{numberId}';
+};
+
+export type GetWhatsappNumberErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetWhatsappNumberError = GetWhatsappNumberErrors[keyof GetWhatsappNumberErrors];
+
+export type GetWhatsappNumberResponses = {
+    /**
+     * OK
+     */
+    200: NumberDto;
+};
+
+export type GetWhatsappNumberResponse = GetWhatsappNumberResponses[keyof GetWhatsappNumberResponses];
+
+export type SendTestMessageData = {
+    body: SendTestInputBody;
+    path: {
+        workspaceId: string;
+        numberId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/whatsapp/numbers/{numberId}/test-messages';
+};
+
+export type SendTestMessageErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SendTestMessageError = SendTestMessageErrors[keyof SendTestMessageErrors];
+
+export type SendTestMessageResponses = {
+    /**
+     * Accepted
+     */
+    202: TestMessageOutputBody;
+};
+
+export type SendTestMessageResponse = SendTestMessageResponses[keyof SendTestMessageResponses];
+
+export type GetTestMessageData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+        messageId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/whatsapp/test-messages/{messageId}';
+};
+
+export type GetTestMessageErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetTestMessageError = GetTestMessageErrors[keyof GetTestMessageErrors];
+
+export type GetTestMessageResponses = {
+    /**
+     * OK
+     */
+    200: TestMessageOutputBody;
+};
+
+export type GetTestMessageResponse = GetTestMessageResponses[keyof GetTestMessageResponses];

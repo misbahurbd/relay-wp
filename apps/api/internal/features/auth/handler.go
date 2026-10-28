@@ -35,6 +35,7 @@ func (h *Handler) signup(ctx context.Context, in *signupInput) (*messageOutput, 
 	err := h.svc.Signup(ctx, SignupInput{
 		Email: in.Body.Email, Password: in.Body.Password,
 		FirstName: in.Body.FirstName, LastName: in.Body.LastName, Timezone: in.Body.Timezone,
+		AcceptTerms: in.Body.AcceptTerms,
 	}, meta(ctx, in.RequestHeaders, clientWeb))
 	if err != nil {
 		return nil, err
@@ -42,8 +43,16 @@ func (h *Handler) signup(ctx context.Context, in *signupInput) (*messageOutput, 
 	return message202("Check your inbox to verify your email address."), nil
 }
 
-func (h *Handler) verifyEmail(ctx context.Context, in *tokenInput) (*struct{}, error) {
-	return nil, h.svc.VerifyEmail(ctx, in.Body.Token, meta(ctx, in.RequestHeaders, clientWeb))
+func (h *Handler) verifyEmail(ctx context.Context, in *verifyEmailInput) (*struct{}, error) {
+	return nil, h.svc.VerifyEmail(ctx, in.Body.Token, in.Body.Password, meta(ctx, in.RequestHeaders, clientWeb))
+}
+
+func (h *Handler) verifyEmailCode(ctx context.Context, in *verifyCodeInput) (*tokenOutput, error) {
+	t, err := h.svc.VerifyEmailCode(ctx, in.Body.Email, in.Body.Code, in.Body.Password, meta(ctx, in.RequestHeaders, in.Body.Client))
+	if err != nil {
+		return nil, err
+	}
+	return h.tokenResponse(t), nil
 }
 
 func (h *Handler) resendVerification(ctx context.Context, in *emailInput) (*messageOutput, error) {
@@ -207,8 +216,15 @@ func (h *Handler) oauthCallback(ctx context.Context, in *oauthCallbackInput) (*r
 	return redirect(res.URL(), cookies...), nil
 }
 
-func (h *Handler) oauthComplete(ctx context.Context, in *oauthCompleteInput) (*tokenOutput, error) {
-	t, err := h.svc.CompleteOAuthSignup(ctx, in.Body.Token, in.Body.Email, in.Body.CodeVerifier,
+func (h *Handler) oauthComplete(ctx context.Context, in *oauthCompleteInput) (*messageOutput, error) {
+	if err := h.svc.SendOAuthEmailCode(ctx, in.Body.Token, in.Body.Email, in.Body.CodeVerifier); err != nil {
+		return nil, err
+	}
+	return message202("We sent a 6-digit code to that address."), nil
+}
+
+func (h *Handler) oauthCompleteVerify(ctx context.Context, in *oauthCompleteVerifyInput) (*tokenOutput, error) {
+	t, err := h.svc.CompleteOAuthSignup(ctx, in.Body.Token, in.Body.Code, in.Body.CodeVerifier,
 		meta(ctx, in.RequestHeaders, ""))
 	if err != nil {
 		return nil, err

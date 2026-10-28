@@ -116,7 +116,7 @@ task setup
 1. Copies `.env.example` to `.env` (only if `.env` doesn't exist yet).
 2. Runs `pnpm install` for the whole workspace.
 3. Runs `go mod download` for the API.
-4. Adds a JWT signing key to `.env` if it has none (`task keygen:env`).
+4. Adds a JWT signing key, `EMAIL_CODE_KEY` and `TOKEN_ENCRYPTION_KEY` to `.env` where missing (`task keygen:env`; run it again after pulling to add new keys).
 
 ---
 
@@ -132,6 +132,8 @@ All configuration lives in a single `.env` at the repo root. Task loads it autom
 | Mail                | `MAILER_DRIVER`, `SMTP_HOST`, `SMTP_PORT`                                                                                                                                               | Locally, mail goes to Mailpit.                                                                                       |
 | Storage             | `STORAGE_DRIVER`, `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET`                                                                                                          | Locally, S3 is RustFS.                                                                                               |
 | Auth                | `APP_BASE_URL`, `JWT_SIGNING_KEY`, `JWT_SIGNING_KEY_ID`, `JWT_PREVIOUS_PUBLIC_KEYS`, `ACCESS_TOKEN_TTL`, `REFRESH_TOKEN_TTL`, `COOKIE_DOMAIN`, `COOKIE_SECURE`, `PASSWORD_BREACH_CHECK` | `task setup` generates a local signing key. Set `COOKIE_SECURE=false` only for plain-HTTP local development.         |
+| Onboarding          | `EMAIL_CODE_KEY`, `TERMS_VERSION`, `TRIAL_DAYS`                                                                                                                                         | `task setup` generates the code key. Development uses a random one for the run if it's empty.                        |
+| WhatsApp            | `WHATSAPP_ENABLED`, `META_APP_ID`, `META_APP_SECRET`, `META_ES_CONFIG_ID`, `META_GRAPH_VERSION`, `META_WEBHOOK_VERIFY_TOKEN`, `TOKEN_ENCRYPTION_KEY`                                    | Off by default. With it on, every `META_*` value and `TOKEN_ENCRYPTION_KEY` are required at startup.                 |
 | Runtime             | `GOMEMLIMIT`                                                                                                                                                                            | Keep below the container memory limit (1 GB in production).                                                          |
 | Web                 | `WEB_PORT`, `VITE_API_URL`                                                                                                                                                              | Dev server port (fails if taken; keep `CORS_ALLOWED_ORIGINS` in sync) and the URL the browser uses to reach the API. |
 
@@ -239,7 +241,7 @@ Password sign-in, Google and Facebook are built (Apple comes later). The full de
 
 | Flow                 | Endpoints                                                                                                                                  |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| Sign up and verify   | `POST /v1/auth/signup`, `POST /v1/auth/verify-email`, `POST /v1/auth/verify-email/resend`                                                  |
+| Sign up and verify   | `POST /v1/auth/signup`, `POST /v1/auth/verify-email/code`, `POST /v1/auth/verify-email`, `POST /v1/auth/verify-email/resend`               |
 | Sign in and out      | `POST /v1/auth/login`, `POST /v1/auth/token/refresh`, `POST /v1/auth/logout`, `POST /v1/auth/logout-all`                                   |
 | Passwords            | `POST /v1/auth/password/forgot`, `POST /v1/auth/password/reset`, `POST /v1/auth/password/change`                                           |
 | Devices and activity | `GET /v1/auth/sessions`, `DELETE /v1/auth/sessions/{id}`, `GET /v1/auth/events`                                                            |
@@ -249,7 +251,20 @@ Password sign-in, Google and Facebook are built (Apple comes later). The full de
 | Meta compliance      | `POST /v1/auth/oauth/facebook/data-deletion`                                                                                               |
 - **Web** (`client` omitted or `web`): tokens arrive as httpOnly cookies: `relay_access` (15 minutes) and `relay_refresh` (30 days, sent only to the refresh endpoint). Requests that change data using cookies must come from an origin in `CORS_ALLOWED_ORIGINS`.
 - **Mobile** (`"client": "mobile"` on login): tokens arrive in the response body. Send `Authorization: Bearer <access_token>`, and `{"refresh_token": …}` to refresh. Send `X-Device-Name` so the sessions list shows the device.
-- **Try it locally**: sign up from the API docs (`/docs`), then find the verification link in Mailpit. The link points at the web app's `/verify-email` page; until that page exists, post its `token` to `POST /v1/auth/verify-email`.
+- **Try it locally**: sign up in the web app, then find the 6-digit code (in the subject) or the link in Mailpit. The code signs you in on the same page; the link verifies on another device.
+
+### Workspaces, onboarding and WhatsApp
+
+After sign-up the web app runs the Phase 3 onboarding ([docs/PHASE-3-ONBOARDING.md](docs/PHASE-3-ONBOARDING.md)): Welcome, then setup (business details, connect WhatsApp, test message), then the first-run dashboard.
+
+| Flow       | Endpoints                                                                                                                                                                                   |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Workspaces | `GET /v1/workspaces`, `POST /v1/workspaces`, `GET /v1/workspaces/{id}`, `PUT /v1/workspaces/{id}/onboarding/business`                                                                       |
+| Onboarding | `GET /v1/workspaces/{id}/onboarding`, `POST …/onboarding/skip-whatsapp`, `POST …/onboarding/complete`, `PATCH …/onboarding/me`                                                              |
+| WhatsApp   | `GET /v1/whatsapp/signup-config`, `POST …/whatsapp/connections`, `GET …/whatsapp/numbers`, `GET …/whatsapp/numbers/{numberId}`, `POST …/test-messages`, `GET …/whatsapp/test-messages/{id}` |
+| Webhooks   | `GET /v1/webhooks/whatsapp` (Meta's handshake), `POST /v1/webhooks/whatsapp` (signed with `META_APP_SECRET`)                                                                                |
+
+With `WHATSAPP_ENABLED=false` (the default) the WhatsApp step says so and can only be skipped. To connect real numbers, create the Meta app and Embedded Signup configuration, set the `META_*` variables and `WHATSAPP_ENABLED=true`, and subscribe the webhook in the Meta app to `{API_BASE_URL}/v1/webhooks/whatsapp` (it must be reachable over HTTPS, e.g. through a tunnel locally).
 
 ### Social sign-in
 

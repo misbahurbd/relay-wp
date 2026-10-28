@@ -1,6 +1,69 @@
 {
   "components": {
     "schemas": {
+      "BusinessInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "country": {
+            "description": "ISO 3166-1 alpha-2",
+            "pattern": "^[A-Za-z]{2}$",
+            "type": "string"
+          },
+          "goals": {
+            "items": {
+              "enum": [
+                "marketing",
+                "support",
+                "sales"
+              ],
+              "type": "string"
+            },
+            "maxItems": 3,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "industry": {
+            "enum": [
+              "retail_ecommerce",
+              "food_restaurants",
+              "education",
+              "health_clinics",
+              "travel",
+              "real_estate",
+              "other"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "team_size": {
+            "enum": [
+              "just_me",
+              "2_5",
+              "6_20",
+              "20_plus"
+            ],
+            "type": "string"
+          },
+          "website": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "industry",
+          "country",
+          "team_size",
+          "goals"
+        ],
+        "type": "object"
+      },
       "ChangePasswordInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -18,6 +81,98 @@
         "required": [
           "current_password",
           "new_password"
+        ],
+        "type": "object"
+      },
+      "ChecklistItemDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "done": {
+            "type": "boolean"
+          },
+          "id": {
+            "enum": [
+              "account",
+              "whatsapp",
+              "template",
+              "contacts",
+              "broadcast",
+              "team"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "done"
+        ],
+        "type": "object"
+      },
+      "ConnectInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "description": "From the FB.login callback",
+            "maxLength": 2048,
+            "minLength": 1,
+            "type": "string"
+          },
+          "number_type": {
+            "enum": [
+              "new",
+              "coexistence",
+              "migration"
+            ],
+            "type": "string"
+          },
+          "phone_number_id": {
+            "description": "From the WA_EMBEDDED_SIGNUP message",
+            "maxLength": 32,
+            "type": "string"
+          },
+          "waba_id": {
+            "description": "From the WA_EMBEDDED_SIGNUP message",
+            "maxLength": 32,
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "waba_id",
+          "phone_number_id",
+          "number_type"
+        ],
+        "type": "object"
+      },
+      "CreateInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "first_goal": {
+            "enum": [
+              "offers",
+              "support",
+              "automate"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "description": "Default name, e.g. \"Ada's workspace\"; setup step 1 replaces it",
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "start_mode": {
+            "enum": [
+              "setup",
+              "sample"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "first_goal",
+          "start_mode"
         ],
         "type": "object"
       },
@@ -209,6 +364,24 @@
         ],
         "type": "object"
       },
+      "ListOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "workspaces": {
+            "items": {
+              "$ref": "#/components/schemas/SummaryDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "workspaces"
+        ],
+        "type": "object"
+      },
       "LoginInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -256,6 +429,18 @@
         ],
         "type": "object"
       },
+      "MemberStateInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "checklist_hidden": {
+            "type": "boolean"
+          },
+          "tour_seen": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "MessageOutputBody": {
         "additionalProperties": false,
         "properties": {
@@ -265,6 +450,117 @@
         },
         "required": [
           "message"
+        ],
+        "type": "object"
+      },
+      "NumberDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "display_phone_number": {
+            "examples": [
+              "+1 415-555-0142"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "last_error": {
+            "$ref": "#/components/schemas/SetupErrorDTO",
+            "description": "Why setup failed, when status is failed"
+          },
+          "messaging_limit": {
+            "examples": [
+              "TIER_250"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name_status": {
+            "enum": [
+              "pending_review",
+              "approved",
+              "declined"
+            ],
+            "type": "string"
+          },
+          "number_type": {
+            "enum": [
+              "new",
+              "coexistence",
+              "migration"
+            ],
+            "type": "string"
+          },
+          "quality_rating": {
+            "enum": [
+              "green",
+              "yellow",
+              "red"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "setup_tasks": {
+            "$ref": "#/components/schemas/SetupTasksDTO"
+          },
+          "status": {
+            "enum": [
+              "setting_up",
+              "connected",
+              "failed",
+              "disconnected"
+            ],
+            "type": "string"
+          },
+          "verified_name": {
+            "type": "string"
+          },
+          "wa_link": {
+            "examples": [
+              "wa.me/14155550142"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "display_phone_number",
+          "verified_name",
+          "number_type",
+          "name_status",
+          "quality_rating",
+          "messaging_limit",
+          "status",
+          "setup_tasks",
+          "wa_link",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "NumbersOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "numbers": {
+            "items": {
+              "$ref": "#/components/schemas/NumberDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "numbers"
         ],
         "type": "object"
       },
@@ -294,6 +590,32 @@
         ],
         "type": "object"
       },
+      "OauthCompleteVerifyInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "description": "The 6-digit code emailed by POST /v1/auth/oauth/complete",
+            "pattern": "^[0-9]{6}$",
+            "type": "string"
+          },
+          "code_verifier": {
+            "description": "Mobile only: the PKCE verifier",
+            "maxLength": 128,
+            "type": "string"
+          },
+          "token": {
+            "description": "complete_token from the callback redirect",
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "code"
+        ],
+        "type": "object"
+      },
       "OauthTokenInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -313,6 +635,88 @@
         "required": [
           "code",
           "code_verifier"
+        ],
+        "type": "object"
+      },
+      "OnboardingDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "activated": {
+            "type": "boolean"
+          },
+          "checklist": {
+            "items": {
+              "$ref": "#/components/schemas/ChecklistItemDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "checklist_hidden": {
+            "description": "This member's own state",
+            "type": "boolean"
+          },
+          "completed": {
+            "description": "Setup finished or skipped: open the dashboard",
+            "type": "boolean"
+          },
+          "current_step": {
+            "enum": [
+              "business",
+              "whatsapp",
+              "test_message",
+              "done"
+            ],
+            "type": "string"
+          },
+          "first_goal": {
+            "enum": [
+              "offers",
+              "support",
+              "automate"
+            ],
+            "type": "string"
+          },
+          "sample_data": {
+            "type": "boolean"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/StepDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "tour_seen": {
+            "description": "This member's own state",
+            "type": "boolean"
+          },
+          "trial_ends_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "whatsapp_skipped": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "current_step",
+          "steps",
+          "first_goal",
+          "sample_data",
+          "whatsapp_skipped",
+          "completed",
+          "activated",
+          "trial_ends_at",
+          "checklist",
+          "tour_seen",
+          "checklist_hidden"
         ],
         "type": "object"
       },
@@ -431,6 +835,21 @@
         ],
         "type": "object"
       },
+      "SendTestInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "to": {
+            "description": "E.164, e.g. +8801712345678",
+            "maxLength": 24,
+            "minLength": 8,
+            "type": "string"
+          }
+        },
+        "required": [
+          "to"
+        ],
+        "type": "object"
+      },
       "SessionDTO": {
         "additionalProperties": false,
         "properties": {
@@ -528,9 +947,109 @@
         ],
         "type": "object"
       },
+      "SetupErrorDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "meta_code": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
+      "SetupTasksDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "import_profile": {
+            "enum": [
+              "waiting",
+              "running",
+              "done",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "register": {
+            "enum": [
+              "waiting",
+              "running",
+              "done",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "subscribe_webhooks": {
+            "enum": [
+              "waiting",
+              "running",
+              "done",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "sync_templates": {
+            "enum": [
+              "waiting",
+              "running",
+              "done",
+              "failed"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "register",
+          "subscribe_webhooks",
+          "sync_templates",
+          "import_profile"
+        ],
+        "type": "object"
+      },
+      "SignupConfigOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "app_id": {
+            "type": "string"
+          },
+          "config_id": {
+            "description": "Embedded Signup configuration ID",
+            "type": "string"
+          },
+          "enabled": {
+            "description": "False: this server can't connect WhatsApp; setup can only skip the step",
+            "type": "boolean"
+          },
+          "graph_version": {
+            "examples": [
+              "v24.0"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled",
+          "app_id",
+          "config_id",
+          "graph_version"
+        ],
+        "type": "object"
+      },
       "SignupInputBody": {
         "additionalProperties": false,
         "properties": {
+          "accept_terms": {
+            "type": "boolean"
+          },
           "email": {
             "format": "email",
             "maxLength": 254,
@@ -559,7 +1078,8 @@
         "required": [
           "email",
           "password",
-          "first_name"
+          "first_name",
+          "accept_terms"
         ],
         "type": "object"
       },
@@ -575,6 +1095,124 @@
         },
         "required": [
           "status"
+        ],
+        "type": "object"
+      },
+      "StepDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "enum": [
+              "business",
+              "whatsapp",
+              "test_message"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "done",
+              "current",
+              "upcoming",
+              "skipped"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ],
+        "type": "object"
+      },
+      "SummaryDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "activated": {
+            "description": "A real customer message has been sent",
+            "type": "boolean"
+          },
+          "completed": {
+            "description": "Setup finished or skipped: open the dashboard",
+            "type": "boolean"
+          },
+          "current_step": {
+            "enum": [
+              "business",
+              "whatsapp",
+              "test_message",
+              "done"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "last_active_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "owner"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "role",
+          "last_active_at",
+          "current_step",
+          "completed",
+          "activated"
+        ],
+        "type": "object"
+      },
+      "TestMessageOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "error_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "number_id": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "sent",
+              "delivered",
+              "read",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "to_phone": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "number_id",
+          "to_phone",
+          "status",
+          "error_code",
+          "created_at"
         ],
         "type": "object"
       },
@@ -601,20 +1239,6 @@
         "required": [
           "access_expires_at",
           "refresh_expires_at"
-        ],
-        "type": "object"
-      },
-      "TokenInputBody": {
-        "additionalProperties": false,
-        "properties": {
-          "token": {
-            "maxLength": 256,
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "token"
         ],
         "type": "object"
       },
@@ -675,6 +1299,157 @@
           "email",
           "email_verified",
           "has_password"
+        ],
+        "type": "object"
+      },
+      "VerifyCodeInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "client": {
+            "default": "web",
+            "description": "web gets httpOnly cookies; mobile gets tokens in the body",
+            "enum": [
+              "web",
+              "mobile"
+            ],
+            "type": "string"
+          },
+          "code": {
+            "description": "The 6-digit code from the verification email",
+            "pattern": "^[0-9]{6}$",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "maxLength": 254,
+            "type": "string"
+          },
+          "password": {
+            "description": "Required when the account has a password: the code alone doesn't prove who chose it",
+            "maxLength": 128,
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "code"
+        ],
+        "type": "object"
+      },
+      "VerifyEmailInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "password": {
+            "description": "Required when the account has a password: the link alone doesn't prove who chose it",
+            "maxLength": 128,
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "type": "object"
+      },
+      "WorkspaceDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "activated_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "country": {
+            "description": "ISO 3166-1 alpha-2",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "goals": {
+            "items": {
+              "enum": [
+                "marketing",
+                "support",
+                "sales"
+              ],
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "industry": {
+            "enum": [
+              "retail_ecommerce",
+              "food_restaurants",
+              "education",
+              "health_clinics",
+              "travel",
+              "real_estate",
+              "other"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "plan": {
+            "enum": [
+              "growth"
+            ],
+            "type": "string"
+          },
+          "team_size": {
+            "enum": [
+              "just_me",
+              "2_5",
+              "6_20",
+              "20_plus"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "trial_ends_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "website": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "industry",
+          "website",
+          "country",
+          "team_size",
+          "goals",
+          "plan",
+          "trial_ends_at",
+          "activated_at"
         ],
         "type": "object"
       }
@@ -1163,6 +1938,65 @@
           "required": true
         },
         "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageOutputBody"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Social sign-in without a provider-verified email: email a code to the address given",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/oauth/complete/verify": {
+      "post": {
+        "operationId": "oauth-complete-verify",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Device name sent by the mobile app, e.g. iPhone 15",
+            "in": "header",
+            "name": "X-Device-Name",
+            "schema": {
+              "description": "Device name sent by the mobile app, e.g. iPhone 15",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OauthCompleteVerifyInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
           "200": {
             "content": {
               "application/json": {
@@ -1191,7 +2025,7 @@
             "description": "Error"
           }
         },
-        "summary": "Finish a social sign-in whose provider gave no email",
+        "summary": "Finish that sign-in with the emailed code",
         "tags": [
           "auth"
         ]
@@ -2162,7 +2996,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TokenInputBody"
+                "$ref": "#/components/schemas/VerifyEmailInputBody"
               }
             }
           },
@@ -2183,7 +3017,73 @@
             "description": "Error"
           }
         },
-        "summary": "Verify an email address from the emailed link",
+        "summary": "Verify an email address from the emailed link (with the account's password, if it has one)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/verify-email/code": {
+      "post": {
+        "operationId": "verify-email-code",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Device name sent by the mobile app, e.g. iPhone 15",
+            "in": "header",
+            "name": "X-Device-Name",
+            "schema": {
+              "description": "Device name sent by the mobile app, e.g. iPhone 15",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyCodeInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenBody"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Verify an email address with the emailed 6-digit code and sign in",
         "tags": [
           "auth"
         ]
@@ -2382,6 +3282,843 @@
         "summary": "Update name fields",
         "tags": [
           "profile"
+        ]
+      }
+    },
+    "/v1/webhooks/whatsapp": {
+      "get": {
+        "operationId": "whatsapp-webhook-verify",
+        "parameters": [
+          {
+            "explode": false,
+            "in": "query",
+            "name": "hub.mode",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "hub.verify_token",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "hub.challenge",
+            "schema": {
+              "maxLength": 256,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "contentEncoding": "base64",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "Content-Type": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Meta's webhook subscription handshake",
+        "tags": [
+          "whatsapp"
+        ]
+      },
+      "post": {
+        "operationId": "whatsapp-webhook",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Hub-Signature-256",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "contentMediaType": "application/octet-stream",
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Meta's WhatsApp webhook (signed with the app secret)",
+        "tags": [
+          "whatsapp"
+        ]
+      }
+    },
+    "/v1/whatsapp/signup-config": {
+      "get": {
+        "operationId": "whatsapp-signup-config",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignupConfigOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Public values for opening Meta's Embedded Signup",
+        "tags": [
+          "whatsapp"
+        ]
+      }
+    },
+    "/v1/workspaces": {
+      "get": {
+        "operationId": "list-workspaces",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "My workspaces, with enough setup state to choose where to go",
+        "tags": [
+          "workspaces"
+        ]
+      },
+      "post": {
+        "operationId": "create-workspace",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummaryDTO"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Create a workspace from the Welcome screen and start its trial",
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}": {
+      "get": {
+        "operationId": "get-workspace",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Business details, plan and trial",
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/onboarding": {
+      "get": {
+        "operationId": "get-onboarding",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Setup progress, checklist and this member's tour state",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/onboarding/business": {
+      "put": {
+        "operationId": "save-business",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Save setup step 1: business details",
+        "tags": [
+          "workspaces"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/onboarding/complete": {
+      "post": {
+        "operationId": "complete-onboarding",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Finish setup after connecting WhatsApp",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/onboarding/me": {
+      "patch": {
+        "operationId": "update-onboarding-member",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberStateInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Record that this member saw the tour or hid the checklist",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/onboarding/skip-whatsapp": {
+      "post": {
+        "operationId": "skip-whatsapp",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Finish setup without connecting WhatsApp",
+        "tags": [
+          "onboarding"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/whatsapp/connections": {
+      "post": {
+        "operationId": "connect-whatsapp",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NumberDTO"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Finish Embedded Signup: save the number and start setting it up",
+        "tags": [
+          "whatsapp"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/whatsapp/numbers": {
+      "get": {
+        "operationId": "list-whatsapp-numbers",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NumbersOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "The workspace's numbers and their setup progress",
+        "tags": [
+          "whatsapp"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/whatsapp/numbers/{numberId}": {
+      "get": {
+        "operationId": "get-whatsapp-number",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "numberId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NumberDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "One number",
+        "tags": [
+          "whatsapp"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/whatsapp/numbers/{numberId}/test-messages": {
+      "post": {
+        "operationId": "send-test-message",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "numberId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendTestInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestMessageOutputBody"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Send the hello_world template to check the number works",
+        "tags": [
+          "whatsapp"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/whatsapp/test-messages/{messageId}": {
+      "get": {
+        "operationId": "get-test-message",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "messageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestMessageOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "A test message's delivery status",
+        "tags": [
+          "whatsapp"
         ]
       }
     }

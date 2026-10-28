@@ -14,6 +14,22 @@ var (
 	ErrAccountDisabled = apperr.Forbidden("account_disabled", "This account has been disabled")
 	// ErrTooManyAttempts blocks an email after repeated failed sign-ins.
 	ErrTooManyAttempts = apperr.RateLimited("too_many_attempts", "Too many failed sign-in attempts. Try again in a few minutes.")
+	// ErrInvalidCode is a wrong or expired verification code, or an email with no
+	// account waiting for one: the same answer for all, so emails can't be probed.
+	ErrInvalidCode = apperr.Validation("invalid_code", "That code doesn't match. Check the latest email and try again.")
+	// ErrTooManyCodeAttempts ends a code after too many wrong tries.
+	ErrTooManyCodeAttempts = apperr.RateLimited("too_many_attempts", "Too many wrong codes. Ask for a new code and try again.")
+	// ErrTooManyCodeSends ends the "add your email" step of a social sign-in.
+	ErrTooManyCodeSends = apperr.RateLimited("too_many_codes", "Too many codes sent. Start the sign-in again.")
+	// ErrTermsRequired is a sign-up without accepting the terms.
+	ErrTermsRequired = apperr.Validation("terms_required", "Accept the terms to create your account").
+				WithDetails(apperr.Detail{Field: "accept_terms", Message: "Accept the terms to create your account"})
+	// ErrPasswordRequired asks for the account's password before a verify link is
+	// accepted: the link proves who owns the inbox, not who chose the password.
+	ErrPasswordRequired = apperr.Validation("password_required", "Enter the password you chose when you signed up")
+	// ErrVerifyWrongPassword is a wrong password on the verify-link page.
+	ErrVerifyWrongPassword = apperr.Validation("wrong_password", "That password doesn't match this account").
+				WithDetails(apperr.Detail{Field: "password", Message: "That password doesn't match this account"})
 	// ErrInvalidLink is an unknown, used or expired email link.
 	ErrInvalidLink = apperr.Validation("invalid_link", "This link is invalid or has expired")
 	// ErrInvalidRefresh ends the client's session: it must sign in again.
@@ -39,8 +55,8 @@ var (
 	ErrInvalidOAuthState = apperr.Validation("invalid_oauth_state", "This sign-in attempt has expired. Try again.")
 	// ErrOAuthFailed is a provider that refused or couldn't complete the sign-in.
 	ErrOAuthFailed = apperr.Validation("oauth_failed", "Sign-in with that provider didn't complete. Try again.")
-	// ErrEmailInUse is a provider email that matches an account but isn't
-	// provider-verified: the owner must sign in and connect the provider from settings.
+	// ErrEmailInUse is a social sign-up that lost a race: an account was created
+	// with the same email at the same moment.
 	ErrEmailInUse = apperr.Conflict("email_in_use_sign_in_first", "An account already uses this email. Sign in, then connect this provider from settings.")
 	// ErrIdentityInUse is a provider account already connected to a different user.
 	ErrIdentityInUse = apperr.Conflict("identity_in_use", "That account is already connected to another user")

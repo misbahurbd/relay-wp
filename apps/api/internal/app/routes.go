@@ -8,7 +8,10 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/auth"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/features/onboarding"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/profiles"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/features/whatsapp"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/features/workspaces"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/middleware"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/shared/apperr"
 )
@@ -70,4 +73,17 @@ func (a *App) registerRoutes(api huma.API) {
 		Domain: a.cfg.Auth.CookieDomain, Secure: a.cfg.Auth.CookieSecure,
 	}, origins), requireAuth)
 	profiles.Register(api, profiles.NewHandler(a.profiles), requireAuth, auth.Security)
+
+	member := middleware.RequireWorkspace(api, a.directory)
+	owner := middleware.RequireWorkspace(api, a.directory, workspaces.RoleOwner)
+	workspaces.Register(api, workspaces.NewHandler(a.workspaces), requireAuth, member, owner, auth.Security)
+	onboarding.Register(api, onboarding.NewHandler(a.onboarding), requireAuth, member, owner, auth.Security)
+	whatsapp.Register(api, whatsapp.NewHandler(a.whatsapp), requireAuth, member, owner, auth.Security)
+}
+
+// routeLimits are per-IP limits for Phase 3 endpoints, on top of the global limit.
+func routeLimits() []middleware.RouteLimit {
+	return []middleware.RouteLimit{
+		{Method: http.MethodPost, Path: "/v1/workspaces", Requests: 10, Window: time.Hour},
+	}
 }

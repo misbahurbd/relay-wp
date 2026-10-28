@@ -212,7 +212,7 @@ When each workspace has its own credentials or settings for an external client:
 
 ### Workspace scoping
 
-Workspace is in the path: `/v1/workspaces/{workspaceID}/...`. Middleware checks membership and puts `workspaceID` and role into context.
+Workspace is in the path: `/v1/workspaces/{workspaceId}/...`. `platform/middleware.RequireWorkspace` checks membership (through `workspaces.Directory`) and puts `workspaceID` and role into context (`shared/authctx`). A non-member gets 404, so workspace IDs can't be probed; owner-only routes pass the allowed roles and others get 403.
 
 ---
 

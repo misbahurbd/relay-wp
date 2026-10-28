@@ -12,15 +12,28 @@ import (
 )
 
 type Querier interface {
+	AddWorkspaceMember(ctx context.Context, arg AddWorkspaceMemberParams) error
+	BumpReminderCount(ctx context.Context, workspaceID uuid.UUID) error
+	CompleteOnboarding(ctx context.Context, workspaceID uuid.UUID) error
 	// Atomically marks a valid token used and returns who it belongs to.
 	ConsumeEmailToken(ctx context.Context, arg ConsumeEmailTokenParams) (ConsumeEmailTokenRow, error)
 	// Single use: the row is deleted as it is read. Secrets are needed here to finish the exchange.
 	ConsumeOAuthFlow(ctx context.Context, arg ConsumeOAuthFlowParams) (ConsumeOAuthFlowRow, error)
 	ConsumePendingOAuthFlow(ctx context.Context, arg ConsumePendingOAuthFlowParams) (ConsumePendingOAuthFlowRow, error)
 	CountIdentities(ctx context.Context, userID uuid.UUID) (int64, error)
+	// Wrong passwords for one email (metadata.key) since @since and since its last
+	// successful sign-in: from this IP, and from anywhere.
+	CountPasswordFailures(ctx context.Context, arg CountPasswordFailuresParams) (CountPasswordFailuresRow, error)
+	// Codes sent to a user lately: resends are capped per account, not just per IP.
+	CountRecentEmailCodes(ctx context.Context, arg CountRecentEmailCodesParams) (int32, error)
+	CountRecentTestMessages(ctx context.Context, workspaceID uuid.UUID) (int64, error)
+	// Workspaces this user owns that haven't sent a real message yet.
+	CountTrialWorkspacesOwned(ctx context.Context, userID uuid.UUID) (int64, error)
+	CreateEmailCode(ctx context.Context, arg CreateEmailCodeParams) error
 	CreateEmailToken(ctx context.Context, arg CreateEmailTokenParams) error
 	CreateIdentity(ctx context.Context, arg CreateIdentityParams) error
 	CreateOAuthFlow(ctx context.Context, arg CreateOAuthFlowParams) error
+	CreateOnboarding(ctx context.Context, arg CreateOnboardingParams) error
 	// Second stage of a flow: 'awaiting_email' (Facebook gave no email) or 'ready'
 	// (a mobile sign-in waiting for the app to redeem its one-time code).
 	CreatePendingOAuthFlow(ctx context.Context, arg CreatePendingOAuthFlowParams) error
@@ -31,50 +44,116 @@ type Querier interface {
 	CreateSession(ctx context.Context, arg CreateSessionParams) error
 	// A user created by social sign-in: no password; verified only if the provider vouched.
 	CreateSocialUser(ctx context.Context, arg CreateSocialUserParams) error
+	CreateTestMessage(ctx context.Context, arg CreateTestMessageParams) error
 	// Rules (CLAUDE.md): list columns explicitly, never SELECT *. password_hash and
 	// token hashes are selected only where they are needed.
 	CreateUser(ctx context.Context, arg CreateUserParams) error
+	CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) error
+	DeleteEndedSessions(ctx context.Context) (int64, error)
+	DeleteExpiredEmailCodes(ctx context.Context) (int64, error)
+	DeleteExpiredEmailTokens(ctx context.Context) (int64, error)
+	// Cleanup (CleanupWorker, hourly). Ended sessions are kept 30 days for the
+	// sessions page history; their refresh tokens go with them (ON DELETE CASCADE).
+	DeleteExpiredOAuthFlows(ctx context.Context) (int64, error)
+	DeleteExpiredRefreshTokens(ctx context.Context) (int64, error)
 	DeleteIdentity(ctx context.Context, arg DeleteIdentityParams) (int64, error)
 	// Meta's data-deletion callback: identifies the Facebook user only.
 	DeleteIdentityByProviderUser(ctx context.Context, arg DeleteIdentityByProviderUserParams) (uuid.UUID, error)
+	DeleteOAuthFlow(ctx context.Context, id uuid.UUID) error
+	// auth_events is kept 180 days (00002_auth.sql).
+	DeleteOldAuthEvents(ctx context.Context) (int64, error)
 	// A password reset proves who owns the email: identities whose provider never
 	// vouched for that email (e.g. Facebook) can't keep access to the account.
 	DeleteUnverifiedIdentities(ctx context.Context, userID uuid.UUID) (int64, error)
+	DisconnectAccountNumbers(ctx context.Context, arg DisconnectAccountNumbersParams) error
+	DisconnectWhatsAppAccount(ctx context.Context, arg DisconnectWhatsAppAccountParams) error
 	ExtendSession(ctx context.Context, arg ExtendSessionParams) error
 	GetAccount(ctx context.Context, id uuid.UUID) (GetAccountRow, error)
 	GetAccountByEmail(ctx context.Context, email string) (GetAccountByEmailRow, error)
+	// The only query that reads access_token, and only for a Graph call.
+	GetAccountToken(ctx context.Context, arg GetAccountTokenParams) (GetAccountTokenRow, error)
+	// The only query that reads code_hash. Locks the row so concurrent tries count correctly.
+	GetActiveEmailCode(ctx context.Context, arg GetActiveEmailCodeParams) (GetActiveEmailCodeRow, error)
+	// The "add your email" step of a social sign-up. Locks the row while a code is sent.
+	GetAwaitingOAuthFlow(ctx context.Context, completionTokenHash []byte) (GetAwaitingOAuthFlowRow, error)
 	GetIdentity(ctx context.Context, arg GetIdentityParams) (GetIdentityRow, error)
+	GetMemberRole(ctx context.Context, arg GetMemberRoleParams) (string, error)
+	GetMemberState(ctx context.Context, arg GetMemberStateParams) (GetMemberStateRow, error)
+	// The only query that reads registration_pin.
+	GetNumberPin(ctx context.Context, arg GetNumberPinParams) ([]byte, error)
+	GetNumberWorkspace(ctx context.Context, phoneNumberID string) (uuid.UUID, error)
+	// The only query that reads oauth_flows.email_code_hash. Locks the row so tries count correctly.
+	GetOAuthFlowEmailCode(ctx context.Context, completionTokenHash []byte) (GetOAuthFlowEmailCodeRow, error)
+	GetOnboarding(ctx context.Context, workspaceID uuid.UUID) (GetOnboardingRow, error)
+	// Change password, and confirming the password on the verify-link page.
 	GetPasswordHash(ctx context.Context, id uuid.UUID) (*string, error)
 	GetProfile(ctx context.Context, userID uuid.UUID) (GetProfileRow, error)
 	// Locks the token row so two concurrent refreshes can't both rotate it.
 	GetRefreshTokenForUpdate(ctx context.Context, tokenHash []byte) (GetRefreshTokenForUpdateRow, error)
 	// When this session last proved who it is (password or social sign-in), for sensitive actions.
 	GetSessionAuthenticatedAt(ctx context.Context, arg GetSessionAuthenticatedAtParams) (time.Time, error)
+	GetTestMessage(ctx context.Context, arg GetTestMessageParams) (GetTestMessageRow, error)
 	// The only query besides GetPasswordHash that reads password_hash.
 	GetUserForLogin(ctx context.Context, email string) (GetUserForLoginRow, error)
+	GetWhatsAppAccountByWABA(ctx context.Context, wabaID string) (GetWhatsAppAccountByWABARow, error)
+	GetWhatsAppNumber(ctx context.Context, arg GetWhatsAppNumberParams) (GetWhatsAppNumberRow, error)
+	GetWorkspace(ctx context.Context, workspaceID uuid.UUID) (GetWorkspaceRow, error)
+	GetWorkspaceOwner(ctx context.Context, workspaceID uuid.UUID) (GetWorkspaceOwnerRow, error)
+	HasConnectedNumber(ctx context.Context, workspaceID uuid.UUID) (bool, error)
 	InsertAuthEvent(ctx context.Context, arg InsertAuthEventParams) error
+	InvalidateEmailCodes(ctx context.Context, arg InvalidateEmailCodesParams) error
 	InvalidateEmailTokens(ctx context.Context, arg InvalidateEmailTokensParams) error
-	// Checked on every authenticated request, so a revoked session, an expired one
-	// or a disabled user stops working at once instead of when the access token expires.
+	// Checked on every authenticated request, so a revoked session, an expired one,
+	// a disabled user or an unproven email stops working at once instead of when
+	// the access token expires.
 	IsSessionActive(ctx context.Context, arg IsSessionActiveParams) (bool, error)
 	ListActiveSessions(ctx context.Context, userID uuid.UUID) ([]ListActiveSessionsRow, error)
 	ListAuthEvents(ctx context.Context, userID *uuid.UUID) ([]ListAuthEventsRow, error)
 	ListIdentities(ctx context.Context, userID uuid.UUID) ([]ListIdentitiesRow, error)
+	ListMemberWorkspaces(ctx context.Context, userID uuid.UUID) ([]ListMemberWorkspacesRow, error)
+	ListWhatsAppNumbers(ctx context.Context, workspaceID uuid.UUID) ([]ListWhatsAppNumbersRow, error)
+	MarkBusinessDone(ctx context.Context, workspaceID uuid.UUID) error
 	MarkEmailVerified(ctx context.Context, id uuid.UUID) error
-	MarkRefreshTokenUsed(ctx context.Context, id uuid.UUID) error
+	// used_at comes from the service clock, which also checks the reuse grace window.
+	MarkRefreshTokenUsed(ctx context.Context, arg MarkRefreshTokenUsedParams) error
+	MarkTestMessageSent(ctx context.Context, workspaceID uuid.UUID) error
+	MarkWorkspaceActivated(ctx context.Context, workspaceID uuid.UUID) (int64, error)
+	RecordEmailCodeAttempt(ctx context.Context, id uuid.UUID) (int32, error)
+	RecordOAuthFlowCodeAttempt(ctx context.Context, id uuid.UUID) (int32, error)
 	RevokeSession(ctx context.Context, arg RevokeSessionParams) (int64, error)
 	RevokeSessionByID(ctx context.Context, arg RevokeSessionByIDParams) error
 	// Revokes every active session of a user, optionally keeping one (the current device).
 	RevokeUserSessions(ctx context.Context, arg RevokeUserSessionsParams) (int64, error)
+	SetNumberPin(ctx context.Context, arg SetNumberPinParams) error
+	SetNumberStatus(ctx context.Context, arg SetNumberStatusParams) error
+	SetNumberTask(ctx context.Context, arg SetNumberTaskParams) error
+	SetOAuthFlowEmailCode(ctx context.Context, arg SetOAuthFlowEmailCodeParams) error
 	SetPasswordHash(ctx context.Context, arg SetPasswordHashParams) error
 	// POST /auth/password/set: only for accounts that have no password yet.
 	SetPasswordIfUnset(ctx context.Context, arg SetPasswordIfUnsetParams) (int64, error)
+	SetTermsAccepted(ctx context.Context, arg SetTermsAcceptedParams) error
+	SetTestMessageFailed(ctx context.Context, arg SetTestMessageFailedParams) error
+	SetTestMessageSent(ctx context.Context, arg SetTestMessageSentParams) error
+	SkipWhatsAppStep(ctx context.Context, workspaceID uuid.UUID) error
 	// Refresh what the provider reports on every sign-in. Never touches the profile.
 	TouchIdentity(ctx context.Context, arg TouchIdentityParams) error
 	TouchLastLogin(ctx context.Context, id uuid.UUID) error
+	TouchWorkspaceMember(ctx context.Context, arg TouchWorkspaceMemberParams) error
+	UpdateNumberNameStatus(ctx context.Context, arg UpdateNumberNameStatusParams) error
+	UpdateNumberProfile(ctx context.Context, arg UpdateNumberProfileParams) error
+	UpdateNumberQuality(ctx context.Context, arg UpdateNumberQualityParams) error
 	UpdatePreferences(ctx context.Context, arg UpdatePreferencesParams) error
 	// A NULL argument keeps the current value; an empty string clears an optional field.
 	UpdateProfile(ctx context.Context, arg UpdateProfileParams) error
+	// Statuses only move forward: a late "sent" never overwrites "delivered".
+	UpdateTestMessageStatus(ctx context.Context, arg UpdateTestMessageStatusParams) (UpdateTestMessageStatusRow, error)
+	UpdateWorkspaceBusiness(ctx context.Context, arg UpdateWorkspaceBusinessParams) error
+	// A null flag leaves that column as it is; true stamps it once; false clears it.
+	UpsertMemberState(ctx context.Context, arg UpsertMemberStateParams) error
+	// Reconnecting a WABA replaces its token. The caller has checked it belongs to this workspace.
+	UpsertWhatsAppAccount(ctx context.Context, arg UpsertWhatsAppAccountParams) (uuid.UUID, error)
+	UpsertWhatsAppNumber(ctx context.Context, arg UpsertWhatsAppNumberParams) (uuid.UUID, error)
+	UseEmailCode(ctx context.Context, id uuid.UUID) error
 }
 
 var _ Querier = (*Queries)(nil)

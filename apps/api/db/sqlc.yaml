@@ -5,6 +5,9 @@ sql:
     queries:
       - ../internal/features/auth/queries.sql
       - ../internal/features/profiles/queries.sql
+      - ../internal/features/workspaces/queries.sql
+      - ../internal/features/onboarding/queries.sql
+      - ../internal/features/whatsapp/queries.sql
     gen:
       go:
         package: gen

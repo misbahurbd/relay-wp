@@ -10,33 +10,160 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as AuthRouteImport } from './routes/_auth'
+import { Route as AppWelcomeRouteImport } from './routes/_app/welcome'
+import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-password'
+import { Route as AuthLoginRouteImport } from './routes/_auth/login'
+import { Route as AuthResetPasswordRouteImport } from './routes/_auth/reset-password'
+import { Route as AuthSignupRouteImport } from './routes/_auth/signup'
+import { Route as AuthVerifyEmailRouteImport } from './routes/_auth/verify-email'
+import { Route as AppWWorkspaceIdShellRouteImport } from './routes/_app/w/$workspaceId/_shell'
+import { Route as AppWWorkspaceIdSetupRouteImport } from './routes/_app/w/$workspaceId/setup'
+import { Route as AppWWorkspaceIdShellIndexRouteImport } from './routes/_app/w/$workspaceId/_shell/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/_auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppWelcomeRoute = AppWelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
+  getParentRoute: () => AppRoute,
+} as any)
+const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthLoginRoute = AuthLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthSignupRoute = AuthSignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthVerifyEmailRoute = AuthVerifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AppWWorkspaceIdShellRoute = AppWWorkspaceIdShellRouteImport.update({
+  id: '/w/$workspaceId/_shell',
+  path: '/w/$workspaceId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppWWorkspaceIdSetupRoute = AppWWorkspaceIdSetupRouteImport.update({
+  id: '/w/$workspaceId/setup',
+  path: '/w/$workspaceId/setup',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppWWorkspaceIdShellIndexRoute =
+  AppWWorkspaceIdShellIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AppWWorkspaceIdShellRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/welcome': typeof AppWelcomeRoute
+  '/forgot-password': typeof AuthForgotPasswordRoute
+  '/login': typeof AuthLoginRoute
+  '/reset-password': typeof AuthResetPasswordRoute
+  '/signup': typeof AuthSignupRoute
+  '/verify-email': typeof AuthVerifyEmailRoute
+  '/w/$workspaceId': typeof AppWWorkspaceIdShellRouteWithChildren
+  '/w/$workspaceId/setup': typeof AppWWorkspaceIdSetupRoute
+  '/w/$workspaceId/': typeof AppWWorkspaceIdShellIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/welcome': typeof AppWelcomeRoute
+  '/forgot-password': typeof AuthForgotPasswordRoute
+  '/login': typeof AuthLoginRoute
+  '/reset-password': typeof AuthResetPasswordRoute
+  '/signup': typeof AuthSignupRoute
+  '/verify-email': typeof AuthVerifyEmailRoute
+  '/w/$workspaceId/setup': typeof AppWWorkspaceIdSetupRoute
+  '/w/$workspaceId': typeof AppWWorkspaceIdShellIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_app': typeof AppRouteWithChildren
+  '/_auth': typeof AuthRouteWithChildren
+  '/_app/welcome': typeof AppWelcomeRoute
+  '/_auth/forgot-password': typeof AuthForgotPasswordRoute
+  '/_auth/login': typeof AuthLoginRoute
+  '/_auth/reset-password': typeof AuthResetPasswordRoute
+  '/_auth/signup': typeof AuthSignupRoute
+  '/_auth/verify-email': typeof AuthVerifyEmailRoute
+  '/_app/w/$workspaceId/_shell': typeof AppWWorkspaceIdShellRouteWithChildren
+  '/_app/w/$workspaceId/setup': typeof AppWWorkspaceIdSetupRoute
+  '/_app/w/$workspaceId/_shell/': typeof AppWWorkspaceIdShellIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/welcome'
+    | '/forgot-password'
+    | '/login'
+    | '/reset-password'
+    | '/signup'
+    | '/verify-email'
+    | '/w/$workspaceId'
+    | '/w/$workspaceId/setup'
+    | '/w/$workspaceId/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/welcome'
+    | '/forgot-password'
+    | '/login'
+    | '/reset-password'
+    | '/signup'
+    | '/verify-email'
+    | '/w/$workspaceId/setup'
+    | '/w/$workspaceId'
+  id:
+    | '__root__'
+    | '/'
+    | '/_app'
+    | '/_auth'
+    | '/_app/welcome'
+    | '/_auth/forgot-password'
+    | '/_auth/login'
+    | '/_auth/reset-password'
+    | '/_auth/signup'
+    | '/_auth/verify-email'
+    | '/_app/w/$workspaceId/_shell'
+    | '/_app/w/$workspaceId/setup'
+    | '/_app/w/$workspaceId/_shell/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
+  AuthRoute: typeof AuthRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +175,133 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_auth': {
+      id: '/_auth'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/welcome': {
+      id: '/_app/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof AppWelcomeRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_auth/forgot-password': {
+      id: '/_auth/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof AuthForgotPasswordRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/login': {
+      id: '/_auth/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof AuthLoginRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/reset-password': {
+      id: '/_auth/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof AuthResetPasswordRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/signup': {
+      id: '/_auth/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof AuthSignupRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/verify-email': {
+      id: '/_auth/verify-email'
+      path: '/verify-email'
+      fullPath: '/verify-email'
+      preLoaderRoute: typeof AuthVerifyEmailRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_app/w/$workspaceId/_shell': {
+      id: '/_app/w/$workspaceId/_shell'
+      path: '/w/$workspaceId'
+      fullPath: '/w/$workspaceId'
+      preLoaderRoute: typeof AppWWorkspaceIdShellRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/w/$workspaceId/setup': {
+      id: '/_app/w/$workspaceId/setup'
+      path: '/w/$workspaceId/setup'
+      fullPath: '/w/$workspaceId/setup'
+      preLoaderRoute: typeof AppWWorkspaceIdSetupRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/w/$workspaceId/_shell/': {
+      id: '/_app/w/$workspaceId/_shell/'
+      path: '/'
+      fullPath: '/w/$workspaceId/'
+      preLoaderRoute: typeof AppWWorkspaceIdShellIndexRouteImport
+      parentRoute: typeof AppWWorkspaceIdShellRoute
+    }
   }
 }
 
+interface AppWWorkspaceIdShellRouteChildren {
+  AppWWorkspaceIdShellIndexRoute: typeof AppWWorkspaceIdShellIndexRoute
+}
+
+const AppWWorkspaceIdShellRouteChildren: AppWWorkspaceIdShellRouteChildren = {
+  AppWWorkspaceIdShellIndexRoute: AppWWorkspaceIdShellIndexRoute,
+}
+
+const AppWWorkspaceIdShellRouteWithChildren =
+  AppWWorkspaceIdShellRoute._addFileChildren(AppWWorkspaceIdShellRouteChildren)
+
+interface AppRouteChildren {
+  AppWelcomeRoute: typeof AppWelcomeRoute
+  AppWWorkspaceIdShellRoute: typeof AppWWorkspaceIdShellRouteWithChildren
+  AppWWorkspaceIdSetupRoute: typeof AppWWorkspaceIdSetupRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppWelcomeRoute: AppWelcomeRoute,
+  AppWWorkspaceIdShellRoute: AppWWorkspaceIdShellRouteWithChildren,
+  AppWWorkspaceIdSetupRoute: AppWWorkspaceIdSetupRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
+interface AuthRouteChildren {
+  AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
+  AuthLoginRoute: typeof AuthLoginRoute
+  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
+  AuthSignupRoute: typeof AuthSignupRoute
+  AuthVerifyEmailRoute: typeof AuthVerifyEmailRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthForgotPasswordRoute: AuthForgotPasswordRoute,
+  AuthLoginRoute: AuthLoginRoute,
+  AuthResetPasswordRoute: AuthResetPasswordRoute,
+  AuthSignupRoute: AuthSignupRoute,
+  AuthVerifyEmailRoute: AuthVerifyEmailRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
+  AuthRoute: AuthRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

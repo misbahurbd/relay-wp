@@ -25,6 +25,8 @@ type Config struct {
 	Mailer   Mailer
 	Storage  Storage
 	Auth     Auth
+	Trial    Trial
+	WhatsApp WhatsApp
 }
 
 // Database holds both connection strings. See docs/ARCHITECTURE.md (resource budget).
@@ -77,6 +79,8 @@ type Auth struct {
 	JWTAudience           string        `env:"JWT_AUDIENCE" envDefault:"relay"`
 	AccessTokenTTL        time.Duration `env:"ACCESS_TOKEN_TTL" envDefault:"15m"`
 	RefreshTokenTTL       time.Duration `env:"REFRESH_TOKEN_TTL" envDefault:"720h"`
+	// SessionMaxAge ends a session this long after sign-in, however often it refreshes.
+	SessionMaxAge time.Duration `env:"SESSION_MAX_AGE" envDefault:"2160h"`
 
 	CookieDomain string `env:"COOKIE_DOMAIN"`
 	CookieSecure bool   `env:"COOKIE_SECURE" envDefault:"true"`
@@ -91,12 +95,35 @@ type Auth struct {
 	// ReauthMaxAge is how recent a sign-in must be for sensitive actions
 	// (set a password, connect or disconnect a provider).
 	ReauthMaxAge time.Duration `env:"REAUTH_MAX_AGE" envDefault:"10m"`
+	// EmailCodeKey is a base64 32-byte HMAC key for sign-up verification codes.
+	// Development makes a random one when empty.
+	EmailCodeKey string `env:"EMAIL_CODE_KEY"`
+	// TermsVersion is stored with each sign-up's acceptance of the terms.
+	TermsVersion string `env:"TERMS_VERSION" envDefault:"2026-10"`
 
 	// Social providers: one with no credentials is simply not offered.
 	GoogleClientID     string `env:"GOOGLE_CLIENT_ID"`
 	GoogleClientSecret string `env:"GOOGLE_CLIENT_SECRET"`
 	FacebookAppID      string `env:"FACEBOOK_APP_ID"`
 	FacebookAppSecret  string `env:"FACEBOOK_APP_SECRET"`
+}
+
+// Trial configures the free trial a new workspace starts with.
+type Trial struct {
+	Days int `env:"TRIAL_DAYS" envDefault:"14"`
+}
+
+// WhatsApp configures the Meta app used for Embedded Signup, the Cloud API and webhooks.
+type WhatsApp struct {
+	// Enabled off: the connect endpoints refuse and setup can only skip the WhatsApp step.
+	Enabled            bool   `env:"WHATSAPP_ENABLED" envDefault:"false"`
+	AppID              string `env:"META_APP_ID"`
+	AppSecret          string `env:"META_APP_SECRET"`
+	ESConfigID         string `env:"META_ES_CONFIG_ID"`
+	GraphVersion       string `env:"META_GRAPH_VERSION" envDefault:"v24.0"`
+	WebhookVerifyToken string `env:"META_WEBHOOK_VERIFY_TOKEN"`
+	// TokenEncryptionKey is a base64 32-byte AES-256 key for stored Meta tokens and PINs.
+	TokenEncryptionKey string `env:"TOKEN_ENCRYPTION_KEY"`
 }
 
 // Storage configures object storage.

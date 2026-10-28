@@ -3,8 +3,8 @@
 import { queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { changePassword, facebookDataDeletion, forgotPassword, getMe, health, listAuthEvents, listIdentities, listOauthProviders, listSessions, login, logout, logoutAll, oauthCallback, oauthComplete, oauthLink, oauthStart, oauthToken, type Options, ready, refreshToken, resendVerification, resetPassword, revokeSession, setPassword, signup, unlinkIdentity, updatePreferences, updateProfile, verifyEmail } from '../sdk.gen';
-import type { ChangePasswordData, ChangePasswordError, ChangePasswordResponse, FacebookDataDeletionData, FacebookDataDeletionError, FacebookDataDeletionResponse, ForgotPasswordData, ForgotPasswordError, ForgotPasswordResponse, GetMeData, GetMeError, GetMeResponse, HealthData, HealthError, HealthResponse, ListAuthEventsData, ListAuthEventsError, ListAuthEventsResponse, ListIdentitiesData, ListIdentitiesError, ListIdentitiesResponse, ListOauthProvidersData, ListOauthProvidersError, ListOauthProvidersResponse, ListSessionsData, ListSessionsError, ListSessionsResponse, LoginData, LoginError, LoginResponse, LogoutAllData, LogoutAllError, LogoutAllResponse, LogoutData, LogoutError, LogoutResponse, OauthCallbackData, OauthCallbackError, OauthCallbackResponse, OauthCompleteData, OauthCompleteError, OauthCompleteResponse, OauthLinkData, OauthLinkError, OauthLinkResponse, OauthStartData, OauthStartError, OauthStartResponse, OauthTokenData, OauthTokenError, OauthTokenResponse, ReadyData, ReadyError, ReadyResponse, RefreshTokenData, RefreshTokenError, RefreshTokenResponse, ResendVerificationData, ResendVerificationError, ResendVerificationResponse, ResetPasswordData, ResetPasswordError, ResetPasswordResponse, RevokeSessionData, RevokeSessionError, RevokeSessionResponse, SetPasswordData, SetPasswordError, SetPasswordResponse, SignupData, SignupError, SignupResponse, UnlinkIdentityData, UnlinkIdentityError, UnlinkIdentityResponse, UpdatePreferencesData, UpdatePreferencesError, UpdatePreferencesResponse, UpdateProfileData, UpdateProfileError, UpdateProfileResponse, VerifyEmailData, VerifyEmailError, VerifyEmailResponse } from '../types.gen';
+import { changePassword, completeOnboarding, connectWhatsapp, createWorkspace, facebookDataDeletion, forgotPassword, getMe, getOnboarding, getTestMessage, getWhatsappNumber, getWorkspace, health, listAuthEvents, listIdentities, listOauthProviders, listSessions, listWhatsappNumbers, listWorkspaces, login, logout, logoutAll, oauthCallback, oauthComplete, oauthCompleteVerify, oauthLink, oauthStart, oauthToken, type Options, ready, refreshToken, resendVerification, resetPassword, revokeSession, saveBusiness, sendTestMessage, setPassword, signup, skipWhatsapp, unlinkIdentity, updateOnboardingMember, updatePreferences, updateProfile, verifyEmail, verifyEmailCode, whatsappSignupConfig, whatsappWebhook, whatsappWebhookVerify } from '../sdk.gen';
+import type { ChangePasswordData, ChangePasswordError, ChangePasswordResponse, CompleteOnboardingData, CompleteOnboardingError, CompleteOnboardingResponse, ConnectWhatsappData, ConnectWhatsappError, ConnectWhatsappResponse, CreateWorkspaceData, CreateWorkspaceError, CreateWorkspaceResponse, FacebookDataDeletionData, FacebookDataDeletionError, FacebookDataDeletionResponse, ForgotPasswordData, ForgotPasswordError, ForgotPasswordResponse, GetMeData, GetMeError, GetMeResponse, GetOnboardingData, GetOnboardingError, GetOnboardingResponse, GetTestMessageData, GetTestMessageError, GetTestMessageResponse, GetWhatsappNumberData, GetWhatsappNumberError, GetWhatsappNumberResponse, GetWorkspaceData, GetWorkspaceError, GetWorkspaceResponse, HealthData, HealthError, HealthResponse, ListAuthEventsData, ListAuthEventsError, ListAuthEventsResponse, ListIdentitiesData, ListIdentitiesError, ListIdentitiesResponse, ListOauthProvidersData, ListOauthProvidersError, ListOauthProvidersResponse, ListSessionsData, ListSessionsError, ListSessionsResponse, ListWhatsappNumbersData, ListWhatsappNumbersError, ListWhatsappNumbersResponse, ListWorkspacesData, ListWorkspacesError, ListWorkspacesResponse, LoginData, LoginError, LoginResponse, LogoutAllData, LogoutAllError, LogoutAllResponse, LogoutData, LogoutError, LogoutResponse, OauthCallbackData, OauthCallbackError, OauthCallbackResponse, OauthCompleteData, OauthCompleteError, OauthCompleteResponse, OauthCompleteVerifyData, OauthCompleteVerifyError, OauthCompleteVerifyResponse, OauthLinkData, OauthLinkError, OauthLinkResponse, OauthStartData, OauthStartError, OauthStartResponse, OauthTokenData, OauthTokenError, OauthTokenResponse, ReadyData, ReadyError, ReadyResponse, RefreshTokenData, RefreshTokenError, RefreshTokenResponse, ResendVerificationData, ResendVerificationError, ResendVerificationResponse, ResetPasswordData, ResetPasswordError, ResetPasswordResponse, RevokeSessionData, RevokeSessionError, RevokeSessionResponse, SaveBusinessData, SaveBusinessError, SaveBusinessResponse, SendTestMessageData, SendTestMessageError, SendTestMessageResponse, SetPasswordData, SetPasswordError, SetPasswordResponse, SignupData, SignupError, SignupResponse, SkipWhatsappData, SkipWhatsappError, SkipWhatsappResponse, UnlinkIdentityData, UnlinkIdentityError, UnlinkIdentityResponse, UpdateOnboardingMemberData, UpdateOnboardingMemberError, UpdateOnboardingMemberResponse, UpdatePreferencesData, UpdatePreferencesError, UpdatePreferencesResponse, UpdateProfileData, UpdateProfileError, UpdateProfileResponse, VerifyEmailCodeData, VerifyEmailCodeError, VerifyEmailCodeResponse, VerifyEmailData, VerifyEmailError, VerifyEmailResponse, WhatsappSignupConfigData, WhatsappSignupConfigError, WhatsappSignupConfigResponse, WhatsappWebhookData, WhatsappWebhookError, WhatsappWebhookVerifyData, WhatsappWebhookVerifyError, WhatsappWebhookVerifyResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -184,12 +184,29 @@ export const logoutAllMutation = (options?: Partial<Options<LogoutAllData>>): Us
 };
 
 /**
- * Finish a social sign-in whose provider gave no email
+ * Social sign-in without a provider-verified email: email a code to the address given
  */
 export const oauthCompleteMutation = (options?: Partial<Options<OauthCompleteData>>): UseMutationOptions<OauthCompleteResponse, OauthCompleteError, Options<OauthCompleteData>> => {
     const mutationOptions: UseMutationOptions<OauthCompleteResponse, OauthCompleteError, Options<OauthCompleteData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await oauthComplete({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Finish that sign-in with the emailed code
+ */
+export const oauthCompleteVerifyMutation = (options?: Partial<Options<OauthCompleteVerifyData>>): UseMutationOptions<OauthCompleteVerifyResponse, OauthCompleteVerifyError, Options<OauthCompleteVerifyData>> => {
+    const mutationOptions: UseMutationOptions<OauthCompleteVerifyResponse, OauthCompleteVerifyError, Options<OauthCompleteVerifyData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await oauthCompleteVerify({
                 ...options,
                 ...fnOptions,
                 throwOnError: true
@@ -444,12 +461,29 @@ export const refreshTokenMutation = (options?: Partial<Options<RefreshTokenData>
 };
 
 /**
- * Verify an email address from the emailed link
+ * Verify an email address from the emailed link (with the account's password, if it has one)
  */
 export const verifyEmailMutation = (options?: Partial<Options<VerifyEmailData>>): UseMutationOptions<VerifyEmailResponse, VerifyEmailError, Options<VerifyEmailData>> => {
     const mutationOptions: UseMutationOptions<VerifyEmailResponse, VerifyEmailError, Options<VerifyEmailData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await verifyEmail({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Verify an email address with the emailed 6-digit code and sign in
+ */
+export const verifyEmailCodeMutation = (options?: Partial<Options<VerifyEmailCodeData>>): UseMutationOptions<VerifyEmailCodeResponse, VerifyEmailCodeError, Options<VerifyEmailCodeData>> => {
+    const mutationOptions: UseMutationOptions<VerifyEmailCodeResponse, VerifyEmailCodeError, Options<VerifyEmailCodeData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await verifyEmailCode({
                 ...options,
                 ...fnOptions,
                 throwOnError: true
@@ -528,3 +562,283 @@ export const updateProfileMutation = (options?: Partial<Options<UpdateProfileDat
     };
     return mutationOptions;
 };
+
+export const whatsappWebhookVerifyQueryKey = (options?: Options<WhatsappWebhookVerifyData>) => createQueryKey('whatsappWebhookVerify', options);
+
+/**
+ * Meta's webhook subscription handshake
+ */
+export const whatsappWebhookVerifyOptions = (options?: Options<WhatsappWebhookVerifyData>) => queryOptions<WhatsappWebhookVerifyResponse, WhatsappWebhookVerifyError, WhatsappWebhookVerifyResponse, ReturnType<typeof whatsappWebhookVerifyQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await whatsappWebhookVerify({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: whatsappWebhookVerifyQueryKey(options)
+});
+
+/**
+ * Meta's WhatsApp webhook (signed with the app secret)
+ */
+export const whatsappWebhookMutation = (options?: Partial<Options<WhatsappWebhookData>>): UseMutationOptions<unknown, WhatsappWebhookError, Options<WhatsappWebhookData>> => {
+    const mutationOptions: UseMutationOptions<unknown, WhatsappWebhookError, Options<WhatsappWebhookData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await whatsappWebhook({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const whatsappSignupConfigQueryKey = (options?: Options<WhatsappSignupConfigData>) => createQueryKey('whatsappSignupConfig', options);
+
+/**
+ * Public values for opening Meta's Embedded Signup
+ */
+export const whatsappSignupConfigOptions = (options?: Options<WhatsappSignupConfigData>) => queryOptions<WhatsappSignupConfigResponse, WhatsappSignupConfigError, WhatsappSignupConfigResponse, ReturnType<typeof whatsappSignupConfigQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await whatsappSignupConfig({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: whatsappSignupConfigQueryKey(options)
+});
+
+export const listWorkspacesQueryKey = (options?: Options<ListWorkspacesData>) => createQueryKey('listWorkspaces', options);
+
+/**
+ * My workspaces, with enough setup state to choose where to go
+ */
+export const listWorkspacesOptions = (options?: Options<ListWorkspacesData>) => queryOptions<ListWorkspacesResponse, ListWorkspacesError, ListWorkspacesResponse, ReturnType<typeof listWorkspacesQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listWorkspaces({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listWorkspacesQueryKey(options)
+});
+
+/**
+ * Create a workspace from the Welcome screen and start its trial
+ */
+export const createWorkspaceMutation = (options?: Partial<Options<CreateWorkspaceData>>): UseMutationOptions<CreateWorkspaceResponse, CreateWorkspaceError, Options<CreateWorkspaceData>> => {
+    const mutationOptions: UseMutationOptions<CreateWorkspaceResponse, CreateWorkspaceError, Options<CreateWorkspaceData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await createWorkspace({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getWorkspaceQueryKey = (options: Options<GetWorkspaceData>) => createQueryKey('getWorkspace', options);
+
+/**
+ * Business details, plan and trial
+ */
+export const getWorkspaceOptions = (options: Options<GetWorkspaceData>) => queryOptions<GetWorkspaceResponse, GetWorkspaceError, GetWorkspaceResponse, ReturnType<typeof getWorkspaceQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getWorkspace({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getWorkspaceQueryKey(options)
+});
+
+export const getOnboardingQueryKey = (options: Options<GetOnboardingData>) => createQueryKey('getOnboarding', options);
+
+/**
+ * Setup progress, checklist and this member's tour state
+ */
+export const getOnboardingOptions = (options: Options<GetOnboardingData>) => queryOptions<GetOnboardingResponse, GetOnboardingError, GetOnboardingResponse, ReturnType<typeof getOnboardingQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getOnboarding({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getOnboardingQueryKey(options)
+});
+
+/**
+ * Save setup step 1: business details
+ */
+export const saveBusinessMutation = (options?: Partial<Options<SaveBusinessData>>): UseMutationOptions<SaveBusinessResponse, SaveBusinessError, Options<SaveBusinessData>> => {
+    const mutationOptions: UseMutationOptions<SaveBusinessResponse, SaveBusinessError, Options<SaveBusinessData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await saveBusiness({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Finish setup after connecting WhatsApp
+ */
+export const completeOnboardingMutation = (options?: Partial<Options<CompleteOnboardingData>>): UseMutationOptions<CompleteOnboardingResponse, CompleteOnboardingError, Options<CompleteOnboardingData>> => {
+    const mutationOptions: UseMutationOptions<CompleteOnboardingResponse, CompleteOnboardingError, Options<CompleteOnboardingData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await completeOnboarding({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Record that this member saw the tour or hid the checklist
+ */
+export const updateOnboardingMemberMutation = (options?: Partial<Options<UpdateOnboardingMemberData>>): UseMutationOptions<UpdateOnboardingMemberResponse, UpdateOnboardingMemberError, Options<UpdateOnboardingMemberData>> => {
+    const mutationOptions: UseMutationOptions<UpdateOnboardingMemberResponse, UpdateOnboardingMemberError, Options<UpdateOnboardingMemberData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await updateOnboardingMember({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Finish setup without connecting WhatsApp
+ */
+export const skipWhatsappMutation = (options?: Partial<Options<SkipWhatsappData>>): UseMutationOptions<SkipWhatsappResponse, SkipWhatsappError, Options<SkipWhatsappData>> => {
+    const mutationOptions: UseMutationOptions<SkipWhatsappResponse, SkipWhatsappError, Options<SkipWhatsappData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await skipWhatsapp({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Finish Embedded Signup: save the number and start setting it up
+ */
+export const connectWhatsappMutation = (options?: Partial<Options<ConnectWhatsappData>>): UseMutationOptions<ConnectWhatsappResponse, ConnectWhatsappError, Options<ConnectWhatsappData>> => {
+    const mutationOptions: UseMutationOptions<ConnectWhatsappResponse, ConnectWhatsappError, Options<ConnectWhatsappData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await connectWhatsapp({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const listWhatsappNumbersQueryKey = (options: Options<ListWhatsappNumbersData>) => createQueryKey('listWhatsappNumbers', options);
+
+/**
+ * The workspace's numbers and their setup progress
+ */
+export const listWhatsappNumbersOptions = (options: Options<ListWhatsappNumbersData>) => queryOptions<ListWhatsappNumbersResponse, ListWhatsappNumbersError, ListWhatsappNumbersResponse, ReturnType<typeof listWhatsappNumbersQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listWhatsappNumbers({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listWhatsappNumbersQueryKey(options)
+});
+
+export const getWhatsappNumberQueryKey = (options: Options<GetWhatsappNumberData>) => createQueryKey('getWhatsappNumber', options);
+
+/**
+ * One number
+ */
+export const getWhatsappNumberOptions = (options: Options<GetWhatsappNumberData>) => queryOptions<GetWhatsappNumberResponse, GetWhatsappNumberError, GetWhatsappNumberResponse, ReturnType<typeof getWhatsappNumberQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getWhatsappNumber({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getWhatsappNumberQueryKey(options)
+});
+
+/**
+ * Send the hello_world template to check the number works
+ */
+export const sendTestMessageMutation = (options?: Partial<Options<SendTestMessageData>>): UseMutationOptions<SendTestMessageResponse, SendTestMessageError, Options<SendTestMessageData>> => {
+    const mutationOptions: UseMutationOptions<SendTestMessageResponse, SendTestMessageError, Options<SendTestMessageData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await sendTestMessage({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getTestMessageQueryKey = (options: Options<GetTestMessageData>) => createQueryKey('getTestMessage', options);
+
+/**
+ * A test message's delivery status
+ */
+export const getTestMessageOptions = (options: Options<GetTestMessageData>) => queryOptions<GetTestMessageResponse, GetTestMessageError, GetTestMessageResponse, ReturnType<typeof getTestMessageQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getTestMessage({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getTestMessageQueryKey(options)
+});

@@ -28,7 +28,7 @@ tasks:
       - go run ./cmd/relay keygen
 
   keygen:env:
-    desc: Add a JWT signing key to .env if it has none
+    desc: Add a JWT signing key and the secret keys to .env where missing
     cmds:
       - |
         if ! grep -qE '^JWT_SIGNING_KEY=.+' .env; then
@@ -36,6 +36,13 @@ tasks:
           (cd {{.API_DIR}} && go run ./cmd/relay keygen) >> .env
           echo "Added a JWT signing key to .env"
         fi
+        for var in EMAIL_CODE_KEY TOKEN_ENCRYPTION_KEY; do
+          if ! grep -qE "^$var=.+" .env; then
+            grep -vE "^$var=" .env > .env.tmp && mv .env.tmp .env
+            echo "$var=$(openssl rand -base64 32)" >> .env
+            echo "Added $var to .env"
+          fi
+        done
 
   # --- Local services ---
   up:
