@@ -168,10 +168,10 @@ Events: `signup`, `login_succeeded`, `login_failed`, `logout`, `logout_all`, `em
 
 ### Migrations
 
-| File                 | Contents                                                         |
-| -------------------- | ---------------------------------------------------------------- |
-| `00002_auth.sql`     | `citext` extension, the 7 auth tables, indexes, CHECKs, triggers |
-| `00003_profiles.sql` | `user_profiles`, `user_preferences`                              |
+| File                     | Contents                                                                                                    |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `00002_auth.sql`         | `citext` extension, the 7 auth tables, indexes, CHECKs, triggers                                            |
+| `00003_profiles.sql`     | `user_profiles`, `user_preferences`                                                                         |
 | `00004_social_login.sql` | `oauth_flows`: `timezone`, `app_code_challenge`, `user_id`, status `ready`; revoke reason `account_claimed` |
 
 Both have working `Down` sections; CI already runs up → down → up.
@@ -210,12 +210,12 @@ All under `/v1`. Errors use the standard `{code, message, details}` shape. "Auth
 
 | Method and path                                  | Auth                          | What it does                                                                                                                                                                             |
 | ------------------------------------------------ | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /auth/providers` | – | Which providers this server offers (only configured ones), so the frontend knows which buttons to show. |
-| `GET /auth/oauth/{provider}/start` | – | `client`, `redirect_to`, `timezone`, and `code_challenge` (mobile). Creates an `oauth_flows` row, sets the `relay_oauth` state cookie, redirects to the provider. |
-| `GET /auth/oauth/{provider}/link` | Auth, recent sign-in | Same as start with `intent = link`, for connecting a provider from settings (web). |
+| `GET /auth/providers`                            | –                             | Which providers this server offers (only configured ones), so the frontend knows which buttons to show.                                                                                  |
+| `GET /auth/oauth/{provider}/start`               | –                             | `client`, `redirect_to`, `timezone`, and `code_challenge` (mobile). Creates an `oauth_flows` row, sets the `relay_oauth` state cookie, redirects to the provider.                        |
+| `GET /auth/oauth/{provider}/link`                | Auth, recent sign-in          | Same as start with `intent = link`, for connecting a provider from settings (web).                                                                                                       |
 | `GET` and `POST /auth/oauth/{provider}/callback` | –                             | Apple uses form POST. Validates state, PKCE, nonce and ID token; signs in or links (see section 4).                                                                                      |
-| `POST /auth/oauth/complete` | Completion token | Facebook without email: `email` → creates the account unverified, sends a verification link, signs in. Mobile also sends `code_verifier`. |
-| `POST /auth/oauth/token` | One-time code + PKCE verifier | Mobile: redeems the `code` the callback sent to the app's deep link for tokens. A wrong verifier spends the code. |
+| `POST /auth/oauth/complete`                      | Completion token              | Facebook without email: `email` → creates the account unverified, sends a verification link, signs in. Mobile also sends `code_verifier`.                                                |
+| `POST /auth/oauth/token`                         | One-time code + PKCE verifier | Mobile: redeems the `code` the callback sent to the app's deep link for tokens. A wrong verifier spends the code.                                                                        |
 | `POST /auth/oauth/facebook/data-deletion`        | Signed request from Meta      | **Required by Meta before go-live.** Verifies Meta's `signed_request`, removes that Facebook identity, logs `identity_unlinked`, and returns the confirmation URL and code Meta expects. |
 | `GET /auth/identities`                           | Auth                          | Connected providers, and whether a password is set.                                                                                                                                      |
 | `DELETE /auth/identities/{provider}`             | Auth, recent sign-in          | Disconnect a provider. **Refused if it's the last sign-in method.**                                                                                                                      |
@@ -322,12 +322,12 @@ apps/api/internal/
 
 ### Factory check (CLAUDE.md section 2)
 
-| Thing                               | Factory?                | Why                                                                                                                                |
-| ----------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `platform/jwt` key ring             | Yes (already approved)  | Key chosen by `kid`                                                                                                                |
-| OAuth provider registry | **Yes, approved** ([ADR 0001](adr/0001-oauth-provider-registry.md)) | 3 implementations, chosen by the `{provider}` path value, built once at startup. |
-| Breach checker                      | No                      | One real implementation; tests pass a fake to `New`                                                                                |
-| Auth/profile services, repositories | No                      | Plain constructors                                                                                                                 |
+| Thing                               | Factory?                                                            | Why                                                                              |
+| ----------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `platform/jwt` key ring             | Yes (already approved)                                              | Key chosen by `kid`                                                              |
+| OAuth provider registry             | **Yes, approved** ([ADR 0001](adr/0001-oauth-provider-registry.md)) | 3 implementations, chosen by the `{provider}` path value, built once at startup. |
+| Breach checker                      | No                                                                  | One real implementation; tests pass a fake to `New`                              |
+| Auth/profile services, repositories | No                                                                  | Plain constructors                                                               |
 
 ---
 
@@ -354,7 +354,7 @@ Emails are enqueued in the same transaction as the change that triggers them.
 | `REFRESH_TOKEN_TTL`                                                     | `720h`                       | 30 days                                                                               |
 | `APP_BASE_URL`                                                          | `http://localhost:3010`      | Links in emails                                                                       |
 | `API_BASE_URL`                                                          | `http://localhost:8080`      | OAuth callback URLs                                                                   |
-| `AUTH_ALLOWED_REDIRECTS` | `relay://auth/callback` | Extra exact URLs (mobile deep links). Any page of `APP_BASE_URL` is always allowed. |
+| `AUTH_ALLOWED_REDIRECTS`                                                | `relay://auth/callback`      | Extra exact URLs (mobile deep links). Any page of `APP_BASE_URL` is always allowed.   |
 | `COOKIE_DOMAIN`, `COOKIE_SECURE`                                        | `localhost`, `false` locally |                                                                                       |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`                              |                              |                                                                                       |
 | `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`                                |                              |                                                                                       |

@@ -237,17 +237,16 @@ Run `task` on its own to list every available task.
 
 Password sign-in, Google and Facebook are built (Apple comes later). The full design is in [docs/PHASE-2-AUTH.md](docs/PHASE-2-AUTH.md).
 
-| Flow                 | Endpoints                                                                                                |
-| -------------------- | -------------------------------------------------------------------------------------------------------- |
-| Sign up and verify   | `POST /v1/auth/signup`, `POST /v1/auth/verify-email`, `POST /v1/auth/verify-email/resend`                |
-| Sign in and out      | `POST /v1/auth/login`, `POST /v1/auth/token/refresh`, `POST /v1/auth/logout`, `POST /v1/auth/logout-all` |
-| Passwords            | `POST /v1/auth/password/forgot`, `POST /v1/auth/password/reset`, `POST /v1/auth/password/change`         |
-| Devices and activity | `GET /v1/auth/sessions`, `DELETE /v1/auth/sessions/{id}`, `GET /v1/auth/events`                          |
-| Profile              | `GET /v1/me`, `PATCH /v1/me/profile`, `PATCH /v1/me/preferences`                                         |
+| Flow                 | Endpoints                                                                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Sign up and verify   | `POST /v1/auth/signup`, `POST /v1/auth/verify-email`, `POST /v1/auth/verify-email/resend`                                                  |
+| Sign in and out      | `POST /v1/auth/login`, `POST /v1/auth/token/refresh`, `POST /v1/auth/logout`, `POST /v1/auth/logout-all`                                   |
+| Passwords            | `POST /v1/auth/password/forgot`, `POST /v1/auth/password/reset`, `POST /v1/auth/password/change`                                           |
+| Devices and activity | `GET /v1/auth/sessions`, `DELETE /v1/auth/sessions/{id}`, `GET /v1/auth/events`                                                            |
+| Profile              | `GET /v1/me`, `PATCH /v1/me/profile`, `PATCH /v1/me/preferences`                                                                           |
 | Social sign-in       | `GET /v1/auth/providers`, `GET /v1/auth/oauth/{provider}/start`, `…/callback`, `POST /v1/auth/oauth/complete`, `POST /v1/auth/oauth/token` |
-| Connected accounts   | `GET /v1/auth/identities`, `GET /v1/auth/oauth/{provider}/link`, `DELETE /v1/auth/identities/{provider}`, `POST /v1/auth/password/set` |
-| Meta compliance      | `POST /v1/auth/oauth/facebook/data-deletion`                                                             |
-
+| Connected accounts   | `GET /v1/auth/identities`, `GET /v1/auth/oauth/{provider}/link`, `DELETE /v1/auth/identities/{provider}`, `POST /v1/auth/password/set`     |
+| Meta compliance      | `POST /v1/auth/oauth/facebook/data-deletion`                                                                                               |
 - **Web** (`client` omitted or `web`): tokens arrive as httpOnly cookies: `relay_access` (15 minutes) and `relay_refresh` (30 days, sent only to the refresh endpoint). Requests that change data using cookies must come from an origin in `CORS_ALLOWED_ORIGINS`.
 - **Mobile** (`"client": "mobile"` on login): tokens arrive in the response body. Send `Authorization: Bearer <access_token>`, and `{"refresh_token": …}` to refresh. Send `X-Device-Name` so the sessions list shows the device.
 - **Try it locally**: sign up from the API docs (`/docs`), then find the verification link in Mailpit. The link points at the web app's `/verify-email` page; until that page exists, post its `token` to `POST /v1/auth/verify-email`.
