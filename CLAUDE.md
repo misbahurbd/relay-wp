@@ -50,6 +50,8 @@ A new feature starts with only the files it needs. Do not create empty placehold
 - Only `internal/app` (and `cmd/`) may know about every feature.
 - Every tenant-owned table has `workspace_id`, and every repository method on tenant data takes `workspaceID` as a parameter.
 - Return `shared/apperr` errors from services; never write HTTP status codes outside `handler.go` / `platform/httpx`.
+- **No `SELECT *`, ever.** Every query lists exactly the columns it needs, including `RETURNING` clauses and subqueries. This keeps secrets out of results, keeps sqlc's generated structs small, and stops a new column from silently changing existing queries.
+- **Secrets never leave their query.** `users.password_hash` is selected only by the login and change-password queries. It is never part of a user model, DTO or API response, and never logged. The same applies to every stored token hash (`refresh_tokens.token_hash`, `email_tokens.token_hash`, `oauth_flows.state_hash`).
 
 ### Frontend dependency rules
 
@@ -132,6 +134,8 @@ Then check your change against sections 1 and 2:
 - [ ] No new factory outside the approved list.
 - [ ] No generated file was edited by hand.
 - [ ] Tenant data is scoped by `workspace_id`.
+- [ ] No `SELECT *` or `RETURNING *` in any query (`grep -rn '\*' --include=queries.sql apps/api/internal` finds none).
+- [ ] No password or token hash appears in a model, DTO, response or log line.
 
 ---
 
