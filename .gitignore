@@ -1,0 +1,28 @@
+# OS / editors
+.DS_Store
+.idea/
+*.swp
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+.pnpm-store/
+dist/
+.output/
+.nitro/
+.tanstack/
+.vinxi/
+*.local
+
+# Go
+apps/api/bin/
+apps/api/tmp/
+*.test
+coverage.out
+
+# Logs
+*.log

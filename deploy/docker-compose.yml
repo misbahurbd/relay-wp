@@ -1,0 +1,45 @@
+# Local development services. Production uses managed Postgres and S3.
+# Host ports can be changed in .env if they clash with other projects.
+name: relay
+
+services:
+  postgres:
+    image: postgres:18.6-alpine
+    environment:
+      POSTGRES_USER: relay
+      POSTGRES_PASSWORD: relay
+      POSTGRES_DB: relay
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U relay -d relay"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:v1.32.0
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1025}:1025" # SMTP
+      - "${MAILPIT_UI_PORT:-8025}:8025" # web UI
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
+  s3:
+    image: rustfs/rustfs:1.0.4
+    ports:
+      - "${S3_PORT:-9000}:9000" # S3 API
+      - "${S3_CONSOLE_PORT:-9001}:9001" # console
+    environment:
+      RUSTFS_ACCESS_KEY: relay
+      RUSTFS_SECRET_KEY: relay-secret
+      RUSTFS_CONSOLE_ENABLE: "true"
+    volumes:
+      - s3:/data
+
+volumes:
+  postgres:
+  s3:
