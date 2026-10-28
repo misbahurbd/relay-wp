@@ -122,15 +122,15 @@ task setup
 
 All configuration lives in a single `.env` at the repo root. Task loads it automatically for every command. `.env` is gitignored; `.env.example` is the committed template, so **add every new variable to `.env.example` too**.
 
-| Group               | Variables                                                                             | Notes                                                                                    |
-| ------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Local service ports | `POSTGRES_PORT`, `MAILPIT_SMTP_PORT`, `MAILPIT_UI_PORT`, `S3_PORT`, `S3_CONSOLE_PORT` | Host ports for docker-compose. Change them if another project already uses the defaults. |
-| API                 | `APP_ENV`, `HTTP_ADDR`, `LOG_LEVEL`, `LOG_FORMAT`, `CORS_ALLOWED_ORIGINS`             |                                                                                          |
-| Database            | `DATABASE_URL`, `DATABASE_DIRECT_URL`, `DATABASE_MAX_CONNS`                           | Two URLs: see below.                                                                     |
-| Mail                | `MAILER_DRIVER`, `SMTP_HOST`, `SMTP_PORT`                                             | Locally, mail goes to Mailpit.                                                           |
-| Storage             | `STORAGE_DRIVER`, `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET`        | Locally, S3 is RustFS.                                                                   |
-| Runtime             | `GOMEMLIMIT`                                                                          | Keep below the container memory limit (1 GB in production).                              |
-| Web                 | `VITE_API_URL`                                                                        | URL the browser uses to reach the API.                                                   |
+| Group               | Variables                                                                             | Notes                                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Local service ports | `POSTGRES_PORT`, `MAILPIT_SMTP_PORT`, `MAILPIT_UI_PORT`, `S3_PORT`, `S3_CONSOLE_PORT` | Host ports for docker-compose. Change them if another project already uses the defaults.                             |
+| API                 | `APP_ENV`, `HTTP_ADDR`, `LOG_LEVEL`, `LOG_FORMAT`, `CORS_ALLOWED_ORIGINS`             |                                                                                                                      |
+| Database            | `DATABASE_URL`, `DATABASE_DIRECT_URL`, `DATABASE_MAX_CONNS`                           | Two URLs: see below.                                                                                                 |
+| Mail                | `MAILER_DRIVER`, `SMTP_HOST`, `SMTP_PORT`                                             | Locally, mail goes to Mailpit.                                                                                       |
+| Storage             | `STORAGE_DRIVER`, `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET`        | Locally, S3 is RustFS.                                                                                               |
+| Runtime             | `GOMEMLIMIT`                                                                          | Keep below the container memory limit (1 GB in production).                                                          |
+| Web                 | `WEB_PORT`, `VITE_API_URL`                                                            | Dev server port (fails if taken; keep `CORS_ALLOWED_ORIGINS` in sync) and the URL the browser uses to reach the API. |
 
 **Two database URLs:**
 

@@ -52,7 +52,8 @@ tasks:
     desc: Run the API with hot reload
     dir: "{{.API_DIR}}"
     cmds:
-      - air
+      # `go install` puts air in GOPATH/bin, which isn't always on PATH.
+      - PATH="$PATH:$(go env GOPATH)/bin" air
 
   dev:web:
     desc: Run the web dev server
