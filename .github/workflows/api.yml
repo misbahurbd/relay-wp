@@ -46,6 +46,11 @@ jobs:
           go run ./cmd/relay migrate up
           go run ./cmd/relay migrate down
           go run ./cmd/relay migrate up
+      - uses: sqlc-dev/setup-sqlc@v5
+        with:
+          sqlc-version: "1.31.1"
+      - name: sqlc code is up to date
+        run: sqlc diff -f db/sqlc.yaml
       - name: OpenAPI spec is up to date
         run: |
           go run ./cmd/relay openapi > openapi/openapi.json

@@ -4,9 +4,18 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type ChangePasswordInputBody = {
+    current_password: string;
+    new_password: string;
+};
+
 export type Detail = {
     field?: string;
     message: string;
+};
+
+export type EmailInputBody = {
+    email: string;
 };
 
 export type ErrorBody = {
@@ -24,8 +33,141 @@ export type ErrorBody = {
     message: string;
 };
 
+export type EventDto = {
+    created_at: string;
+    device: string;
+    event: string;
+    id: string;
+    ip?: string;
+    provider?: string;
+};
+
+export type EventsOutputBody = {
+    events: Array<EventDto> | null;
+};
+
+export type LoginInputBody = {
+    /**
+     * web gets httpOnly cookies; mobile gets tokens in the body
+     */
+    client?: 'web' | 'mobile';
+    email: string;
+    password: string;
+};
+
+export type MeOutputBody = {
+    preferences: PreferencesDto;
+    profile: ProfileDto;
+    user: UserDto;
+};
+
+export type MessageOutputBody = {
+    message: string;
+};
+
+export type PreferencesDto = {
+    locale: string;
+    timezone: string;
+};
+
+export type ProfileDto = {
+    avatar_url: string | null;
+    /**
+     * When null, show first_name and last_name
+     */
+    display_name: string | null;
+    first_name: string;
+    last_name: string | null;
+};
+
+export type RefreshInputBody = {
+    /**
+     * Mobile: refresh token from the last sign-in or refresh
+     */
+    refresh_token: string;
+};
+
+export type ResetPasswordInputBody = {
+    new_password: string;
+    token: string;
+};
+
+export type SessionDto = {
+    client: 'web' | 'mobile';
+    created_at: string;
+    /**
+     * True for the device making this request
+     */
+    current: boolean;
+    device_name: string;
+    device_type: 'desktop' | 'mobile' | 'tablet' | 'app';
+    id: string;
+    last_ip?: string;
+    last_used_at: string;
+    provider: 'password' | 'google' | 'facebook' | 'apple';
+};
+
+export type SessionsOutputBody = {
+    sessions: Array<SessionDto> | null;
+};
+
+export type SignupInputBody = {
+    email: string;
+    first_name: string;
+    last_name?: string;
+    password: string;
+    /**
+     * IANA timezone from the browser, e.g. Asia/Dhaka. Defaults to UTC.
+     */
+    timezone?: string;
+};
+
 export type StatusOutputBody = {
     status: string;
+};
+
+export type TokenBody = {
+    access_expires_at: string;
+    /**
+     * Mobile only
+     */
+    access_token?: string;
+    refresh_expires_at: string;
+    /**
+     * Mobile only
+     */
+    refresh_token?: string;
+};
+
+export type TokenInputBody = {
+    token: string;
+};
+
+export type UpdatePreferencesInputBody = {
+    locale?: string;
+    timezone?: string;
+};
+
+export type UpdateProfileInputBody = {
+    /**
+     * Empty string clears it
+     */
+    display_name?: string;
+    first_name?: string;
+    /**
+     * Empty string clears it
+     */
+    last_name?: string;
+};
+
+export type UserDto = {
+    email: string;
+    email_verified: boolean;
+    /**
+     * False for accounts that only use social sign-in
+     */
+    has_password: boolean;
+    id: string;
 };
 
 export type HealthData = {
@@ -81,3 +223,498 @@ export type ReadyResponses = {
 };
 
 export type ReadyResponse = ReadyResponses[keyof ReadyResponses];
+
+export type ListAuthEventsData = {
+    body?: never;
+    headers?: {
+        'User-Agent'?: string;
+        /**
+         * Device name sent by the mobile app, e.g. iPhone 15
+         */
+        'X-Device-Name'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/auth/events';
+};
+
+export type ListAuthEventsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListAuthEventsError = ListAuthEventsErrors[keyof ListAuthEventsErrors];
+
+export type ListAuthEventsResponses = {
+    /**
+     * OK
+     */
+    200: EventsOutputBody;
+};
+
+export type ListAuthEventsResponse = ListAuthEventsResponses[keyof ListAuthEventsResponses];
+
+export type LoginData = {
+    body: LoginInputBody;
+    headers?: {
+        'User-Agent'?: string;
+        /**
+         * Device name sent by the mobile app, e.g. iPhone 15
+         */
+        'X-Device-Name'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/auth/login';
+};
+
+export type LoginErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type LoginError = LoginErrors[keyof LoginErrors];
+
+export type LoginResponses = {
+    /**
+     * OK
+     */
+    200: TokenBody;
+};
+
+export type LoginResponse = LoginResponses[keyof LoginResponses];
+
+export type LogoutData = {
+    body?: never;
+    headers?: {
+        'User-Agent'?: string;
+        /**
+         * Device name sent by the mobile app, e.g. iPhone 15
+         */
+        'X-Device-Name'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/auth/logout';
+};
+
+export type LogoutErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type LogoutError = LogoutErrors[keyof LogoutErrors];
+
+export type LogoutResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type LogoutResponse = LogoutResponses[keyof LogoutResponses];
+
+export type LogoutAllData = {
+    body?: never;
+    headers?: {
+        'User-Agent'?: string;
+        /**
+         * Device name sent by the mobile app, e.g. iPhone 15
+         */
+        'X-Device-Name'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/auth/logout-all';
+};
+
+export type LogoutAllErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type LogoutAllError = LogoutAllErrors[keyof LogoutAllErrors];
+
+export type LogoutAllResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type LogoutAllResponse = LogoutAllResponses[keyof LogoutAllResponses];
+
+export type ChangePasswordData = {
+    body: ChangePasswordInputBody;
+    headers?: {
+        'User-Agent'?: string;
+        /**
+         * Device name sent by the mobile app, e.g. iPhone 15
+         */
+        'X-Device-Name'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/auth/password/change';
+};
+
+export type ChangePasswordErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ChangePasswordError = ChangePasswordErrors[keyof ChangePasswordErrors];
+
+export type ChangePasswordResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type ChangePasswordResponse = ChangePasswordResponses[keyof ChangePasswordResponses];
+
+export type ForgotPasswordData = {
+    body: EmailInputBody;
+    headers?: {
+        'User-Agent'?: string;
+        /**
+         * Device name sent by the mobile app, e.g. iPhone 15
+         */
+        'X-Device-Name'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/auth/password/forgot';
+};
+
+export type ForgotPasswordErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ForgotPasswordError = ForgotPasswordErrors[keyof ForgotPasswordErrors];
+
+export type ForgotPasswordResponses = {
+    /**
+     * Accepted
+     */
+    202: MessageOutputBody;
+};
+
+export type ForgotPasswordResponse = ForgotPasswordResponses[keyof ForgotPasswordResponses];
+
+export type ResetPasswordData = {
+    body: ResetPasswordInputBody;
+    headers?: {
+        'User-Agent'?: string;
+        /**
+         * Device name sent by the mobile app, e.g. iPhone 15
+         */
+        'X-Device-Name'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/auth/password/reset';
+};
+
+export type ResetPasswordErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ResetPasswordError = ResetPasswordErrors[keyof ResetPasswordErrors];
+
+export type ResetPasswordResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type ResetPasswordResponse = ResetPasswordResponses[keyof ResetPasswordResponses];
+
+export type ListSessionsData = {
+    body?: never;
+    headers?: {
+        'User-Agent'?: string;
+        /**
+         * Device name sent by the mobile app, e.g. iPhone 15
+         */
+        'X-Device-Name'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/auth/sessions';
+};
+
+export type ListSessionsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListSessionsError = ListSessionsErrors[keyof ListSessionsErrors];
+
+export type ListSessionsResponses = {
+    /**
+     * OK
+     */
+    200: SessionsOutputBody;
+};
+
+export type ListSessionsResponse = ListSessionsResponses[keyof ListSessionsResponses];
+
+export type RevokeSessionData = {
+    body?: never;
+    headers?: {
+        'User-Agent'?: string;
+        /**
+         * Device name sent by the mobile app, e.g. iPhone 15
+         */
+        'X-Device-Name'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/v1/auth/sessions/{id}';
+};
+
+export type RevokeSessionErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type RevokeSessionError = RevokeSessionErrors[keyof RevokeSessionErrors];
+
+export type RevokeSessionResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type RevokeSessionResponse = RevokeSessionResponses[keyof RevokeSessionResponses];
+
+export type SignupData = {
+    body: SignupInputBody;
+    headers?: {
+        'User-Agent'?: string;
+        /**
+         * Device name sent by the mobile app, e.g. iPhone 15
+         */
+        'X-Device-Name'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/auth/signup';
+};
+
+export type SignupErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SignupError = SignupErrors[keyof SignupErrors];
+
+export type SignupResponses = {
+    /**
+     * Accepted
+     */
+    202: MessageOutputBody;
+};
+
+export type SignupResponse = SignupResponses[keyof SignupResponses];
+
+export type RefreshTokenData = {
+    body?: RefreshInputBody;
+    headers?: {
+        'User-Agent'?: string;
+        /**
+         * Device name sent by the mobile app, e.g. iPhone 15
+         */
+        'X-Device-Name'?: string;
+        Origin?: string;
+        Referer?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/auth/token/refresh';
+};
+
+export type RefreshTokenErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type RefreshTokenError = RefreshTokenErrors[keyof RefreshTokenErrors];
+
+export type RefreshTokenResponses = {
+    /**
+     * OK
+     */
+    200: TokenBody;
+};
+
+export type RefreshTokenResponse = RefreshTokenResponses[keyof RefreshTokenResponses];
+
+export type VerifyEmailData = {
+    body: TokenInputBody;
+    headers?: {
+        'User-Agent'?: string;
+        /**
+         * Device name sent by the mobile app, e.g. iPhone 15
+         */
+        'X-Device-Name'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/auth/verify-email';
+};
+
+export type VerifyEmailErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type VerifyEmailError = VerifyEmailErrors[keyof VerifyEmailErrors];
+
+export type VerifyEmailResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type VerifyEmailResponse = VerifyEmailResponses[keyof VerifyEmailResponses];
+
+export type ResendVerificationData = {
+    body: EmailInputBody;
+    headers?: {
+        'User-Agent'?: string;
+        /**
+         * Device name sent by the mobile app, e.g. iPhone 15
+         */
+        'X-Device-Name'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/auth/verify-email/resend';
+};
+
+export type ResendVerificationErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ResendVerificationError = ResendVerificationErrors[keyof ResendVerificationErrors];
+
+export type ResendVerificationResponses = {
+    /**
+     * Accepted
+     */
+    202: MessageOutputBody;
+};
+
+export type ResendVerificationResponse = ResendVerificationResponses[keyof ResendVerificationResponses];
+
+export type GetMeData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/me';
+};
+
+export type GetMeErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetMeError = GetMeErrors[keyof GetMeErrors];
+
+export type GetMeResponses = {
+    /**
+     * OK
+     */
+    200: MeOutputBody;
+};
+
+export type GetMeResponse = GetMeResponses[keyof GetMeResponses];
+
+export type UpdatePreferencesData = {
+    body: UpdatePreferencesInputBody;
+    path?: never;
+    query?: never;
+    url: '/v1/me/preferences';
+};
+
+export type UpdatePreferencesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UpdatePreferencesError = UpdatePreferencesErrors[keyof UpdatePreferencesErrors];
+
+export type UpdatePreferencesResponses = {
+    /**
+     * OK
+     */
+    200: MeOutputBody;
+};
+
+export type UpdatePreferencesResponse = UpdatePreferencesResponses[keyof UpdatePreferencesResponses];
+
+export type UpdateProfileData = {
+    body: UpdateProfileInputBody;
+    path?: never;
+    query?: never;
+    url: '/v1/me/profile';
+};
+
+export type UpdateProfileErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UpdateProfileError = UpdateProfileErrors[keyof UpdateProfileErrors];
+
+export type UpdateProfileResponses = {
+    /**
+     * OK
+     */
+    200: MeOutputBody;
+};
+
+export type UpdateProfileResponse = UpdateProfileResponses[keyof UpdateProfileResponses];

@@ -7,6 +7,9 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/misbahurbd/relay-wp/apps/api/internal/features/auth"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/features/profiles"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/middleware"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/shared/apperr"
 )
 
@@ -53,5 +56,15 @@ func (a *App) registerRoutes(api huma.API) {
 		return ok(), nil
 	})
 
-	// Feature routes are registered here, e.g. auth.Register(api, a.authHandler).
+	origins := a.cfg.HTTP.CORSAllowedOrigins
+	var verifier middleware.TokenVerifier
+	if a.jwt != nil {
+		verifier = a.jwt
+	}
+	requireAuth := middleware.RequireAuth(api, verifier, origins)
+
+	auth.Register(api, auth.NewHandler(a.auth, auth.CookieConfig{
+		Domain: a.cfg.Auth.CookieDomain, Secure: a.cfg.Auth.CookieSecure,
+	}, origins), requireAuth)
+	profiles.Register(api, profiles.NewHandler(a.profiles), requireAuth, auth.Security)
 }

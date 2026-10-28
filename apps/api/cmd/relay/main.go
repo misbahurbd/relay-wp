@@ -5,6 +5,7 @@
 //	relay all                    both, in one process (default)
 //	relay migrate up|down|status run database migrations
 //	relay openapi                print the OpenAPI spec to stdout
+//	relay keygen                 print a new JWT signing key for .env
 package main
 
 import (
@@ -16,10 +17,13 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
+	_ "time/tzdata" // timezone database for validating user timezones in any container
 
 	"github.com/misbahurbd/relay-wp/apps/api/internal/app"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/config"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/database"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/jwt"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/logger"
 )
 
@@ -43,6 +47,15 @@ func run(args []string) error {
 		if err := enc.Encode(app.OpenAPI()); err != nil {
 			return fmt.Errorf("encode openapi: %w", err)
 		}
+		return nil
+	}
+
+	if cmd == "keygen" {
+		seed, _, err := jwt.GenerateKey()
+		if err != nil {
+			return err
+		}
+		fmt.Printf("JWT_SIGNING_KEY=%s\nJWT_SIGNING_KEY_ID=%s\n", seed, time.Now().UTC().Format("2006-01"))
 		return nil
 	}
 
@@ -78,6 +91,6 @@ func run(args []string) error {
 		defer pool.Close()
 		return database.Migrate(ctx, pool, args[1], os.Stdout)
 	default:
-		return fmt.Errorf("unknown command %q (want api, worker, all, migrate, openapi)", cmd)
+		return fmt.Errorf("unknown command %q (want api, worker, all, migrate, openapi, keygen)", cmd)
 	}
 }
