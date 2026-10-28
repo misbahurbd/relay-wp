@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { HealthData, HealthErrors, HealthResponses, ReadyData, ReadyErrors, ReadyResponses } from './types.gen';
+import type { ChangePasswordData, ChangePasswordErrors, ChangePasswordResponses, ForgotPasswordData, ForgotPasswordErrors, ForgotPasswordResponses, GetMeData, GetMeErrors, GetMeResponses, HealthData, HealthErrors, HealthResponses, ListAuthEventsData, ListAuthEventsErrors, ListAuthEventsResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, LoginData, LoginErrors, LoginResponses, LogoutAllData, LogoutAllErrors, LogoutAllResponses, LogoutData, LogoutErrors, LogoutResponses, ReadyData, ReadyErrors, ReadyResponses, RefreshTokenData, RefreshTokenErrors, RefreshTokenResponses, ResendVerificationData, ResendVerificationErrors, ResendVerificationResponses, ResetPasswordData, ResetPasswordErrors, ResetPasswordResponses, RevokeSessionData, RevokeSessionErrors, RevokeSessionResponses, SignupData, SignupErrors, SignupResponses, UpdatePreferencesData, UpdatePreferencesErrors, UpdatePreferencesResponses, UpdateProfileData, UpdateProfileErrors, UpdateProfileResponses, VerifyEmailData, VerifyEmailErrors, VerifyEmailResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -31,3 +31,216 @@ export const health = <ThrowOnError extends boolean = false>(options?: Options<H
  * Returns ok when the database answers; 503 otherwise.
  */
 export const ready = <ThrowOnError extends boolean = false>(options?: Options<ReadyData, ThrowOnError>): RequestResult<ReadyResponses, ReadyErrors, ThrowOnError> => (options?.client ?? client).get<ReadyResponses, ReadyErrors, ThrowOnError>({ url: '/readyz', ...options });
+
+/**
+ * Recent security activity
+ */
+export const listAuthEvents = <ThrowOnError extends boolean = false>(options?: Options<ListAuthEventsData, ThrowOnError>): RequestResult<ListAuthEventsResponses, ListAuthEventsErrors, ThrowOnError> => (options?.client ?? client).get<ListAuthEventsResponses, ListAuthEventsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/auth/events',
+    ...options
+});
+
+/**
+ * Sign in with email and password
+ */
+export const login = <ThrowOnError extends boolean = false>(options: Options<LoginData, ThrowOnError>): RequestResult<LoginResponses, LoginErrors, ThrowOnError> => (options.client ?? client).post<LoginResponses, LoginErrors, ThrowOnError>({
+    url: '/v1/auth/login',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Sign out this device
+ */
+export const logout = <ThrowOnError extends boolean = false>(options?: Options<LogoutData, ThrowOnError>): RequestResult<LogoutResponses, LogoutErrors, ThrowOnError> => (options?.client ?? client).post<LogoutResponses, LogoutErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/auth/logout',
+    ...options
+});
+
+/**
+ * Sign out every device
+ */
+export const logoutAll = <ThrowOnError extends boolean = false>(options?: Options<LogoutAllData, ThrowOnError>): RequestResult<LogoutAllResponses, LogoutAllErrors, ThrowOnError> => (options?.client ?? client).post<LogoutAllResponses, LogoutAllErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/auth/logout-all',
+    ...options
+});
+
+/**
+ * Change password; signs out every other device
+ */
+export const changePassword = <ThrowOnError extends boolean = false>(options: Options<ChangePasswordData, ThrowOnError>): RequestResult<ChangePasswordResponses, ChangePasswordErrors, ThrowOnError> => (options.client ?? client).post<ChangePasswordResponses, ChangePasswordErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/auth/password/change',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Email a password reset link
+ */
+export const forgotPassword = <ThrowOnError extends boolean = false>(options: Options<ForgotPasswordData, ThrowOnError>): RequestResult<ForgotPasswordResponses, ForgotPasswordErrors, ThrowOnError> => (options.client ?? client).post<ForgotPasswordResponses, ForgotPasswordErrors, ThrowOnError>({
+    url: '/v1/auth/password/forgot',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Set a new password from the emailed link; signs out every device
+ */
+export const resetPassword = <ThrowOnError extends boolean = false>(options: Options<ResetPasswordData, ThrowOnError>): RequestResult<ResetPasswordResponses, ResetPasswordErrors, ThrowOnError> => (options.client ?? client).post<ResetPasswordResponses, ResetPasswordErrors, ThrowOnError>({
+    url: '/v1/auth/password/reset',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List signed-in devices
+ */
+export const listSessions = <ThrowOnError extends boolean = false>(options?: Options<ListSessionsData, ThrowOnError>): RequestResult<ListSessionsResponses, ListSessionsErrors, ThrowOnError> => (options?.client ?? client).get<ListSessionsResponses, ListSessionsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/auth/sessions',
+    ...options
+});
+
+/**
+ * Sign out one device
+ */
+export const revokeSession = <ThrowOnError extends boolean = false>(options: Options<RevokeSessionData, ThrowOnError>): RequestResult<RevokeSessionResponses, RevokeSessionErrors, ThrowOnError> => (options.client ?? client).delete<RevokeSessionResponses, RevokeSessionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/auth/sessions/{id}',
+    ...options
+});
+
+/**
+ * Create a password account and send a verification email
+ */
+export const signup = <ThrowOnError extends boolean = false>(options: Options<SignupData, ThrowOnError>): RequestResult<SignupResponses, SignupErrors, ThrowOnError> => (options.client ?? client).post<SignupResponses, SignupErrors, ThrowOnError>({
+    url: '/v1/auth/signup',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Rotate the refresh token and get a new access token
+ */
+export const refreshToken = <ThrowOnError extends boolean = false>(options?: Options<RefreshTokenData, ThrowOnError>): RequestResult<RefreshTokenResponses, RefreshTokenErrors, ThrowOnError> => (options?.client ?? client).post<RefreshTokenResponses, RefreshTokenErrors, ThrowOnError>({
+    url: '/v1/auth/token/refresh',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
+
+/**
+ * Verify an email address from the emailed link
+ */
+export const verifyEmail = <ThrowOnError extends boolean = false>(options: Options<VerifyEmailData, ThrowOnError>): RequestResult<VerifyEmailResponses, VerifyEmailErrors, ThrowOnError> => (options.client ?? client).post<VerifyEmailResponses, VerifyEmailErrors, ThrowOnError>({
+    url: '/v1/auth/verify-email',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Send a new verification email
+ */
+export const resendVerification = <ThrowOnError extends boolean = false>(options: Options<ResendVerificationData, ThrowOnError>): RequestResult<ResendVerificationResponses, ResendVerificationErrors, ThrowOnError> => (options.client ?? client).post<ResendVerificationResponses, ResendVerificationErrors, ThrowOnError>({
+    url: '/v1/auth/verify-email/resend',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * The signed-in user, profile and preferences
+ */
+export const getMe = <ThrowOnError extends boolean = false>(options?: Options<GetMeData, ThrowOnError>): RequestResult<GetMeResponses, GetMeErrors, ThrowOnError> => (options?.client ?? client).get<GetMeResponses, GetMeErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/me',
+    ...options
+});
+
+/**
+ * Update locale and timezone
+ */
+export const updatePreferences = <ThrowOnError extends boolean = false>(options: Options<UpdatePreferencesData, ThrowOnError>): RequestResult<UpdatePreferencesResponses, UpdatePreferencesErrors, ThrowOnError> => (options.client ?? client).patch<UpdatePreferencesResponses, UpdatePreferencesErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/me/preferences',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Update name fields
+ */
+export const updateProfile = <ThrowOnError extends boolean = false>(options: Options<UpdateProfileData, ThrowOnError>): RequestResult<UpdateProfileResponses, UpdateProfileErrors, ThrowOnError> => (options.client ?? client).patch<UpdateProfileResponses, UpdateProfileErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/me/profile',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});

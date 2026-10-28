@@ -16,11 +16,15 @@ type Config struct {
 	LogLevel  string `env:"LOG_LEVEL" envDefault:"info"`
 	LogFormat string `env:"LOG_FORMAT" envDefault:"json"`
 
+	// AppBaseURL is the web app's address, used for links in emails.
+	AppBaseURL string `env:"APP_BASE_URL" envDefault:"http://localhost:3000"`
+
 	Database Database
 	HTTP     HTTP
 	Queue    Queue
 	Mailer   Mailer
 	Storage  Storage
+	Auth     Auth
 }
 
 // Database holds both connection strings. See docs/ARCHITECTURE.md (resource budget).
@@ -59,6 +63,25 @@ type Mailer struct {
 	SMTPPass string `env:"SMTP_PASSWORD"`
 	// SMTPTLS is "none", "starttls" or "tls".
 	SMTPTLS string `env:"SMTP_TLS" envDefault:"none"`
+}
+
+// Auth configures tokens, cookies and password checks.
+// JWT keys are not "required" here so commands like migrate run without them;
+// jwt.New validates them when the API starts.
+type Auth struct {
+	JWTSigningKey   string `env:"JWT_SIGNING_KEY"`
+	JWTSigningKeyID string `env:"JWT_SIGNING_KEY_ID"`
+	// JWTPreviousPublicKeys are "kid:base64-public-key" pairs still accepted during key rotation.
+	JWTPreviousPublicKeys []string      `env:"JWT_PREVIOUS_PUBLIC_KEYS" envSeparator:","`
+	JWTIssuer             string        `env:"JWT_ISSUER" envDefault:"relay-api"`
+	JWTAudience           string        `env:"JWT_AUDIENCE" envDefault:"relay"`
+	AccessTokenTTL        time.Duration `env:"ACCESS_TOKEN_TTL" envDefault:"15m"`
+	RefreshTokenTTL       time.Duration `env:"REFRESH_TOKEN_TTL" envDefault:"720h"`
+
+	CookieDomain string `env:"COOKIE_DOMAIN"`
+	CookieSecure bool   `env:"COOKIE_SECURE" envDefault:"true"`
+
+	PasswordBreachCheck bool `env:"PASSWORD_BREACH_CHECK" envDefault:"true"`
 }
 
 // Storage configures object storage.

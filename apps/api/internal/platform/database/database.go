@@ -4,9 +4,11 @@ package database
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -26,6 +28,15 @@ func New(ctx context.Context, url string, maxConns int32) (*pgxpool.Pool, error)
 	}
 	if maxConns > 0 {
 		cfg.MaxConns = maxConns
+	}
+	// Read timestamptz as UTC rather than the server's local zone, so every
+	// time the API returns is UTC (CLAUDE.md conventions).
+	cfg.AfterConnect = func(_ context.Context, conn *pgx.Conn) error {
+		conn.TypeMap().RegisterType(&pgtype.Type{
+			Name: "timestamptz", OID: pgtype.TimestamptzOID,
+			Codec: &pgtype.TimestamptzCodec{ScanLocation: time.UTC},
+		})
+		return nil
 	}
 
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)

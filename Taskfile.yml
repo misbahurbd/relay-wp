@@ -19,6 +19,23 @@ tasks:
         platforms: [darwin, linux]
       - pnpm install
       - cd {{.API_DIR}} && go mod download
+      - task: keygen:env
+
+  keygen:
+    desc: Print a new JWT signing key (JWT_SIGNING_KEY / JWT_SIGNING_KEY_ID)
+    dir: "{{.API_DIR}}"
+    cmds:
+      - go run ./cmd/relay keygen
+
+  keygen:env:
+    desc: Add a JWT signing key to .env if it has none
+    cmds:
+      - |
+        if ! grep -qE '^JWT_SIGNING_KEY=.+' .env; then
+          grep -vE '^JWT_SIGNING_KEY(_ID)?=' .env > .env.tmp && mv .env.tmp .env
+          (cd {{.API_DIR}} && go run ./cmd/relay keygen) >> .env
+          echo "Added a JWT signing key to .env"
+        fi
 
   # --- Local services ---
   up:

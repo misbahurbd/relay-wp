@@ -15,9 +15,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/misbahurbd/relay-wp/apps/api/internal/features/auth"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/features/profiles"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/config"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/database"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/httpx"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/jwt"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/mailer"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/middleware"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/queue"
@@ -46,6 +49,11 @@ type App struct {
 	queue    *queue.Client
 	mailer   mailer.Mailer
 	storage  storage.Storage
+	jwt      *jwt.Manager
+
+	auth     *auth.Service
+	accounts *auth.Accounts
+	profiles *profiles.Service
 }
 
 // New connects to every dependency. Any misconfiguration fails here, not on the first request.
@@ -77,7 +85,33 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger, mode Mode) (_
 	if a.queue, err = queue.New(a.directDB, workers, cfg.Queue.MaxWorkers, log); err != nil {
 		return nil, err
 	}
+
+	if mode != ModeWorker {
+		if err := a.buildFeatures(); err != nil {
+			return nil, err
+		}
+	}
 	return a, nil
+}
+
+// buildFeatures wires the feature services. Features never import each other;
+// each gets what it needs from here through small interfaces.
+func (a *App) buildFeatures() (err error) {
+	if a.jwt, err = jwt.New(a.cfg.Auth); err != nil {
+		return err
+	}
+	a.accounts = auth.NewAccounts(a.db)
+	a.profiles = profiles.New(a.db, a.accounts)
+
+	var breach auth.BreachChecker
+	if a.cfg.Auth.PasswordBreachCheck {
+		breach = auth.NewHIBP()
+	}
+	a.auth, err = auth.New(a.db, a.jwt, a.queue, a.profiles, breach, auth.Config{
+		RefreshTTL: a.cfg.Auth.RefreshTokenTTL,
+		AppBaseURL: a.cfg.AppBaseURL,
+	})
+	return err
 }
 
 // Close releases database pools.
@@ -142,6 +176,7 @@ func (a *App) Handler() (http.Handler, error) {
 		middleware.Recoverer,
 		middleware.CORS(a.cfg.HTTP.CORSAllowedOrigins),
 		middleware.RateLimit(a.cfg.HTTP.RateLimitRequests, a.cfg.HTTP.RateLimitWindow, "/healthz", "/readyz"),
+		middleware.RouteLimits(auth.RateLimits()...),
 	)
 	r.NotFound(func(w http.ResponseWriter, _ *http.Request) {
 		httpx.WriteError(w, apperr.NotFound("not_found", "Route not found"))
@@ -165,5 +200,9 @@ func newAPI(r chi.Router) huma.API {
 	httpx.InstallErrorHandler()
 	cfg := huma.DefaultConfig("Relay API", "0.1.0")
 	cfg.CreateHooks = nil // drop the "$schema" link huma adds to every response body
+	cfg.Components.SecuritySchemes = map[string]*huma.SecurityScheme{
+		"bearer": {Type: "http", Scheme: "bearer", BearerFormat: "JWT", Description: "Mobile and API clients"},
+		"cookie": {Type: "apiKey", In: "cookie", Name: "relay_access", Description: "Web app (httpOnly cookie)"},
+	}
 	return humachi.New(r, cfg)
 }

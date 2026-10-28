@@ -17,13 +17,14 @@ Monorepo for the Relay SaaS: a Go API (`apps/api`) and a TanStack Start web app 
 6. [Configure `.env`](#6-configure-env)
 7. [Run the project](#7-run-the-project)
 8. [Daily workflow](#8-daily-workflow)
-9. [Database and migrations](#9-database-and-migrations)
-10. [Code generation](#10-code-generation)
-11. [Lint, format, type-check and test](#11-lint-format-type-check-and-test)
-12. [Docker images](#12-docker-images)
-13. [CI](#13-ci)
-14. [Repository layout](#14-repository-layout)
-15. [Troubleshooting](#15-troubleshooting)
+9. [Authentication](#9-authentication)
+10. [Database and migrations](#10-database-and-migrations)
+11. [Code generation](#11-code-generation)
+12. [Lint, format, type-check and test](#12-lint-format-type-check-and-test)
+13. [Docker images](#13-docker-images)
+14. [CI](#14-ci)
+15. [Repository layout](#15-repository-layout)
+16. [Troubleshooting](#16-troubleshooting)
 
 ---
 
@@ -98,7 +99,7 @@ go version && node -v && pnpm -v && docker version --format '{{.Server.Version}}
 task --version && golangci-lint version && air -v && sqlc version && goose --version
 ```
 
-Every command should print a version. If `air -v` prints nothing or shows an R formatter, see [Troubleshooting](#15-troubleshooting).
+Every command should print a version. If `air -v` prints nothing or shows an R formatter, see [Troubleshooting](#16-troubleshooting).
 
 ---
 
@@ -115,6 +116,7 @@ task setup
 1. Copies `.env.example` to `.env` (only if `.env` doesn't exist yet).
 2. Runs `pnpm install` for the whole workspace.
 3. Runs `go mod download` for the API.
+4. Adds a JWT signing key to `.env` if it has none (`task keygen:env`).
 
 ---
 
@@ -122,15 +124,16 @@ task setup
 
 All configuration lives in a single `.env` at the repo root. Task loads it automatically for every command. `.env` is gitignored; `.env.example` is the committed template, so **add every new variable to `.env.example` too**.
 
-| Group               | Variables                                                                             | Notes                                                                                                                |
-| ------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Local service ports | `POSTGRES_PORT`, `MAILPIT_SMTP_PORT`, `MAILPIT_UI_PORT`, `S3_PORT`, `S3_CONSOLE_PORT` | Host ports for docker-compose. Change them if another project already uses the defaults.                             |
-| API                 | `APP_ENV`, `HTTP_ADDR`, `LOG_LEVEL`, `LOG_FORMAT`, `CORS_ALLOWED_ORIGINS`             |                                                                                                                      |
-| Database            | `DATABASE_URL`, `DATABASE_DIRECT_URL`, `DATABASE_MAX_CONNS`                           | Two URLs: see below.                                                                                                 |
-| Mail                | `MAILER_DRIVER`, `SMTP_HOST`, `SMTP_PORT`                                             | Locally, mail goes to Mailpit.                                                                                       |
-| Storage             | `STORAGE_DRIVER`, `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET`        | Locally, S3 is RustFS.                                                                                               |
-| Runtime             | `GOMEMLIMIT`                                                                          | Keep below the container memory limit (1 GB in production).                                                          |
-| Web                 | `WEB_PORT`, `VITE_API_URL`                                                            | Dev server port (fails if taken; keep `CORS_ALLOWED_ORIGINS` in sync) and the URL the browser uses to reach the API. |
+| Group               | Variables                                                                                                                                                                               | Notes                                                                                                                |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Local service ports | `POSTGRES_PORT`, `MAILPIT_SMTP_PORT`, `MAILPIT_UI_PORT`, `S3_PORT`, `S3_CONSOLE_PORT`                                                                                                   | Host ports for docker-compose. Change them if another project already uses the defaults.                             |
+| API                 | `APP_ENV`, `HTTP_ADDR`, `LOG_LEVEL`, `LOG_FORMAT`, `CORS_ALLOWED_ORIGINS`                                                                                                               |                                                                                                                      |
+| Database            | `DATABASE_URL`, `DATABASE_DIRECT_URL`, `DATABASE_MAX_CONNS`                                                                                                                             | Two URLs: see below.                                                                                                 |
+| Mail                | `MAILER_DRIVER`, `SMTP_HOST`, `SMTP_PORT`                                                                                                                                               | Locally, mail goes to Mailpit.                                                                                       |
+| Storage             | `STORAGE_DRIVER`, `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET`                                                                                                          | Locally, S3 is RustFS.                                                                                               |
+| Auth                | `APP_BASE_URL`, `JWT_SIGNING_KEY`, `JWT_SIGNING_KEY_ID`, `JWT_PREVIOUS_PUBLIC_KEYS`, `ACCESS_TOKEN_TTL`, `REFRESH_TOKEN_TTL`, `COOKIE_DOMAIN`, `COOKIE_SECURE`, `PASSWORD_BREACH_CHECK` | `task setup` generates a local signing key. Set `COOKIE_SECURE=false` only for plain-HTTP local development.         |
+| Runtime             | `GOMEMLIMIT`                                                                                                                                                                            | Keep below the container memory limit (1 GB in production).                                                          |
+| Web                 | `WEB_PORT`, `VITE_API_URL`                                                                                                                                                              | Dev server port (fails if taken; keep `CORS_ALLOWED_ORIGINS` in sync) and the URL the browser uses to reach the API. |
 
 **Two database URLs:**
 
@@ -230,7 +233,26 @@ Run `task` on its own to list every available task.
 
 ---
 
-## 9. Database and migrations
+## 9. Authentication
+
+Password sign-in is built (social login comes next). The full design is in [docs/PHASE-2-AUTH.md](docs/PHASE-2-AUTH.md).
+
+| Flow                 | Endpoints                                                                                                |
+| -------------------- | -------------------------------------------------------------------------------------------------------- |
+| Sign up and verify   | `POST /v1/auth/signup`, `POST /v1/auth/verify-email`, `POST /v1/auth/verify-email/resend`                |
+| Sign in and out      | `POST /v1/auth/login`, `POST /v1/auth/token/refresh`, `POST /v1/auth/logout`, `POST /v1/auth/logout-all` |
+| Passwords            | `POST /v1/auth/password/forgot`, `POST /v1/auth/password/reset`, `POST /v1/auth/password/change`         |
+| Devices and activity | `GET /v1/auth/sessions`, `DELETE /v1/auth/sessions/{id}`, `GET /v1/auth/events`                          |
+| Profile              | `GET /v1/me`, `PATCH /v1/me/profile`, `PATCH /v1/me/preferences`                                         |
+- **Web** (`client` omitted or `web`): tokens arrive as httpOnly cookies: `relay_access` (15 minutes) and `relay_refresh` (30 days, sent only to the refresh endpoint). Requests that change data using cookies must come from an origin in `CORS_ALLOWED_ORIGINS`.
+- **Mobile** (`"client": "mobile"` on login): tokens arrive in the response body. Send `Authorization: Bearer <access_token>`, and `{"refresh_token": …}` to refresh. Send `X-Device-Name` so the sessions list shows the device.
+- **Try it locally**: sign up from the API docs (`/docs`), then find the verification link in Mailpit. The link points at the web app's `/verify-email` page; until that page exists, post its `token` to `POST /v1/auth/verify-email`.
+
+**Rotating the signing key:** generate one with `task keygen`, move the old key's `kid:public-key` into `JWT_PREVIOUS_PUBLIC_KEYS`, and deploy. Remove the old entry after 15 minutes, once every token signed with it has expired.
+
+---
+
+## 10. Database and migrations
 
 Migrations are plain SQL files in `apps/api/db/migrations/`, managed by goose and embedded in the binary. They run through `relay migrate` against `DATABASE_DIRECT_URL`, and `up` also applies River's job tables.
 
@@ -261,7 +283,7 @@ To wipe local data and start fresh: `task reset`, then `task up` and `task migra
 
 ---
 
-## 10. Code generation
+## 11. Code generation
 
 The API is the source of truth for the API contract:
 
@@ -287,7 +309,7 @@ Run `task gen` after changing API routes, request/response types, or SQL queries
 
 ---
 
-## 11. Lint, format, type-check and test
+## 12. Lint, format, type-check and test
 
 | Language        | Lint                 | Format                                    | Config                   |
 | --------------- | -------------------- | ----------------------------------------- | ------------------------ |
@@ -313,7 +335,7 @@ cd apps/api && S3_TEST_ENDPOINT=http://localhost:9000 S3_ACCESS_KEY=relay S3_SEC
 
 ---
 
-## 12. Docker images
+## 13. Docker images
 
 Build from the repo root (both Dockerfiles expect the root as the build context):
 
@@ -336,7 +358,7 @@ Inside a container, `localhost` is the container itself. When the API needs the 
 
 ---
 
-## 13. CI
+## 14. CI
 
 GitHub Actions, one workflow per app. Each runs only when its files change.
 
@@ -349,7 +371,7 @@ On pushes to `main`, images are pushed to GHCR as `ghcr.io/<owner>/<repo>/{api,w
 
 ---
 
-## 14. Repository layout
+## 15. Repository layout
 
 ```
 apps/
@@ -371,7 +393,7 @@ Where each kind of code goes is defined in [CLAUDE.md](CLAUDE.md#1-folder-struct
 
 ---
 
-## 15. Troubleshooting
+## 16. Troubleshooting
 
 **`Bind for :::5432 failed: port is already allocated`** (or 1025, 8025, 9000, 9001)
 Another container or local service is using that port. Either stop it, or change the port in `.env` (for example `POSTGRES_PORT=55440`) and update `DATABASE_URL` / `DATABASE_DIRECT_URL` to match. Find what's using a port with `lsof -nP -iTCP:5432 -sTCP:LISTEN`.

@@ -1,6 +1,26 @@
 {
   "components": {
     "schemas": {
+      "ChangePasswordInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "current_password": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "new_password": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "type": "object"
+      },
       "Detail": {
         "additionalProperties": false,
         "properties": {
@@ -13,6 +33,20 @@
         },
         "required": [
           "message"
+        ],
+        "type": "object"
+      },
+      "EmailInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "format": "email",
+            "maxLength": 254,
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
         ],
         "type": "object"
       },
@@ -50,6 +84,328 @@
         ],
         "type": "object"
       },
+      "EventDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "device": {
+            "examples": [
+              "Safari on iPhone"
+            ],
+            "type": "string"
+          },
+          "event": {
+            "examples": [
+              "login_succeeded"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "event",
+          "device",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "EventsOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/EventDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "events"
+        ],
+        "type": "object"
+      },
+      "LoginInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "client": {
+            "default": "web",
+            "description": "web gets httpOnly cookies; mobile gets tokens in the body",
+            "enum": [
+              "web",
+              "mobile"
+            ],
+            "type": "string"
+          },
+          "email": {
+            "maxLength": 254,
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 128,
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "type": "object"
+      },
+      "MeOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "preferences": {
+            "$ref": "#/components/schemas/PreferencesDTO"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/ProfileDTO"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserDTO"
+          }
+        },
+        "required": [
+          "user",
+          "profile",
+          "preferences"
+        ],
+        "type": "object"
+      },
+      "MessageOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "type": "object"
+      },
+      "PreferencesDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "locale": {
+            "examples": [
+              "en"
+            ],
+            "type": "string"
+          },
+          "timezone": {
+            "examples": [
+              "Asia/Dhaka"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "locale",
+          "timezone"
+        ],
+        "type": "object"
+      },
+      "ProfileDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "avatar_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "display_name": {
+            "description": "When null, show first_name and last_name",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "first_name",
+          "last_name",
+          "display_name",
+          "avatar_url"
+        ],
+        "type": "object"
+      },
+      "RefreshInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "refresh_token": {
+            "description": "Mobile: refresh token from the last sign-in or refresh",
+            "maxLength": 256,
+            "type": "string"
+          }
+        },
+        "required": [
+          "refresh_token"
+        ],
+        "type": "object"
+      },
+      "ResetPasswordInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "new_password": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "new_password"
+        ],
+        "type": "object"
+      },
+      "SessionDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "client": {
+            "enum": [
+              "web",
+              "mobile"
+            ],
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "current": {
+            "description": "True for the device making this request",
+            "type": "boolean"
+          },
+          "device_name": {
+            "examples": [
+              "Chrome on macOS"
+            ],
+            "type": "string"
+          },
+          "device_type": {
+            "enum": [
+              "desktop",
+              "mobile",
+              "tablet",
+              "app"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "last_ip": {
+            "type": "string"
+          },
+          "last_used_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "provider": {
+            "enum": [
+              "password",
+              "google",
+              "facebook",
+              "apple"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "device_name",
+          "device_type",
+          "provider",
+          "client",
+          "last_used_at",
+          "created_at",
+          "current"
+        ],
+        "type": "object"
+      },
+      "SessionsOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/SessionDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "sessions"
+        ],
+        "type": "object"
+      },
+      "SignupInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "format": "email",
+            "maxLength": 254,
+            "type": "string"
+          },
+          "first_name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "last_name": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "timezone": {
+            "description": "IANA timezone from the browser, e.g. Asia/Dhaka. Defaults to UTC.",
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "first_name"
+        ],
+        "type": "object"
+      },
       "StatusOutputBody": {
         "additionalProperties": false,
         "properties": {
@@ -64,6 +420,120 @@
           "status"
         ],
         "type": "object"
+      },
+      "TokenBody": {
+        "additionalProperties": false,
+        "properties": {
+          "access_expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "access_token": {
+            "description": "Mobile only",
+            "type": "string"
+          },
+          "refresh_expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "refresh_token": {
+            "description": "Mobile only",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_expires_at",
+          "refresh_expires_at"
+        ],
+        "type": "object"
+      },
+      "TokenInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "type": "object"
+      },
+      "UpdatePreferencesInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "locale": {
+            "maxLength": 10,
+            "type": "string"
+          },
+          "timezone": {
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateProfileInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "display_name": {
+            "description": "Empty string clears it",
+            "maxLength": 100,
+            "type": "string"
+          },
+          "first_name": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "last_name": {
+            "description": "Empty string clears it",
+            "maxLength": 100,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UserDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "email_verified": {
+            "type": "boolean"
+          },
+          "has_password": {
+            "description": "False for accounts that only use social sign-in",
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "email_verified",
+          "has_password"
+        ],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "bearer": {
+        "bearerFormat": "JWT",
+        "description": "Mobile and API clients",
+        "scheme": "bearer",
+        "type": "http"
+      },
+      "cookie": {
+        "description": "Web app (httpOnly cookie)",
+        "in": "cookie",
+        "name": "relay_access",
+        "type": "apiKey"
       }
     }
   },
@@ -144,6 +614,924 @@
         "summary": "Readiness check",
         "tags": [
           "system"
+        ]
+      }
+    },
+    "/v1/auth/events": {
+      "get": {
+        "operationId": "list-auth-events",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Device name sent by the mobile app, e.g. iPhone 15",
+            "in": "header",
+            "name": "X-Device-Name",
+            "schema": {
+              "description": "Device name sent by the mobile app, e.g. iPhone 15",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventsOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Recent security activity",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/login": {
+      "post": {
+        "operationId": "login",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Device name sent by the mobile app, e.g. iPhone 15",
+            "in": "header",
+            "name": "X-Device-Name",
+            "schema": {
+              "description": "Device name sent by the mobile app, e.g. iPhone 15",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenBody"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Sign in with email and password",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Device name sent by the mobile app, e.g. iPhone 15",
+            "in": "header",
+            "name": "X-Device-Name",
+            "schema": {
+              "description": "Device name sent by the mobile app, e.g. iPhone 15",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "headers": {
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Sign out this device",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/logout-all": {
+      "post": {
+        "operationId": "logout-all",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Device name sent by the mobile app, e.g. iPhone 15",
+            "in": "header",
+            "name": "X-Device-Name",
+            "schema": {
+              "description": "Device name sent by the mobile app, e.g. iPhone 15",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "headers": {
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Sign out every device",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/password/change": {
+      "post": {
+        "operationId": "change-password",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Device name sent by the mobile app, e.g. iPhone 15",
+            "in": "header",
+            "name": "X-Device-Name",
+            "schema": {
+              "description": "Device name sent by the mobile app, e.g. iPhone 15",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Change password; signs out every other device",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/password/forgot": {
+      "post": {
+        "operationId": "forgot-password",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Device name sent by the mobile app, e.g. iPhone 15",
+            "in": "header",
+            "name": "X-Device-Name",
+            "schema": {
+              "description": "Device name sent by the mobile app, e.g. iPhone 15",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageOutputBody"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Email a password reset link",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/password/reset": {
+      "post": {
+        "operationId": "reset-password",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Device name sent by the mobile app, e.g. iPhone 15",
+            "in": "header",
+            "name": "X-Device-Name",
+            "schema": {
+              "description": "Device name sent by the mobile app, e.g. iPhone 15",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Set a new password from the emailed link; signs out every device",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/sessions": {
+      "get": {
+        "operationId": "list-sessions",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Device name sent by the mobile app, e.g. iPhone 15",
+            "in": "header",
+            "name": "X-Device-Name",
+            "schema": {
+              "description": "Device name sent by the mobile app, e.g. iPhone 15",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionsOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "List signed-in devices",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/sessions/{id}": {
+      "delete": {
+        "operationId": "revoke-session",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Device name sent by the mobile app, e.g. iPhone 15",
+            "in": "header",
+            "name": "X-Device-Name",
+            "schema": {
+              "description": "Device name sent by the mobile app, e.g. iPhone 15",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Sign out one device",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/signup": {
+      "post": {
+        "operationId": "signup",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Device name sent by the mobile app, e.g. iPhone 15",
+            "in": "header",
+            "name": "X-Device-Name",
+            "schema": {
+              "description": "Device name sent by the mobile app, e.g. iPhone 15",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageOutputBody"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Create a password account and send a verification email",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/token/refresh": {
+      "post": {
+        "operationId": "refresh-token",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Device name sent by the mobile app, e.g. iPhone 15",
+            "in": "header",
+            "name": "X-Device-Name",
+            "schema": {
+              "description": "Device name sent by the mobile app, e.g. iPhone 15",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Web: refresh token cookie",
+            "in": "cookie",
+            "name": "relay_refresh",
+            "schema": {
+              "description": "Web: refresh token cookie",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Referer",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshInputBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenBody"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Rotate the refresh token and get a new access token",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/verify-email": {
+      "post": {
+        "operationId": "verify-email",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Device name sent by the mobile app, e.g. iPhone 15",
+            "in": "header",
+            "name": "X-Device-Name",
+            "schema": {
+              "description": "Device name sent by the mobile app, e.g. iPhone 15",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Verify an email address from the emailed link",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/verify-email/resend": {
+      "post": {
+        "operationId": "resend-verification",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Device name sent by the mobile app, e.g. iPhone 15",
+            "in": "header",
+            "name": "X-Device-Name",
+            "schema": {
+              "description": "Device name sent by the mobile app, e.g. iPhone 15",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageOutputBody"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Send a new verification email",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/me": {
+      "get": {
+        "operationId": "get-me",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "The signed-in user, profile and preferences",
+        "tags": [
+          "profile"
+        ]
+      }
+    },
+    "/v1/me/preferences": {
+      "patch": {
+        "operationId": "update-preferences",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePreferencesInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Update locale and timezone",
+        "tags": [
+          "profile"
+        ]
+      }
+    },
+    "/v1/me/profile": {
+      "patch": {
+        "operationId": "update-profile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Update name fields",
+        "tags": [
+          "profile"
         ]
       }
     }

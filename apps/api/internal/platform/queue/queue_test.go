@@ -15,8 +15,13 @@ import (
 
 type fakeMailer struct{ sent chan mailer.Message }
 
+// Send never blocks: jobs left by other packages' tests on the shared CI
+// database may run here too, and are dropped once the buffer is full.
 func (f *fakeMailer) Send(_ context.Context, m mailer.Message) error {
-	f.sent <- m
+	select {
+	case f.sent <- m:
+	default:
+	}
 	return nil
 }
 
@@ -24,7 +29,7 @@ func TestSendEmailJobRuns(t *testing.T) {
 	pool := dbtest.New(t)
 	ctx := context.Background()
 
-	fm := &fakeMailer{sent: make(chan mailer.Message, 1)}
+	fm := &fakeMailer{sent: make(chan mailer.Message, 64)}
 	workers := river.NewWorkers()
 	river.AddWorker(workers, mailer.NewSendWorker(fm))
 
@@ -37,18 +42,23 @@ func TestSendEmailJobRuns(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = client.Stop(context.Background()) })
 
+	subject := "Queued " + t.Name() + " " + time.Now().Format(time.RFC3339Nano)
 	if _, err := client.Insert(ctx, mailer.SendArgs{Message: mailer.Message{
-		To: []string{"dev@relay.test"}, Subject: "Queued", Text: "hi",
+		To: []string{"dev@relay.test"}, Subject: subject, Text: "hi",
 	}}, nil); err != nil {
 		t.Fatal(err)
 	}
 
-	select {
-	case m := <-fm.sent:
-		if m.Subject != "Queued" {
-			t.Errorf("subject = %q", m.Subject)
+	// Other tests may share this database, so skip any job that isn't ours.
+	timeout := time.After(15 * time.Second)
+	for {
+		select {
+		case m := <-fm.sent:
+			if m.Subject == subject {
+				return
+			}
+		case <-timeout:
+			t.Fatal("send_email job did not run within 15s")
 		}
-	case <-time.After(15 * time.Second):
-		t.Fatal("send_email job did not run within 15s")
 	}
 }
