@@ -71,7 +71,7 @@ func run(args []string) error {
 		if len(args) < 2 {
 			return errors.New("usage: relay migrate up|down|status")
 		}
-		pool, err := database.New(ctx, cfg.Database.DirectURL, 2)
+		pool, err := database.New(ctx, cfg.Database.DirectURL, 3)
 		if err != nil {
 			return err
 		}

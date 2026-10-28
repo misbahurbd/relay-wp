@@ -76,7 +76,7 @@ func setup() (string, error) {
 		}
 	}
 
-	pool, err := database.New(ctx, url, 2)
+	pool, err := database.New(ctx, url, 3)
 	if err != nil {
 		return "", err
 	}

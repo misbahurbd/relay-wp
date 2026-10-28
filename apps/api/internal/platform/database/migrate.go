@@ -32,6 +32,14 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, command string, out io.Wri
 		return fmt.Errorf("create migration provider: %w", err)
 	}
 
+	if command == "up" || command == "down" {
+		unlock, err := lockMigrations(ctx, pool)
+		if err != nil {
+			return err
+		}
+		defer unlock()
+	}
+
 	switch command {
 	case "up":
 		if err := migrateRiver(ctx, pool, out); err != nil {
@@ -64,6 +72,27 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, command string, out io.Wri
 		return fmt.Errorf("unknown migrate command %q (want up, down, status)", command)
 	}
 	return nil
+}
+
+// migrationLockID is an arbitrary constant shared by every process that runs migrations.
+const migrationLockID int64 = 7_349_120_001
+
+// lockMigrations takes a Postgres advisory lock so concurrent migration runs
+// (parallel deploys, parallel test packages) wait for each other instead of colliding.
+// It holds one pool connection until unlock is called.
+func lockMigrations(ctx context.Context, pool *pgxpool.Pool) (unlock func(), err error) {
+	conn, err := pool.Acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("acquire migration lock connection: %w", err)
+	}
+	if _, err := conn.Exec(ctx, "SELECT pg_advisory_lock($1)", migrationLockID); err != nil {
+		conn.Release()
+		return nil, fmt.Errorf("take migration lock: %w", err)
+	}
+	return func() {
+		_, _ = conn.Exec(context.WithoutCancel(ctx), "SELECT pg_advisory_unlock($1)", migrationLockID)
+		conn.Release()
+	}, nil
 }
 
 func migrateRiver(ctx context.Context, pool *pgxpool.Pool, out io.Writer) error {
