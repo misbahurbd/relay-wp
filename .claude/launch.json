@@ -1,0 +1,45 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-3010",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "WEB_PORT=3010 WEB_HTTPS=true pnpm --filter @relay/web dev --host localhost"
+      ],
+      "port": 3010,
+      "url": "https://localhost:3010"
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "WEB_PORT=3011 VITE_API_URL=http://localhost:8080 pnpm --filter @relay/web dev --host localhost"
+      ],
+      "port": 3011,
+      "url": "http://localhost:3011"
+    },
+    {
+      "name": "web-test",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "WEB_PORT=3012 VITE_API_URL=http://127.0.0.1:8080 pnpm --filter @relay/web dev --host 127.0.0.1"
+      ],
+      "port": 3012,
+      "url": "http://127.0.0.1:3012"
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "set -a; . ./.env; set +a; export APP_BASE_URL=http://localhost:3011 CORS_ALLOWED_ORIGINS=http://localhost:3011,http://127.0.0.1:3012; cd apps/api && go run ./cmd/relay migrate up && go run ./cmd/relay all"
+      ],
+      "port": 8080,
+      "url": "http://localhost:8080"
+    }
+  ]
+}
