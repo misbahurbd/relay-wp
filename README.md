@@ -8,8 +8,11 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for structure and conventions.
 Go 1.27, Node 24, pnpm 12, Docker, and:
 
 ```bash
-brew install go-task air golangci-lint sqlc goose
+brew install go-task golangci-lint sqlc goose
+go install github.com/air-verse/air@latest   # Homebrew's "air" is an unrelated R formatter
 ```
+
+`go install` puts `air` in `$(go env GOPATH)/bin`; make sure that directory is on your `PATH`.
 
 ## Getting started
 
