@@ -161,6 +161,7 @@ Open (default ports):
 | ---------- | ------------------------------- | ------------------------------------------------- |
 | Web        | <http://localhost:3000>         |                                                   |
 | API        | <http://localhost:8080/healthz> | Should return `{"status":"ok"}`                   |
+| Readiness  | <http://localhost:8080/readyz>  | `ok` only when the database answers, else `503`   |
 | API docs   | <http://localhost:8080/docs>    | Generated from the OpenAPI spec                   |
 | Mailpit    | <http://localhost:8025>         | Every email the app sends locally                 |
 | S3 console | <http://localhost:9001>         | Log in with `S3_ACCESS_KEY` / `S3_SECRET_KEY`     |
@@ -175,6 +176,20 @@ task up        # services only
 task dev:api   # API only
 task dev:web   # web only
 ```
+
+### API run modes
+
+The API is one binary, `relay`, with several commands:
+
+| Command                          | What it runs                                                                                            |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `relay all`                      | HTTP server and background worker in one process (default; used by `task dev:api` and the Docker image) |
+| `relay api`                      | HTTP server only. It can queue jobs but doesn't run them.                                               |
+| `relay worker`                   | Background worker only                                                                                  |
+| `relay migrate up\|down\|status` | Database migrations                                                                                     |
+| `relay openapi`                  | Prints the OpenAPI spec                                                                                 |
+
+Start with `all` on one small instance. When load grows, run `api` and `worker` as separate containers from the same image.
 
 ---
 
@@ -217,7 +232,7 @@ Run `task` on its own to list every available task.
 
 ## 9. Database and migrations
 
-Migrations are plain SQL files in `apps/api/db/migrations/`, managed by goose. They run against `DATABASE_DIRECT_URL`.
+Migrations are plain SQL files in `apps/api/db/migrations/`, managed by goose and embedded in the binary. They run through `relay migrate` against `DATABASE_DIRECT_URL`, and `up` also applies River's job tables.
 
 ```bash
 task migrate:new -- create_users   # creates db/migrations/00001_create_users.sql (numbered in order)
@@ -284,6 +299,17 @@ Editor setup:
 - **Go:** point your editor's format-on-save at `golangci-lint fmt`, or at `gofumpt` + `goimports`.
 
 Tests: `task test` runs `go test -race ./...` in `apps/api`.
+
+- **Database tests** use `TEST_DATABASE_URL` when it's set (CI does this). Otherwise they start a throwaway Postgres container with testcontainers, so Docker must be running. Use `go test -short ./...` to skip them.
+- **Live mail and storage tests** are skipped unless you point them at the local services:
+
+```bash
+cd apps/api && SMTP_TEST_PORT=1025 go test -run TestSMTPSend ./internal/platform/mailer/
+```
+
+```bash
+cd apps/api && S3_TEST_ENDPOINT=http://localhost:9000 S3_ACCESS_KEY=relay S3_SECRET_KEY=relay-secret go test -run TestS3 ./internal/platform/storage/
+```
 
 ---
 

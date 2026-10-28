@@ -28,6 +28,7 @@ jobs:
     env:
       DATABASE_URL: postgres://relay:relay@localhost:5432/relay?sslmode=disable
       DATABASE_DIRECT_URL: postgres://relay:relay@localhost:5432/relay?sslmode=disable
+      TEST_DATABASE_URL: postgres://relay:relay@localhost:5432/relay?sslmode=disable
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -40,6 +41,11 @@ jobs:
           working-directory: apps/api
       - run: go vet ./...
       - run: go test -race ./...
+      - name: Migrations apply and roll back
+        run: |
+          go run ./cmd/relay migrate up
+          go run ./cmd/relay migrate down
+          go run ./cmd/relay migrate up
       - name: OpenAPI spec is up to date
         run: |
           go run ./cmd/relay openapi > openapi/openapi.json

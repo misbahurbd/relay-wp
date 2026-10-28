@@ -131,21 +131,22 @@ tasks:
 
   # --- Database ---
   migrate:up:
-    desc: Apply migrations
+    desc: Apply migrations (app + River)
     dir: "{{.API_DIR}}"
     cmds:
-      - goose -dir db/migrations postgres "$DATABASE_DIRECT_URL" up
+      - go run ./cmd/relay migrate up
 
   migrate:down:
     desc: Roll back the last migration
     dir: "{{.API_DIR}}"
     cmds:
-      - goose -dir db/migrations postgres "$DATABASE_DIRECT_URL" down
+      - go run ./cmd/relay migrate down
 
   migrate:status:
+    desc: Show applied and pending migrations
     dir: "{{.API_DIR}}"
     cmds:
-      - goose -dir db/migrations postgres "$DATABASE_DIRECT_URL" status
+      - go run ./cmd/relay migrate status
 
   migrate:new:
     desc: "Create a migration: task migrate:new -- add_users"

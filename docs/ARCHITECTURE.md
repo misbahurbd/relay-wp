@@ -76,7 +76,7 @@ This document describes how the project is structured and the rules that keep it
 ```
 apps/api/
 ├── cmd/
-│   └── relay/main.go          # single binary: `relay api | worker | all | migrate`
+│   └── relay/main.go          # single binary: `relay api | worker | all | migrate | openapi`
 ├── internal/
 │   ├── app/                   # COMPOSITION ROOT: builds deps, wires features
 │   │   ├── app.go
@@ -142,16 +142,16 @@ apps/api/
 
 #### Use a real factory (pick an implementation by config or key)
 
-| Where                                      | Selected by                           | Implementations                                         | Built                                             |
-| ------------------------------------------ | ------------------------------------- | ------------------------------------------------------- | ------------------------------------------------- |
-| `platform/mailer`                          | `MAILER_DRIVER`                       | smtp (Mailpit locally), resend/ses, log (tests)         | Once at boot                                      |
-| `platform/storage`                         | `STORAGE_DRIVER`                      | s3 (RustFS locally), local disk, memory (tests)         | Once at boot                                      |
-| `platform/queue`                           | `QUEUE_DRIVER`                        | river now; nats/redis later without touching features   | Once at boot                                      |
-| `platform/cache`                           | `CACHE_DRIVER`                        | in-memory LRU now; redis when running several instances | Once at boot                                      |
-| `platform/logger`                          | `LOG_FORMAT`, `LOG_LEVEL`             | JSON (prod), text (dev)                                 | Once at boot                                      |
-| `platform/jwt`                             | `kid` in token header                 | current key, previous key (rotation)                    | Once at boot; lookup is a map read                |
-| Outbound messaging / third-party providers | provider type stored on the workspace | one client per provider                                 | **Per workspace, cached** (see below)             |
-| Webhook / job handlers                     | event type string                     | one handler per event type                              | Registry map filled at boot; lookup is a map read |
+| Where                                      | Selected by                           | Implementations                                                                | Built                                             |
+| ------------------------------------------ | ------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------- |
+| `platform/mailer`                          | `MAILER_DRIVER`                       | smtp (Mailpit locally), resend/ses, log (tests)                                | Once at boot                                      |
+| `platform/storage`                         | `STORAGE_DRIVER`                      | s3 (RustFS locally), local disk, memory (tests)                                | Once at boot                                      |
+| `platform/queue`                           | `QUEUE_DRIVER` (not yet)              | river only today, so a plain `New`; becomes a factory when nats/redis is added | Once at boot                                      |
+| `platform/cache`                           | `CACHE_DRIVER`                        | in-memory LRU now; redis when running several instances                        | Once at boot                                      |
+| `platform/logger`                          | `LOG_FORMAT`, `LOG_LEVEL`             | JSON (prod), text (dev)                                                        | Once at boot                                      |
+| `platform/jwt`                             | `kid` in token header                 | current key, previous key (rotation)                                           | Once at boot; lookup is a map read                |
+| Outbound messaging / third-party providers | provider type stored on the workspace | one client per provider                                                        | **Per workspace, cached** (see below)             |
+| Webhook / job handlers                     | event type string                     | one handler per event type                                                     | Registry map filled at boot; lookup is a map read |
 
 Layout for each factory package:
 
@@ -314,13 +314,13 @@ Go 1.27, Node 24, pnpm 12, Docker, `go-task`, `air`, `golangci-lint`, `sqlc`, `g
 
 ## 9. Phases
 
-| Phase                   | Scope                                                                                        |
-| ----------------------- | -------------------------------------------------------------------------------------------- |
-| **0. Core setup**       | Monorepo, tooling, compose, CI, empty API and web apps that boot, `/healthz`                 |
-| **1. Backend platform** | Config, logger, DB pool, migrations, middleware, error mapping, River, OpenAPI → TS pipeline |
-| **2. Auth**             | Signup, login, JWT + refresh rotation, logout, email verification, password reset            |
-| **3. Workspaces**       | Workspaces, members, invites, roles, workspace middleware                                    |
-| **4. Frontend shell**   | Auth pages, protected layout, workspace switcher, settings, shadcn                           |
-| **5. Product features** | Same feature pattern                                                                         |
-| **6. Billing**          | Plans, checkout, webhooks, limits                                                            |
-| **7. Production**       | Deploy target, OpenTelemetry, error tracking, rate limiting, backups                         |
+| Phase                          | Scope                                                                                        |
+| ------------------------------ | -------------------------------------------------------------------------------------------- |
+| **0. Core setup** (done)       | Monorepo, tooling, compose, CI, empty API and web apps that boot, `/healthz`                 |
+| **1. Backend platform** (done) | Config, logger, DB pool, migrations, middleware, error mapping, River, OpenAPI → TS pipeline |
+| **2. Auth**                    | Signup, login, JWT + refresh rotation, logout, email verification, password reset            |
+| **3. Workspaces**              | Workspaces, members, invites, roles, workspace middleware                                    |
+| **4. Frontend shell**          | Auth pages, protected layout, workspace switcher, settings, shadcn                           |
+| **5. Product features**        | Same feature pattern                                                                         |
+| **6. Billing**                 | Plans, checkout, webhooks, limits                                                            |
+| **7. Production**              | Deploy target, OpenTelemetry, error tracking, rate limiting, backups                         |
