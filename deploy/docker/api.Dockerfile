@@ -11,4 +11,5 @@ COPY --from=build /out/relay /relay
 ENV GOMEMLIMIT=800MiB
 EXPOSE 8080
 ENTRYPOINT ["/relay"]
-CMD ["api"]
+# all = API + background worker in one process; use "api" and "worker" to split them.
+CMD ["all"]

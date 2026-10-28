@@ -1,90 +1,169 @@
 // Package app is the composition root: it builds dependencies and wires features together.
+// It is the only package allowed to know about every feature.
 package app
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chimw "github.com/go-chi/chi/v5/middleware"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/sync/errgroup"
+
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/config"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/database"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/httpx"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/mailer"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/middleware"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/queue"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/storage"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/shared/apperr"
 )
 
-// App holds the HTTP router, the huma API and everything wired into them.
+// Mode selects what the process runs.
+type Mode string
+
+// Run modes. Start with ModeAll on one small instance; split api and worker when load requires it.
+const (
+	ModeAPI    Mode = "api"
+	ModeWorker Mode = "worker"
+	ModeAll    Mode = "all"
+)
+
+// App holds every long-lived dependency, built once at startup.
 type App struct {
-	addr   string
-	router chi.Router
-	api    huma.API
+	cfg  config.Config
+	log  *slog.Logger
+	mode Mode
+
+	db       *pgxpool.Pool
+	directDB *pgxpool.Pool
+	queue    *queue.Client
+	mailer   mailer.Mailer
+	storage  storage.Storage
 }
 
-// New builds the App and registers all routes.
-func New() *App {
-	router := chi.NewRouter()
-	// Client IP handling (trusted proxies only) is added with the Phase 1 middleware.
-	router.Use(middleware.RequestID, middleware.Recoverer)
-
-	cfg := huma.DefaultConfig("Relay API", "0.1.0")
-	api := humachi.New(router, cfg)
-
-	a := &App{
-		addr:   envOr("HTTP_ADDR", ":8080"),
-		router: router,
-		api:    api,
-	}
-	a.registerRoutes()
-	return a
-}
-
-// OpenAPI returns the generated OpenAPI document.
-func (a *App) OpenAPI() *huma.OpenAPI {
-	return a.api.OpenAPI()
-}
-
-// Run serves HTTP until ctx is cancelled, then shuts down gracefully.
-func (a *App) Run(ctx context.Context) error {
-	srv := &http.Server{
-		Addr:              a.addr,
-		Handler:           a.router,
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      30 * time.Second,
-		IdleTimeout:       60 * time.Second,
-	}
-
-	errCh := make(chan error, 1)
-	go func() {
-		slog.Info("http server listening", "addr", a.addr)
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			errCh <- err
+// New connects to every dependency. Any misconfiguration fails here, not on the first request.
+func New(ctx context.Context, cfg config.Config, log *slog.Logger, mode Mode) (_ *App, err error) {
+	a := &App{cfg: cfg, log: log, mode: mode}
+	defer func() {
+		if err != nil {
+			a.Close()
 		}
-		close(errCh)
 	}()
 
-	select {
-	case err := <-errCh:
-		return err
-	case <-ctx.Done():
+	if a.db, err = database.New(ctx, cfg.Database.URL, cfg.Database.MaxConns); err != nil {
+		return nil, err
+	}
+	if a.directDB, err = database.New(ctx, cfg.Database.DirectURL, cfg.Database.DirectMaxConns); err != nil {
+		return nil, fmt.Errorf("direct connection: %w", err)
+	}
+	if a.mailer, err = mailer.New(cfg.Mailer, log); err != nil {
+		return nil, err
+	}
+	if a.storage, err = storage.New(ctx, cfg.Storage, cfg.IsDevelopment()); err != nil {
+		return nil, err
 	}
 
-	slog.Info("shutting down")
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	if err := srv.Shutdown(shutdownCtx); err != nil {
-		return fmt.Errorf("shutdown http server: %w", err)
+	workers := a.workers()
+	if mode == ModeAPI {
+		workers = nil // insert-only: the API enqueues, workers run elsewhere
+	}
+	if a.queue, err = queue.New(a.directDB, workers, cfg.Queue.MaxWorkers, log); err != nil {
+		return nil, err
+	}
+	return a, nil
+}
+
+// Close releases database pools.
+func (a *App) Close() {
+	if a.db != nil {
+		a.db.Close()
+	}
+	if a.directDB != nil {
+		a.directDB.Close()
+	}
+}
+
+// Run serves HTTP and/or works jobs (depending on the mode) until ctx is cancelled.
+func (a *App) Run(ctx context.Context) error {
+	g, gctx := errgroup.WithContext(ctx)
+
+	if a.mode != ModeAPI {
+		// River gets an uncancelled context; it is stopped gracefully below.
+		if err := a.queue.Start(context.WithoutCancel(gctx)); err != nil {
+			return fmt.Errorf("start queue: %w", err)
+		}
+		a.log.Info("queue worker started", "max_workers", a.cfg.Queue.MaxWorkers)
+		g.Go(func() error {
+			<-gctx.Done()
+			stopCtx, cancel := context.WithTimeout(context.WithoutCancel(gctx), a.cfg.HTTP.ShutdownTimeout)
+			defer cancel()
+			a.log.Info("queue worker stopping")
+			if err := a.queue.Stop(stopCtx); err != nil {
+				return fmt.Errorf("stop queue: %w", err)
+			}
+			return nil
+		})
+	}
+
+	if a.mode != ModeWorker {
+		handler, err := a.Handler()
+		if err != nil {
+			return err
+		}
+		srv := httpx.NewServer(a.cfg.HTTPAddr, handler)
+		g.Go(func() error { return httpx.Serve(gctx, srv, a.cfg.HTTP.ShutdownTimeout, a.log) })
+	}
+
+	if err := g.Wait(); err != nil {
+		return fmt.Errorf("run: %w", err)
 	}
 	return nil
 }
 
-// envOr is a stopgap until platform/config lands in Phase 1.
-func envOr(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
+// Handler builds the HTTP router with middleware and every route.
+func (a *App) Handler() (http.Handler, error) {
+	ipr, err := middleware.NewClientIPResolver(a.cfg.HTTP.TrustedProxies)
+	if err != nil {
+		return nil, err
 	}
-	return fallback
+
+	r := chi.NewRouter()
+	r.Use(
+		chimw.RequestID,
+		ipr.Middleware,
+		middleware.RequestLogger(a.log),
+		middleware.Recoverer,
+		middleware.CORS(a.cfg.HTTP.CORSAllowedOrigins),
+		middleware.RateLimit(a.cfg.HTTP.RateLimitRequests, a.cfg.HTTP.RateLimitWindow, "/healthz", "/readyz"),
+	)
+	r.NotFound(func(w http.ResponseWriter, _ *http.Request) {
+		httpx.WriteError(w, apperr.NotFound("not_found", "Route not found"))
+	})
+	r.MethodNotAllowed(func(w http.ResponseWriter, _ *http.Request) {
+		httpx.WriteStatus(w, http.StatusMethodNotAllowed, "Method not allowed")
+	})
+
+	a.registerRoutes(newAPI(r))
+	return r, nil
+}
+
+// OpenAPI returns the API spec without connecting to anything.
+func OpenAPI() *huma.OpenAPI {
+	api := newAPI(chi.NewRouter())
+	(&App{}).registerRoutes(api)
+	return api.OpenAPI()
+}
+
+func newAPI(r chi.Router) huma.API {
+	httpx.InstallErrorHandler()
+	cfg := huma.DefaultConfig("Relay API", "0.1.0")
+	cfg.CreateHooks = nil // drop the "$schema" link huma adds to every response body
+	return humachi.New(r, cfg)
 }

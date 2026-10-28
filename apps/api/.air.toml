@@ -3,7 +3,7 @@ tmp_dir = "tmp"
 
 [build]
   cmd = "go build -o ./tmp/relay ./cmd/relay"
-  entrypoint = ["./tmp/relay", "api"]
+  entrypoint = ["./tmp/relay", "all"]
   include_ext = ["go", "sql"]
   exclude_dir = ["tmp", "bin", "openapi", "db/gen"]
   delay = 200

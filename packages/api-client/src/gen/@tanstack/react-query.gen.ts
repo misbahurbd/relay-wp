@@ -3,8 +3,8 @@
 import { queryOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { health, type Options } from '../sdk.gen';
-import type { HealthData, HealthError, HealthResponse } from '../types.gen';
+import { health, type Options, ready } from '../sdk.gen';
+import type { HealthData, HealthError, HealthResponse, ReadyData, ReadyError, ReadyResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -43,6 +43,8 @@ export const healthQueryKey = (options?: Options<HealthData>) => createQueryKey(
 
 /**
  * Liveness check
+ *
+ * Returns ok while the process is running. Does not check dependencies.
  */
 export const healthOptions = (options?: Options<HealthData>) => queryOptions<HealthResponse, HealthError, HealthResponse, ReturnType<typeof healthQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -55,4 +57,24 @@ export const healthOptions = (options?: Options<HealthData>) => queryOptions<Hea
         return data;
     },
     queryKey: healthQueryKey(options)
+});
+
+export const readyQueryKey = (options?: Options<ReadyData>) => createQueryKey('ready', options);
+
+/**
+ * Readiness check
+ *
+ * Returns ok when the database answers; 503 otherwise.
+ */
+export const readyOptions = (options?: Options<ReadyData>) => queryOptions<ReadyResponse, ReadyError, ReadyResponse, ReturnType<typeof readyQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await ready({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: readyQueryKey(options)
 });

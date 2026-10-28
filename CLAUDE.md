@@ -80,16 +80,16 @@ If any answer is no, write a plain constructor.
 
 ### Approved factory points
 
-| Location                                                  | Selected by                                    | Lifetime                                            |
-| --------------------------------------------------------- | ---------------------------------------------- | --------------------------------------------------- |
-| `platform/mailer`                                         | `MAILER_DRIVER`                                | Built once at startup                               |
-| `platform/storage`                                        | `STORAGE_DRIVER`                               | Built once at startup                               |
-| `platform/queue`                                          | `QUEUE_DRIVER`                                 | Built once at startup                               |
-| `platform/cache`                                          | `CACHE_DRIVER`                                 | Built once at startup                               |
-| `platform/logger`                                         | `LOG_FORMAT`, `LOG_LEVEL`                      | Built once at startup                               |
-| `platform/jwt`                                            | token `kid`                                    | Keys loaded at startup; picking one is a map lookup |
-| Webhook / job handler registry                            | event type                                     | Map filled at startup                               |
-| Per-workspace external clients (e.g. messaging providers) | provider + credentials stored on the workspace | Per workspace, **cached**                           |
+| Location                                                                                               | Selected by                                    | Lifetime                                            |
+| ------------------------------------------------------------------------------------------------------ | ---------------------------------------------- | --------------------------------------------------- |
+| `platform/mailer`                                                                                      | `MAILER_DRIVER`                                | Built once at startup                               |
+| `platform/storage`                                                                                     | `STORAGE_DRIVER`                               | Built once at startup                               |
+| `platform/queue` (today River only, so a plain `New`; becomes a factory when a second driver is added) | `QUEUE_DRIVER`                                 | Built once at startup                               |
+| `platform/cache`                                                                                       | `CACHE_DRIVER`                                 | Built once at startup                               |
+| `platform/logger`                                                                                      | `LOG_FORMAT`, `LOG_LEVEL`                      | Built once at startup                               |
+| `platform/jwt`                                                                                         | token `kid`                                    | Keys loaded at startup; picking one is a map lookup |
+| Webhook / job handler registry                                                                         | event type                                     | Map filled at startup                               |
+| Per-workspace external clients (e.g. messaging providers)                                              | provider + credentials stored on the workspace | Per workspace, **cached**                           |
 
 Adding a factory that is not in this table requires an ADR in `docs/adr/` **and** a new row here. Ask the user first.
 

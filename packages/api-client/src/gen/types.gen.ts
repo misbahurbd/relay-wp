@@ -4,88 +4,27 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
-export type ErrorDetail = {
-    /**
-     * Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id'
-     */
-    location?: string;
-    /**
-     * Error message text
-     */
-    message?: string;
-    /**
-     * The value at the given location
-     */
-    value?: unknown;
+export type Detail = {
+    field?: string;
+    message: string;
 };
 
-export type ErrorModel = {
+export type ErrorBody = {
     /**
-     * A URL to the JSON Schema for this object.
+     * Machine-readable error code
      */
-    readonly $schema?: string;
+    code: string;
     /**
-     * A human-readable explanation specific to this occurrence of the problem.
+     * Per-field problems, if any
      */
-    detail?: string;
+    details?: Array<Detail> | null;
     /**
-     * Optional list of individual error details
+     * Human-readable message
      */
-    errors?: Array<ErrorDetail> | null;
-    /**
-     * A URI reference that identifies the specific occurrence of the problem.
-     */
-    instance?: string;
-    /**
-     * HTTP status code
-     */
-    status?: number;
-    /**
-     * A short, human-readable summary of the problem type. This value should not change between occurrences of the error.
-     */
-    title?: string;
-    /**
-     * A URI reference to human-readable documentation for the error.
-     */
-    type?: string;
+    message: string;
 };
 
-export type HealthOutputBody = {
-    /**
-     * A URL to the JSON Schema for this object.
-     */
-    readonly $schema?: string;
-    status: string;
-};
-
-export type ErrorModelWritable = {
-    /**
-     * A human-readable explanation specific to this occurrence of the problem.
-     */
-    detail?: string;
-    /**
-     * Optional list of individual error details
-     */
-    errors?: Array<ErrorDetail> | null;
-    /**
-     * A URI reference that identifies the specific occurrence of the problem.
-     */
-    instance?: string;
-    /**
-     * HTTP status code
-     */
-    status?: number;
-    /**
-     * A short, human-readable summary of the problem type. This value should not change between occurrences of the error.
-     */
-    title?: string;
-    /**
-     * A URI reference to human-readable documentation for the error.
-     */
-    type?: string;
-};
-
-export type HealthOutputBodyWritable = {
+export type StatusOutputBody = {
     status: string;
 };
 
@@ -100,7 +39,7 @@ export type HealthErrors = {
     /**
      * Error
      */
-    default: ErrorModel;
+    default: ErrorBody;
 };
 
 export type HealthError = HealthErrors[keyof HealthErrors];
@@ -109,7 +48,36 @@ export type HealthResponses = {
     /**
      * OK
      */
-    200: HealthOutputBody;
+    200: StatusOutputBody;
 };
 
 export type HealthResponse = HealthResponses[keyof HealthResponses];
+
+export type ReadyData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/readyz';
+};
+
+export type ReadyErrors = {
+    /**
+     * Internal Server Error
+     */
+    500: ErrorBody;
+    /**
+     * Service Unavailable
+     */
+    503: ErrorBody;
+};
+
+export type ReadyError = ReadyErrors[keyof ReadyErrors];
+
+export type ReadyResponses = {
+    /**
+     * OK
+     */
+    200: StatusOutputBody;
+};
+
+export type ReadyResponse = ReadyResponses[keyof ReadyResponses];
