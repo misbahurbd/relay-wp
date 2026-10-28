@@ -10,21 +10,22 @@ Decisions marked **(proposed)** depend on an open question in section 9.
 
 ## 1. Decisions
 
-| Topic                   | Decision                                                                                                                                                                              |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Email verification      | **6-digit code** by email, valid 10 minutes, 5 tries per code. Entering the right code **signs the user in**. Replaces the link for sign-up; reset stays a link.                      |
-| Who skips verification  | Social sign-ups whose provider vouches for the email (Google, Apple). Facebook: see question 2.                                                                                       |
-| When a workspace exists | Created when the user leaves the Welcome screen (either button), with a default name. Setup step 1 fills in the business details.                                                     |
-| Setup steps             | 3 steps saved on the server: business details → connect WhatsApp → send test message. Resuming always returns to the first unfinished step.                                           |
-| Skipping WhatsApp       | Allowed on step 2 only. Skipping **ends setup** and lands on the first-run dashboard with the "Connect WhatsApp" banner (step 3 needs a number, so it is skipped too). **(proposed)** |
-| Connecting WhatsApp     | Meta Embedded Signup (Facebook JS SDK pop-up). The backend exchanges the code, stores the business token encrypted, then registers the number in a background job.                    |
-| Number types            | New number (default), WhatsApp Business app number (coexistence), number from another provider (migration). See question 4 for what ships first.                                      |
-| Test message            | Pre-approved `hello_world` template to a number the user types, which must differ from the connected one. Delivery status comes from Meta's webhook.                                  |
-| Trial                   | 14 days per workspace on the Growth plan, starting when the workspace is created. Phase 3 only stores the dates and sends reminders; enforcement is Phase 6 (Billing).                |
-| Activated               | Connected number **and** at least one message to a real customer (broadcast or inbox reply). The 7-day window is a metric, not a gate.                                                |
-| Checklist               | Derived on the server from real data; not ticked by hand. **(proposed)**                                                                                                              |
-| Product tour, checklist | Shown/hidden **per member**, not per workspace.                                                                                                                                       |
-| Terms acceptance        | Required at sign-up; time and version stored on `users`.                                                                                                                              |
+| Topic                   | Decision                                                                                                                                                                                                              |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Email verification      | **6-digit code** by email, valid 10 minutes, 5 tries per code. Entering the right code **signs the user in**. Replaces the link for sign-up; reset stays a link.                                                      |
+| Social sign-in buttons  | Sign up and Log in show a button for **every configured provider** (Google, Facebook, Apple), not only Google as in the design. The list comes from `GET /auth/providers`, so an unconfigured provider has no button. |
+| Who skips verification  | Social sign-ups whose provider vouches for the email (Google, Apple). Facebook: see question 2.                                                                                                                       |
+| When a workspace exists | Created when the user leaves the Welcome screen (either button), with a default name. Setup step 1 fills in the business details.                                                                                     |
+| Setup steps             | 3 steps saved on the server: business details → connect WhatsApp → send test message. Resuming always returns to the first unfinished step.                                                                           |
+| Skipping WhatsApp       | Allowed on step 2 only. Skipping **ends setup** and lands on the first-run dashboard with the "Connect WhatsApp" banner (step 3 needs a number, so it is skipped too). **(proposed)**                                 |
+| Connecting WhatsApp     | Meta Embedded Signup (Facebook JS SDK pop-up). The backend exchanges the code, stores the business token encrypted, then registers the number in a background job.                                                    |
+| Number types            | New number (default), WhatsApp Business app number (coexistence), number from another provider (migration). See question 4 for what ships first.                                                                      |
+| Test message            | Pre-approved `hello_world` template to a number the user types, which must differ from the connected one. Delivery status comes from Meta's webhook.                                                                  |
+| Trial                   | 14 days per workspace on the Growth plan, starting when the workspace is created. Phase 3 only stores the dates and sends reminders; enforcement is Phase 6 (Billing).                                                |
+| Activated               | Connected number **and** at least one message to a real customer (broadcast or inbox reply). The 7-day window is a metric, not a gate.                                                                                |
+| Checklist               | Derived on the server from real data; not ticked by hand. **(proposed)**                                                                                                                                              |
+| Product tour, checklist | Shown/hidden **per member**, not per workspace.                                                                                                                                                                       |
+| Terms acceptance        | Required at sign-up; time and version stored on `users`.                                                                                                                                                              |
 
 ---
 
@@ -34,7 +35,7 @@ Decisions marked **(proposed)** depend on an open question in section 9.
 
 | #   | Screen              | Route (Phase 4)                        | Time    | User does                                                                                            | Server effect                                                                                              |
 | --- | ------------------- | -------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| 1   | Sign up             | `_auth/signup`                         | 1 min   | Full name, work email, password, accepts terms. Or "Continue with Google".                           | `POST /auth/signup` → user, profile, preferences; emails a code. Social: signed in, skips to 3.            |
+| 1   | Sign up             | `_auth/signup`                         | 1 min   | Full name, work email, password, accepts terms. Or "Continue with Google / Facebook / Apple".        | `POST /auth/signup` → user, profile, preferences; emails a code. Social: signed in, skips to 3.            |
 | 2   | Verify email        | `_auth/verify-email`                   | 30 sec  | Types the 6-digit code. "Change email" goes back to 1. Resend after 60 s.                            | `POST /auth/verify-email/code` → verified **and signed in**.                                               |
 | 3   | Welcome             | `_app/welcome`                         | 15 sec  | Picks a first goal (Send offers / Answer customers / Automate replies), then Start setup or Explore. | `POST /workspaces` → workspace, owner membership, onboarding row, trial dates.                             |
 | 4   | Business details    | `_app/w/$workspaceId/setup` (step 1)   | 1 min   | Business name, industry, website, country, team size, goals.                                         | `PUT /workspaces/{id}/onboarding/business`                                                                 |
@@ -65,7 +66,7 @@ Invitees who sign up from an invite link join that workspace and skip 3–6 (tea
 
 ### Screen details that affect the API
 
-**Sign up.** "Full name" is one field; the frontend splits it into `first_name` and `last_name` (question 6). The password hint in the design says "8 characters, a number and a symbol", but our rules also require upper and lower case (question 7). One checkbox accepts the Terms of Service, the Privacy Policy and the WhatsApp Business messaging policy; the button stays disabled until it is ticked.
+**Sign up.** One "Continue with …" button per provider from `GET /auth/providers`, in the order Google, Facebook, Apple, above "or sign up with email". Each starts `GET /auth/oauth/{provider}/start` with `redirect_to` set to the post-sign-in routing page; a new social user then lands on Welcome. "Full name" is one field; the frontend splits it into `first_name` and `last_name` (question 6). The password hint in the design says "8 characters, a number and a symbol", but our rules also require upper and lower case (question 7). One checkbox accepts the Terms of Service, the Privacy Policy and the WhatsApp Business messaging policy; the button stays disabled until it is ticked.
 
 **Verify email.** Six single-digit inputs with paste support and `autocomplete="one-time-code"`. Errors: "That code doesn't match. Check the latest email and try again." Tips panel: check spam, code expires in 10 minutes, sender is `no-reply@…`. Success: "Email verified", then Continue → Welcome.
 
@@ -141,7 +142,7 @@ Every error says what happened and offers one fix and one alternative. Most happ
 
 ### Log in (returning users)
 
-"Welcome back", Google button, email + password, "Remember me on this device for 30 days" (question 8), forgot password → "Check your email" (link valid 30 minutes in the design, 1 hour in Phase 2; question 9). Under the button: "Didn't finish setting up? We'll take you back to the step you left, with everything you entered saved."
+"Welcome back", the same provider buttons as Sign up, email + password, "Remember me on this device for 30 days" (question 8), forgot password → "Check your email" (link valid 30 minutes in the design, 1 hour in Phase 2; question 9). Under the button: "Didn't finish setting up? We'll take you back to the step you left, with everything you entered saved."
 
 ### Trial timeline
 
