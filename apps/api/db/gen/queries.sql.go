@@ -419,6 +419,33 @@ func (q *Queries) InvalidateEmailTokens(ctx context.Context, arg InvalidateEmail
 	return err
 }
 
+const isSessionActive = `-- name: IsSessionActive :one
+SELECT EXISTS (
+    SELECT 1
+    FROM auth_sessions s
+    JOIN users u ON u.id = s.user_id
+    WHERE s.id = $1
+      AND s.user_id = $2
+      AND s.revoked_at IS NULL
+      AND s.expires_at > now()
+      AND u.status = 'active'
+)::boolean AS active
+`
+
+type IsSessionActiveParams struct {
+	ID     uuid.UUID
+	UserID uuid.UUID
+}
+
+// Checked on every authenticated request, so a revoked session, an expired one
+// or a disabled user stops working at once instead of when the access token expires.
+func (q *Queries) IsSessionActive(ctx context.Context, arg IsSessionActiveParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isSessionActive, arg.ID, arg.UserID)
+	var active bool
+	err := row.Scan(&active)
+	return active, err
+}
+
 const listActiveSessions = `-- name: ListActiveSessions :many
 SELECT id, provider, client, device_name, device_type, last_ip, last_used_at, created_at
 FROM auth_sessions

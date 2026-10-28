@@ -265,6 +265,8 @@ func TestWebRefreshRotationAndReuse(t *testing.T) {
 	expect(t, attacker.do("POST", "/v1/auth/token/refresh", nil), http.StatusUnauthorized, "invalid_refresh_token")
 
 	expect(t, b.do("POST", "/v1/auth/token/refresh", nil), http.StatusUnauthorized, "invalid_refresh_token")
+	// The session is gone, so its still-unexpired access token stops working too.
+	expect(t, b.do("GET", "/v1/me", nil), http.StatusUnauthorized, "unauthenticated")
 }
 
 func TestRefreshCookieNeedsAllowedOrigin(t *testing.T) {
@@ -316,6 +318,8 @@ func TestMobileTokens(t *testing.T) {
 	}
 	expect(t, app.do("POST", "/v1/auth/token/refresh", map[string]any{"refresh_token": r2.body["refresh_token"]}),
 		http.StatusUnauthorized, "invalid_refresh_token")
+	app.bearer = r2.body["access_token"].(string)
+	expect(t, app.do("GET", "/v1/me", nil), http.StatusUnauthorized, "unauthenticated")
 }
 
 func TestCookieWriteNeedsAllowedOrigin(t *testing.T) {
@@ -410,6 +414,7 @@ func TestPasswordResetSignsOutEverywhere(t *testing.T) {
 
 	expect(t, laptop.do("POST", "/v1/auth/password/reset", map[string]any{"token": token, "new_password": "N3w!password"}), http.StatusNoContent)
 	expect(t, laptop.do("POST", "/v1/auth/token/refresh", nil), http.StatusUnauthorized, "invalid_refresh_token")
+	expect(t, laptop.do("GET", "/v1/me", nil), http.StatusUnauthorized, "unauthenticated")
 	expect(t, laptop.do("POST", "/v1/auth/login", map[string]any{"email": email, "password": testPassword}), http.StatusUnauthorized)
 	expect(t, laptop.do("POST", "/v1/auth/login", map[string]any{"email": email, "password": "N3w!password"}), http.StatusOK)
 }
@@ -427,7 +432,9 @@ func TestChangePasswordKeepsThisDevice(t *testing.T) {
 		http.StatusNoContent)
 
 	expect(t, laptop.do("POST", "/v1/auth/token/refresh", nil), http.StatusOK)
+	expect(t, laptop.do("GET", "/v1/me", nil), http.StatusOK)
 	expect(t, phone.do("POST", "/v1/auth/token/refresh", nil), http.StatusUnauthorized, "invalid_refresh_token")
+	expect(t, phone.do("GET", "/v1/me", nil), http.StatusUnauthorized, "unauthenticated")
 }
 
 func TestSessionsListAndRevoke(t *testing.T) {
@@ -451,8 +458,12 @@ func TestSessionsListAndRevoke(t *testing.T) {
 		t.Errorf("second session = %v", second)
 	}
 
+	expect(t, laptop.do("GET", "/v1/me", nil), http.StatusOK)
 	expect(t, phone.do("DELETE", "/v1/auth/sessions/"+second["id"].(string), nil), http.StatusNoContent)
+	// Revoking ends the laptop's access right away, not when its 15-minute token expires.
+	expect(t, laptop.do("GET", "/v1/me", nil), http.StatusUnauthorized, "unauthenticated")
 	expect(t, laptop.do("POST", "/v1/auth/token/refresh", nil), http.StatusUnauthorized)
+	expect(t, phone.do("GET", "/v1/me", nil), http.StatusOK)
 	expect(t, phone.do("DELETE", "/v1/auth/sessions/"+uuid.NewString(), nil), http.StatusNotFound, "session_not_found")
 
 	events := phone.do("GET", "/v1/auth/events", nil)
@@ -481,6 +492,31 @@ func TestLogoutAll(t *testing.T) {
 		t.Error("logout-all must clear this browser's cookies")
 	}
 	expect(t, phone.do("POST", "/v1/auth/token/refresh", nil), http.StatusUnauthorized)
+	expect(t, phone.do("GET", "/v1/me", nil), http.StatusUnauthorized, "unauthenticated")
+}
+
+func TestTimesAreUTC(t *testing.T) {
+	e := newAuthEnv(t)
+	email := e.verifiedUser()
+	b := e.browser(chromeMac)
+
+	r := b.login(email)
+	sessions := b.do("GET", "/v1/auth/sessions", nil)
+	events := b.do("GET", "/v1/auth/events", nil)
+	session := sessions.body["sessions"].([]any)[0].(map[string]any)
+	event := events.body["events"].([]any)[0].(map[string]any)
+
+	for name, v := range map[string]any{
+		"access_expires_at":  r.body["access_expires_at"],
+		"refresh_expires_at": r.body["refresh_expires_at"],
+		"last_used_at":       session["last_used_at"],
+		"session created_at": session["created_at"],
+		"event created_at":   event["created_at"],
+	} {
+		if s, _ := v.(string); !strings.HasSuffix(s, "Z") {
+			t.Errorf("%s = %v, want a UTC time ending in Z", name, v)
+		}
+	}
 }
 
 func TestUpdateProfileAndPreferences(t *testing.T) {

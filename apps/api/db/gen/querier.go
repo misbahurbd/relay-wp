@@ -33,6 +33,9 @@ type Querier interface {
 	GetUserForLogin(ctx context.Context, email string) (GetUserForLoginRow, error)
 	InsertAuthEvent(ctx context.Context, arg InsertAuthEventParams) error
 	InvalidateEmailTokens(ctx context.Context, arg InvalidateEmailTokensParams) error
+	// Checked on every authenticated request, so a revoked session, an expired one
+	// or a disabled user stops working at once instead of when the access token expires.
+	IsSessionActive(ctx context.Context, arg IsSessionActiveParams) (bool, error)
 	ListActiveSessions(ctx context.Context, userID uuid.UUID) ([]ListActiveSessionsRow, error)
 	ListAuthEvents(ctx context.Context, userID *uuid.UUID) ([]ListAuthEventsRow, error)
 	MarkEmailVerified(ctx context.Context, id uuid.UUID) error

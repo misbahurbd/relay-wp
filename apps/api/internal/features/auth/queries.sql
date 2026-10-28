@@ -119,6 +119,20 @@ WHERE user_id = @user_id
   AND revoked_at IS NULL
   AND (sqlc.narg(keep_id)::uuid IS NULL OR id <> sqlc.narg(keep_id)::uuid);
 
+-- name: IsSessionActive :one
+-- Checked on every authenticated request, so a revoked session, an expired one
+-- or a disabled user stops working at once instead of when the access token expires.
+SELECT EXISTS (
+    SELECT 1
+    FROM auth_sessions s
+    JOIN users u ON u.id = s.user_id
+    WHERE s.id = @id
+      AND s.user_id = @user_id
+      AND s.revoked_at IS NULL
+      AND s.expires_at > now()
+      AND u.status = 'active'
+)::boolean AS active;
+
 -- name: ListActiveSessions :many
 SELECT id, provider, client, device_name, device_type, last_ip, last_used_at, created_at
 FROM auth_sessions

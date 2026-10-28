@@ -265,7 +265,7 @@ Concurrent refreshes from two browser tabs: the frontend serialises refresh call
 
 ### Access token check (every authenticated request)
 
-Verify signature (`kid` → key), `exp`, `iss`, `aud`. No database call. Put `user_id` and `session_id` into the request context (`shared/authctx`). Revocation takes effect within 15 minutes because refresh will fail.
+Verify signature (`kid` → key), `exp`, `iss`, `aud`. Then one primary-key lookup (`IsSessionActive`): the session must not be revoked or expired and its user must be `active`, otherwise `401 unauthenticated` (`503` if the lookup itself fails). Put `user_id` and `session_id` into the request context (`shared/authctx`). Revoking a session, logging out, a password reset or refresh-token reuse therefore takes effect on the very next request, not when the 15-minute token expires. `auth.Accounts` implements the check; `internal/app` passes it to `RequireAuth`.
 
 ---
 
@@ -290,7 +290,7 @@ Verify signature (`kid` → key), `exp`, `iss`, `aud`. No database call. Put `us
 apps/api/internal/
 ├── platform/jwt/            # Ed25519 sign/verify, key ring by kid (approved factory)
 ├── platform/middleware/
-│   └── auth.go              # RequireAuth: Bearer first, then cookie; CSRF origin check for cookie requests
+│   └── auth.go              # RequireAuth: Bearer first, then cookie; CSRF origin check; session must be active
 ├── shared/authctx/          # user_id, session_id in context; auth cookie names
 ├── features/auth/
 │   ├── handler.go  service.go  repository.go  model.go  dto.go  errors.go  routes.go  jobs.go

@@ -52,6 +52,7 @@ type App struct {
 	jwt      *jwt.Manager
 
 	auth     *auth.Service
+	accounts *auth.Accounts
 	profiles *profiles.Service
 }
 
@@ -99,7 +100,8 @@ func (a *App) buildFeatures() (err error) {
 	if a.jwt, err = jwt.New(a.cfg.Auth); err != nil {
 		return err
 	}
-	a.profiles = profiles.New(a.db, auth.NewAccounts(a.db))
+	a.accounts = auth.NewAccounts(a.db)
+	a.profiles = profiles.New(a.db, a.accounts)
 
 	var breach auth.BreachChecker
 	if a.cfg.Auth.PasswordBreachCheck {

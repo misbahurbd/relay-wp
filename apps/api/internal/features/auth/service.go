@@ -68,7 +68,7 @@ func New(pool *pgxpool.Pool, tokens TokenIssuer, queue Enqueuer, profiles Profil
 		pool: pool, tokens: tokens, queue: queue, profiles: profiles, breach: breach, cfg: cfg,
 		loginFailures: newFailureLimiter(5, 15*time.Minute),
 		dummyHash:     dummy,
-		now:           time.Now,
+		now:           func() time.Time { return time.Now().UTC() },
 	}, nil
 }
 

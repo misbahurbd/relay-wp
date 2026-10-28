@@ -57,11 +57,14 @@ func (a *App) registerRoutes(api huma.API) {
 	})
 
 	origins := a.cfg.HTTP.CORSAllowedOrigins
-	var verifier middleware.TokenVerifier
+	var (
+		verifier middleware.TokenVerifier
+		sessions middleware.SessionChecker
+	)
 	if a.jwt != nil {
-		verifier = a.jwt
+		verifier, sessions = a.jwt, a.accounts
 	}
-	requireAuth := middleware.RequireAuth(api, verifier, origins)
+	requireAuth := middleware.RequireAuth(api, verifier, sessions, origins)
 
 	auth.Register(api, auth.NewHandler(a.auth, auth.CookieConfig{
 		Domain: a.cfg.Auth.CookieDomain, Secure: a.cfg.Auth.CookieSecure,
