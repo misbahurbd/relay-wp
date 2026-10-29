@@ -32,6 +32,9 @@ type metaComponent struct {
 	Text    string       `json:"text,omitempty"`
 	Example *metaExample `json:"example,omitempty"`
 	Buttons []metaButton `json:"buttons,omitempty"`
+	// Authentication templates only.
+	AddSecurityRecommendation bool `json:"add_security_recommendation,omitempty"`
+	CodeExpirationMinutes     int  `json:"code_expiration_minutes,omitempty"`
 }
 
 type metaExample struct {
@@ -45,6 +48,18 @@ type metaButton struct {
 	Text        string `json:"text"`
 	URL         string `json:"url,omitempty"`
 	PhoneNumber string `json:"phone_number,omitempty"`
+	// OTP buttons of authentication templates.
+	OTPType       string       `json:"otp_type,omitempty"`
+	AutofillText  string       `json:"autofill_text,omitempty"`
+	SupportedApps []metaOTPApp `json:"supported_apps,omitempty"`
+	// Older one-tap buttons name the app directly; only read, never sent.
+	PackageName   string `json:"package_name,omitempty"`
+	SignatureHash string `json:"signature_hash,omitempty"`
+}
+
+type metaOTPApp struct {
+	PackageName   string `json:"package_name"`
+	SignatureHash string `json:"signature_hash"`
 }
 
 // maxTemplatePages bounds a template listing (100 per page).
@@ -179,6 +194,9 @@ func sampleExt(contentType string) string {
 
 // metaComponents converts a spec to Meta's components array.
 func metaComponents(spec model.TemplateSpec) []metaComponent {
+	if spec.Auth != nil {
+		return metaAuthComponents(*spec.Auth)
+	}
 	var out []metaComponent
 	switch h := spec.Header; h.Format {
 	case "text":
@@ -219,6 +237,21 @@ func metaComponents(spec model.TemplateSpec) []metaComponent {
 	return out
 }
 
+// metaAuthComponents builds an authentication template: Meta writes the body,
+// footer and button text in the template's language from these options.
+func metaAuthComponents(a model.TemplateAuth) []metaComponent {
+	out := []metaComponent{{Type: "BODY", AddSecurityRecommendation: a.SecurityRecommendation}}
+	if a.CodeExpiryMinutes > 0 {
+		out = append(out, metaComponent{Type: "FOOTER", CodeExpirationMinutes: a.CodeExpiryMinutes})
+	}
+	b := metaButton{Type: "OTP", OTPType: strings.ToUpper(a.OTPType), Text: a.ButtonText}
+	if a.OTPType == "one_tap" {
+		b.AutofillText = a.AutofillText
+		b.SupportedApps = []metaOTPApp{{PackageName: a.PackageName, SignatureHash: a.SignatureHash}}
+	}
+	return append(out, metaComponent{Type: "BUTTONS", Buttons: []metaButton{b}})
+}
+
 // fromMetaTemplate converts a listed template. Templates in states we don't
 // track (deleted, pending deletion, …) are skipped.
 func fromMetaTemplate(t metaTemplate) (model.MessageTemplate, bool) {
@@ -229,6 +262,9 @@ func fromMetaTemplate(t metaTemplate) (model.MessageTemplate, bool) {
 	spec := model.TemplateSpec{
 		Name: t.Name, Language: t.Language, Category: strings.ToLower(t.Category),
 		Header: model.TemplateHeader{Format: "none"},
+	}
+	if spec.Category == "authentication" {
+		spec.Auth = &model.TemplateAuth{}
 	}
 	for _, c := range t.Components {
 		switch strings.ToUpper(c.Type) {
@@ -247,11 +283,23 @@ func fromMetaTemplate(t metaTemplate) (model.MessageTemplate, bool) {
 			if c.Example != nil && len(c.Example.BodyText) > 0 {
 				spec.Body.Examples = c.Example.BodyText[0]
 			}
+			if spec.Auth != nil {
+				// Meta doesn't always echo the flag back; its sentence is in the text.
+				spec.Auth.SecurityRecommendation = c.AddSecurityRecommendation ||
+					strings.Contains(strings.ToLower(c.Text), "do not share")
+			}
 		case "FOOTER":
 			spec.Footer = c.Text
+			if spec.Auth != nil {
+				spec.Auth.CodeExpiryMinutes = c.CodeExpirationMinutes
+			}
 		case "BUTTONS":
 			for _, b := range c.Buttons {
 				switch strings.ToUpper(b.Type) {
+				case "OTP":
+					if spec.Auth != nil {
+						fromMetaOTPButton(spec.Auth, b)
+					}
 				case "QUICK_REPLY":
 					spec.Buttons = append(spec.Buttons, model.TemplateButton{Type: "quick_reply", Text: b.Text})
 				case "URL":
@@ -263,6 +311,18 @@ func fromMetaTemplate(t metaTemplate) (model.MessageTemplate, bool) {
 		}
 	}
 	return model.MessageTemplate{ID: t.ID, Status: status, RejectedReason: templateReason(t.RejectedReason), Spec: spec}, true
+}
+
+// fromMetaOTPButton reads an authentication template's button into its options.
+func fromMetaOTPButton(a *model.TemplateAuth, b metaButton) {
+	a.OTPType, a.ButtonText = "copy_code", b.Text
+	if strings.EqualFold(b.OTPType, "ONE_TAP") || strings.EqualFold(b.OTPType, "ZERO_TAP") {
+		a.OTPType, a.AutofillText = "one_tap", b.AutofillText
+		a.PackageName, a.SignatureHash = b.PackageName, b.SignatureHash
+		if len(b.SupportedApps) > 0 {
+			a.PackageName, a.SignatureHash = b.SupportedApps[0].PackageName, b.SupportedApps[0].SignatureHash
+		}
+	}
 }
 
 // templateStatus maps Meta's template states onto ours; "" means not tracked.

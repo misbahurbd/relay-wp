@@ -2,19 +2,8 @@ import { ClockIcon, InfoIcon, LockIcon, XCircleIcon } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '#/components/ui/alert'
 import type { Template } from '../../types'
 
-/** Why the template is (or isn't) editable, from its status (AD-8, AD-11). */
+/** Why the template is (or isn't) editable, from its status (AD-8). */
 export function StatusNotice({ template, canEdit }: { template: Template; canEdit: boolean }) {
-  if (template.category === 'authentication') {
-    return (
-      <Alert variant="info">
-        <LockIcon aria-hidden="true" />
-        <AlertTitle className="font-bold">Authentication templates are read-only</AlertTitle>
-        <AlertDescription>
-          This one was synced from Meta. Editing one-time passcode templates is coming soon.
-        </AlertDescription>
-      </Alert>
-    )
-  }
   switch (template.status) {
     case 'pending':
       return (

@@ -18,6 +18,7 @@ import { DeleteTemplateDialog } from '../kit/delete-template-dialog'
 import { StatusBadge } from '../kit/status-badge'
 import { ApprovalTips } from '../preview/approval-tips'
 import { TemplatePreview } from '../preview/template-preview'
+import { AuthSection } from './auth-section'
 import { BasicsSection } from './basics-section'
 import { BodySection } from './body-section'
 import { ButtonsSection } from './buttons-section'
@@ -82,6 +83,7 @@ function EditorForm({
   const readOnly = frozen || !mayCreate
   const showActions = !readOnly && !!access
   const busy = editor.busy
+  const isAuth = useStore(editor.form.store, (s) => s.values.category === 'authentication')
 
   const title = !current
     ? 'Create template'
@@ -148,10 +150,16 @@ function EditorForm({
           <fieldset disabled={readOnly} className="flex min-w-0 flex-col gap-4">
             <legend className="sr-only">Template</legend>
             <BasicsSection editor={editor} locked={!!current?.meta_template_id} />
-            <HeaderSection editor={editor} />
-            <BodySection editor={editor} />
-            <FooterSection editor={editor} />
-            <ButtonsSection editor={editor} />
+            {isAuth ? (
+              <AuthSection editor={editor} />
+            ) : (
+              <>
+                <HeaderSection editor={editor} />
+                <BodySection editor={editor} />
+                <FooterSection editor={editor} />
+                <ButtonsSection editor={editor} />
+              </>
+            )}
           </fieldset>
         </form>
         <PreviewColumn editor={editor} businessName={businessName} />

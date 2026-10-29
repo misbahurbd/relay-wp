@@ -1,5 +1,4 @@
 import { describedBy, FormField } from '#/components/form'
-import { Badge } from '#/components/ui/badge'
 import { Input } from '#/components/ui/input'
 import {
   Select,
@@ -110,16 +109,15 @@ export function BasicsSection({
               <legend className="mb-2 text-sm font-bold">Category</legend>
               <div className="grid gap-2.5 sm:grid-cols-3">
                 {CATEGORIES.map((c) => {
-                  const soon = c.value === 'authentication'
                   const on = field.state.value === c.value
                   return (
                     <label
                       key={c.value}
                       className={cn(
-                        'relative flex min-h-[72px] flex-col gap-0.5 rounded-lg border-2 px-3.5 py-3 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring',
-                        on ? 'border-primary bg-brand-soft' : 'border-border bg-card',
-                        soon ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-muted',
-                        on && 'hover:bg-brand-soft',
+                        'relative flex min-h-[72px] cursor-pointer flex-col gap-0.5 rounded-lg border-2 px-3.5 py-3 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring',
+                        on
+                          ? 'border-primary bg-brand-soft'
+                          : 'border-border bg-card hover:bg-muted',
                       )}
                     >
                       <input
@@ -128,16 +126,12 @@ export function BasicsSection({
                         value={c.value}
                         className="sr-only"
                         checked={on}
-                        disabled={soon}
                         onChange={() => {
                           field.handleChange(c.value)
                           clearExtra('category')
                         }}
                       />
-                      <span className="flex items-center gap-2 text-sm font-bold">
-                        {c.label}
-                        {soon && <Badge variant="neutral">Coming soon</Badge>}
-                      </span>
+                      <span className="text-sm font-bold">{c.label}</span>
                       <span className="text-xs text-muted-foreground">{c.hint}</span>
                     </label>
                   )

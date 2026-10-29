@@ -16,6 +16,7 @@ export function toTemplate(t: TemplateDto): Template {
       body: { text: c.body.text, examples: c.body.examples ?? [] },
       footer: c.footer,
       buttons: c.buttons ?? [],
+      auth: c.auth,
     },
     warnings: t.warnings ?? [],
   }

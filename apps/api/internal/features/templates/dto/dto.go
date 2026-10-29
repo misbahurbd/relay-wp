@@ -34,17 +34,28 @@ type ButtonDTO struct {
 	Value string `json:"value" doc:"The https:// link or the E.164 phone number; empty for a quick reply"`
 }
 
+type AuthDTO struct {
+	SecurityRecommendation bool   `json:"security_recommendation" doc:"Adds \"For your security, do not share this code.\" to the body"`
+	CodeExpiryMinutes      int    `json:"code_expiry_minutes" doc:"Adds \"This code expires in N minutes.\" as the footer; 0 means none"`
+	OTPType                string `json:"otp_type" doc:"copy_code or one_tap; empty for other categories"`
+	ButtonText             string `json:"button_text" doc:"The copy code button's text"`
+	AutofillText           string `json:"autofill_text" doc:"The one-tap autofill button's text"`
+	PackageName            string `json:"package_name" doc:"Android package name, for one-tap autofill"`
+	SignatureHash          string `json:"signature_hash" doc:"Android app signing key hash, for one-tap autofill"`
+}
+
 type ComponentsDTO struct {
 	Header  HeaderDTO   `json:"header"`
 	Body    BodyDTO     `json:"body"`
 	Footer  FooterDTO   `json:"footer"`
 	Buttons []ButtonDTO `json:"buttons"`
+	Auth    AuthDTO     `json:"auth" doc:"Authentication template options; Meta writes the body, footer and button from them"`
 }
 
 func toComponentsDTO(c model.Components) ComponentsDTO {
 	out := ComponentsDTO{
 		Header: HeaderDTO(c.Header), Body: BodyDTO(c.Body), Footer: FooterDTO(c.Footer),
-		Buttons: make([]ButtonDTO, len(c.Buttons)),
+		Buttons: make([]ButtonDTO, len(c.Buttons)), Auth: AuthDTO(c.Auth),
 	}
 	if out.Body.Examples == nil {
 		out.Body.Examples = []string{}
@@ -79,17 +90,28 @@ type ButtonInput struct {
 	Value string `json:"value,omitempty" maxLength:"2000"`
 }
 
+type AuthInput struct {
+	SecurityRecommendation bool   `json:"security_recommendation,omitempty"`
+	CodeExpiryMinutes      int    `json:"code_expiry_minutes,omitempty" doc:"1 to 90; 0 or absent means no expiry footer"`
+	OTPType                string `json:"otp_type,omitempty" maxLength:"20" doc:"copy_code (default) or one_tap"`
+	ButtonText             string `json:"button_text,omitempty" maxLength:"200"`
+	AutofillText           string `json:"autofill_text,omitempty" maxLength:"200"`
+	PackageName            string `json:"package_name,omitempty" maxLength:"255"`
+	SignatureHash          string `json:"signature_hash,omitempty" maxLength:"100"`
+}
+
 type ComponentsInput struct {
 	Header  HeaderInput   `json:"header,omitempty"`
 	Body    BodyInput     `json:"body,omitempty"`
 	Footer  FooterInput   `json:"footer,omitempty"`
 	Buttons []ButtonInput `json:"buttons,omitempty" maxItems:"20"`
+	Auth    AuthInput     `json:"auth,omitempty" doc:"Only for authentication templates, whose header, body, footer and buttons are ignored"`
 }
 
 func (c ComponentsInput) model() model.Components {
 	out := model.Components{
 		Header: model.Header(c.Header), Body: model.Body(c.Body), Footer: model.Footer(c.Footer),
-		Buttons: make([]model.Button, len(c.Buttons)),
+		Buttons: make([]model.Button, len(c.Buttons)), Auth: model.Auth(c.Auth),
 	}
 	for i, b := range c.Buttons {
 		out.Buttons[i] = model.Button(b)
@@ -199,7 +221,7 @@ type CreateInput struct {
 	Body        struct {
 		Name       string          `json:"name" maxLength:"1024" doc:"Lowercase letters, numbers and underscores"`
 		Language   string          `json:"language" maxLength:"15" doc:"en_US, en_GB, es, pt_BR, hi, bn or ar"`
-		Category   string          `json:"category" maxLength:"20" doc:"marketing or utility"`
+		Category   string          `json:"category" maxLength:"20" doc:"marketing, utility or authentication"`
 		Components ComponentsInput `json:"components,omitempty"`
 	}
 }

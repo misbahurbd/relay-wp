@@ -74,6 +74,85 @@
         ],
         "type": "object"
       },
+      "AuthDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "autofill_text": {
+            "description": "The one-tap autofill button's text",
+            "type": "string"
+          },
+          "button_text": {
+            "description": "The copy code button's text",
+            "type": "string"
+          },
+          "code_expiry_minutes": {
+            "description": "Adds \"This code expires in N minutes.\" as the footer; 0 means none",
+            "format": "int64",
+            "type": "integer"
+          },
+          "otp_type": {
+            "description": "copy_code or one_tap; empty for other categories",
+            "type": "string"
+          },
+          "package_name": {
+            "description": "Android package name, for one-tap autofill",
+            "type": "string"
+          },
+          "security_recommendation": {
+            "description": "Adds \"For your security, do not share this code.\" to the body",
+            "type": "boolean"
+          },
+          "signature_hash": {
+            "description": "Android app signing key hash, for one-tap autofill",
+            "type": "string"
+          }
+        },
+        "required": [
+          "security_recommendation",
+          "code_expiry_minutes",
+          "otp_type",
+          "button_text",
+          "autofill_text",
+          "package_name",
+          "signature_hash"
+        ],
+        "type": "object"
+      },
+      "AuthInput": {
+        "additionalProperties": false,
+        "properties": {
+          "autofill_text": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "button_text": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "code_expiry_minutes": {
+            "description": "1 to 90; 0 or absent means no expiry footer",
+            "format": "int64",
+            "type": "integer"
+          },
+          "otp_type": {
+            "description": "copy_code (default) or one_tap",
+            "maxLength": 20,
+            "type": "string"
+          },
+          "package_name": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "security_recommendation": {
+            "type": "boolean"
+          },
+          "signature_hash": {
+            "maxLength": 100,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "AvailabilityInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -415,6 +494,10 @@
       "ComponentsDTO": {
         "additionalProperties": false,
         "properties": {
+          "auth": {
+            "$ref": "#/components/schemas/AuthDTO",
+            "description": "Authentication template options; Meta writes the body, footer and button from them"
+          },
           "body": {
             "$ref": "#/components/schemas/BodyDTO"
           },
@@ -438,13 +521,18 @@
           "header",
           "body",
           "footer",
-          "buttons"
+          "buttons",
+          "auth"
         ],
         "type": "object"
       },
       "ComponentsInput": {
         "additionalProperties": false,
         "properties": {
+          "auth": {
+            "$ref": "#/components/schemas/AuthInput",
+            "description": "Only for authentication templates, whose header, body, footer and buttons are ignored"
+          },
           "body": {
             "$ref": "#/components/schemas/BodyInput"
           },
@@ -864,7 +952,7 @@
         "additionalProperties": false,
         "properties": {
           "category": {
-            "description": "marketing or utility",
+            "description": "marketing, utility or authentication",
             "maxLength": 20,
             "type": "string"
           },

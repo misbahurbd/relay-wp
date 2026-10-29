@@ -24,6 +24,53 @@ export type AccessDto = {
     team_ids: Array<string> | null;
 };
 
+export type AuthDto = {
+    /**
+     * The one-tap autofill button's text
+     */
+    autofill_text: string;
+    /**
+     * The copy code button's text
+     */
+    button_text: string;
+    /**
+     * Adds "This code expires in N minutes." as the footer; 0 means none
+     */
+    code_expiry_minutes: number;
+    /**
+     * copy_code or one_tap; empty for other categories
+     */
+    otp_type: string;
+    /**
+     * Android package name, for one-tap autofill
+     */
+    package_name: string;
+    /**
+     * Adds "For your security, do not share this code." to the body
+     */
+    security_recommendation: boolean;
+    /**
+     * Android app signing key hash, for one-tap autofill
+     */
+    signature_hash: string;
+};
+
+export type AuthInput = {
+    autofill_text?: string;
+    button_text?: string;
+    /**
+     * 1 to 90; 0 or absent means no expiry footer
+     */
+    code_expiry_minutes?: number;
+    /**
+     * copy_code (default) or one_tap
+     */
+    otp_type?: string;
+    package_name?: string;
+    security_recommendation?: boolean;
+    signature_hash?: string;
+};
+
 export type AvailabilityInputBody = {
     availability: 'online' | 'away' | 'offline';
 };
@@ -127,6 +174,10 @@ export type ColumnMappingDto = {
 };
 
 export type ComponentsDto = {
+    /**
+     * Authentication template options; Meta writes the body, footer and button from them
+     */
+    auth: AuthDto;
     body: BodyDto;
     buttons: Array<ButtonDto> | null;
     footer: FooterDto;
@@ -134,6 +185,10 @@ export type ComponentsDto = {
 };
 
 export type ComponentsInput = {
+    /**
+     * Only for authentication templates, whose header, body, footer and buttons are ignored
+     */
+    auth?: AuthInput;
     body?: BodyInput;
     buttons?: Array<ButtonInput> | null;
     footer?: FooterInput;
@@ -253,7 +308,7 @@ export type CreateInputBody = {
 
 export type CreateInputBody1 = {
     /**
-     * marketing or utility
+     * marketing, utility or authentication
      */
     category: string;
     components?: ComponentsInput;

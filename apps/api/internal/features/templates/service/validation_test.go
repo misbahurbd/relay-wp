@@ -63,7 +63,7 @@ func TestValidate(t *testing.T) {
 		{"language unknown", func(d *model.Draft) { d.Language = "fr" }, nil, false, "language"},
 		{"language pt_BR", func(d *model.Draft) { d.Language = "pt_BR" }, nil, true, ""},
 		{"category marketing", func(d *model.Draft) { d.Category = model.CategoryMarketing }, nil, true, ""},
-		{"category authentication", func(d *model.Draft) { d.Category = model.CategoryAuthentication }, nil, false, "category"},
+		{"category authentication", func(d *model.Draft) { d.Category = model.CategoryAuthentication }, nil, true, ""},
 		{"category unknown", func(d *model.Draft) { d.Category = "promo" }, nil, false, "category"},
 
 		// header
@@ -178,6 +178,72 @@ func TestValidate(t *testing.T) {
 				t.Errorf("want a problem at %q, got %v", tt.want, got)
 			}
 		})
+	}
+}
+
+func TestValidateAuthentication(t *testing.T) {
+	oneTap := model.Auth{OTPType: model.OTPOneTap, PackageName: "com.acme.app", SignatureHash: "K8a/AINcGX7"}
+	tests := []struct {
+		name     string
+		auth     model.Auth
+		complete bool
+		want     string // field with a problem; "" means valid
+	}{
+		{"defaults", model.Auth{}, true, ""},
+		{"expiry 90", model.Auth{CodeExpiryMinutes: 90}, true, ""},
+		{"expiry 91", model.Auth{CodeExpiryMinutes: 91}, false, "auth.code_expiry_minutes"},
+		{"expiry negative", model.Auth{CodeExpiryMinutes: -1}, false, "auth.code_expiry_minutes"},
+		{"otp type unknown", model.Auth{OTPType: "zero"}, false, "auth.otp_type"},
+		{"button text 26", model.Auth{ButtonText: strings.Repeat("a", 26)}, false, "auth.button_text"},
+		{"one tap complete", oneTap, true, ""},
+		{"one tap without app in draft", model.Auth{OTPType: model.OTPOneTap}, false, ""},
+		{"one tap without package on submit", model.Auth{OTPType: model.OTPOneTap, SignatureHash: "K8a/AINcGX7"}, true, "auth.package_name"},
+		{"one tap without hash on submit", model.Auth{OTPType: model.OTPOneTap, PackageName: "com.acme.app"}, true, "auth.signature_hash"},
+		{"package one segment", model.Auth{OTPType: model.OTPOneTap, PackageName: "acme"}, false, "auth.package_name"},
+		{"hash too short", model.Auth{OTPType: model.OTPOneTap, SignatureHash: "K8a/AIN"}, false, "auth.signature_hash"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := validDraft()
+			d.Category = model.CategoryAuthentication
+			d.Components.Auth = tt.auth
+			normalize(&d)
+			got := fields(t, validate(d, nil, tt.complete))
+			switch {
+			case tt.want == "" && got != nil:
+				t.Errorf("want valid, got problems at %v", got)
+			case tt.want != "" && !slices.Contains(got, tt.want):
+				t.Errorf("want a problem at %q, got %v", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestNormalizeAuthentication(t *testing.T) {
+	d := validDraft()
+	d.Category = model.CategoryAuthentication
+	d.Components.Auth = model.Auth{SecurityRecommendation: true, CodeExpiryMinutes: 10, AutofillText: "Fill", PackageName: "com.a.b"}
+	normalize(&d)
+	c := d.Components
+	if c.Header.Type != model.HeaderNone || len(c.Buttons) != 0 || len(c.Body.Examples) != 0 {
+		t.Fatalf("custom content kept: %+v", c)
+	}
+	if c.Body.Text != "*{{1}}* is your verification code. For your security, do not share this code." {
+		t.Errorf("body %q", c.Body.Text)
+	}
+	if c.Footer.Text != "This code expires in 10 minutes." {
+		t.Errorf("footer %q", c.Footer.Text)
+	}
+	if c.Auth.OTPType != model.OTPCopyCode || c.Auth.ButtonText != "Copy code" || c.Auth.AutofillText != "" || c.Auth.PackageName != "" {
+		t.Errorf("auth %+v", c.Auth)
+	}
+
+	// Other categories drop the auth options.
+	d = validDraft()
+	d.Components.Auth = model.Auth{OTPType: model.OTPOneTap}
+	normalize(&d)
+	if d.Components.Auth != (model.Auth{}) {
+		t.Errorf("auth kept on a utility template: %+v", d.Components.Auth)
 	}
 }
 

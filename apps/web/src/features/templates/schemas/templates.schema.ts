@@ -4,6 +4,7 @@ import type {
   ButtonType,
   HeaderSample,
   HeaderType,
+  OtpType,
   StatusFilter,
   Template,
   TemplateCategory,
@@ -55,14 +56,9 @@ export const STATUS_TABS: { value: StatusFilter | undefined; label: string }[] =
   { value: 'rejected', label: 'Rejected' },
 ]
 
-/** Meta is reviewing it, Meta stopped it, or it's an authentication template (AD-11): look, don't touch. */
-export function isFrozen(t: Pick<Template, 'status' | 'category'>) {
-  return (
-    t.status === 'pending' ||
-    t.status === 'paused' ||
-    t.status === 'disabled' ||
-    t.category === 'authentication'
-  )
+/** Meta is reviewing it or Meta stopped it: look, don't touch. */
+export function isFrozen(t: Pick<Template, 'status'>) {
+  return t.status === 'pending' || t.status === 'paused' || t.status === 'disabled'
 }
 
 export const HEADER_TYPES: { value: HeaderType; label: string }[] = [
@@ -139,6 +135,43 @@ export const BUTTON_TYPES: Record<
   },
 }
 
+// ---------- authentication templates ----------
+
+export const OTP_TYPES: { value: OtpType; label: string; hint: string }[] = [
+  { value: 'copy_code', label: 'Copy code', hint: 'A button that copies the code' },
+  {
+    value: 'one_tap',
+    label: 'One-tap autofill',
+    hint: 'Fills the code into your Android app; others get copy code',
+  },
+]
+
+const AUTH_DEFAULTS: TemplateFormValues['auth'] = {
+  security_recommendation: true,
+  code_expiry_minutes: 10,
+  otp_type: 'copy_code',
+  button_text: 'Copy code',
+  autofill_text: 'Autofill',
+  package_name: '',
+  signature_hash: '',
+}
+
+/** The sample code shown in the preview. */
+export const SAMPLE_CODE = '123456'
+
+/** What Meta sends for these options, in English (Meta translates it per language). */
+export function authMessage(a: TemplateFormValues['auth']) {
+  return {
+    body: `*{{1}}* is your verification code.${a.security_recommendation ? ' For your security, do not share this code.' : ''}`,
+    footer:
+      a.code_expiry_minutes > 0 ? `This code expires in ${a.code_expiry_minutes} minutes.` : '',
+    button:
+      a.otp_type === 'one_tap'
+        ? a.autofill_text.trim() || AUTH_DEFAULTS.autofill_text
+        : a.button_text.trim() || AUTH_DEFAULTS.button_text,
+  }
+}
+
 // ---------- AD-7 rules (mirrors apps/api/internal/features/templates/service/validation.go) ----------
 
 export const LIMITS = {
@@ -150,12 +183,15 @@ export const LIMITS = {
   urlButtons: 2,
   phoneButtons: 1,
   buttonText: 25,
+  codeExpiry: 90,
 } as const
 
 const NAME_RE = /^[a-z0-9_]{1,512}$/
 const VARIABLE_RE = /\{\{([^{}]*)\}\}/g
 const INDEX_RE = /^[1-9][0-9]*$/
 const E164_RE = /^\+[1-9][0-9]{6,14}$/
+const PACKAGE_RE = /^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/
+const SIGNATURE_RE = /^[A-Za-z0-9+/]{11}$/
 const SHORT_LINK_HOSTS = ['bit.ly', 'tinyurl.com', 't.co', 'goo.gl']
 
 /** Characters as people count them (code points, like the server), not UTF-16 units. */
@@ -243,7 +279,10 @@ export function templateIssues(v: TemplateFormValues, opts: CheckOptions = {}): 
   if (!LANGUAGES.some((l) => l.value === v.language)) {
     add('language', 'Choose one of the supported languages')
   }
-  if (v.category === 'authentication') add('category', 'Authentication templates are coming soon')
+  if (v.category === 'authentication') {
+    authIssues(v.auth, complete, add)
+    return out
+  }
 
   // Header
   const h = v.header
@@ -338,6 +377,36 @@ export function templateIssues(v: TemplateFormValues, opts: CheckOptions = {}): 
   return out
 }
 
+function authIssues(
+  a: TemplateFormValues['auth'],
+  complete: boolean,
+  add: (field: string, message: string) => void,
+) {
+  const m = a.code_expiry_minutes
+  if (!Number.isInteger(m) || m < 0 || m > LIMITS.codeExpiry) {
+    add('auth.code_expiry_minutes', `Choose 1 to ${LIMITS.codeExpiry} minutes, or no expiry`)
+  }
+  if (charCount(a.button_text.trim()) > LIMITS.buttonText) {
+    add('auth.button_text', `Keep button text to ${LIMITS.buttonText} characters`)
+  }
+  if (a.otp_type !== 'one_tap') return
+  if (charCount(a.autofill_text.trim()) > LIMITS.buttonText) {
+    add('auth.autofill_text', `Keep button text to ${LIMITS.buttonText} characters`)
+  }
+  const pkg = a.package_name.trim()
+  if (pkg !== '' && !PACKAGE_RE.test(pkg)) {
+    add('auth.package_name', 'Use your Android app’s package name, like com.example.app')
+  } else if (complete && pkg === '') {
+    add('auth.package_name', 'Enter your Android app’s package name')
+  }
+  const hash = a.signature_hash.trim()
+  if (hash !== '' && !SIGNATURE_RE.test(hash)) {
+    add('auth.signature_hash', 'The app signature hash is 11 letters, numbers, + or /')
+  } else if (complete && hash === '') {
+    add('auth.signature_hash', 'Enter your app’s signature hash')
+  }
+}
+
 /** "buttons[1].value" → ["buttons", 1, "value"]. */
 export function fieldPath(field: string): (string | number)[] {
   return field
@@ -364,6 +433,15 @@ const formShape = z.object({
       value: z.string(),
     }),
   ),
+  auth: z.object({
+    security_recommendation: z.boolean(),
+    code_expiry_minutes: z.number(),
+    otp_type: z.enum(['copy_code', 'one_tap']),
+    button_text: z.string(),
+    autofill_text: z.string(),
+    package_name: z.string(),
+    signature_hash: z.string(),
+  }),
 })
 
 /** The AD-7 rules as a zod schema. `complete` adds what only a submit needs. */
@@ -420,6 +498,7 @@ export function emptyTemplateForm(): TemplateFormValues {
     body: { text: '', examples: [] },
     footer: { text: '' },
     buttons: [],
+    auth: { ...AUTH_DEFAULTS },
   }
 }
 
@@ -433,11 +512,47 @@ export function templateToForm(t: Template): TemplateFormValues {
     body: { text: c.body.text, examples: resizeExamples(c.body.examples, c.body.text) },
     footer: { text: c.footer.text },
     buttons: c.buttons.map((b) => ({ type: b.type, text: b.text, value: b.value })),
+    auth: authToForm(c.auth),
+  }
+}
+
+/** Stored options, or the defaults for a template that isn't authentication (yet). */
+function authToForm(a: Template['components']['auth'] | undefined): TemplateFormValues['auth'] {
+  if (!a || (a.otp_type !== 'copy_code' && a.otp_type !== 'one_tap')) return { ...AUTH_DEFAULTS }
+  return {
+    security_recommendation: a.security_recommendation,
+    code_expiry_minutes: a.code_expiry_minutes,
+    otp_type: a.otp_type,
+    button_text: a.button_text || AUTH_DEFAULTS.button_text,
+    autofill_text: a.autofill_text || AUTH_DEFAULTS.autofill_text,
+    package_name: a.package_name,
+    signature_hash: a.signature_hash,
   }
 }
 
 /** The create/update body: our components shape (AD-6), trimmed, with unused parts emptied. */
 export function formToInput(v: TemplateFormValues): CreateInputBody1 {
+  if (v.category === 'authentication') {
+    const a = v.auth
+    const oneTap = a.otp_type === 'one_tap'
+    return {
+      name: v.name.trim(),
+      language: v.language,
+      category: v.category,
+      // Meta writes the header, body, footer and button text; only the options go up.
+      components: {
+        auth: {
+          security_recommendation: a.security_recommendation,
+          code_expiry_minutes: a.code_expiry_minutes,
+          otp_type: a.otp_type,
+          button_text: a.button_text.trim(),
+          autofill_text: oneTap ? a.autofill_text.trim() : '',
+          package_name: oneTap ? a.package_name.trim() : '',
+          signature_hash: oneTap ? a.signature_hash.trim() : '',
+        },
+      },
+    }
+  }
   const h = v.header
   const headerText = h.text.trim()
   const body = v.body.text.trim()

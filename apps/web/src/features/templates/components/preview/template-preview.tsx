@@ -1,6 +1,7 @@
 import {
   BadgeCheckIcon,
   ChevronLeftIcon,
+  CopyIcon,
   FileTextIcon,
   ImageIcon,
   SendHorizontalIcon,
@@ -8,7 +9,7 @@ import {
 } from 'lucide-react'
 import { cn } from '#/lib/utils'
 import type { LocalSample } from '../../hooks/use-template-editor'
-import { isMediaHeader, sampleKind } from '../../schemas/templates.schema'
+import { authMessage, isMediaHeader, SAMPLE_CODE, sampleKind } from '../../schemas/templates.schema'
 import type { HeaderSample, TemplateFormValues } from '../../types'
 import { BUTTON_ICON } from '../kit/button-icon'
 import { formatClock } from '../kit/format'
@@ -56,7 +57,16 @@ export function TemplatePreview({
   localSample?: LocalSample
   businessName: string
 }) {
-  const { header, body, footer, buttons } = values
+  // Authentication templates show what Meta will send for the chosen options.
+  const auth = values.category === 'authentication' ? authMessage(values.auth) : null
+  const { header, body, footer, buttons } = auth
+    ? {
+        header: { type: 'none' as const, text: '', example: '' },
+        body: { text: auth.body, examples: [SAMPLE_CODE] },
+        footer: { text: auth.footer },
+        buttons: [],
+      }
+    : values
   const media = isMediaHeader(header.type) ? header.type : null
   const MediaIcon = media ? MEDIA_ICON[media] : null
   const hasSample = media && sampleKind(sample?.content_type) === media
@@ -123,6 +133,12 @@ export function TemplatePreview({
             <span className="self-end text-[11px] text-tick-sent">{formatClock()}</span>
           </div>
         </div>
+        {auth && (
+          <div className="flex min-h-10 w-[86%] items-center justify-center gap-1.5 rounded-[10px] bg-bubble-in p-2 text-sm font-semibold text-info shadow-xs">
+            <CopyIcon className="size-[15px]" aria-hidden="true" />
+            <span className="truncate">{auth.button}</span>
+          </div>
+        )}
         {buttons.map((b, i) => {
           const Icon = BUTTON_ICON[b.type]
           return (

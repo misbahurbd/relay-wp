@@ -70,6 +70,67 @@ func TestCreateTemplatePayload(t *testing.T) {
 	}
 }
 
+func TestAuthenticationTemplatePayload(t *testing.T) {
+	tests := []struct {
+		name string
+		auth model.TemplateAuth
+		want string
+	}{
+		{"copy code", model.TemplateAuth{SecurityRecommendation: true, CodeExpiryMinutes: 10, OTPType: "copy_code", ButtonText: "Copy code"}, `[
+			{"type": "BODY", "add_security_recommendation": true},
+			{"type": "FOOTER", "code_expiration_minutes": 10},
+			{"type": "BUTTONS", "buttons": [{"type": "OTP", "otp_type": "COPY_CODE", "text": "Copy code"}]}
+		]`},
+		{"one tap", model.TemplateAuth{OTPType: "one_tap", ButtonText: "Copy code", AutofillText: "Autofill", PackageName: "com.acme.app", SignatureHash: "K8a/AINcGX7"}, `[
+			{"type": "BODY"},
+			{"type": "BUTTONS", "buttons": [{"type": "OTP", "otp_type": "ONE_TAP", "text": "Copy code", "autofill_text": "Autofill",
+				"supported_apps": [{"package_name": "com.acme.app", "signature_hash": "K8a/AINcGX7"}]}]}
+		]`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			auth := tt.auth
+			raw, _ := json.Marshal(metaComponents(model.TemplateSpec{
+				Category: "authentication", Body: model.TemplateBody{Text: "ignored"}, Auth: &auth,
+			}))
+			var gotAny, want any
+			if err := json.Unmarshal(raw, &gotAny); err != nil {
+				t.Fatal(err)
+			}
+			if err := json.Unmarshal([]byte(tt.want), &want); err != nil {
+				t.Fatal(err)
+			}
+			got, _ := json.Marshal(gotAny)
+			wantJSON, _ := json.Marshal(want)
+			if string(got) != string(wantJSON) {
+				t.Fatalf("components\n got %s\nwant %s", got, wantJSON)
+			}
+		})
+	}
+}
+
+func TestListedAuthenticationTemplate(t *testing.T) {
+	var mt metaTemplate
+	_ = json.Unmarshal([]byte(`{"id": "9", "name": "otp", "language": "en_US", "status": "APPROVED", "category": "AUTHENTICATION",
+		"components": [
+			{"type": "BODY", "text": "*{{1}}* is your verification code. For your security, do not share this code."},
+			{"type": "FOOTER", "text": "This code expires in 5 minutes.", "code_expiration_minutes": 5},
+			{"type": "BUTTONS", "buttons": [{"type": "OTP", "otp_type": "ONE_TAP", "text": "Copy code", "autofill_text": "Autofill",
+				"package_name": "com.acme.app", "signature_hash": "K8a/AINcGX7"}]}
+		]}`), &mt)
+	got, ok := fromMetaTemplate(mt)
+	if !ok || got.Spec.Auth == nil {
+		t.Fatalf("not converted: %+v", got)
+	}
+	want := model.TemplateAuth{
+		SecurityRecommendation: true, CodeExpiryMinutes: 5, OTPType: "one_tap", ButtonText: "Copy code",
+		AutofillText: "Autofill", PackageName: "com.acme.app", SignatureHash: "K8a/AINcGX7",
+	}
+	if *got.Spec.Auth != want || len(got.Spec.Buttons) != 0 {
+		t.Fatalf("auth %+v buttons %+v", *got.Spec.Auth, got.Spec.Buttons)
+	}
+}
+
 func TestTextHeaderAndNoVariables(t *testing.T) {
 	c := metaComponents(model.TemplateSpec{
 		Header: model.TemplateHeader{Format: "text", Text: "Order {{1}}", Example: "#4821"},

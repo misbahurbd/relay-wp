@@ -21,8 +21,8 @@ const (
 // Statuses lists every template status.
 var Statuses = []string{StatusDraft, StatusPending, StatusApproved, StatusRejected, StatusPaused, StatusDisabled}
 
-// Template categories. Authentication templates are synced and listed but can't be
-// created or submitted yet (AD-11).
+// Template categories. Authentication templates have a fixed text set by Meta;
+// only the options in Components.Auth are ours to choose (AD-6).
 const (
 	CategoryMarketing      = "marketing"
 	CategoryUtility        = "utility"
@@ -57,6 +57,15 @@ const (
 // ButtonTypes lists every button type.
 var ButtonTypes = []string{ButtonQuickReply, ButtonURL, ButtonPhone}
 
+// One-time passcode button types of an authentication template.
+const (
+	OTPCopyCode = "copy_code"
+	OTPOneTap   = "one_tap"
+)
+
+// OTPTypes lists every one-time passcode button type.
+var OTPTypes = []string{OTPCopyCode, OTPOneTap}
+
 // Components is a template's content in our own shape, stored as JSON. It is
 // converted to Meta's format only at the Meta boundary.
 type Components struct {
@@ -64,6 +73,9 @@ type Components struct {
 	Body    Body     `json:"body"`
 	Footer  Footer   `json:"footer"`
 	Buttons []Button `json:"buttons"`
+	// Auth holds an authentication template's options; zero for other categories.
+	// Its body and footer are derived from them (in English, for display only).
+	Auth Auth `json:"auth"`
 }
 
 // Header is the optional first line: text, or a media sample.
@@ -89,6 +101,21 @@ type Button struct {
 	Type  string `json:"type"`
 	Text  string `json:"text"`
 	Value string `json:"value"`
+}
+
+// Auth is what an authentication template can choose: Meta writes the text.
+type Auth struct {
+	// SecurityRecommendation adds "For your security, do not share this code." to the body.
+	SecurityRecommendation bool `json:"security_recommendation"`
+	// CodeExpiryMinutes adds "This code expires in N minutes." as the footer; 0 means none.
+	CodeExpiryMinutes int    `json:"code_expiry_minutes"`
+	OTPType           string `json:"otp_type"`
+	// ButtonText is the copy code button's text.
+	ButtonText string `json:"button_text"`
+	// AutofillText, PackageName and SignatureHash are for one-tap autofill on Android.
+	AutofillText  string `json:"autofill_text"`
+	PackageName   string `json:"package_name"`
+	SignatureHash string `json:"signature_hash"`
 }
 
 // Sample is the uploaded example file for a media header.

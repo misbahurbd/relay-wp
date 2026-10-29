@@ -20,6 +20,23 @@ type TemplateSpec struct {
 	Body     TemplateBody
 	Footer   string
 	Buttons  []TemplateButton
+	// Auth is set for an authentication template, whose header, body, footer
+	// and buttons Meta writes from it.
+	Auth *TemplateAuth
+}
+
+// TemplateAuth is an authentication template's one-time passcode options.
+type TemplateAuth struct {
+	SecurityRecommendation bool
+	// CodeExpiryMinutes is 0 for no expiry footer.
+	CodeExpiryMinutes int
+	// OTPType is copy_code or one_tap.
+	OTPType    string
+	ButtonText string
+	// AutofillText, PackageName and SignatureHash are for one_tap.
+	AutofillText  string
+	PackageName   string
+	SignatureHash string
 }
 
 // TemplateHeader is the optional header.

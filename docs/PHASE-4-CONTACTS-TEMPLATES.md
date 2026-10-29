@@ -105,9 +105,20 @@ CLAUDE.md sections 1 to 4 apply in full: layer folders, no cross-feature imports
   "header": { "type": "none|text|image|video|document", "text": "", "example": "" },
   "body": { "text": "Hi {{1}}…", "examples": ["Daniel", "#4821"] },
   "footer": { "text": "" },
-  "buttons": [{ "type": "quick_reply|url|phone", "text": "", "value": "" }]
+  "buttons": [{ "type": "quick_reply|url|phone", "text": "", "value": "" }],
+  "auth": {
+    "security_recommendation": true,
+    "code_expiry_minutes": 10,
+    "otp_type": "copy_code|one_tap",
+    "button_text": "Copy code",
+    "autofill_text": "Autofill",
+    "package_name": "",
+    "signature_hash": ""
+  }
 }
 ```
+
+An authentication template has only the `auth` options: Meta writes its body, footer and button text in the template's language. The server derives the English body and footer from them for display, and stores the header as `none` with no buttons. Other categories store `auth` empty.
 
 ### AD-7: Template validation rules (server is the authority, web mirrors them)
 
@@ -174,8 +185,7 @@ The web's "Save draft" is POST or PATCH. "Submit to Meta" is save, then submit.
 - **Rule:** the following are hidden, not stubbed:
   - in the contact panel: Orders, Spent, Broadcasts, and Recent activity (needs commerce and Inbox);
   - "Open chat" and "Send broadcast" buttons;
-  - "Use in broadcast";
-  - the Authentication category in Create Template (Meta's OTP templates have a fixed shape; shown disabled with "coming soon"). Synced authentication templates still list.
+  - "Use in broadcast".
 
 ## Deferred
 
@@ -185,7 +195,7 @@ The web's "Save draft" is POST or PATCH. "Submit to Meta" is save, then submit.
 | Contact activity timeline                                              | Inbox and Broadcasts exist                                                               |
 | Custom field definitions (typed, per workspace)                        | A feature needs non-string attributes                                                    |
 | Several WhatsApp accounts per workspace picking the template's account | A workspace connects a second WABA; today submit uses the workspace's one active account |
-| Authentication (OTP) template builder                                  | Product asks for it                                                                      |
+| Zero-tap authentication templates                                      | Product asks for it; one-tap is supported, and synced zero-tap templates read as one-tap |
 | `.xls` import                                                          | Users ask for it                                                                         |
 
 ## Open questions
@@ -202,6 +212,6 @@ The decisions above stand; these are the refinements the builds made.
 | AD-5 | A phone repeated within one file is skipped after its first row, and the preview counts it as invalid so the preview and the result agree. A bad email skips the row. Tag cells split on commas, semicolons and vertical bars. An empty cell never overwrites a stored value. Uploaded files and skipped-row CSVs are kept under `contact-imports/{workspace}/{import}/`; nothing cleans them up yet. |
 | AD-4 | List items carry `tags` and `assigned_to` as on the detail. Bulk `assign` without `user_id` unassigns.                                                                                                                                                                                                                                                                                                |
 | AD-6 | `message_templates` also stores `header_media_type` and `header_media_size`, because Resumable Upload needs them before streaming the sample. The name check in SQL is `~ '^[a-z0-9_]+$' AND char_length(name) <= 512`.                                                                                                                                                                               |
-| AD-7 | Drafts are checked for format only; completeness (body, examples, button values, media sample) is checked at submit.                                                                                                                                                                                                                                                                                  |
+| AD-7 | Drafts are checked for format only; completeness (body, examples, button values, media sample) is checked at submit. Authentication templates are checked only for their `auth` options: expiry 0 to 90 minutes, button text up to 25 characters, and for one-tap an Android package name and an 11-character signature hash (required at submit).                                                    |
 | AD-8 | A submitted template's name and language can't change. Editing on Meta sends components only. The list's `counts` ignore the `status` filter. Header-sample upload returns `200` with the template. Sync overwrites local components for a matching `(name, language)`.                                                                                                                               |
 | AD-9 | No status-sink adapter: `templates/service` already matches `TemplateStatusSink`, so it is passed in directly, with a compile-time assertion in `internal/app/templates_meta.go`. Meta's `REINSTATED` maps to `approved`; `PENDING_DELETION` and `DELETED` are ignored.                                                                                                                               |

@@ -23,6 +23,16 @@ const (
 	maxURLButtons    = 2
 	maxPhoneButtons  = 1
 	maxButtonTextLen = 25
+	maxCodeExpiry    = 90
+)
+
+// Defaults and fixed texts of authentication templates. Meta writes the real
+// text in the template's language; ours is the English version, for display.
+const (
+	defaultCopyCodeText = "Copy code"
+	defaultAutofillText = "Autofill"
+	authBodyText        = "*{{1}}* is your verification code."
+	authSecurityText    = " For your security, do not share this code."
 )
 
 var (
@@ -30,6 +40,9 @@ var (
 	variableRe = regexp.MustCompile(`\{\{([^{}]*)\}\}`)
 	indexRe    = regexp.MustCompile(`^[1-9][0-9]*$`)
 	e164Re     = regexp.MustCompile(`^\+[1-9][0-9]{6,14}$`)
+	// packageRe is an Android application ID; signatureRe is its 11-character app hash.
+	packageRe   = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$`)
+	signatureRe = regexp.MustCompile(`^[A-Za-z0-9+/]{11}$`)
 )
 
 // shortLinkHosts are link shorteners Meta tends to reject templates for.
@@ -41,6 +54,42 @@ func normalize(d *model.Draft) {
 	d.Language = strings.TrimSpace(d.Language)
 	d.Category = strings.TrimSpace(d.Category)
 	normalizeComponents(&d.Components)
+	if d.Category == model.CategoryAuthentication {
+		normalizeAuth(&d.Components)
+	} else {
+		d.Components.Auth = model.Auth{}
+	}
+}
+
+// normalizeAuth fills an authentication template's defaults and derives its
+// body and footer from the options, dropping what Meta doesn't allow.
+func normalizeAuth(c *model.Components) {
+	a := &c.Auth
+	if a.OTPType == "" {
+		a.OTPType = model.OTPCopyCode
+	}
+	if a.ButtonText == "" {
+		a.ButtonText = defaultCopyCodeText
+	}
+	if a.OTPType == model.OTPOneTap {
+		if a.AutofillText == "" {
+			a.AutofillText = defaultAutofillText
+		}
+	} else {
+		a.AutofillText, a.PackageName, a.SignatureHash = "", "", ""
+	}
+	body := authBodyText
+	if a.SecurityRecommendation {
+		body += authSecurityText
+	}
+	footer := ""
+	if a.CodeExpiryMinutes > 0 {
+		footer = fmt.Sprintf("This code expires in %d minutes.", a.CodeExpiryMinutes)
+	}
+	c.Header = model.Header{Type: model.HeaderNone}
+	c.Body = model.Body{Text: body, Examples: []string{}}
+	c.Footer = model.Footer{Text: footer}
+	c.Buttons = []model.Button{}
 }
 
 func normalizeComponents(c *model.Components) {
@@ -62,6 +111,9 @@ func normalizeComponents(c *model.Components) {
 		c.Body.Examples[i] = strings.TrimSpace(e)
 	}
 	c.Footer.Text = strings.TrimSpace(c.Footer.Text)
+	a := &c.Auth
+	a.OTPType, a.ButtonText, a.AutofillText = strings.TrimSpace(a.OTPType), strings.TrimSpace(a.ButtonText), strings.TrimSpace(a.AutofillText)
+	a.PackageName, a.SignatureHash = strings.TrimSpace(a.PackageName), strings.TrimSpace(a.SignatureHash)
 	if c.Buttons == nil {
 		c.Buttons = []model.Button{}
 	}
@@ -91,14 +143,19 @@ func validate(d model.Draft, sample *model.Sample, complete bool) error {
 	if !slices.Contains(model.Languages, d.Language) {
 		p.add("language", "Choose one of the supported languages")
 	}
+	c := d.Components
 	switch d.Category {
 	case model.CategoryMarketing, model.CategoryUtility:
 	case model.CategoryAuthentication:
-		p.add("category", "Authentication templates are coming soon")
+		// Meta writes the text; only the options are ours.
+		validateAuth(&p, c.Auth, complete)
+		if len(p) > 0 {
+			return model.ErrInvalidTemplate.WithDetails(p...)
+		}
+		return nil
 	default:
-		p.add("category", "Choose marketing or utility")
+		p.add("category", "Choose marketing, utility or authentication")
 	}
-	c := d.Components
 	validateHeader(&p, c.Header, sample, complete)
 	validateBody(&p, c.Body, complete)
 	if utf8.RuneCountInString(c.Footer.Text) > maxFooterLen {
@@ -241,6 +298,36 @@ func validateButtons(p *problems, buttons []model.Button, complete bool) {
 	}
 	if !grouped {
 		p.add("buttons", "Keep the quick replies together")
+	}
+}
+
+func validateAuth(p *problems, a model.Auth, complete bool) {
+	if !slices.Contains(model.OTPTypes, a.OTPType) {
+		p.add("auth.otp_type", "Choose copy code or one-tap autofill")
+	}
+	if a.CodeExpiryMinutes < 0 || a.CodeExpiryMinutes > maxCodeExpiry {
+		p.add("auth.code_expiry_minutes", fmt.Sprintf("Choose 1 to %d minutes, or no expiry", maxCodeExpiry))
+	}
+	if utf8.RuneCountInString(a.ButtonText) > maxButtonTextLen {
+		p.add("auth.button_text", fmt.Sprintf("Keep button text to %d characters", maxButtonTextLen))
+	}
+	if a.OTPType != model.OTPOneTap {
+		return
+	}
+	if utf8.RuneCountInString(a.AutofillText) > maxButtonTextLen {
+		p.add("auth.autofill_text", fmt.Sprintf("Keep button text to %d characters", maxButtonTextLen))
+	}
+	switch {
+	case a.PackageName != "" && !packageRe.MatchString(a.PackageName):
+		p.add("auth.package_name", "Use your Android app's package name, like com.example.app")
+	case complete && a.PackageName == "":
+		p.add("auth.package_name", "Enter your Android app's package name")
+	}
+	switch {
+	case a.SignatureHash != "" && !signatureRe.MatchString(a.SignatureHash):
+		p.add("auth.signature_hash", "The app signature hash is 11 letters, numbers, + or /")
+	case complete && a.SignatureHash == "":
+		p.add("auth.signature_hash", "Enter your app's signature hash")
 	}
 }
 

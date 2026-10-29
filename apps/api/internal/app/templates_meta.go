@@ -65,6 +65,10 @@ func toTemplateSpec(t templatesmodel.RemoteTemplate) whatsappmodel.TemplateSpec 
 	for i, b := range c.Buttons {
 		spec.Buttons[i] = whatsappmodel.TemplateButton{Type: b.Type, Text: b.Text, Value: b.Value}
 	}
+	if t.Category == templatesmodel.CategoryAuthentication {
+		a := whatsappmodel.TemplateAuth(c.Auth)
+		spec.Auth = &a
+	}
 	return spec
 }
 
@@ -78,6 +82,9 @@ func fromMessageTemplate(t whatsappmodel.MessageTemplate) templatesmodel.RemoteT
 	}
 	for i, b := range s.Buttons {
 		c.Buttons[i] = templatesmodel.Button{Type: b.Type, Text: b.Text, Value: b.Value}
+	}
+	if s.Auth != nil {
+		c.Auth = templatesmodel.Auth(*s.Auth)
 	}
 	return templatesmodel.RemoteTemplate{
 		MetaID: t.ID, Name: s.Name, Language: s.Language, Category: s.Category,
