@@ -52,6 +52,8 @@ type Props = {
   /** The signed-in user's email, or null when signed out. */
   signedInAs: string | null
   onSwitchAccount: () => void
+  /** Opens a workspace the invitee belongs to; the app picks it in the switcher. */
+  onOpenWorkspace: (workspaceId: string) => void
   /** "Continue with Google" and friends, shown above the password form when signed out. */
   social?: ReactNode
 }
@@ -87,7 +89,7 @@ function Centered({ children }: { children: ReactNode }) {
   return <div className="flex flex-col items-center gap-3.5 py-5 text-center">{children}</div>
 }
 
-function AcceptBody({ token, signedInAs, onSwitchAccount, social }: Props) {
+function AcceptBody({ token, signedInAs, onSwitchAccount, onOpenWorkspace, social }: Props) {
   const preview = useQuery({ ...invitePreviewQueryOptions(token ?? ''), enabled: !!token })
   const accept = useAcceptInvitation()
   const renew = useRequestRenewal()
@@ -135,14 +137,14 @@ function AcceptBody({ token, signedInAs, onSwitchAccount, social }: Props) {
           <span>2. Open a chat and try a quick reply</span>
           <span>3. Turn on browser notifications</span>
         </div>
-        <Link
-          to="/w/$workspaceId"
-          params={{ workspaceId: joined }}
-          className="inline-flex h-12 items-center gap-2 rounded-lg bg-primary px-[22px] font-extrabold text-primary-foreground no-underline hover:bg-primary/90 hover:text-primary-foreground"
+        <button
+          type="button"
+          onClick={() => onOpenWorkspace(joined)}
+          className="inline-flex h-12 items-center gap-2 rounded-lg bg-primary px-[22px] font-extrabold text-primary-foreground hover:bg-primary/90"
         >
           Open {inv.workspace_name}
           <ArrowRightIcon className="size-[18px]" aria-hidden="true" />
-        </Link>
+        </button>
       </Centered>
     )
   }
@@ -174,13 +176,13 @@ function AcceptBody({ token, signedInAs, onSwitchAccount, social }: Props) {
         <p className="max-w-[380px] text-muted-foreground">
           {inv.email} already joined {inv.workspace_name}. Log in to open it.
         </p>
-        <Link
-          to="/w/$workspaceId"
-          params={{ workspaceId: inv.workspace_id }}
-          className="inline-flex h-12 items-center rounded-lg bg-primary px-[22px] font-extrabold text-primary-foreground no-underline hover:bg-primary/90 hover:text-primary-foreground"
+        <button
+          type="button"
+          onClick={() => onOpenWorkspace(inv.workspace_id)}
+          className="inline-flex h-12 items-center rounded-lg bg-primary px-[22px] font-extrabold text-primary-foreground hover:bg-primary/90"
         >
           Open {inv.workspace_name}
-        </Link>
+        </button>
       </Centered>
     )
   }

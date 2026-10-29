@@ -6422,101 +6422,17 @@
         ]
       }
     },
-    "/v1/workspaces": {
-      "get": {
-        "operationId": "list-workspaces",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ListOutputBody"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "default": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          },
-          {
-            "cookie": []
-          }
-        ],
-        "summary": "My workspaces, with enough setup state to choose where to go",
-        "tags": [
-          "workspaces"
-        ]
-      },
-      "post": {
-        "operationId": "create-workspace",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateInputBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SummaryDTO"
-                }
-              }
-            },
-            "description": "Created"
-          },
-          "default": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "Error"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          },
-          {
-            "cookie": []
-          }
-        ],
-        "summary": "Create a workspace from the Welcome screen and start its trial",
-        "tags": [
-          "workspaces"
-        ]
-      }
-    },
-    "/v1/workspaces/{workspaceId}": {
+    "/v1/workspace": {
       "get": {
         "operationId": "get-workspace",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           }
@@ -6557,15 +6473,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/access-log": {
+    "/v1/workspace/access-log": {
       "get": {
         "operationId": "list-access-log",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -6655,15 +6573,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/access-log/summary": {
+    "/v1/workspace/access-log/summary": {
       "get": {
         "operationId": "get-access-log-summary",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           }
@@ -6704,15 +6624,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/contact-tags": {
+    "/v1/workspace/contact-tags": {
       "get": {
         "operationId": "list-contact-tags",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           }
@@ -6762,10 +6684,12 @@
         "operationId": "create-contact-tag",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           }
@@ -6816,15 +6740,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/contacts": {
+    "/v1/workspace/contacts": {
       "get": {
         "operationId": "list-contacts",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -6939,10 +6865,12 @@
         "operationId": "create-contact",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           }
@@ -6993,15 +6921,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/contacts/bulk": {
+    "/v1/workspace/contacts/bulk": {
       "post": {
         "operationId": "bulk-contacts",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           }
@@ -7052,15 +6982,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/contacts/export": {
+    "/v1/workspace/contacts/export": {
       "get": {
         "operationId": "export-contacts",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -7150,15 +7082,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/contacts/imports": {
+    "/v1/workspace/contacts/imports": {
       "post": {
         "operationId": "upload-contact-import",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           }
@@ -7225,15 +7159,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/contacts/imports/{importId}": {
+    "/v1/workspace/contacts/imports/{importId}": {
       "get": {
         "operationId": "get-contact-import",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -7282,15 +7218,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/contacts/imports/{importId}/mapping": {
+    "/v1/workspace/contacts/imports/{importId}/mapping": {
       "put": {
         "operationId": "set-contact-import-mapping",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -7349,15 +7287,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/contacts/imports/{importId}/preview": {
+    "/v1/workspace/contacts/imports/{importId}/preview": {
       "get": {
         "operationId": "preview-contact-import",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -7406,15 +7346,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/contacts/imports/{importId}/skipped": {
+    "/v1/workspace/contacts/imports/{importId}/skipped": {
       "get": {
         "operationId": "download-contact-import-skipped",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -7463,15 +7405,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/contacts/imports/{importId}/start": {
+    "/v1/workspace/contacts/imports/{importId}/start": {
       "post": {
         "operationId": "start-contact-import",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -7520,15 +7464,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/contacts/summary": {
+    "/v1/workspace/contacts/summary": {
       "get": {
         "operationId": "get-contacts-summary",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           }
@@ -7569,15 +7515,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/contacts/{contactId}": {
+    "/v1/workspace/contacts/{contactId}": {
       "delete": {
         "operationId": "delete-contact",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -7622,10 +7570,12 @@
         "operationId": "get-contact",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -7677,10 +7627,12 @@
         "operationId": "update-contact",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -7739,15 +7691,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/invitations": {
+    "/v1/workspace/invitations": {
       "get": {
         "operationId": "list-invitations",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           }
@@ -7791,10 +7745,12 @@
         "operationId": "create-invitations",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -7852,15 +7808,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/invitations/{invitationId}": {
+    "/v1/workspace/invitations/{invitationId}": {
       "delete": {
         "operationId": "revoke-invitation",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -7909,15 +7867,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/invitations/{invitationId}/resend": {
+    "/v1/workspace/invitations/{invitationId}/resend": {
       "post": {
         "operationId": "resend-invitation",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -7966,15 +7926,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/me/access": {
+    "/v1/workspace/me/access": {
       "get": {
         "operationId": "get-my-access",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           }
@@ -8015,15 +7977,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/me/availability": {
+    "/v1/workspace/me/availability": {
       "patch": {
         "operationId": "set-availability",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           }
@@ -8067,15 +8031,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/me/leave": {
+    "/v1/workspace/me/leave": {
       "post": {
         "operationId": "leave-workspace",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -8116,15 +8082,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/members": {
+    "/v1/workspace/members": {
       "get": {
         "operationId": "list-members",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -8226,15 +8194,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/members/{userId}": {
+    "/v1/workspace/members/{userId}": {
       "get": {
         "operationId": "get-member",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -8283,15 +8253,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/members/{userId}/access": {
+    "/v1/workspace/members/{userId}/access": {
       "patch": {
         "operationId": "update-member-access",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -8350,15 +8322,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/members/{userId}/overrides": {
+    "/v1/workspace/members/{userId}/overrides": {
       "post": {
         "operationId": "add-member-override",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -8417,15 +8391,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/members/{userId}/overrides/{overrideId}": {
+    "/v1/workspace/members/{userId}/overrides/{overrideId}": {
       "delete": {
         "operationId": "revoke-member-override",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -8482,15 +8458,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/members/{userId}/remove": {
+    "/v1/workspace/members/{userId}/remove": {
       "post": {
         "operationId": "remove-member",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -8549,15 +8527,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/members/{userId}/restore": {
+    "/v1/workspace/members/{userId}/restore": {
       "post": {
         "operationId": "restore-member",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -8606,15 +8586,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/members/{userId}/role": {
+    "/v1/workspace/members/{userId}/role": {
       "put": {
         "operationId": "change-member-role",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -8673,15 +8655,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/members/{userId}/role/preview": {
+    "/v1/workspace/members/{userId}/role/preview": {
       "post": {
         "operationId": "preview-member-role",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -8747,15 +8731,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/members/{userId}/suspend": {
+    "/v1/workspace/members/{userId}/suspend": {
       "post": {
         "operationId": "suspend-member",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -8814,15 +8800,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/onboarding": {
+    "/v1/workspace/onboarding": {
       "get": {
         "operationId": "get-onboarding",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           }
@@ -8863,15 +8851,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/onboarding/business": {
+    "/v1/workspace/onboarding/business": {
       "put": {
         "operationId": "save-business",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           }
@@ -8922,15 +8912,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/onboarding/complete": {
+    "/v1/workspace/onboarding/complete": {
       "post": {
         "operationId": "complete-onboarding",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           }
@@ -8971,15 +8963,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/onboarding/me": {
+    "/v1/workspace/onboarding/me": {
       "patch": {
         "operationId": "update-onboarding-member",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           }
@@ -9030,15 +9024,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/onboarding/skip-whatsapp": {
+    "/v1/workspace/onboarding/skip-whatsapp": {
       "post": {
         "operationId": "skip-whatsapp",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           }
@@ -9079,15 +9075,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/roles": {
+    "/v1/workspace/roles": {
       "get": {
         "operationId": "list-roles",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           }
@@ -9131,10 +9129,12 @@
         "operationId": "create-role",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -9192,15 +9192,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/roles/{roleId}": {
+    "/v1/workspace/roles/{roleId}": {
       "delete": {
         "operationId": "delete-role",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -9263,10 +9265,12 @@
         "operationId": "update-role",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -9332,15 +9336,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/roles/{roleId}/preview": {
+    "/v1/workspace/roles/{roleId}/preview": {
       "post": {
         "operationId": "preview-role",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -9406,15 +9412,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/roles/{roleId}/reset": {
+    "/v1/workspace/roles/{roleId}/reset": {
       "post": {
         "operationId": "reset-role",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -9470,15 +9478,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/seats": {
+    "/v1/workspace/seats": {
       "get": {
         "operationId": "get-seats",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           }
@@ -9519,15 +9529,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/teams": {
+    "/v1/workspace/teams": {
       "get": {
         "operationId": "list-teams",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           }
@@ -9571,10 +9583,12 @@
         "operationId": "create-team",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -9632,15 +9646,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/teams/{teamId}": {
+    "/v1/workspace/teams/{teamId}": {
       "delete": {
         "operationId": "delete-team",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -9692,10 +9708,12 @@
         "operationId": "update-team",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -9761,15 +9779,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/teams/{teamId}/members": {
+    "/v1/workspace/teams/{teamId}/members": {
       "put": {
         "operationId": "set-team-members",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -9835,15 +9855,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/templates": {
+    "/v1/workspace/templates": {
       "get": {
         "operationId": "list-templates",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -9948,10 +9970,12 @@
         "operationId": "create-template",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           }
@@ -10002,15 +10026,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/templates/sync": {
+    "/v1/workspace/templates/sync": {
       "post": {
         "operationId": "sync-templates",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           }
@@ -10051,15 +10077,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/templates/{templateId}": {
+    "/v1/workspace/templates/{templateId}": {
       "delete": {
         "operationId": "delete-template",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -10104,10 +10132,12 @@
         "operationId": "get-template",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -10159,10 +10189,12 @@
         "operationId": "update-template",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -10221,15 +10253,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/templates/{templateId}/header-sample": {
+    "/v1/workspace/templates/{templateId}/header-sample": {
       "post": {
         "operationId": "upload-template-header-sample",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -10304,15 +10338,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/templates/{templateId}/submit": {
+    "/v1/workspace/templates/{templateId}/submit": {
       "post": {
         "operationId": "submit-template",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -10361,15 +10397,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/whatsapp/connections": {
+    "/v1/workspace/whatsapp/connections": {
       "post": {
         "operationId": "connect-whatsapp",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           }
@@ -10420,15 +10458,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/whatsapp/numbers": {
+    "/v1/workspace/whatsapp/numbers": {
       "get": {
         "operationId": "list-whatsapp-numbers",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           }
@@ -10469,15 +10509,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/whatsapp/numbers/{numberId}": {
+    "/v1/workspace/whatsapp/numbers/{numberId}": {
       "get": {
         "operationId": "get-whatsapp-number",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -10526,15 +10568,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/whatsapp/numbers/{numberId}/test-messages": {
+    "/v1/workspace/whatsapp/numbers/{numberId}/test-messages": {
       "post": {
         "operationId": "send-test-message",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -10593,15 +10637,17 @@
         ]
       }
     },
-    "/v1/workspaces/{workspaceId}/whatsapp/test-messages/{messageId}": {
+    "/v1/workspace/whatsapp/test-messages/{messageId}": {
       "get": {
         "operationId": "get-test-message",
         "parameters": [
           {
-            "in": "path",
-            "name": "workspaceId",
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
             "required": true,
             "schema": {
+              "description": "The workspace this request is for",
               "type": "string"
             }
           },
@@ -10647,6 +10693,92 @@
         "summary": "A test message's delivery status",
         "tags": [
           "whatsapp"
+        ]
+      }
+    },
+    "/v1/workspaces": {
+      "get": {
+        "operationId": "list-workspaces",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "My workspaces, with enough setup state to choose where to go",
+        "tags": [
+          "workspaces"
+        ]
+      },
+      "post": {
+        "operationId": "create-workspace",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummaryDTO"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Create a workspace from the Welcome screen and start its trial",
+        "tags": [
+          "workspaces"
         ]
       }
     }

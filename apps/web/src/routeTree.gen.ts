@@ -9,34 +9,29 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as InviteRouteImport } from './routes/invite'
+import { Route as AppWorkspaceRouteImport } from './routes/_app/_workspace'
 import { Route as AppWelcomeRouteImport } from './routes/_app/welcome'
 import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-password'
 import { Route as AuthLoginRouteImport } from './routes/_auth/login'
 import { Route as AuthResetPasswordRouteImport } from './routes/_auth/reset-password'
 import { Route as AuthSignupRouteImport } from './routes/_auth/signup'
 import { Route as AuthVerifyEmailRouteImport } from './routes/_auth/verify-email'
-import { Route as AppWWorkspaceIdShellRouteImport } from './routes/_app/w/$workspaceId/_shell'
-import { Route as AppWWorkspaceIdSetupRouteImport } from './routes/_app/w/$workspaceId/setup'
-import { Route as AppWWorkspaceIdShellIndexRouteImport } from './routes/_app/w/$workspaceId/_shell/index'
-import { Route as AppWWorkspaceIdShellContactsIndexRouteImport } from './routes/_app/w/$workspaceId/_shell/contacts/index'
-import { Route as AppWWorkspaceIdShellTeamIndexRouteImport } from './routes/_app/w/$workspaceId/_shell/team/index'
-import { Route as AppWWorkspaceIdShellTeamInviteRouteImport } from './routes/_app/w/$workspaceId/_shell/team/invite'
-import { Route as AppWWorkspaceIdShellTeamLogRouteImport } from './routes/_app/w/$workspaceId/_shell/team/log'
-import { Route as AppWWorkspaceIdShellTeamRolesRouteImport } from './routes/_app/w/$workspaceId/_shell/team/roles'
-import { Route as AppWWorkspaceIdShellTemplatesIndexRouteImport } from './routes/_app/w/$workspaceId/_shell/templates/index'
-import { Route as AppWWorkspaceIdShellTemplatesTemplateIdRouteImport } from './routes/_app/w/$workspaceId/_shell/templates/$templateId'
-import { Route as AppWWorkspaceIdShellTemplatesNewRouteImport } from './routes/_app/w/$workspaceId/_shell/templates/new'
-import { Route as AppWWorkspaceIdShellTeamMembersUserIdRouteImport } from './routes/_app/w/$workspaceId/_shell/team/members/$userId'
+import { Route as AppWorkspaceShellRouteImport } from './routes/_app/_workspace/_shell'
+import { Route as AppWorkspaceSetupRouteImport } from './routes/_app/_workspace/setup'
+import { Route as AppWorkspaceShellIndexRouteImport } from './routes/_app/_workspace/_shell/index'
+import { Route as AppWorkspaceShellContactsIndexRouteImport } from './routes/_app/_workspace/_shell/contacts/index'
+import { Route as AppWorkspaceShellTeamIndexRouteImport } from './routes/_app/_workspace/_shell/team/index'
+import { Route as AppWorkspaceShellTeamInviteRouteImport } from './routes/_app/_workspace/_shell/team/invite'
+import { Route as AppWorkspaceShellTeamLogRouteImport } from './routes/_app/_workspace/_shell/team/log'
+import { Route as AppWorkspaceShellTeamRolesRouteImport } from './routes/_app/_workspace/_shell/team/roles'
+import { Route as AppWorkspaceShellTemplatesIndexRouteImport } from './routes/_app/_workspace/_shell/templates/index'
+import { Route as AppWorkspaceShellTemplatesTemplateIdRouteImport } from './routes/_app/_workspace/_shell/templates/$templateId'
+import { Route as AppWorkspaceShellTemplatesNewRouteImport } from './routes/_app/_workspace/_shell/templates/new'
+import { Route as AppWorkspaceShellTeamMembersUserIdRouteImport } from './routes/_app/_workspace/_shell/team/members/$userId'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
@@ -49,6 +44,10 @@ const InviteRoute = InviteRouteImport.update({
   id: '/invite',
   path: '/invite',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppWorkspaceRoute = AppWorkspaceRouteImport.update({
+  id: '/_workspace',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppWelcomeRoute = AppWelcomeRouteImport.update({
   id: '/welcome',
@@ -80,79 +79,77 @@ const AuthVerifyEmailRoute = AuthVerifyEmailRouteImport.update({
   path: '/verify-email',
   getParentRoute: () => AuthRoute,
 } as any)
-const AppWWorkspaceIdShellRoute = AppWWorkspaceIdShellRouteImport.update({
-  id: '/w/$workspaceId/_shell',
-  path: '/w/$workspaceId',
-  getParentRoute: () => AppRoute,
+const AppWorkspaceShellRoute = AppWorkspaceShellRouteImport.update({
+  id: '/_shell',
+  getParentRoute: () => AppWorkspaceRoute,
 } as any)
-const AppWWorkspaceIdSetupRoute = AppWWorkspaceIdSetupRouteImport.update({
-  id: '/w/$workspaceId/setup',
-  path: '/w/$workspaceId/setup',
-  getParentRoute: () => AppRoute,
+const AppWorkspaceSetupRoute = AppWorkspaceSetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
+  getParentRoute: () => AppWorkspaceRoute,
 } as any)
-const AppWWorkspaceIdShellIndexRoute =
-  AppWWorkspaceIdShellIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AppWWorkspaceIdShellRoute,
-  } as any)
-const AppWWorkspaceIdShellContactsIndexRoute =
-  AppWWorkspaceIdShellContactsIndexRouteImport.update({
+const AppWorkspaceShellIndexRoute = AppWorkspaceShellIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppWorkspaceShellRoute,
+} as any)
+const AppWorkspaceShellContactsIndexRoute =
+  AppWorkspaceShellContactsIndexRouteImport.update({
     id: '/contacts/',
     path: '/contacts/',
-    getParentRoute: () => AppWWorkspaceIdShellRoute,
+    getParentRoute: () => AppWorkspaceShellRoute,
   } as any)
-const AppWWorkspaceIdShellTeamIndexRoute =
-  AppWWorkspaceIdShellTeamIndexRouteImport.update({
+const AppWorkspaceShellTeamIndexRoute =
+  AppWorkspaceShellTeamIndexRouteImport.update({
     id: '/team/',
     path: '/team/',
-    getParentRoute: () => AppWWorkspaceIdShellRoute,
+    getParentRoute: () => AppWorkspaceShellRoute,
   } as any)
-const AppWWorkspaceIdShellTeamInviteRoute =
-  AppWWorkspaceIdShellTeamInviteRouteImport.update({
+const AppWorkspaceShellTeamInviteRoute =
+  AppWorkspaceShellTeamInviteRouteImport.update({
     id: '/team/invite',
     path: '/team/invite',
-    getParentRoute: () => AppWWorkspaceIdShellRoute,
+    getParentRoute: () => AppWorkspaceShellRoute,
   } as any)
-const AppWWorkspaceIdShellTeamLogRoute =
-  AppWWorkspaceIdShellTeamLogRouteImport.update({
+const AppWorkspaceShellTeamLogRoute =
+  AppWorkspaceShellTeamLogRouteImport.update({
     id: '/team/log',
     path: '/team/log',
-    getParentRoute: () => AppWWorkspaceIdShellRoute,
+    getParentRoute: () => AppWorkspaceShellRoute,
   } as any)
-const AppWWorkspaceIdShellTeamRolesRoute =
-  AppWWorkspaceIdShellTeamRolesRouteImport.update({
+const AppWorkspaceShellTeamRolesRoute =
+  AppWorkspaceShellTeamRolesRouteImport.update({
     id: '/team/roles',
     path: '/team/roles',
-    getParentRoute: () => AppWWorkspaceIdShellRoute,
+    getParentRoute: () => AppWorkspaceShellRoute,
   } as any)
-const AppWWorkspaceIdShellTemplatesIndexRoute =
-  AppWWorkspaceIdShellTemplatesIndexRouteImport.update({
+const AppWorkspaceShellTemplatesIndexRoute =
+  AppWorkspaceShellTemplatesIndexRouteImport.update({
     id: '/templates/',
     path: '/templates/',
-    getParentRoute: () => AppWWorkspaceIdShellRoute,
+    getParentRoute: () => AppWorkspaceShellRoute,
   } as any)
-const AppWWorkspaceIdShellTemplatesTemplateIdRoute =
-  AppWWorkspaceIdShellTemplatesTemplateIdRouteImport.update({
+const AppWorkspaceShellTemplatesTemplateIdRoute =
+  AppWorkspaceShellTemplatesTemplateIdRouteImport.update({
     id: '/templates/$templateId',
     path: '/templates/$templateId',
-    getParentRoute: () => AppWWorkspaceIdShellRoute,
+    getParentRoute: () => AppWorkspaceShellRoute,
   } as any)
-const AppWWorkspaceIdShellTemplatesNewRoute =
-  AppWWorkspaceIdShellTemplatesNewRouteImport.update({
+const AppWorkspaceShellTemplatesNewRoute =
+  AppWorkspaceShellTemplatesNewRouteImport.update({
     id: '/templates/new',
     path: '/templates/new',
-    getParentRoute: () => AppWWorkspaceIdShellRoute,
+    getParentRoute: () => AppWorkspaceShellRoute,
   } as any)
-const AppWWorkspaceIdShellTeamMembersUserIdRoute =
-  AppWWorkspaceIdShellTeamMembersUserIdRouteImport.update({
+const AppWorkspaceShellTeamMembersUserIdRoute =
+  AppWorkspaceShellTeamMembersUserIdRouteImport.update({
     id: '/team/members/$userId',
     path: '/team/members/$userId',
-    getParentRoute: () => AppWWorkspaceIdShellRoute,
+    getParentRoute: () => AppWorkspaceShellRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AppWorkspaceShellIndexRoute
   '/invite': typeof InviteRoute
   '/welcome': typeof AppWelcomeRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
@@ -160,21 +157,19 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof AuthResetPasswordRoute
   '/signup': typeof AuthSignupRoute
   '/verify-email': typeof AuthVerifyEmailRoute
-  '/w/$workspaceId': typeof AppWWorkspaceIdShellRouteWithChildren
-  '/w/$workspaceId/setup': typeof AppWWorkspaceIdSetupRoute
-  '/w/$workspaceId/': typeof AppWWorkspaceIdShellIndexRoute
-  '/w/$workspaceId/team/invite': typeof AppWWorkspaceIdShellTeamInviteRoute
-  '/w/$workspaceId/team/log': typeof AppWWorkspaceIdShellTeamLogRoute
-  '/w/$workspaceId/team/roles': typeof AppWWorkspaceIdShellTeamRolesRoute
-  '/w/$workspaceId/templates/$templateId': typeof AppWWorkspaceIdShellTemplatesTemplateIdRoute
-  '/w/$workspaceId/templates/new': typeof AppWWorkspaceIdShellTemplatesNewRoute
-  '/w/$workspaceId/contacts/': typeof AppWWorkspaceIdShellContactsIndexRoute
-  '/w/$workspaceId/team/': typeof AppWWorkspaceIdShellTeamIndexRoute
-  '/w/$workspaceId/templates/': typeof AppWWorkspaceIdShellTemplatesIndexRoute
-  '/w/$workspaceId/team/members/$userId': typeof AppWWorkspaceIdShellTeamMembersUserIdRoute
+  '/setup': typeof AppWorkspaceSetupRoute
+  '/team/invite': typeof AppWorkspaceShellTeamInviteRoute
+  '/team/log': typeof AppWorkspaceShellTeamLogRoute
+  '/team/roles': typeof AppWorkspaceShellTeamRolesRoute
+  '/templates/$templateId': typeof AppWorkspaceShellTemplatesTemplateIdRoute
+  '/templates/new': typeof AppWorkspaceShellTemplatesNewRoute
+  '/contacts/': typeof AppWorkspaceShellContactsIndexRoute
+  '/team/': typeof AppWorkspaceShellTeamIndexRoute
+  '/templates/': typeof AppWorkspaceShellTemplatesIndexRoute
+  '/team/members/$userId': typeof AppWorkspaceShellTeamMembersUserIdRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/': typeof AppWorkspaceShellIndexRoute
   '/invite': typeof InviteRoute
   '/welcome': typeof AppWelcomeRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
@@ -182,42 +177,41 @@ export interface FileRoutesByTo {
   '/reset-password': typeof AuthResetPasswordRoute
   '/signup': typeof AuthSignupRoute
   '/verify-email': typeof AuthVerifyEmailRoute
-  '/w/$workspaceId/setup': typeof AppWWorkspaceIdSetupRoute
-  '/w/$workspaceId': typeof AppWWorkspaceIdShellIndexRoute
-  '/w/$workspaceId/team/invite': typeof AppWWorkspaceIdShellTeamInviteRoute
-  '/w/$workspaceId/team/log': typeof AppWWorkspaceIdShellTeamLogRoute
-  '/w/$workspaceId/team/roles': typeof AppWWorkspaceIdShellTeamRolesRoute
-  '/w/$workspaceId/templates/$templateId': typeof AppWWorkspaceIdShellTemplatesTemplateIdRoute
-  '/w/$workspaceId/templates/new': typeof AppWWorkspaceIdShellTemplatesNewRoute
-  '/w/$workspaceId/contacts': typeof AppWWorkspaceIdShellContactsIndexRoute
-  '/w/$workspaceId/team': typeof AppWWorkspaceIdShellTeamIndexRoute
-  '/w/$workspaceId/templates': typeof AppWWorkspaceIdShellTemplatesIndexRoute
-  '/w/$workspaceId/team/members/$userId': typeof AppWWorkspaceIdShellTeamMembersUserIdRoute
+  '/setup': typeof AppWorkspaceSetupRoute
+  '/team/invite': typeof AppWorkspaceShellTeamInviteRoute
+  '/team/log': typeof AppWorkspaceShellTeamLogRoute
+  '/team/roles': typeof AppWorkspaceShellTeamRolesRoute
+  '/templates/$templateId': typeof AppWorkspaceShellTemplatesTemplateIdRoute
+  '/templates/new': typeof AppWorkspaceShellTemplatesNewRoute
+  '/contacts': typeof AppWorkspaceShellContactsIndexRoute
+  '/team': typeof AppWorkspaceShellTeamIndexRoute
+  '/templates': typeof AppWorkspaceShellTemplatesIndexRoute
+  '/team/members/$userId': typeof AppWorkspaceShellTeamMembersUserIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/_auth': typeof AuthRouteWithChildren
   '/invite': typeof InviteRoute
+  '/_app/_workspace': typeof AppWorkspaceRouteWithChildren
   '/_app/welcome': typeof AppWelcomeRoute
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
   '/_auth/login': typeof AuthLoginRoute
   '/_auth/reset-password': typeof AuthResetPasswordRoute
   '/_auth/signup': typeof AuthSignupRoute
   '/_auth/verify-email': typeof AuthVerifyEmailRoute
-  '/_app/w/$workspaceId/_shell': typeof AppWWorkspaceIdShellRouteWithChildren
-  '/_app/w/$workspaceId/setup': typeof AppWWorkspaceIdSetupRoute
-  '/_app/w/$workspaceId/_shell/': typeof AppWWorkspaceIdShellIndexRoute
-  '/_app/w/$workspaceId/_shell/team/invite': typeof AppWWorkspaceIdShellTeamInviteRoute
-  '/_app/w/$workspaceId/_shell/team/log': typeof AppWWorkspaceIdShellTeamLogRoute
-  '/_app/w/$workspaceId/_shell/team/roles': typeof AppWWorkspaceIdShellTeamRolesRoute
-  '/_app/w/$workspaceId/_shell/templates/$templateId': typeof AppWWorkspaceIdShellTemplatesTemplateIdRoute
-  '/_app/w/$workspaceId/_shell/templates/new': typeof AppWWorkspaceIdShellTemplatesNewRoute
-  '/_app/w/$workspaceId/_shell/contacts/': typeof AppWWorkspaceIdShellContactsIndexRoute
-  '/_app/w/$workspaceId/_shell/team/': typeof AppWWorkspaceIdShellTeamIndexRoute
-  '/_app/w/$workspaceId/_shell/templates/': typeof AppWWorkspaceIdShellTemplatesIndexRoute
-  '/_app/w/$workspaceId/_shell/team/members/$userId': typeof AppWWorkspaceIdShellTeamMembersUserIdRoute
+  '/_app/_workspace/_shell': typeof AppWorkspaceShellRouteWithChildren
+  '/_app/_workspace/setup': typeof AppWorkspaceSetupRoute
+  '/_app/_workspace/_shell/': typeof AppWorkspaceShellIndexRoute
+  '/_app/_workspace/_shell/team/invite': typeof AppWorkspaceShellTeamInviteRoute
+  '/_app/_workspace/_shell/team/log': typeof AppWorkspaceShellTeamLogRoute
+  '/_app/_workspace/_shell/team/roles': typeof AppWorkspaceShellTeamRolesRoute
+  '/_app/_workspace/_shell/templates/$templateId': typeof AppWorkspaceShellTemplatesTemplateIdRoute
+  '/_app/_workspace/_shell/templates/new': typeof AppWorkspaceShellTemplatesNewRoute
+  '/_app/_workspace/_shell/contacts/': typeof AppWorkspaceShellContactsIndexRoute
+  '/_app/_workspace/_shell/team/': typeof AppWorkspaceShellTeamIndexRoute
+  '/_app/_workspace/_shell/templates/': typeof AppWorkspaceShellTemplatesIndexRoute
+  '/_app/_workspace/_shell/team/members/$userId': typeof AppWorkspaceShellTeamMembersUserIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -230,18 +224,16 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/verify-email'
-    | '/w/$workspaceId'
-    | '/w/$workspaceId/setup'
-    | '/w/$workspaceId/'
-    | '/w/$workspaceId/team/invite'
-    | '/w/$workspaceId/team/log'
-    | '/w/$workspaceId/team/roles'
-    | '/w/$workspaceId/templates/$templateId'
-    | '/w/$workspaceId/templates/new'
-    | '/w/$workspaceId/contacts/'
-    | '/w/$workspaceId/team/'
-    | '/w/$workspaceId/templates/'
-    | '/w/$workspaceId/team/members/$userId'
+    | '/setup'
+    | '/team/invite'
+    | '/team/log'
+    | '/team/roles'
+    | '/templates/$templateId'
+    | '/templates/new'
+    | '/contacts/'
+    | '/team/'
+    | '/templates/'
+    | '/team/members/$userId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -252,45 +244,43 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/verify-email'
-    | '/w/$workspaceId/setup'
-    | '/w/$workspaceId'
-    | '/w/$workspaceId/team/invite'
-    | '/w/$workspaceId/team/log'
-    | '/w/$workspaceId/team/roles'
-    | '/w/$workspaceId/templates/$templateId'
-    | '/w/$workspaceId/templates/new'
-    | '/w/$workspaceId/contacts'
-    | '/w/$workspaceId/team'
-    | '/w/$workspaceId/templates'
-    | '/w/$workspaceId/team/members/$userId'
+    | '/setup'
+    | '/team/invite'
+    | '/team/log'
+    | '/team/roles'
+    | '/templates/$templateId'
+    | '/templates/new'
+    | '/contacts'
+    | '/team'
+    | '/templates'
+    | '/team/members/$userId'
   id:
     | '__root__'
-    | '/'
     | '/_app'
     | '/_auth'
     | '/invite'
+    | '/_app/_workspace'
     | '/_app/welcome'
     | '/_auth/forgot-password'
     | '/_auth/login'
     | '/_auth/reset-password'
     | '/_auth/signup'
     | '/_auth/verify-email'
-    | '/_app/w/$workspaceId/_shell'
-    | '/_app/w/$workspaceId/setup'
-    | '/_app/w/$workspaceId/_shell/'
-    | '/_app/w/$workspaceId/_shell/team/invite'
-    | '/_app/w/$workspaceId/_shell/team/log'
-    | '/_app/w/$workspaceId/_shell/team/roles'
-    | '/_app/w/$workspaceId/_shell/templates/$templateId'
-    | '/_app/w/$workspaceId/_shell/templates/new'
-    | '/_app/w/$workspaceId/_shell/contacts/'
-    | '/_app/w/$workspaceId/_shell/team/'
-    | '/_app/w/$workspaceId/_shell/templates/'
-    | '/_app/w/$workspaceId/_shell/team/members/$userId'
+    | '/_app/_workspace/_shell'
+    | '/_app/_workspace/setup'
+    | '/_app/_workspace/_shell/'
+    | '/_app/_workspace/_shell/team/invite'
+    | '/_app/_workspace/_shell/team/log'
+    | '/_app/_workspace/_shell/team/roles'
+    | '/_app/_workspace/_shell/templates/$templateId'
+    | '/_app/_workspace/_shell/templates/new'
+    | '/_app/_workspace/_shell/contacts/'
+    | '/_app/_workspace/_shell/team/'
+    | '/_app/_workspace/_shell/templates/'
+    | '/_app/_workspace/_shell/team/members/$userId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
   InviteRoute: typeof InviteRoute
@@ -298,13 +288,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_app': {
       id: '/_app'
       path: ''
@@ -325,6 +308,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/invite'
       preLoaderRoute: typeof InviteRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_app/_workspace': {
+      id: '/_app/_workspace'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppWorkspaceRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/welcome': {
       id: '/_app/welcome'
@@ -368,136 +358,146 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthVerifyEmailRouteImport
       parentRoute: typeof AuthRoute
     }
-    '/_app/w/$workspaceId/_shell': {
-      id: '/_app/w/$workspaceId/_shell'
-      path: '/w/$workspaceId'
-      fullPath: '/w/$workspaceId'
-      preLoaderRoute: typeof AppWWorkspaceIdShellRouteImport
-      parentRoute: typeof AppRoute
+    '/_app/_workspace/_shell': {
+      id: '/_app/_workspace/_shell'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppWorkspaceShellRouteImport
+      parentRoute: typeof AppWorkspaceRoute
     }
-    '/_app/w/$workspaceId/setup': {
-      id: '/_app/w/$workspaceId/setup'
-      path: '/w/$workspaceId/setup'
-      fullPath: '/w/$workspaceId/setup'
-      preLoaderRoute: typeof AppWWorkspaceIdSetupRouteImport
-      parentRoute: typeof AppRoute
+    '/_app/_workspace/setup': {
+      id: '/_app/_workspace/setup'
+      path: '/setup'
+      fullPath: '/setup'
+      preLoaderRoute: typeof AppWorkspaceSetupRouteImport
+      parentRoute: typeof AppWorkspaceRoute
     }
-    '/_app/w/$workspaceId/_shell/': {
-      id: '/_app/w/$workspaceId/_shell/'
+    '/_app/_workspace/_shell/': {
+      id: '/_app/_workspace/_shell/'
       path: '/'
-      fullPath: '/w/$workspaceId/'
-      preLoaderRoute: typeof AppWWorkspaceIdShellIndexRouteImport
-      parentRoute: typeof AppWWorkspaceIdShellRoute
+      fullPath: '/'
+      preLoaderRoute: typeof AppWorkspaceShellIndexRouteImport
+      parentRoute: typeof AppWorkspaceShellRoute
     }
-    '/_app/w/$workspaceId/_shell/contacts/': {
-      id: '/_app/w/$workspaceId/_shell/contacts/'
+    '/_app/_workspace/_shell/contacts/': {
+      id: '/_app/_workspace/_shell/contacts/'
       path: '/contacts'
-      fullPath: '/w/$workspaceId/contacts/'
-      preLoaderRoute: typeof AppWWorkspaceIdShellContactsIndexRouteImport
-      parentRoute: typeof AppWWorkspaceIdShellRoute
+      fullPath: '/contacts/'
+      preLoaderRoute: typeof AppWorkspaceShellContactsIndexRouteImport
+      parentRoute: typeof AppWorkspaceShellRoute
     }
-    '/_app/w/$workspaceId/_shell/team/': {
-      id: '/_app/w/$workspaceId/_shell/team/'
+    '/_app/_workspace/_shell/team/': {
+      id: '/_app/_workspace/_shell/team/'
       path: '/team'
-      fullPath: '/w/$workspaceId/team/'
-      preLoaderRoute: typeof AppWWorkspaceIdShellTeamIndexRouteImport
-      parentRoute: typeof AppWWorkspaceIdShellRoute
+      fullPath: '/team/'
+      preLoaderRoute: typeof AppWorkspaceShellTeamIndexRouteImport
+      parentRoute: typeof AppWorkspaceShellRoute
     }
-    '/_app/w/$workspaceId/_shell/team/invite': {
-      id: '/_app/w/$workspaceId/_shell/team/invite'
+    '/_app/_workspace/_shell/team/invite': {
+      id: '/_app/_workspace/_shell/team/invite'
       path: '/team/invite'
-      fullPath: '/w/$workspaceId/team/invite'
-      preLoaderRoute: typeof AppWWorkspaceIdShellTeamInviteRouteImport
-      parentRoute: typeof AppWWorkspaceIdShellRoute
+      fullPath: '/team/invite'
+      preLoaderRoute: typeof AppWorkspaceShellTeamInviteRouteImport
+      parentRoute: typeof AppWorkspaceShellRoute
     }
-    '/_app/w/$workspaceId/_shell/team/log': {
-      id: '/_app/w/$workspaceId/_shell/team/log'
+    '/_app/_workspace/_shell/team/log': {
+      id: '/_app/_workspace/_shell/team/log'
       path: '/team/log'
-      fullPath: '/w/$workspaceId/team/log'
-      preLoaderRoute: typeof AppWWorkspaceIdShellTeamLogRouteImport
-      parentRoute: typeof AppWWorkspaceIdShellRoute
+      fullPath: '/team/log'
+      preLoaderRoute: typeof AppWorkspaceShellTeamLogRouteImport
+      parentRoute: typeof AppWorkspaceShellRoute
     }
-    '/_app/w/$workspaceId/_shell/team/roles': {
-      id: '/_app/w/$workspaceId/_shell/team/roles'
+    '/_app/_workspace/_shell/team/roles': {
+      id: '/_app/_workspace/_shell/team/roles'
       path: '/team/roles'
-      fullPath: '/w/$workspaceId/team/roles'
-      preLoaderRoute: typeof AppWWorkspaceIdShellTeamRolesRouteImport
-      parentRoute: typeof AppWWorkspaceIdShellRoute
+      fullPath: '/team/roles'
+      preLoaderRoute: typeof AppWorkspaceShellTeamRolesRouteImport
+      parentRoute: typeof AppWorkspaceShellRoute
     }
-    '/_app/w/$workspaceId/_shell/templates/': {
-      id: '/_app/w/$workspaceId/_shell/templates/'
+    '/_app/_workspace/_shell/templates/': {
+      id: '/_app/_workspace/_shell/templates/'
       path: '/templates'
-      fullPath: '/w/$workspaceId/templates/'
-      preLoaderRoute: typeof AppWWorkspaceIdShellTemplatesIndexRouteImport
-      parentRoute: typeof AppWWorkspaceIdShellRoute
+      fullPath: '/templates/'
+      preLoaderRoute: typeof AppWorkspaceShellTemplatesIndexRouteImport
+      parentRoute: typeof AppWorkspaceShellRoute
     }
-    '/_app/w/$workspaceId/_shell/templates/$templateId': {
-      id: '/_app/w/$workspaceId/_shell/templates/$templateId'
+    '/_app/_workspace/_shell/templates/$templateId': {
+      id: '/_app/_workspace/_shell/templates/$templateId'
       path: '/templates/$templateId'
-      fullPath: '/w/$workspaceId/templates/$templateId'
-      preLoaderRoute: typeof AppWWorkspaceIdShellTemplatesTemplateIdRouteImport
-      parentRoute: typeof AppWWorkspaceIdShellRoute
+      fullPath: '/templates/$templateId'
+      preLoaderRoute: typeof AppWorkspaceShellTemplatesTemplateIdRouteImport
+      parentRoute: typeof AppWorkspaceShellRoute
     }
-    '/_app/w/$workspaceId/_shell/templates/new': {
-      id: '/_app/w/$workspaceId/_shell/templates/new'
+    '/_app/_workspace/_shell/templates/new': {
+      id: '/_app/_workspace/_shell/templates/new'
       path: '/templates/new'
-      fullPath: '/w/$workspaceId/templates/new'
-      preLoaderRoute: typeof AppWWorkspaceIdShellTemplatesNewRouteImport
-      parentRoute: typeof AppWWorkspaceIdShellRoute
+      fullPath: '/templates/new'
+      preLoaderRoute: typeof AppWorkspaceShellTemplatesNewRouteImport
+      parentRoute: typeof AppWorkspaceShellRoute
     }
-    '/_app/w/$workspaceId/_shell/team/members/$userId': {
-      id: '/_app/w/$workspaceId/_shell/team/members/$userId'
+    '/_app/_workspace/_shell/team/members/$userId': {
+      id: '/_app/_workspace/_shell/team/members/$userId'
       path: '/team/members/$userId'
-      fullPath: '/w/$workspaceId/team/members/$userId'
-      preLoaderRoute: typeof AppWWorkspaceIdShellTeamMembersUserIdRouteImport
-      parentRoute: typeof AppWWorkspaceIdShellRoute
+      fullPath: '/team/members/$userId'
+      preLoaderRoute: typeof AppWorkspaceShellTeamMembersUserIdRouteImport
+      parentRoute: typeof AppWorkspaceShellRoute
     }
   }
 }
 
-interface AppWWorkspaceIdShellRouteChildren {
-  AppWWorkspaceIdShellIndexRoute: typeof AppWWorkspaceIdShellIndexRoute
-  AppWWorkspaceIdShellTeamInviteRoute: typeof AppWWorkspaceIdShellTeamInviteRoute
-  AppWWorkspaceIdShellTeamLogRoute: typeof AppWWorkspaceIdShellTeamLogRoute
-  AppWWorkspaceIdShellTeamRolesRoute: typeof AppWWorkspaceIdShellTeamRolesRoute
-  AppWWorkspaceIdShellTemplatesTemplateIdRoute: typeof AppWWorkspaceIdShellTemplatesTemplateIdRoute
-  AppWWorkspaceIdShellTemplatesNewRoute: typeof AppWWorkspaceIdShellTemplatesNewRoute
-  AppWWorkspaceIdShellContactsIndexRoute: typeof AppWWorkspaceIdShellContactsIndexRoute
-  AppWWorkspaceIdShellTeamIndexRoute: typeof AppWWorkspaceIdShellTeamIndexRoute
-  AppWWorkspaceIdShellTemplatesIndexRoute: typeof AppWWorkspaceIdShellTemplatesIndexRoute
-  AppWWorkspaceIdShellTeamMembersUserIdRoute: typeof AppWWorkspaceIdShellTeamMembersUserIdRoute
+interface AppWorkspaceShellRouteChildren {
+  AppWorkspaceShellIndexRoute: typeof AppWorkspaceShellIndexRoute
+  AppWorkspaceShellTeamInviteRoute: typeof AppWorkspaceShellTeamInviteRoute
+  AppWorkspaceShellTeamLogRoute: typeof AppWorkspaceShellTeamLogRoute
+  AppWorkspaceShellTeamRolesRoute: typeof AppWorkspaceShellTeamRolesRoute
+  AppWorkspaceShellTemplatesTemplateIdRoute: typeof AppWorkspaceShellTemplatesTemplateIdRoute
+  AppWorkspaceShellTemplatesNewRoute: typeof AppWorkspaceShellTemplatesNewRoute
+  AppWorkspaceShellContactsIndexRoute: typeof AppWorkspaceShellContactsIndexRoute
+  AppWorkspaceShellTeamIndexRoute: typeof AppWorkspaceShellTeamIndexRoute
+  AppWorkspaceShellTemplatesIndexRoute: typeof AppWorkspaceShellTemplatesIndexRoute
+  AppWorkspaceShellTeamMembersUserIdRoute: typeof AppWorkspaceShellTeamMembersUserIdRoute
 }
 
-const AppWWorkspaceIdShellRouteChildren: AppWWorkspaceIdShellRouteChildren = {
-  AppWWorkspaceIdShellIndexRoute: AppWWorkspaceIdShellIndexRoute,
-  AppWWorkspaceIdShellTeamInviteRoute: AppWWorkspaceIdShellTeamInviteRoute,
-  AppWWorkspaceIdShellTeamLogRoute: AppWWorkspaceIdShellTeamLogRoute,
-  AppWWorkspaceIdShellTeamRolesRoute: AppWWorkspaceIdShellTeamRolesRoute,
-  AppWWorkspaceIdShellTemplatesTemplateIdRoute:
-    AppWWorkspaceIdShellTemplatesTemplateIdRoute,
-  AppWWorkspaceIdShellTemplatesNewRoute: AppWWorkspaceIdShellTemplatesNewRoute,
-  AppWWorkspaceIdShellContactsIndexRoute:
-    AppWWorkspaceIdShellContactsIndexRoute,
-  AppWWorkspaceIdShellTeamIndexRoute: AppWWorkspaceIdShellTeamIndexRoute,
-  AppWWorkspaceIdShellTemplatesIndexRoute:
-    AppWWorkspaceIdShellTemplatesIndexRoute,
-  AppWWorkspaceIdShellTeamMembersUserIdRoute:
-    AppWWorkspaceIdShellTeamMembersUserIdRoute,
+const AppWorkspaceShellRouteChildren: AppWorkspaceShellRouteChildren = {
+  AppWorkspaceShellIndexRoute: AppWorkspaceShellIndexRoute,
+  AppWorkspaceShellTeamInviteRoute: AppWorkspaceShellTeamInviteRoute,
+  AppWorkspaceShellTeamLogRoute: AppWorkspaceShellTeamLogRoute,
+  AppWorkspaceShellTeamRolesRoute: AppWorkspaceShellTeamRolesRoute,
+  AppWorkspaceShellTemplatesTemplateIdRoute:
+    AppWorkspaceShellTemplatesTemplateIdRoute,
+  AppWorkspaceShellTemplatesNewRoute: AppWorkspaceShellTemplatesNewRoute,
+  AppWorkspaceShellContactsIndexRoute: AppWorkspaceShellContactsIndexRoute,
+  AppWorkspaceShellTeamIndexRoute: AppWorkspaceShellTeamIndexRoute,
+  AppWorkspaceShellTemplatesIndexRoute: AppWorkspaceShellTemplatesIndexRoute,
+  AppWorkspaceShellTeamMembersUserIdRoute:
+    AppWorkspaceShellTeamMembersUserIdRoute,
 }
 
-const AppWWorkspaceIdShellRouteWithChildren =
-  AppWWorkspaceIdShellRoute._addFileChildren(AppWWorkspaceIdShellRouteChildren)
+const AppWorkspaceShellRouteWithChildren =
+  AppWorkspaceShellRoute._addFileChildren(AppWorkspaceShellRouteChildren)
+
+interface AppWorkspaceRouteChildren {
+  AppWorkspaceShellRoute: typeof AppWorkspaceShellRouteWithChildren
+  AppWorkspaceSetupRoute: typeof AppWorkspaceSetupRoute
+}
+
+const AppWorkspaceRouteChildren: AppWorkspaceRouteChildren = {
+  AppWorkspaceShellRoute: AppWorkspaceShellRouteWithChildren,
+  AppWorkspaceSetupRoute: AppWorkspaceSetupRoute,
+}
+
+const AppWorkspaceRouteWithChildren = AppWorkspaceRoute._addFileChildren(
+  AppWorkspaceRouteChildren,
+)
 
 interface AppRouteChildren {
+  AppWorkspaceRoute: typeof AppWorkspaceRouteWithChildren
   AppWelcomeRoute: typeof AppWelcomeRoute
-  AppWWorkspaceIdShellRoute: typeof AppWWorkspaceIdShellRouteWithChildren
-  AppWWorkspaceIdSetupRoute: typeof AppWWorkspaceIdSetupRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppWorkspaceRoute: AppWorkspaceRouteWithChildren,
   AppWelcomeRoute: AppWelcomeRoute,
-  AppWWorkspaceIdShellRoute: AppWWorkspaceIdShellRouteWithChildren,
-  AppWWorkspaceIdSetupRoute: AppWWorkspaceIdSetupRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
@@ -521,7 +521,6 @@ const AuthRouteChildren: AuthRouteChildren = {
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
   InviteRoute: InviteRoute,

@@ -702,41 +702,6 @@ export const whatsappSignupConfigOptions = (options?: Options<WhatsappSignupConf
     queryKey: whatsappSignupConfigQueryKey(options)
 });
 
-export const listWorkspacesQueryKey = (options?: Options<ListWorkspacesData>) => createQueryKey('listWorkspaces', options);
-
-/**
- * My workspaces, with enough setup state to choose where to go
- */
-export const listWorkspacesOptions = (options?: Options<ListWorkspacesData>) => queryOptions<ListWorkspacesResponse, ListWorkspacesError, ListWorkspacesResponse, ReturnType<typeof listWorkspacesQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => {
-        const { data } = await listWorkspaces({
-            ...options,
-            ...queryKey[0],
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: listWorkspacesQueryKey(options)
-});
-
-/**
- * Create a workspace from the Welcome screen and start its trial
- */
-export const createWorkspaceMutation = (options?: Partial<Options<CreateWorkspaceData>>): UseMutationOptions<CreateWorkspaceResponse, CreateWorkspaceError, Options<CreateWorkspaceData>> => {
-    const mutationOptions: UseMutationOptions<CreateWorkspaceResponse, CreateWorkspaceError, Options<CreateWorkspaceData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await createWorkspace({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
 export const getWorkspaceQueryKey = (options: Options<GetWorkspaceData>) => createQueryKey('getWorkspace', options);
 
 /**
@@ -2031,3 +1996,38 @@ export const getTestMessageOptions = (options: Options<GetTestMessageData>) => q
     },
     queryKey: getTestMessageQueryKey(options)
 });
+
+export const listWorkspacesQueryKey = (options?: Options<ListWorkspacesData>) => createQueryKey('listWorkspaces', options);
+
+/**
+ * My workspaces, with enough setup state to choose where to go
+ */
+export const listWorkspacesOptions = (options?: Options<ListWorkspacesData>) => queryOptions<ListWorkspacesResponse, ListWorkspacesError, ListWorkspacesResponse, ReturnType<typeof listWorkspacesQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listWorkspaces({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listWorkspacesQueryKey(options)
+});
+
+/**
+ * Create a workspace from the Welcome screen and start its trial
+ */
+export const createWorkspaceMutation = (options?: Partial<Options<CreateWorkspaceData>>): UseMutationOptions<CreateWorkspaceResponse, CreateWorkspaceError, Options<CreateWorkspaceData>> => {
+    const mutationOptions: UseMutationOptions<CreateWorkspaceResponse, CreateWorkspaceError, Options<CreateWorkspaceData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await createWorkspace({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};

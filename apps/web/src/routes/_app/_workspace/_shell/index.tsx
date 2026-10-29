@@ -7,20 +7,19 @@ import {
 } from '#/features/onboarding'
 import { workspaceQueryOptions } from '#/features/workspaces'
 
-export const Route = createFileRoute('/_app/w/$workspaceId/_shell/')({
+export const Route = createFileRoute('/_app/_workspace/_shell/')({
   head: () => ({ meta: [{ title: 'Dashboard · Relay' }] }),
-  loader: async ({ context, params }) => {
+  loader: async ({ context }) => {
     const onboarding = await context.queryClient.fetchQuery(
-      onboardingQueryOptions(context.me.user.id, params.workspaceId),
+      onboardingQueryOptions(context.me.user.id, context.workspaceId),
     )
-    if (!onboarding.completed) throw redirect({ to: '/w/$workspaceId/setup', params })
+    if (!onboarding.completed) throw redirect({ to: '/setup' })
   },
   component: DashboardPage,
 })
 
 function DashboardPage() {
-  const { me } = Route.useRouteContext()
-  const { workspaceId } = Route.useParams()
+  const { me, workspaceId } = Route.useRouteContext()
   const userId = me.user.id
   const { data: workspace } = useSuspenseQuery(workspaceQueryOptions(userId, workspaceId))
   const { data: onboarding } = useSuspenseQuery(onboardingQueryOptions(userId, workspaceId))

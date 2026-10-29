@@ -4,6 +4,7 @@ import { Logo } from '#/components/layout/logo'
 import { ThemeToggle } from '#/components/layout/theme-toggle'
 import { fetchMe, meQueryOptions, SocialButtons, useLogout } from '#/features/auth'
 import { InviteAccept, inviteTokenFromLink } from '#/features/team'
+import { selectWorkspace } from '#/features/workspaces'
 
 // The link from an invite email (/invite#t=…). Works signed out; joining needs sign-in.
 export const Route = createFileRoute('/invite')({
@@ -33,6 +34,10 @@ function InvitePage() {
           token={token}
           signedInAs={signedInAs}
           social={<SocialButtons action="log in" redirect="/invite" divider="or set a password" />}
+          onOpenWorkspace={(id) => {
+            selectWorkspace(id)
+            navigate({ to: '/' })
+          }}
           onSwitchAccount={() =>
             logout.mutate(
               {},

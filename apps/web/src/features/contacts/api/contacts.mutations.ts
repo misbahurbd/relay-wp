@@ -10,6 +10,7 @@ import {
   uploadContactImport,
 } from '@relay/api-client'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { inWorkspace } from '#/lib/api'
 import type {
   BulkInput,
   ColumnMapping,
@@ -38,7 +39,11 @@ function useContactsMutation<TInput, TOutput>(
 
 export function useCreateContact(workspaceId: string) {
   return useContactsMutation(workspaceId, async (body: ContactInput) => {
-    const { data } = await createContact({ path: { workspaceId }, body, throwOnError: true })
+    const { data } = await createContact({
+      headers: inWorkspace(workspaceId),
+      body,
+      throwOnError: true,
+    })
     return data
   })
 }
@@ -48,7 +53,8 @@ export function useUpdateContact(workspaceId: string) {
     workspaceId,
     async ({ contactId, body }: { contactId: string; body: ContactPatch }) => {
       const { data } = await updateContact({
-        path: { workspaceId, contactId },
+        headers: inWorkspace(workspaceId),
+        path: { contactId },
         body,
         throwOnError: true,
       })
@@ -61,7 +67,11 @@ export function useDeleteContact(workspaceId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (contactId: string) => {
-      await deleteContact({ path: { workspaceId, contactId }, throwOnError: true })
+      await deleteContact({
+        headers: inWorkspace(workspaceId),
+        path: { contactId },
+        throwOnError: true,
+      })
       return contactId
     },
     onSuccess: (contactId) => {
@@ -73,7 +83,11 @@ export function useDeleteContact(workspaceId: string) {
 
 export function useBulkContacts(workspaceId: string) {
   return useContactsMutation(workspaceId, async (body: BulkInput) => {
-    const { data } = await bulkContacts({ path: { workspaceId }, body, throwOnError: true })
+    const { data } = await bulkContacts({
+      headers: inWorkspace(workspaceId),
+      body,
+      throwOnError: true,
+    })
     return data.affected
   })
 }
@@ -86,7 +100,7 @@ export function useCreateTag(workspaceId: string) {
   return useMutation({
     mutationFn: async (name: string): Promise<Tag> => {
       const { data } = await createContactTag({
-        path: { workspaceId },
+        headers: inWorkspace(workspaceId),
         body: { name },
         throwOnError: true,
       })
@@ -102,7 +116,7 @@ export function useUploadImport(workspaceId: string) {
   return useMutation({
     mutationFn: async (file: File): Promise<ImportUpload> => {
       const { data } = await uploadContactImport({
-        path: { workspaceId },
+        headers: inWorkspace(workspaceId),
         body: { file },
         throwOnError: true,
       })
@@ -127,12 +141,14 @@ export function useMapImport(workspaceId: string) {
       tagName?: string
     }): Promise<ImportPreview> => {
       await setContactImportMapping({
-        path: { workspaceId, importId },
+        headers: inWorkspace(workspaceId),
+        path: { importId },
         body: { columns, tag_name: tagName || undefined, opt_in_confirmed: true },
         throwOnError: true,
       })
       const { data } = await previewContactImport({
-        path: { workspaceId, importId },
+        headers: inWorkspace(workspaceId),
+        path: { importId },
         throwOnError: true,
       })
       return { ...data, sample: data.sample ?? [] }
@@ -145,7 +161,8 @@ export function useStartImport(workspaceId: string) {
   return useMutation({
     mutationFn: async (importId: string): Promise<ContactImport> => {
       const { data } = await startContactImport({
-        path: { workspaceId, importId },
+        headers: inWorkspace(workspaceId),
+        path: { importId },
         throwOnError: true,
       })
       return data

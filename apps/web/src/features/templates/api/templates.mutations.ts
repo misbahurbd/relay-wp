@@ -9,6 +9,7 @@ import {
   uploadTemplateHeaderSample,
 } from '@relay/api-client'
 import { type QueryClient, useMutation, useQueryClient } from '@tanstack/react-query'
+import { inWorkspace } from '#/lib/api'
 import type { Template } from '../types'
 import { invalidateTemplateLists, templatesKeys } from './templates.keys'
 import { toTemplate } from './templates.queries'
@@ -23,7 +24,11 @@ export function useCreateTemplate(workspaceId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (body: CreateInputBody1) => {
-      const { data } = await createTemplate({ path: { workspaceId }, body, throwOnError: true })
+      const { data } = await createTemplate({
+        headers: inWorkspace(workspaceId),
+        body,
+        throwOnError: true,
+      })
       return toTemplate(data)
     },
     onSuccess: (t) => remember(queryClient, workspaceId, t),
@@ -35,7 +40,8 @@ export function useUpdateTemplate(workspaceId: string) {
   return useMutation({
     mutationFn: async ({ templateId, body }: { templateId: string; body: UpdateInputBody }) => {
       const { data } = await updateTemplate({
-        path: { workspaceId, templateId },
+        headers: inWorkspace(workspaceId),
+        path: { templateId },
         body,
         throwOnError: true,
       })
@@ -50,7 +56,8 @@ export function useUploadHeaderSample(workspaceId: string) {
   return useMutation({
     mutationFn: async ({ templateId, file }: { templateId: string; file: File }) => {
       const { data } = await uploadTemplateHeaderSample({
-        path: { workspaceId, templateId },
+        headers: inWorkspace(workspaceId),
+        path: { templateId },
         body: { file },
         throwOnError: true,
       })
@@ -65,7 +72,8 @@ export function useSubmitTemplate(workspaceId: string) {
   return useMutation({
     mutationFn: async (templateId: string) => {
       const { data } = await submitTemplate({
-        path: { workspaceId, templateId },
+        headers: inWorkspace(workspaceId),
+        path: { templateId },
         throwOnError: true,
       })
       return toTemplate(data)
@@ -78,7 +86,11 @@ export function useDeleteTemplate(workspaceId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (templateId: string) => {
-      await deleteTemplate({ path: { workspaceId, templateId }, throwOnError: true })
+      await deleteTemplate({
+        headers: inWorkspace(workspaceId),
+        path: { templateId },
+        throwOnError: true,
+      })
       return templateId
     },
     onSuccess: (templateId) => {
@@ -92,7 +104,10 @@ export function useSyncTemplates(workspaceId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async () => {
-      const { data } = await syncTemplates({ path: { workspaceId }, throwOnError: true })
+      const { data } = await syncTemplates({
+        headers: inWorkspace(workspaceId),
+        throwOnError: true,
+      })
       return data.synced
     },
     // Synced templates can overwrite ones already open, so refresh every templates query.

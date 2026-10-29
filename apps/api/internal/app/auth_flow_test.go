@@ -94,6 +94,8 @@ type browser struct {
 	cookies map[string]*http.Cookie
 	bearer  string
 	device  string // X-Device-Name, as the mobile app sends it
+	// workspace is sent as X-Workspace-ID when set.
+	workspace string
 }
 
 func (e *authEnv) browser(ua string) *browser {
@@ -101,6 +103,13 @@ func (e *authEnv) browser(ua string) *browser {
 		env: e, ua: ua, cookies: map[string]*http.Cookie{},
 		ip: fmt.Sprintf("10.%d.%d.%d", rand.IntN(250), rand.IntN(250), rand.IntN(250)+1), //nolint:gosec // test data
 	}
+}
+
+// in returns b scoped to workspace: same session, with X-Workspace-ID set.
+func (b *browser) in(workspace string) *browser {
+	c := *b
+	c.workspace = workspace
+	return &c
 }
 
 type resp struct {
@@ -128,6 +137,9 @@ func (b *browser) do(method, path string, body any) resp {
 	}
 	if b.device != "" {
 		req.Header.Set("X-Device-Name", b.device)
+	}
+	if b.workspace != "" {
+		req.Header.Set("X-Workspace-ID", b.workspace)
 	}
 	for _, c := range b.cookies {
 		if strings.HasPrefix(path, c.Path) {

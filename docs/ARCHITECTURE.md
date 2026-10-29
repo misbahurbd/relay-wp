@@ -226,7 +226,11 @@ When each workspace has its own credentials or settings for an external client:
 
 ### Workspace scoping
 
-Workspace is in the path: `/v1/workspaces/{workspaceId}/...`. `platform/middleware.RequireWorkspace` checks membership (through `workspaces.Directory`) and puts `workspaceID` and role into context (`shared/authctx`). A non-member gets 404, so workspace IDs can't be probed; owner-only routes pass the allowed roles and others get 403.
+The workspace is never in a URL, on the API or in the web app ([ADR 0005](adr/0005-workspace-header.md)).
+
+- **API:** workspace-scoped routes live under `/v1/workspace/...` and name the workspace in the `X-Workspace-ID` header, so web and mobile scope requests the same way. DTOs declare it (`header:"X-Workspace-ID" required:"true"`), so the generated client requires it. Routes that aren't about one workspace (`/v1/workspaces` list and create, `/v1/me`, `/v1/invitations/*`, auth) take no header.
+- **Middleware:** `platform/middleware.RequireWorkspace` reads the header and resolves the member's access with one query (`AccessResolver`, implemented by `features/team`; [ADR 0002](adr/0002-workspace-access-check.md)), then puts it into context (`shared/authctx`). Missing header → 422 `workspace_required`; malformed ID or not a member → 404 `workspace_not_found`, so workspace IDs can't be probed; suspended → 403. `RequireOwner` and `RequirePermission` run after it. Responses carry `Vary: X-Workspace-ID` and `X-Access-Version`.
+- **Web:** see "Current workspace" in section 4.
 
 ---
 
@@ -238,17 +242,18 @@ Workspace is in the path: `/v1/workspaces/{workspaceId}/...`. `platform/middlewa
 apps/web/src/
 ├── routes/                       # THIN: layouts, loaders, guards
 │   ├── __root.tsx
-│   ├── index.tsx
+│   ├── invite.tsx                # invite link; works signed out
 │   ├── _auth.tsx                 # logged-out layout
-│   ├── _auth/login.tsx
-│   ├── _auth/signup.tsx
-│   ├── _app.tsx                  # authenticated layout (beforeLoad → require user)
-│   ├── _app/onboarding.tsx       # create first workspace
-│   └── _app/w/$workspaceId/
-│       ├── route.tsx             # load workspace, check membership
-│       ├── index.tsx             # dashboard
-│       ├── members.tsx
-│       └── settings/
+│   ├── _auth/login.tsx, signup.tsx, verify-email.tsx, …
+│   ├── _app.tsx                  # signed-in layout (beforeLoad → require a verified user)
+│   ├── _app/welcome.tsx          # create the first workspace
+│   ├── _app/_workspace.tsx       # picks the current workspace → context.workspaceId
+│   └── _app/_workspace/
+│       ├── setup.tsx             # /setup
+│       ├── _shell.tsx            # sidebar, top bar, workspace switcher
+│       └── _shell/
+│           ├── index.tsx         # / (dashboard)
+│           └── team/             # /team, /team/roles, /team/members/$userId, …
 │
 ├── features/
 │   └── <feature>/            # see ADR 0004
@@ -266,7 +271,7 @@ apps/web/src/
 │   ├── ui/                       # shadcn primitives
 │   └── layout/
 ├── lib/
-│   ├── api.ts                    # configured client (credentials: include; SSR cookie forwarding)
+│   ├── api.ts                    # configured client (credentials: include), inWorkspace()
 │   ├── query-client.ts
 │   ├── env.ts                    # Zod-validated env
 │   └── utils.ts
@@ -284,6 +289,21 @@ apps/web/src/
 5. **Promote to `components/` only when two features need it.**
 6. **Name feature files by feature and role** (`team.queries.ts`, `auth.schema.ts`) and group components by area; see [ADR 0004](adr/0004-web-feature-file-layout.md).
 7. **Auth on SSR:** server-side requests forward the incoming cookies to the API. On `401`, the client calls `/v1/auth/refresh` once, then retries.
+8. **No workspace ID in page URLs.** Workspace pages read `context.workspaceId` from the route context; links never take a `workspaceId` param.
+9. **Workspace API calls pass `headers: inWorkspace(workspaceId)`** (`#/lib/api`) per call. Never set `X-Workspace-ID` as a client default: a stale default would send a request to the wrong workspace. Query keys include the workspace ID.
+
+### Current workspace
+
+`routes/_app/_workspace.tsx` decides which workspace a page is in, in this order:
+
+1. This tab's choice in the sidebar switcher (sessionStorage, so tabs stay independent and reloads keep it).
+2. The last choice in any tab (localStorage), so a new tab opens where you were.
+3. The most recently used workspace (`GET /v1/workspaces` lists those first).
+4. None → `/welcome`.
+
+`selectWorkspace(id)` (`#/features/workspaces`) records a choice; switching then navigates to `/` and the dashboard redirects to `/setup` if setup isn't finished. An ID that isn't in the user's list is ignored and the next rule applies.
+
+Email links that must open one workspace add `?workspace=<id>` (e.g. `/setup?workspace=…`, `/team?workspace=…`). The layout selects it and redirects to the same page without it. Build these links in the API service, never `/w/<id>/…`.
 
 ---
 

@@ -1,5 +1,6 @@
 import { getTemplate, listTemplates, type TemplateDto } from '@relay/api-client'
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
+import { inWorkspace } from '#/lib/api'
 import type { Template, TemplateFilter } from '../types'
 import { templatesKeys } from './templates.keys'
 
@@ -26,7 +27,7 @@ export const templatesQueryOptions = (workspaceId: string, filter: TemplateFilte
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ signal, pageParam }) => {
       const { data } = await listTemplates({
-        path: { workspaceId },
+        headers: inWorkspace(workspaceId),
         query: {
           status: filter.status,
           category: filter.category,
@@ -51,7 +52,8 @@ export const templateQueryOptions = (workspaceId: string, templateId: string) =>
     queryKey: templatesKeys.detail(workspaceId, templateId),
     queryFn: async ({ signal }) => {
       const { data } = await getTemplate({
-        path: { workspaceId, templateId },
+        headers: inWorkspace(workspaceId),
+        path: { templateId },
         signal,
         throwOnError: true,
       })

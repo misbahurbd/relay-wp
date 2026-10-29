@@ -61,7 +61,7 @@ CLAUDE.md sections 1 to 4 apply in full: layer folders, no cross-feature imports
 
 - **Binds:** contacts API, contacts web.
 - **Prevents:** the web build guessing endpoint shapes.
-- **Rule:** every route is under `/v1/workspaces/{workspaceId}` with Auth and Member, plus the permission shown.
+- **Rule:** every route is under `/v1/workspace` (workspace in the `X-Workspace-ID` header, ADR 0005) with Auth and Member, plus the permission shown.
 
 | Method + path                  | Permission        | Notes                                                    |
 | ------------------------------ | ----------------- | -------------------------------------------------------- |
@@ -126,7 +126,7 @@ CLAUDE.md sections 1 to 4 apply in full: layer folders, no cross-feature imports
 
 - **Binds:** templates API, templates web.
 - **Prevents:** editing a template Meta is reviewing, and submit paths that disagree.
-- **Rule:** every route is under `/v1/workspaces/{workspaceId}` with Auth and Member.
+- **Rule:** every route is under `/v1/workspace` (workspace in the `X-Workspace-ID` header, ADR 0005) with Auth and Member.
 
 | Method + path                                | Permission         | Notes                                     |
 | -------------------------------------------- | ------------------ | ----------------------------------------- |
@@ -161,7 +161,7 @@ The web's "Save draft" is POST or PATCH. "Submit to Meta" is save, then submit.
 - **Binds:** both web builds.
 - **Prevents:** route collisions and features reaching into each other.
 - **Rule:**
-  - Routes under `routes/_app/w/$workspaceId/_shell/`: `contacts/index.tsx` (filters in validated search params: `q, opt_in, tag_id, last_message, cursor`), `templates/index.tsx` (`status, category, q`), `templates/new.tsx`, `templates/$templateId.tsx` (edit).
+  - Routes under `routes/_app/_workspace/_shell/`: `contacts/index.tsx` (filters in validated search params: `q, opt_in, tag_id, last_message, cursor`), `templates/index.tsx` (`status, category, q`), `templates/new.tsx`, `templates/$templateId.tsx` (edit).
   - Features live in `features/contacts/` and `features/templates/` (ADR 0004). Each feature has its own `api/` keys, queries and mutations.
   - The sidebar in `components/layout/app-shell.tsx` gets `to` for the `contacts` and `templates` items; nothing else in that file changes.
   - Use only `components/ui` (shadcn) and `#/lib`. Never import `features/team` kit pieces (only `useAccess`, below). If a piece is needed by both new features, each keeps its own copy in its `components/kit/` until a later cleanup promotes it.

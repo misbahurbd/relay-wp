@@ -179,7 +179,8 @@ func TestOnboardingFullJourney(t *testing.T) {
 	expect(t, b.do("POST", "/v1/workspaces", map[string]any{"name": "Second", "first_goal": "offers", "start_mode": "setup"}),
 		http.StatusConflict, "workspace_limit_reached")
 
-	base := "/v1/workspaces/" + wsID
+	const base = "/v1/workspace"
+	b = b.in(wsID)
 	ws := b.do("GET", base, nil)
 	expect(t, ws, http.StatusOK)
 	if ws.body["plan"] != "growth" || ws.body["trial_ends_at"] == nil {
@@ -188,9 +189,10 @@ func TestOnboardingFullJourney(t *testing.T) {
 
 	// Strangers can't see it, and can't tell it exists.
 	stranger := e.signedIn()
-	expect(t, stranger.do("GET", base, nil), http.StatusNotFound, "workspace_not_found")
-	expect(t, stranger.do("GET", base+"/onboarding", nil), http.StatusNotFound, "workspace_not_found")
-	expect(t, stranger.do("GET", "/v1/workspaces/not-a-uuid", nil), http.StatusNotFound, "workspace_not_found")
+	expect(t, stranger.in(wsID).do("GET", base, nil), http.StatusNotFound, "workspace_not_found")
+	expect(t, stranger.in(wsID).do("GET", base+"/onboarding", nil), http.StatusNotFound, "workspace_not_found")
+	expect(t, stranger.in("not-a-uuid").do("GET", base, nil), http.StatusNotFound, "workspace_not_found")
+	expect(t, b.in("").do("GET", base, nil), http.StatusUnprocessableEntity, "workspace_required")
 
 	// Step 1: business.
 	expect(t, b.do("POST", base+"/onboarding/skip-whatsapp", nil), http.StatusConflict, "onboarding_step_invalid")
@@ -232,7 +234,7 @@ func TestOnboardingFullJourney(t *testing.T) {
 	// Another workspace can't take the same WABA.
 	stranger.do("POST", "/v1/workspaces", map[string]any{"name": "Eve's", "first_goal": "support", "start_mode": "setup"})
 	strangerWS := stranger.do("GET", "/v1/workspaces", nil).body["workspaces"].([]any)[0].(map[string]any)["id"].(string)
-	expect(t, stranger.do("POST", "/v1/workspaces/"+strangerWS+"/whatsapp/connections", connect),
+	expect(t, stranger.in(strangerWS).do("POST", base+"/whatsapp/connections", connect),
 		http.StatusConflict, "whatsapp_already_connected")
 
 	e.runSetupJob(wsID, numberID)
@@ -343,7 +345,8 @@ func TestOnboardingSampleModeAndSkip(t *testing.T) {
 	if created.body["completed"] != true || created.body["current_step"] != "business" {
 		t.Fatalf("sample workspace = %v", created.body)
 	}
-	base := "/v1/workspaces/" + created.body["id"].(string)
+	const base = "/v1/workspace"
+	b = b.in(created.body["id"].(string))
 	ob := b.do("GET", base+"/onboarding", nil)
 	if ob.body["sample_data"] != true || ob.body["first_goal"] != "support" {
 		t.Errorf("onboarding = %v", ob.body)

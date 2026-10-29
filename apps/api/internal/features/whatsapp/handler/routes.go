@@ -10,7 +10,7 @@ import (
 type Middleware = func(huma.Context, func(huma.Context))
 
 // Register adds the WhatsApp routes. member and owner run after requireAuth and
-// check the {workspaceId} in the path. The webhook routes are public: Meta signs them.
+// check the X-Workspace-ID header. The webhook routes are public: Meta signs them.
 func Register(api huma.API, h *Handler, requireAuth, member, owner Middleware, security []map[string][]string) {
 	tags := []string{"whatsapp"}
 	op := func(id, method, path, summary string, status int, mw ...Middleware) huma.Operation {
@@ -19,7 +19,7 @@ func Register(api huma.API, h *Handler, requireAuth, member, owner Middleware, s
 			Security: security, Middlewares: append(huma.Middlewares{requireAuth}, mw...),
 		}
 	}
-	const ws = "/v1/workspaces/{workspaceId}/whatsapp"
+	const ws = "/v1/workspace/whatsapp"
 
 	huma.Register(api, op("whatsapp-signup-config", http.MethodGet, "/v1/whatsapp/signup-config",
 		"Public values for opening Meta's Embedded Signup", http.StatusOK), h.signupConfig)

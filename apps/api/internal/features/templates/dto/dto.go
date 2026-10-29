@@ -150,16 +150,16 @@ type TemplateOutput struct {
 // ---------- inputs ----------
 
 type TemplatePath struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	TemplateID  uuid.UUID `path:"templateId"`
 }
 
 type WorkspaceInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 }
 
 type ListInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	Status      string    `query:"status" enum:"draft,pending,approved,rejected,paused,disabled"`
 	Category    string    `query:"category" enum:"marketing,utility,authentication"`
 	Q           string    `query:"q" maxLength:"100" doc:"Part of the name, case-insensitive"`
@@ -195,7 +195,7 @@ type ListOutput struct {
 }
 
 type CreateInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	Body        struct {
 		Name       string          `json:"name" maxLength:"1024" doc:"Lowercase letters, numbers and underscores"`
 		Language   string          `json:"language" maxLength:"15" doc:"en_US, en_GB, es, pt_BR, hi, bn or ar"`
@@ -210,7 +210,7 @@ func (in CreateInput) Draft() model.Draft {
 }
 
 type UpdateInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	TemplateID  uuid.UUID `path:"templateId"`
 	Body        struct {
 		Name       *string          `json:"name,omitempty" maxLength:"1024"`
@@ -235,7 +235,7 @@ type SampleForm struct {
 }
 
 type SampleInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	TemplateID  uuid.UUID `path:"templateId"`
 	RawBody     huma.MultipartFormFiles[SampleForm]
 }

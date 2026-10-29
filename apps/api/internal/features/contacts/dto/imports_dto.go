@@ -14,7 +14,7 @@ type UploadForm struct {
 }
 
 type UploadImportInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	RawBody     huma.MultipartFormFiles[UploadForm]
 }
 
@@ -44,7 +44,7 @@ func ToUploadOutput(u model.Upload) *UploadOutput {
 }
 
 type ImportPath struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	ImportID    uuid.UUID `path:"importId"`
 }
 
@@ -55,7 +55,7 @@ type ColumnMappingDTO struct {
 }
 
 type MappingInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	ImportID    uuid.UUID `path:"importId"`
 	Body        struct {
 		Columns        []ColumnMappingDTO `json:"columns" minItems:"1"`

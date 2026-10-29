@@ -1,4 +1,5 @@
 import { downloadContactImportSkipped, exportContacts } from '@relay/api-client'
+import { inWorkspace } from '#/lib/api'
 import type { Contact, ContactFilter } from '../types'
 
 // Downloads go through the generated client, so the session cookie and the refresh-on-401
@@ -21,7 +22,7 @@ const today = () => new Date().toISOString().slice(0, 10)
 /** Downloads every contact matching the filter as CSV (AD-4 export). */
 export async function downloadContactsExport(workspaceId: string, filter: ContactFilter) {
   const { data } = await exportContacts({
-    path: { workspaceId },
+    headers: inWorkspace(workspaceId),
     query: filter,
     parseAs: 'blob',
     throwOnError: true,
@@ -32,7 +33,8 @@ export async function downloadContactsExport(workspaceId: string, filter: Contac
 /** Downloads the rows an import skipped, with the reason for each. */
 export async function downloadSkippedRows(workspaceId: string, importId: string) {
   const { data } = await downloadContactImportSkipped({
-    path: { workspaceId, importId },
+    headers: inWorkspace(workspaceId),
+    path: { importId },
     parseAs: 'blob',
     throwOnError: true,
   })

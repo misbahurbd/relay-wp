@@ -75,7 +75,7 @@ type NumbersOutput struct {
 }
 
 type ConnectInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	Body        struct {
 		Code          string `json:"code" minLength:"1" maxLength:"2048" doc:"From the FB.login callback"`
 		WABAID        string `json:"waba_id" maxLength:"32" doc:"From the WA_EMBEDDED_SIGNUP message"`
@@ -85,16 +85,16 @@ type ConnectInput struct {
 }
 
 type WorkspaceInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 }
 
 type NumberInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	NumberID    uuid.UUID `path:"numberId"`
 }
 
 type SendTestInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	NumberID    uuid.UUID `path:"numberId"`
 	Body        struct {
 		To string `json:"to" minLength:"8" maxLength:"24" doc:"E.164, e.g. +8801712345678"`
@@ -102,7 +102,7 @@ type SendTestInput struct {
 }
 
 type TestMessageInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	MessageID   uuid.UUID `path:"messageId"`
 }
 

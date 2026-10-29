@@ -40,7 +40,7 @@ export function TemplateEditor({ workspaceId, templateId, businessName }: Props)
     const missing = isApiError(query.error) && query.error.code === 'template_not_found'
     return (
       <main className="mx-auto flex w-full max-w-[1320px] flex-col items-start gap-3 p-4 sm:p-7">
-        <BackLink workspaceId={workspaceId} />
+        <BackLink />
         <h1 className="text-[28px] font-extrabold tracking-[-0.02em]">
           {missing ? 'Template not found' : 'Couldn’t load this template'}
         </h1>
@@ -95,7 +95,7 @@ function EditorForm({
     <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-5 p-4 sm:p-7">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-1">
-          <BackLink workspaceId={workspaceId} />
+          <BackLink />
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-[28px] font-extrabold tracking-[-0.02em] break-all">{title}</h1>
             {current && <StatusBadge status={current.status} />}
@@ -133,9 +133,7 @@ function EditorForm({
       </div>
 
       {current && <StatusNotice template={current} canEdit={!readOnly} />}
-      {editor.problem !== undefined && (
-        <ActionError workspaceId={workspaceId} error={editor.problem} />
-      )}
+      {editor.problem !== undefined && <ActionError error={editor.problem} />}
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
         <form
@@ -172,7 +170,7 @@ function EditorForm({
             remove.mutate(current.id, {
               onSuccess: () => {
                 toast.success(`${current.name} deleted`)
-                void navigate({ to: '/w/$workspaceId/templates', params: { workspaceId } })
+                void navigate({ to: '/templates' })
               },
             })
           }
@@ -209,11 +207,10 @@ function PreviewColumn({
   )
 }
 
-function BackLink({ workspaceId }: { workspaceId: string }) {
+function BackLink() {
   return (
     <Link
-      to="/w/$workspaceId/templates"
-      params={{ workspaceId }}
+      to="/templates"
       className="inline-flex w-fit items-center gap-1 text-[13px] font-bold text-brand-text no-underline hover:text-foreground"
     >
       <ChevronLeftIcon className="size-4" aria-hidden="true" />

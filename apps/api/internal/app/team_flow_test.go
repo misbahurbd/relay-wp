@@ -33,7 +33,8 @@ func (e *authEnv) inviteToken(addr string) string {
 // teamWorkspace is a workspace with its owner signed in.
 type teamWorkspace struct {
 	e     *authEnv
-	owner *browser
+	owner *browser // sends X-Workspace-ID
+	id    string
 	base  string
 	roles map[string]string // system key or name → role id
 }
@@ -43,7 +44,8 @@ func newTeamWorkspace(e *authEnv) *teamWorkspace {
 	owner := e.signedIn()
 	created := owner.do("POST", "/v1/workspaces", map[string]any{"name": "Acme", "first_goal": "support", "start_mode": "setup"})
 	expect(e.t, created, http.StatusCreated)
-	w := &teamWorkspace{e: e, owner: owner, base: "/v1/workspaces/" + created.body["id"].(string), roles: map[string]string{}}
+	id := created.body["id"].(string)
+	w := &teamWorkspace{e: e, owner: owner.in(id), id: id, base: "/v1/workspace", roles: map[string]string{}}
 	w.loadRoles()
 	return w
 }
@@ -61,14 +63,15 @@ func (w *teamWorkspace) loadRoles() {
 	}
 }
 
-// join invites a new verified user with the role and returns them signed in, plus their user id.
+// join invites a new verified user with the role and returns them signed in and
+// scoped to the workspace, plus their user id.
 func (w *teamWorkspace) join(role string) (*browser, string) {
 	w.e.t.Helper()
 	email := w.e.verifiedUser()
 	expect(w.e.t, w.owner.do("POST", w.base+"/invitations", map[string]any{
 		"emails": []string{email}, "role_id": w.roles[role],
 	}), http.StatusCreated)
-	b := w.e.browser(chromeMac)
+	b := w.e.browser(chromeMac).in(w.id)
 	b.login(email)
 	accepted := b.do("POST", "/v1/invitations/accept", map[string]any{"token": w.e.inviteToken(email)})
 	expect(w.e.t, accepted, http.StatusOK)
@@ -148,7 +151,7 @@ func TestOwnerHasEverything(t *testing.T) {
 	}
 
 	// A stranger can't tell the workspace exists.
-	expect(t, e.signedIn().do("GET", w.base+"/members", nil), http.StatusNotFound, "workspace_not_found")
+	expect(t, e.signedIn().in(w.id).do("GET", w.base+"/members", nil), http.StatusNotFound, "workspace_not_found")
 }
 
 func TestInviteAcceptAndRoleChecks(t *testing.T) {
@@ -179,7 +182,7 @@ func TestInviteAcceptAndRoleChecks(t *testing.T) {
 	expect(t, other.do("POST", "/v1/invitations/accept", map[string]any{"token": token}),
 		http.StatusForbidden, "invite_email_mismatch")
 
-	agent := e.browser(chromeMac)
+	agent := e.browser(chromeMac).in(w.id)
 	agent.login(email)
 	expect(t, agent.do("POST", "/v1/invitations/accept", map[string]any{"token": token}), http.StatusOK)
 	expect(t, agent.do("POST", "/v1/invitations/accept", map[string]any{"token": token}), http.StatusConflict)
@@ -340,7 +343,7 @@ func TestSignupFromInvite(t *testing.T) {
 	}), http.StatusCreated)
 	token := e.inviteToken(email)
 
-	b := e.browser(chromeMac)
+	b := e.browser(chromeMac).in(w.id)
 	expect(t, b.do("POST", "/v1/auth/signup/invite", map[string]any{
 		"token": token, "password": testPassword, "first_name": "Karim", "accept_terms": false,
 	}), http.StatusUnprocessableEntity, "terms_required")

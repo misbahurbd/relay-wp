@@ -18,7 +18,6 @@ import { StatusBadge } from '../kit/status-badge'
 const COLUMNS = 6
 
 export function TemplateTable({
-  workspaceId,
   items,
   loading,
   canEdit,
@@ -26,7 +25,6 @@ export function TemplateTable({
   empty,
   onDelete,
 }: {
-  workspaceId: string
   items: Template[]
   loading: boolean
   canEdit: boolean
@@ -71,7 +69,6 @@ export function TemplateTable({
           {items.map((t) => (
             <Row
               key={t.id}
-              workspaceId={workspaceId}
               template={t}
               canEdit={canEdit && !isFrozen(t)}
               canDelete={canDelete}
@@ -92,21 +89,19 @@ export function TemplateTable({
 }
 
 function Row({
-  workspaceId,
   template: t,
   canEdit,
   canDelete,
   onDelete,
 }: {
-  workspaceId: string
   template: Template
   canEdit: boolean
   canDelete: boolean
   onDelete: () => void
 }) {
   const link = {
-    to: '/w/$workspaceId/templates/$templateId',
-    params: { workspaceId, templateId: t.id },
+    to: '/templates/$templateId',
+    params: { templateId: t.id },
   } as const
   return (
     <tr className="border-t align-top hover:bg-muted/60">

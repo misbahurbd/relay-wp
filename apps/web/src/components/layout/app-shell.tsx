@@ -2,6 +2,8 @@ import { Link, useLocation } from '@tanstack/react-router'
 import {
   BarChart3Icon,
   BotIcon,
+  CheckIcon,
+  ChevronsUpDownIcon,
   ContactIcon,
   CreditCardIcon,
   FileTextIcon,
@@ -47,54 +49,56 @@ type NavItem = {
   label: string
   icon: typeof InboxIcon
   /** Built sections link somewhere; the rest show "Soon". */
-  to?:
-    | '/w/$workspaceId'
-    | '/w/$workspaceId/contacts'
-    | '/w/$workspaceId/templates'
-    | '/w/$workspaceId/team'
+  to?: '/' | '/contacts' | '/templates' | '/team'
 }
 
 const NAV: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboardIcon, to: '/w/$workspaceId' },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboardIcon, to: '/' },
   { id: 'inbox', label: 'Inbox', icon: InboxIcon },
-  { id: 'contacts', label: 'Contacts', icon: ContactIcon, to: '/w/$workspaceId/contacts' },
+  { id: 'contacts', label: 'Contacts', icon: ContactIcon, to: '/contacts' },
   { id: 'broadcasts', label: 'Broadcasts', icon: MegaphoneIcon },
-  { id: 'templates', label: 'Templates', icon: FileTextIcon, to: '/w/$workspaceId/templates' },
+  { id: 'templates', label: 'Templates', icon: FileTextIcon, to: '/templates' },
   { id: 'chatbots', label: 'Chatbots', icon: BotIcon },
   { id: 'automations', label: 'Automations', icon: WorkflowIcon },
   { id: 'integrations', label: 'Integrations', icon: PlugIcon },
   { id: 'analytics', label: 'Analytics', icon: BarChart3Icon },
-  { id: 'team', label: 'Team', icon: UsersIcon, to: '/w/$workspaceId/team' },
+  { id: 'team', label: 'Team', icon: UsersIcon, to: '/team' },
   { id: 'settings', label: 'Settings', icon: SettingsIcon },
   { id: 'billing', label: 'Billing', icon: CreditCardIcon },
 ]
 
+type WorkspaceOption = { id: string; name: string; roleName: string }
+
 type Props = {
   workspace: { id: string; name: string; trialDaysLeft: number | null }
+  /** Every workspace the user belongs to, for the switcher. */
+  workspaces: WorkspaceOption[]
+  onSwitchWorkspace: (id: string) => void
   user: { name: string; email: string; avatarUrl: string | null; roleName?: string }
   onLogout: () => void
   children: ReactNode
 }
 
-export function AppShell({ workspace, user, onLogout, children }: Props) {
+export function AppShell({
+  workspace,
+  workspaces,
+  onSwitchWorkspace,
+  user,
+  onLogout,
+  children,
+}: Props) {
   const { pathname } = useLocation()
-  const base = `/w/${workspace.id}`
   // Dashboard is active only on its own page; other sections own everything below them.
-  const isActive = (to: string) => {
-    const path = to.replace('/w/$workspaceId', base)
-    return path === base ? pathname.replace(/\/$/, '') === base : pathname.startsWith(path)
-  }
+  const isActive = (to: string) => (to === '/' ? pathname === '/' : pathname.startsWith(to))
   return (
     <SidebarProvider>
       <Sidebar>
         <SidebarHeader className="p-3">
-          <div className="flex items-center gap-2.5 px-1 py-1">
-            <LogoMark className="size-8" />
-            <span className="flex min-w-0 flex-col leading-tight">
-              <span className="truncate font-extrabold">{workspace.name}</span>
-              <span className="text-xs text-muted-foreground">Relay</span>
-            </span>
-          </div>
+          <WorkspaceSwitcher
+            current={workspace}
+            workspaces={workspaces}
+            onSwitch={onSwitchWorkspace}
+          />
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup>
@@ -109,7 +113,7 @@ export function AppShell({ workspace, user, onLogout, children }: Props) {
                         size="lg"
                         className="h-10 font-bold"
                       >
-                        <Link to={item.to} params={{ workspaceId: workspace.id }}>
+                        <Link to={item.to}>
                           <item.icon aria-hidden="true" />
                           {item.label}
                         </Link>
@@ -154,6 +158,57 @@ export function AppShell({ workspace, user, onLogout, children }: Props) {
         {children}
       </SidebarInset>
     </SidebarProvider>
+  )
+}
+
+function WorkspaceSwitcher({
+  current,
+  workspaces,
+  onSwitch,
+}: {
+  current: Props['workspace']
+  workspaces: WorkspaceOption[]
+  onSwitch: (id: string) => void
+}) {
+  const label = (
+    <>
+      <LogoMark className="size-8 shrink-0" />
+      <span className="flex min-w-0 flex-1 flex-col text-left leading-tight">
+        <span className="truncate font-extrabold">{current.name}</span>
+        <span className="text-xs text-muted-foreground">Relay</span>
+      </span>
+    </>
+  )
+  // Nothing to switch to: show the name without a menu.
+  if (workspaces.length < 2)
+    return <div className="flex items-center gap-2.5 px-1 py-1">{label}</div>
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className="flex min-h-11 w-full items-center gap-2.5 rounded-lg px-1 py-1 hover:bg-sidebar-accent"
+        aria-label={`Workspace: ${current.name}. Switch workspace`}
+      >
+        {label}
+        <ChevronsUpDownIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        className="w-(--radix-dropdown-menu-trigger-width) min-w-60"
+      >
+        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+          Workspaces
+        </DropdownMenuLabel>
+        {workspaces.map((w) => (
+          <DropdownMenuItem key={w.id} onSelect={() => onSwitch(w.id)} className="gap-2.5">
+            <span className="flex min-w-0 flex-1 flex-col leading-tight">
+              <span className="truncate font-bold">{w.name}</span>
+              <span className="text-xs text-muted-foreground">{w.roleName}</span>
+            </span>
+            {w.id === current.id && <CheckIcon className="size-4" aria-label="Current workspace" />}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 

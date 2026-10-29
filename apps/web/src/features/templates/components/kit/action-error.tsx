@@ -17,7 +17,7 @@ const TITLE: Record<string, string> = {
  * An error from a templates action that needs the user to do something, kept on the page
  * (DESIGN-SYSTEM §4). A missing or broken WhatsApp connection links to the setup step.
  */
-export function ActionError({ workspaceId, error }: { workspaceId: string; error: unknown }) {
+export function ActionError({ error }: { error: unknown }) {
   const code = isApiError(error) ? error.code : ''
   const whatsapp = code === 'whatsapp_not_connected' || code === 'whatsapp_disconnected'
   return (
@@ -36,8 +36,7 @@ export function ActionError({ workspaceId, error }: { workspaceId: string; error
         </p>
         {whatsapp && (
           <Link
-            to="/w/$workspaceId/setup"
-            params={{ workspaceId }}
+            to="/setup"
             search={{ step: 'whatsapp' }}
             className="font-bold text-brand-text underline underline-offset-2"
           >

@@ -29,7 +29,7 @@ type LogDTO struct {
 }
 
 type ListLogInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	Action      string    `query:"action" maxLength:"40"`
 	SubjectID   string    `query:"member" format:"uuid"`
 	Since       time.Time `query:"since" doc:"Oldest entry to include; at most 12 months back"`

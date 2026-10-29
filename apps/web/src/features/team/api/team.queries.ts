@@ -12,6 +12,7 @@ import {
   previewInvitation,
 } from '@relay/api-client'
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
+import { inWorkspace } from '#/lib/api'
 import type {
   Access,
   Invitation,
@@ -29,7 +30,11 @@ export const accessQueryOptions = (workspaceId: string) =>
   queryOptions({
     queryKey: teamKeys.access(workspaceId),
     queryFn: async ({ signal }): Promise<Access> => {
-      const { data } = await getMyAccess({ path: { workspaceId }, signal, throwOnError: true })
+      const { data } = await getMyAccess({
+        headers: inWorkspace(workspaceId),
+        signal,
+        throwOnError: true,
+      })
       return {
         ...data,
         permissions: ids(data.permissions),
@@ -53,7 +58,11 @@ export const seatsQueryOptions = (workspaceId: string) =>
   queryOptions({
     queryKey: teamKeys.seats(workspaceId),
     queryFn: async ({ signal }) => {
-      const { data } = await getSeats({ path: { workspaceId }, signal, throwOnError: true })
+      const { data } = await getSeats({
+        headers: inWorkspace(workspaceId),
+        signal,
+        throwOnError: true,
+      })
       return data
     },
   })
@@ -62,7 +71,11 @@ export const rolesQueryOptions = (workspaceId: string) =>
   queryOptions({
     queryKey: teamKeys.roles(workspaceId),
     queryFn: async ({ signal }): Promise<Role[]> => {
-      const { data } = await listRoles({ path: { workspaceId }, signal, throwOnError: true })
+      const { data } = await listRoles({
+        headers: inWorkspace(workspaceId),
+        signal,
+        throwOnError: true,
+      })
       return (data.roles ?? []).map((r) => ({
         ...r,
         system_key: r.system_key ?? null,
@@ -77,7 +90,7 @@ export const membersQueryOptions = (workspaceId: string, filter: MemberFilter = 
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ signal, pageParam }) => {
       const { data } = await listMembers({
-        path: { workspaceId },
+        headers: inWorkspace(workspaceId),
         query: { ...filter, cursor: pageParam, page_size: 100 },
         signal,
         throwOnError: true,
@@ -99,7 +112,8 @@ export const memberQueryOptions = (workspaceId: string, userId: string) =>
     queryKey: teamKeys.member(workspaceId, userId),
     queryFn: async ({ signal }): Promise<MemberDetail> => {
       const { data } = await getMember({
-        path: { workspaceId, userId },
+        headers: inWorkspace(workspaceId),
+        path: { userId },
         signal,
         throwOnError: true,
       })
@@ -119,7 +133,11 @@ export const teamsQueryOptions = (workspaceId: string) =>
   queryOptions({
     queryKey: teamKeys.teams(workspaceId),
     queryFn: async ({ signal }): Promise<Team[]> => {
-      const { data } = await listTeams({ path: { workspaceId }, signal, throwOnError: true })
+      const { data } = await listTeams({
+        headers: inWorkspace(workspaceId),
+        signal,
+        throwOnError: true,
+      })
       return (data.teams ?? []).map((t) => ({
         ...t,
         number_id: t.number_id ?? null,
@@ -132,7 +150,11 @@ export const invitationsQueryOptions = (workspaceId: string) =>
   queryOptions({
     queryKey: teamKeys.invitations(workspaceId),
     queryFn: async ({ signal }): Promise<Invitation[]> => {
-      const { data } = await listInvitations({ path: { workspaceId }, signal, throwOnError: true })
+      const { data } = await listInvitations({
+        headers: inWorkspace(workspaceId),
+        signal,
+        throwOnError: true,
+      })
       return (data.invitations ?? []).map((i) => ({ ...i, team_ids: ids(i.team_ids) }))
     },
   })
@@ -143,7 +165,7 @@ export const accessLogQueryOptions = (workspaceId: string, filter: LogFilter = {
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ signal, pageParam }) => {
       const { data } = await listAccessLog({
-        path: { workspaceId },
+        headers: inWorkspace(workspaceId),
         query: {
           action: filter.action || undefined,
           member: filter.member || undefined,
@@ -181,7 +203,7 @@ export const accessLogSummaryQueryOptions = (workspaceId: string) =>
     queryKey: teamKeys.logSummary(workspaceId),
     queryFn: async ({ signal }) => {
       const { data } = await getAccessLogSummary({
-        path: { workspaceId },
+        headers: inWorkspace(workspaceId),
         signal,
         throwOnError: true,
       })

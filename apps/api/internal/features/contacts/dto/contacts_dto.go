@@ -80,7 +80,7 @@ func (f ContactFilters) ToModel() model.Filter {
 }
 
 type ListContactsInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	ContactFilters
 	Limit  int32  `query:"limit" minimum:"1" maximum:"100" default:"25"`
 	Cursor string `query:"cursor" doc:"next_cursor from the previous page"`
@@ -102,7 +102,7 @@ type SummaryOutput struct {
 }
 
 type ContactPath struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	ContactID   uuid.UUID `path:"contactId"`
 }
 
@@ -111,7 +111,7 @@ type ContactOutput struct {
 }
 
 type CreateContactInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	Body        struct {
 		Name       string            `json:"name" maxLength:"200"`
 		Phone      string            `json:"phone" doc:"With country code; stored as E.164"`
@@ -135,7 +135,7 @@ func (in *CreateContactInput) ToModel() model.ContactInput {
 }
 
 type UpdateContactInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	ContactID   uuid.UUID `path:"contactId"`
 	Body        struct {
 		Name       *string           `json:"name,omitempty" maxLength:"200"`
@@ -160,7 +160,7 @@ func (in *UpdateContactInput) ToModel() model.ContactInput {
 }
 
 type BulkInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	Body        struct {
 		Action     string      `json:"action" enum:"add_tag,remove_tag,assign,delete" doc:"delete needs contacts.delete; the others contacts.edit"`
 		ContactIDs []uuid.UUID `json:"contact_ids" minItems:"1" maxItems:"500"`
@@ -180,6 +180,6 @@ type BulkOutput struct {
 }
 
 type ExportContactsInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	ContactFilters
 }

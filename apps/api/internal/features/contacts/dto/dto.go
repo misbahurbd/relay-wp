@@ -9,7 +9,7 @@ import (
 )
 
 type WorkspaceInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 }
 
 // EncodeCursor packs the last id of a page into an opaque string.

@@ -158,7 +158,7 @@ export function useTemplateEditor({
           toast.success(`${saved.name} sent to Meta`, {
             description: 'Meta usually replies within 24 hours.',
           })
-          return navigate({ to: '/w/$workspaceId/templates', params: { workspaceId } })
+          return navigate({ to: '/templates' })
         }
 
         if (meta.action === 'draft') toast.success('Draft saved')
@@ -171,8 +171,8 @@ export function useTemplateEditor({
 
   function goToEdit(templateId: string) {
     return navigate({
-      to: '/w/$workspaceId/templates/$templateId',
-      params: { workspaceId, templateId },
+      to: '/templates/$templateId',
+      params: { templateId },
       replace: true,
     })
   }

@@ -78,7 +78,7 @@ export function FirstRunDashboard({ userId, firstName, workspace, onboarding, nu
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6">
       {onboarding.whatsapp_skipped || (onboarding.sample_data && !number) ? (
-        <ConnectBanner workspaceId={workspace.id} sample={onboarding.sample_data} />
+        <ConnectBanner sample={onboarding.sample_data} />
       ) : null}
 
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -103,7 +103,6 @@ export function FirstRunDashboard({ userId, firstName, workspace, onboarding, nu
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <Checklist
           items={onboarding.checklist}
-          workspaceId={workspace.id}
           hidden={onboarding.checklist_hidden}
           onHiddenChange={(hidden) => member.mutate({ checklist_hidden: hidden })}
         />
@@ -142,7 +141,7 @@ export function FirstRunDashboard({ userId, firstName, workspace, onboarding, nu
   )
 }
 
-function ConnectBanner({ workspaceId, sample }: { workspaceId: string; sample: boolean }) {
+function ConnectBanner({ sample }: { sample: boolean }) {
   return (
     <Alert variant="warning" className="items-center">
       {sample ? <FlaskConicalIcon /> : <AlertTriangleIcon />}
@@ -158,7 +157,7 @@ function ConnectBanner({ workspaceId, sample }: { workspaceId: string; sample: b
             : 'You skipped this during setup. It takes about 5 minutes with your Facebook account.'}
         </span>
         <Button size="sm" asChild>
-          <Link to="/w/$workspaceId/setup" params={{ workspaceId }} search={{ step: 'whatsapp' }}>
+          <Link to="/setup" search={{ step: 'whatsapp' }}>
             Connect now
           </Link>
         </Button>
@@ -169,12 +168,10 @@ function ConnectBanner({ workspaceId, sample }: { workspaceId: string; sample: b
 
 function Checklist({
   items,
-  workspaceId,
   hidden,
   onHiddenChange,
 }: {
   items: ChecklistItem[]
-  workspaceId: string
   hidden: boolean
   onHiddenChange: (hidden: boolean) => void
 }) {
@@ -275,11 +272,7 @@ function Checklist({
                     </span>
                     {meta.available ? (
                       <Button size="sm" variant="outline" asChild>
-                        <Link
-                          to="/w/$workspaceId/setup"
-                          params={{ workspaceId }}
-                          search={{ step: 'whatsapp' }}
-                        >
+                        <Link to="/setup" search={{ step: 'whatsapp' }}>
                           {meta.cta}
                         </Link>
                       </Button>

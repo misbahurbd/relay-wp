@@ -150,7 +150,7 @@ export function InviteWizard({ workspaceId }: { workspaceId: string }) {
           aria-label="Breadcrumb"
           className="flex items-center gap-1.5 text-[13px] text-muted-foreground"
         >
-          <Link to="/w/$workspaceId/team" params={{ workspaceId }} className="font-bold">
+          <Link to="/team" className="font-bold">
             Team
           </Link>
           <span aria-hidden="true">/</span>
@@ -159,8 +159,7 @@ export function InviteWizard({ workspaceId }: { workspaceId: string }) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-[28px] font-extrabold tracking-[-0.02em]">Invite teammates</h1>
           <Link
-            to="/w/$workspaceId/team"
-            params={{ workspaceId }}
+            to="/team"
             className="inline-flex h-10 items-center gap-1.5 rounded-[10px] border bg-card px-3.5 font-bold text-foreground no-underline hover:bg-muted"
           >
             <XIcon className="size-4" aria-hidden="true" />
@@ -228,7 +227,6 @@ export function InviteWizard({ workspaceId }: { workspaceId: string }) {
               )}
               {step === 2 && (
                 <RoleStep
-                  workspaceId={workspaceId}
                   roles={choices}
                   role={role}
                   catalog={catalog.data}
@@ -739,7 +737,6 @@ function PeopleStep({
 // ---------- Step 2 ----------
 
 function RoleStep({
-  workspaceId,
   roles,
   role,
   catalog,
@@ -749,7 +746,6 @@ function RoleStep({
   onToggle,
   onReset,
 }: {
-  workspaceId: string
   roles: Role[]
   role?: Role
   catalog: Permission[]
@@ -770,11 +766,7 @@ function RoleStep({
           title="Choose a role"
           text="A role is a set of permissions. Everyone in this invite gets the same role."
         />
-        <Link
-          to="/w/$workspaceId/team/roles"
-          params={{ workspaceId }}
-          className="text-[13px] font-bold"
-        >
+        <Link to="/team/roles" className="text-[13px] font-bold">
           Manage roles
         </Link>
       </div>
@@ -1038,8 +1030,7 @@ function Done({
       </div>
       <div className="flex flex-wrap gap-2.5">
         <Link
-          to="/w/$workspaceId/team"
-          params={{ workspaceId }}
+          to="/team"
           className="inline-flex h-11 items-center rounded-[10px] bg-primary px-[18px] font-bold text-primary-foreground no-underline hover:bg-primary/90 hover:text-primary-foreground"
         >
           Back to Team

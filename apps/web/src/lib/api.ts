@@ -37,6 +37,11 @@ client.interceptors.response.use(async (response, request) => {
   return fetch(replay)
 })
 
+// Workspace-scoped routes (/v1/workspace/...) take the workspace from this header, not the URL.
+export function inWorkspace(workspaceId: string) {
+  return { 'X-Workspace-ID': workspaceId }
+}
+
 export function isApiError(error: unknown): error is ErrorBody {
   return typeof error === 'object' && error !== null && 'code' in error && 'message' in error
 }

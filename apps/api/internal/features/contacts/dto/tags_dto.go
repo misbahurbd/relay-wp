@@ -19,7 +19,7 @@ type TagsOutput struct {
 }
 
 type CreateTagInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	Body        struct {
 		Name string `json:"name" minLength:"1" maxLength:"50"`
 	}

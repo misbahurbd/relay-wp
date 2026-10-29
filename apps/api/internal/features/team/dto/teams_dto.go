@@ -47,20 +47,20 @@ func (b teamBody) Input() model.Details {
 }
 
 type CreateTeamInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	MetaHeaders
 	Body teamBody
 }
 
 type UpdateTeamInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	TeamID      uuid.UUID `path:"teamId"`
 	MetaHeaders
 	Body teamBody
 }
 
 type TeamMembersInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	TeamID      uuid.UUID `path:"teamId"`
 	MetaHeaders
 	Body struct {
@@ -69,7 +69,7 @@ type TeamMembersInput struct {
 }
 
 type DeleteTeamInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	TeamID      uuid.UUID `path:"teamId"`
 	MetaHeaders
 }

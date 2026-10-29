@@ -147,7 +147,7 @@ export function RolesPage({ workspaceId }: { workspaceId: string }) {
 
   return (
     <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-[18px] p-4 pb-0 sm:px-7 sm:pt-6">
-      <Breadcrumb workspaceId={workspaceId} current="Roles & permissions" />
+      <Breadcrumb current="Roles & permissions" />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-[28px] font-extrabold tracking-[-0.02em]">Roles &amp; permissions</h1>
@@ -354,11 +354,7 @@ function RecentChanges({ workspaceId, catalog }: { workspaceId: string; catalog:
       {!log.isPending && entries.length === 0 && (
         <span className="text-[13px] text-muted-foreground">No role changes yet.</span>
       )}
-      <Link
-        to="/w/$workspaceId/team/log"
-        params={{ workspaceId }}
-        className="text-[13px] font-bold"
-      >
+      <Link to="/team/log" className="text-[13px] font-bold">
         Full access log
       </Link>
     </section>
@@ -489,12 +485,7 @@ function Editor({
                   {role.member_count} {role.member_count === 1 ? 'member' : 'members'}
                 </span>
               </div>
-              <Link
-                to="/w/$workspaceId/team"
-                params={{ workspaceId }}
-                search={{ tab: 'members' }}
-                className="text-[13px] font-bold"
-              >
+              <Link to="/team" search={{ tab: 'members' }} className="text-[13px] font-bold">
                 Manage members
               </Link>
             </div>

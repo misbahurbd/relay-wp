@@ -49,8 +49,7 @@ export function TemplatesPage({ workspaceId, filter, onFilter }: Props) {
       </p>
       {can('templates.create') && (
         <Link
-          to="/w/$workspaceId/templates/new"
-          params={{ workspaceId }}
+          to="/templates/new"
           className="mt-1 inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 font-bold text-primary-foreground no-underline hover:bg-primary/90 hover:text-primary-foreground"
         >
           <PlusIcon className="size-4" aria-hidden="true" />
@@ -88,8 +87,7 @@ export function TemplatesPage({ workspaceId, filter, onFilter }: Props) {
               {sync.isPending ? 'Syncing…' : 'Sync from Meta'}
             </Button>
             <Link
-              to="/w/$workspaceId/templates/new"
-              params={{ workspaceId }}
+              to="/templates/new"
               className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-[18px] font-bold text-primary-foreground no-underline hover:bg-primary/90 hover:text-primary-foreground"
             >
               <PlusIcon className="size-[18px]" aria-hidden="true" />
@@ -99,7 +97,7 @@ export function TemplatesPage({ workspaceId, filter, onFilter }: Props) {
         )}
       </div>
 
-      {sync.isError && <ActionError workspaceId={workspaceId} error={sync.error} />}
+      {sync.isError && <ActionError error={sync.error} />}
 
       <section aria-label="Template summary" className="grid gap-3 sm:grid-cols-3">
         <SummaryCard
@@ -139,7 +137,6 @@ export function TemplatesPage({ workspaceId, filter, onFilter }: Props) {
           </Alert>
         ) : (
           <TemplateTable
-            workspaceId={workspaceId}
             items={items}
             loading={list.isPending}
             canEdit={can('templates.create')}

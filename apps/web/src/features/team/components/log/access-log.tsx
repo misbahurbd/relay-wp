@@ -112,7 +112,7 @@ export function AccessLog({
   const s = summary.data
   return (
     <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-5 p-4 sm:px-7 sm:pt-6 sm:pb-10">
-      <Breadcrumb workspaceId={workspaceId} current="Access log" />
+      <Breadcrumb current="Access log" />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-[28px] font-extrabold tracking-[-0.02em]">Access log</h1>
@@ -286,7 +286,7 @@ export function AccessLog({
           <strong>Kept for 12 months.</strong> Entries can’t be edited or deleted, including by the
           Owner. Export a CSV any time for your own records.
         </span>
-        <Link to="/w/$workspaceId/team" params={{ workspaceId }} className="font-bold">
+        <Link to="/team" className="font-bold">
           Back to Team
         </Link>
       </div>

@@ -7,6 +7,7 @@ import {
   listMembers,
 } from '@relay/api-client'
 import { keepPreviousData, queryOptions } from '@tanstack/react-query'
+import { inWorkspace } from '#/lib/api'
 import type {
   Contact,
   ContactDetail,
@@ -39,7 +40,7 @@ export const contactsListQueryOptions = (
     queryKey: contactsKeys.list(workspaceId, filter, cursor),
     queryFn: async ({ signal }): Promise<ContactPage> => {
       const { data } = await listContacts({
-        path: { workspaceId },
+        headers: inWorkspace(workspaceId),
         query: { ...filter, cursor, limit: PAGE_SIZE },
         signal,
         throwOnError: true,
@@ -58,7 +59,7 @@ export const contactsSummaryQueryOptions = (workspaceId: string) =>
     queryKey: contactsKeys.summary(workspaceId),
     queryFn: async ({ signal }): Promise<ContactsSummary> => {
       const { data } = await getContactsSummary({
-        path: { workspaceId },
+        headers: inWorkspace(workspaceId),
         signal,
         throwOnError: true,
       })
@@ -71,7 +72,8 @@ export const contactQueryOptions = (workspaceId: string, contactId: string) =>
     queryKey: contactsKeys.detail(workspaceId, contactId),
     queryFn: async ({ signal }): Promise<ContactDetail> => {
       const { data } = await getContact({
-        path: { workspaceId, contactId },
+        headers: inWorkspace(workspaceId),
+        path: { contactId },
         signal,
         throwOnError: true,
       })
@@ -83,7 +85,11 @@ export const contactTagsQueryOptions = (workspaceId: string) =>
   queryOptions({
     queryKey: contactsKeys.tags(workspaceId),
     queryFn: async ({ signal }): Promise<Tag[]> => {
-      const { data } = await listContactTags({ path: { workspaceId }, signal, throwOnError: true })
+      const { data } = await listContactTags({
+        headers: inWorkspace(workspaceId),
+        signal,
+        throwOnError: true,
+      })
       return data ?? []
     },
   })
@@ -94,7 +100,7 @@ export const contactAgentsQueryOptions = (workspaceId: string) =>
     queryKey: contactsKeys.agents(workspaceId),
     queryFn: async ({ signal }): Promise<Person[]> => {
       const { data } = await listMembers({
-        path: { workspaceId },
+        headers: inWorkspace(workspaceId),
         query: { status: 'active', page_size: 100 },
         signal,
         throwOnError: true,
@@ -112,7 +118,8 @@ export const contactImportQueryOptions = (workspaceId: string, importId: string)
     queryKey: contactsKeys.import(workspaceId, importId),
     queryFn: async ({ signal }): Promise<ContactImport> => {
       const { data } = await getContactImport({
-        path: { workspaceId, importId },
+        headers: inWorkspace(workspaceId),
+        path: { importId },
         signal,
         throwOnError: true,
       })

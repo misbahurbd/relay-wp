@@ -1,12 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { RolesPage } from '#/features/team'
 
-export const Route = createFileRoute('/_app/w/$workspaceId/_shell/team/roles')({
+export const Route = createFileRoute('/_app/_workspace/_shell/team/roles')({
   head: () => ({ meta: [{ title: 'Roles and permissions · Relay' }] }),
   component: Page,
 })
 
 function Page() {
-  const { workspaceId } = Route.useParams()
+  const { workspaceId } = Route.useRouteContext()
   return <RolesPage workspaceId={workspaceId} />
 }

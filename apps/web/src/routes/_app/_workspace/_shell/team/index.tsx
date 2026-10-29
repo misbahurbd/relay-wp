@@ -6,15 +6,14 @@ const search = z.object({
   tab: z.enum(['members', 'teams', 'roles']).optional().catch(undefined),
 })
 
-export const Route = createFileRoute('/_app/w/$workspaceId/_shell/team/')({
+export const Route = createFileRoute('/_app/_workspace/_shell/team/')({
   validateSearch: search,
   head: () => ({ meta: [{ title: 'Team · Relay' }] }),
   component: Page,
 })
 
 function Page() {
-  const { me } = Route.useRouteContext()
-  const { workspaceId } = Route.useParams()
+  const { me, workspaceId } = Route.useRouteContext()
   const { tab = 'members' } = Route.useSearch()
   const navigate = Route.useNavigate()
   return (

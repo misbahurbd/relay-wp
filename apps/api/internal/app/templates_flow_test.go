@@ -66,7 +66,7 @@ func TestTemplatesFlow(t *testing.T) {
 	expect(t, viewer.do("DELETE", base+"/"+id, nil), http.StatusForbidden)
 
 	// Another workspace can't see it.
-	stranger := e.signedIn()
+	stranger := e.signedIn().in(w.id)
 	expect(t, stranger.do("GET", base+"/"+id, nil), http.StatusNotFound, "workspace_not_found")
 
 	expect(t, owner.do("DELETE", base+"/"+id, nil), http.StatusNoContent)

@@ -8,7 +8,7 @@ import (
 
 type workspaceKey struct{}
 
-// WithWorkspace returns ctx carrying the member's access in the workspace in the URL.
+// WithWorkspace returns ctx carrying the member's access in the workspace the request names.
 func WithWorkspace(ctx context.Context, a Access) context.Context {
 	return context.WithValue(ctx, workspaceKey{}, a)
 }

@@ -2416,6 +2416,2212 @@ export type WhatsappSignupConfigResponses = {
 
 export type WhatsappSignupConfigResponse = WhatsappSignupConfigResponses[keyof WhatsappSignupConfigResponses];
 
+export type GetWorkspaceData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace';
+};
+
+export type GetWorkspaceErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetWorkspaceError = GetWorkspaceErrors[keyof GetWorkspaceErrors];
+
+export type GetWorkspaceResponses = {
+    /**
+     * OK
+     */
+    200: WorkspaceDto;
+};
+
+export type GetWorkspaceResponse = GetWorkspaceResponses[keyof GetWorkspaceResponses];
+
+export type ListAccessLogData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: {
+        action?: string;
+        member?: string;
+        /**
+         * Oldest entry to include; at most 12 months back
+         */
+        since?: string;
+        cursor?: string;
+        page_size?: number;
+    };
+    url: '/v1/workspace/access-log';
+};
+
+export type ListAccessLogErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListAccessLogError = ListAccessLogErrors[keyof ListAccessLogErrors];
+
+export type ListAccessLogResponses = {
+    /**
+     * OK
+     */
+    200: LogOutputBody;
+};
+
+export type ListAccessLogResponse = ListAccessLogResponses[keyof ListAccessLogResponses];
+
+export type GetAccessLogSummaryData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/access-log/summary';
+};
+
+export type GetAccessLogSummaryErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetAccessLogSummaryError = GetAccessLogSummaryErrors[keyof GetAccessLogSummaryErrors];
+
+export type GetAccessLogSummaryResponses = {
+    /**
+     * OK
+     */
+    200: LogSummaryOutputBody;
+};
+
+export type GetAccessLogSummaryResponse = GetAccessLogSummaryResponses[keyof GetAccessLogSummaryResponses];
+
+export type ListContactTagsData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/contact-tags';
+};
+
+export type ListContactTagsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListContactTagsError = ListContactTagsErrors[keyof ListContactTagsErrors];
+
+export type ListContactTagsResponses = {
+    /**
+     * OK
+     */
+    200: Array<TagDto> | null;
+};
+
+export type ListContactTagsResponse = ListContactTagsResponses[keyof ListContactTagsResponses];
+
+export type CreateContactTagData = {
+    body: CreateTagInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/contact-tags';
+};
+
+export type CreateContactTagErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CreateContactTagError = CreateContactTagErrors[keyof CreateContactTagErrors];
+
+export type CreateContactTagResponses = {
+    /**
+     * Created
+     */
+    201: TagDto;
+};
+
+export type CreateContactTagResponse = CreateContactTagResponses[keyof CreateContactTagResponses];
+
+export type ListContactsData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Name, phone or email contains this (case-insensitive)
+         */
+        q?: string;
+        opt_in?: 'in' | 'out' | 'pending';
+        tag_id?: string;
+        /**
+         * Last message within 24h/7d/30d, or over 90 days ago
+         */
+        last_message?: '24h' | '7d' | '30d' | 'over_90d';
+        limit?: number;
+        /**
+         * next_cursor from the previous page
+         */
+        cursor?: string;
+    };
+    url: '/v1/workspace/contacts';
+};
+
+export type ListContactsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListContactsError = ListContactsErrors[keyof ListContactsErrors];
+
+export type ListContactsResponses = {
+    /**
+     * OK
+     */
+    200: ContactsOutputBody;
+};
+
+export type ListContactsResponse = ListContactsResponses[keyof ListContactsResponses];
+
+export type CreateContactData = {
+    body: CreateContactInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/contacts';
+};
+
+export type CreateContactErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CreateContactError = CreateContactErrors[keyof CreateContactErrors];
+
+export type CreateContactResponses = {
+    /**
+     * Created
+     */
+    201: ContactDetailDto;
+};
+
+export type CreateContactResponse = CreateContactResponses[keyof CreateContactResponses];
+
+export type BulkContactsData = {
+    body: BulkInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/contacts/bulk';
+};
+
+export type BulkContactsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type BulkContactsError = BulkContactsErrors[keyof BulkContactsErrors];
+
+export type BulkContactsResponses = {
+    /**
+     * OK
+     */
+    200: BulkOutputBody;
+};
+
+export type BulkContactsResponse = BulkContactsResponses[keyof BulkContactsResponses];
+
+export type ExportContactsData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Name, phone or email contains this (case-insensitive)
+         */
+        q?: string;
+        opt_in?: 'in' | 'out' | 'pending';
+        tag_id?: string;
+        /**
+         * Last message within 24h/7d/30d, or over 90 days ago
+         */
+        last_message?: '24h' | '7d' | '30d' | 'over_90d';
+    };
+    url: '/v1/workspace/contacts/export';
+};
+
+export type ExportContactsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ExportContactsError = ExportContactsErrors[keyof ExportContactsErrors];
+
+export type ExportContactsResponses = {
+    /**
+     * CSV: name, phone, email, opt_in, tags, source, language, created_at, then one column per custom field
+     */
+    200: string;
+};
+
+export type ExportContactsResponse = ExportContactsResponses[keyof ExportContactsResponses];
+
+export type UploadContactImportData = {
+    body?: {
+        /**
+         * .csv or .xlsx, at most 10 MB and 50,000 rows
+         */
+        file: Blob | File;
+    };
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/contacts/imports';
+};
+
+export type UploadContactImportErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UploadContactImportError = UploadContactImportErrors[keyof UploadContactImportErrors];
+
+export type UploadContactImportResponses = {
+    /**
+     * Created
+     */
+    201: UploadOutputBody;
+};
+
+export type UploadContactImportResponse = UploadContactImportResponses[keyof UploadContactImportResponses];
+
+export type GetContactImportData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        importId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/contacts/imports/{importId}';
+};
+
+export type GetContactImportErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetContactImportError = GetContactImportErrors[keyof GetContactImportErrors];
+
+export type GetContactImportResponses = {
+    /**
+     * OK
+     */
+    200: ImportDto;
+};
+
+export type GetContactImportResponse = GetContactImportResponses[keyof GetContactImportResponses];
+
+export type SetContactImportMappingData = {
+    body: MappingInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        importId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/contacts/imports/{importId}/mapping';
+};
+
+export type SetContactImportMappingErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SetContactImportMappingError = SetContactImportMappingErrors[keyof SetContactImportMappingErrors];
+
+export type SetContactImportMappingResponses = {
+    /**
+     * OK
+     */
+    200: ImportDto;
+};
+
+export type SetContactImportMappingResponse = SetContactImportMappingResponses[keyof SetContactImportMappingResponses];
+
+export type PreviewContactImportData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        importId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/contacts/imports/{importId}/preview';
+};
+
+export type PreviewContactImportErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type PreviewContactImportError = PreviewContactImportErrors[keyof PreviewContactImportErrors];
+
+export type PreviewContactImportResponses = {
+    /**
+     * OK
+     */
+    200: PreviewOutputBody;
+};
+
+export type PreviewContactImportResponse = PreviewContactImportResponses[keyof PreviewContactImportResponses];
+
+export type DownloadContactImportSkippedData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        importId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/contacts/imports/{importId}/skipped';
+};
+
+export type DownloadContactImportSkippedErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type DownloadContactImportSkippedError = DownloadContactImportSkippedErrors[keyof DownloadContactImportSkippedErrors];
+
+export type DownloadContactImportSkippedResponses = {
+    /**
+     * CSV: row, the file's columns, error
+     */
+    200: string;
+};
+
+export type DownloadContactImportSkippedResponse = DownloadContactImportSkippedResponses[keyof DownloadContactImportSkippedResponses];
+
+export type StartContactImportData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        importId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/contacts/imports/{importId}/start';
+};
+
+export type StartContactImportErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type StartContactImportError = StartContactImportErrors[keyof StartContactImportErrors];
+
+export type StartContactImportResponses = {
+    /**
+     * Accepted
+     */
+    202: ImportDto;
+};
+
+export type StartContactImportResponse = StartContactImportResponses[keyof StartContactImportResponses];
+
+export type GetContactsSummaryData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/contacts/summary';
+};
+
+export type GetContactsSummaryErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetContactsSummaryError = GetContactsSummaryErrors[keyof GetContactsSummaryErrors];
+
+export type GetContactsSummaryResponses = {
+    /**
+     * OK
+     */
+    200: SummaryOutputBody;
+};
+
+export type GetContactsSummaryResponse = GetContactsSummaryResponses[keyof GetContactsSummaryResponses];
+
+export type DeleteContactData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        contactId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/contacts/{contactId}';
+};
+
+export type DeleteContactErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type DeleteContactError = DeleteContactErrors[keyof DeleteContactErrors];
+
+export type DeleteContactResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteContactResponse = DeleteContactResponses[keyof DeleteContactResponses];
+
+export type GetContactData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        contactId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/contacts/{contactId}';
+};
+
+export type GetContactErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetContactError = GetContactErrors[keyof GetContactErrors];
+
+export type GetContactResponses = {
+    /**
+     * OK
+     */
+    200: ContactDetailDto;
+};
+
+export type GetContactResponse = GetContactResponses[keyof GetContactResponses];
+
+export type UpdateContactData = {
+    body: UpdateContactInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        contactId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/contacts/{contactId}';
+};
+
+export type UpdateContactErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UpdateContactError = UpdateContactErrors[keyof UpdateContactErrors];
+
+export type UpdateContactResponses = {
+    /**
+     * OK
+     */
+    200: ContactDetailDto;
+};
+
+export type UpdateContactResponse = UpdateContactResponses[keyof UpdateContactResponses];
+
+export type ListInvitationsData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/invitations';
+};
+
+export type ListInvitationsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListInvitationsError = ListInvitationsErrors[keyof ListInvitationsErrors];
+
+export type ListInvitationsResponses = {
+    /**
+     * OK
+     */
+    200: InvitationsOutputBody;
+};
+
+export type ListInvitationsResponse = ListInvitationsResponses[keyof ListInvitationsResponses];
+
+export type CreateInvitationsData = {
+    body: InviteInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'User-Agent'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/invitations';
+};
+
+export type CreateInvitationsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CreateInvitationsError = CreateInvitationsErrors[keyof CreateInvitationsErrors];
+
+export type CreateInvitationsResponses = {
+    /**
+     * Created
+     */
+    201: InvitationsOutputBody;
+};
+
+export type CreateInvitationsResponse = CreateInvitationsResponses[keyof CreateInvitationsResponses];
+
+export type RevokeInvitationData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'User-Agent'?: string;
+    };
+    path: {
+        invitationId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/invitations/{invitationId}';
+};
+
+export type RevokeInvitationErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type RevokeInvitationError = RevokeInvitationErrors[keyof RevokeInvitationErrors];
+
+export type RevokeInvitationResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type RevokeInvitationResponse = RevokeInvitationResponses[keyof RevokeInvitationResponses];
+
+export type ResendInvitationData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'User-Agent'?: string;
+    };
+    path: {
+        invitationId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/invitations/{invitationId}/resend';
+};
+
+export type ResendInvitationErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ResendInvitationError = ResendInvitationErrors[keyof ResendInvitationErrors];
+
+export type ResendInvitationResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type ResendInvitationResponse = ResendInvitationResponses[keyof ResendInvitationResponses];
+
+export type GetMyAccessData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/me/access';
+};
+
+export type GetMyAccessErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetMyAccessError = GetMyAccessErrors[keyof GetMyAccessErrors];
+
+export type GetMyAccessResponses = {
+    /**
+     * OK
+     */
+    200: AccessDto;
+};
+
+export type GetMyAccessResponse = GetMyAccessResponses[keyof GetMyAccessResponses];
+
+export type SetAvailabilityData = {
+    body: AvailabilityInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/me/availability';
+};
+
+export type SetAvailabilityErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SetAvailabilityError = SetAvailabilityErrors[keyof SetAvailabilityErrors];
+
+export type SetAvailabilityResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type SetAvailabilityResponse = SetAvailabilityResponses[keyof SetAvailabilityResponses];
+
+export type LeaveWorkspaceData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'User-Agent'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/me/leave';
+};
+
+export type LeaveWorkspaceErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type LeaveWorkspaceError = LeaveWorkspaceErrors[keyof LeaveWorkspaceErrors];
+
+export type LeaveWorkspaceResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type LeaveWorkspaceResponse = LeaveWorkspaceResponses[keyof LeaveWorkspaceResponses];
+
+export type ListMembersData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: {
+        role_id?: string;
+        team_id?: string;
+        status?: 'active' | 'suspended';
+        q?: string;
+        /**
+         * next_cursor from the previous page
+         */
+        cursor?: string;
+        page_size?: number;
+    };
+    url: '/v1/workspace/members';
+};
+
+export type ListMembersErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListMembersError = ListMembersErrors[keyof ListMembersErrors];
+
+export type ListMembersResponses = {
+    /**
+     * OK
+     */
+    200: MembersOutputBody;
+};
+
+export type ListMembersResponse = ListMembersResponses[keyof ListMembersResponses];
+
+export type GetMemberData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/members/{userId}';
+};
+
+export type GetMemberErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetMemberError = GetMemberErrors[keyof GetMemberErrors];
+
+export type GetMemberResponses = {
+    /**
+     * OK
+     */
+    200: MemberDetailDto;
+};
+
+export type GetMemberResponse = GetMemberResponses[keyof GetMemberResponses];
+
+export type UpdateMemberAccessData = {
+    body: MemberAccessInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'User-Agent'?: string;
+    };
+    path: {
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/members/{userId}/access';
+};
+
+export type UpdateMemberAccessErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UpdateMemberAccessError = UpdateMemberAccessErrors[keyof UpdateMemberAccessErrors];
+
+export type UpdateMemberAccessResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type UpdateMemberAccessResponse = UpdateMemberAccessResponses[keyof UpdateMemberAccessResponses];
+
+export type AddMemberOverrideData = {
+    body: OverrideBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'User-Agent'?: string;
+    };
+    path: {
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/members/{userId}/overrides';
+};
+
+export type AddMemberOverrideErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AddMemberOverrideError = AddMemberOverrideErrors[keyof AddMemberOverrideErrors];
+
+export type AddMemberOverrideResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type AddMemberOverrideResponse = AddMemberOverrideResponses[keyof AddMemberOverrideResponses];
+
+export type RevokeMemberOverrideData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'User-Agent'?: string;
+    };
+    path: {
+        userId: string;
+        overrideId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/members/{userId}/overrides/{overrideId}';
+};
+
+export type RevokeMemberOverrideErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type RevokeMemberOverrideError = RevokeMemberOverrideErrors[keyof RevokeMemberOverrideErrors];
+
+export type RevokeMemberOverrideResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type RevokeMemberOverrideResponse = RevokeMemberOverrideResponses[keyof RevokeMemberOverrideResponses];
+
+export type RemoveMemberData = {
+    body: RemoveInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'User-Agent'?: string;
+    };
+    path: {
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/members/{userId}/remove';
+};
+
+export type RemoveMemberErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type RemoveMemberError = RemoveMemberErrors[keyof RemoveMemberErrors];
+
+export type RemoveMemberResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type RemoveMemberResponse = RemoveMemberResponses[keyof RemoveMemberResponses];
+
+export type RestoreMemberData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'User-Agent'?: string;
+    };
+    path: {
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/members/{userId}/restore';
+};
+
+export type RestoreMemberErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type RestoreMemberError = RestoreMemberErrors[keyof RestoreMemberErrors];
+
+export type RestoreMemberResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type RestoreMemberResponse = RestoreMemberResponses[keyof RestoreMemberResponses];
+
+export type ChangeMemberRoleData = {
+    body: MemberRoleInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'User-Agent'?: string;
+    };
+    path: {
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/members/{userId}/role';
+};
+
+export type ChangeMemberRoleErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ChangeMemberRoleError = ChangeMemberRoleErrors[keyof ChangeMemberRoleErrors];
+
+export type ChangeMemberRoleResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type ChangeMemberRoleResponse = ChangeMemberRoleResponses[keyof ChangeMemberRoleResponses];
+
+export type PreviewMemberRoleData = {
+    body: MemberRoleInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'User-Agent'?: string;
+    };
+    path: {
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/members/{userId}/role/preview';
+};
+
+export type PreviewMemberRoleErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type PreviewMemberRoleError = PreviewMemberRoleErrors[keyof PreviewMemberRoleErrors];
+
+export type PreviewMemberRoleResponses = {
+    /**
+     * OK
+     */
+    200: ChangeDto;
+};
+
+export type PreviewMemberRoleResponse = PreviewMemberRoleResponses[keyof PreviewMemberRoleResponses];
+
+export type SuspendMemberData = {
+    body: SuspendInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'User-Agent'?: string;
+    };
+    path: {
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/members/{userId}/suspend';
+};
+
+export type SuspendMemberErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SuspendMemberError = SuspendMemberErrors[keyof SuspendMemberErrors];
+
+export type SuspendMemberResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type SuspendMemberResponse = SuspendMemberResponses[keyof SuspendMemberResponses];
+
+export type GetOnboardingData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/onboarding';
+};
+
+export type GetOnboardingErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetOnboardingError = GetOnboardingErrors[keyof GetOnboardingErrors];
+
+export type GetOnboardingResponses = {
+    /**
+     * OK
+     */
+    200: OnboardingDto;
+};
+
+export type GetOnboardingResponse = GetOnboardingResponses[keyof GetOnboardingResponses];
+
+export type SaveBusinessData = {
+    body: BusinessInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/onboarding/business';
+};
+
+export type SaveBusinessErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SaveBusinessError = SaveBusinessErrors[keyof SaveBusinessErrors];
+
+export type SaveBusinessResponses = {
+    /**
+     * OK
+     */
+    200: WorkspaceDto;
+};
+
+export type SaveBusinessResponse = SaveBusinessResponses[keyof SaveBusinessResponses];
+
+export type CompleteOnboardingData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/onboarding/complete';
+};
+
+export type CompleteOnboardingErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CompleteOnboardingError = CompleteOnboardingErrors[keyof CompleteOnboardingErrors];
+
+export type CompleteOnboardingResponses = {
+    /**
+     * OK
+     */
+    200: OnboardingDto;
+};
+
+export type CompleteOnboardingResponse = CompleteOnboardingResponses[keyof CompleteOnboardingResponses];
+
+export type UpdateOnboardingMemberData = {
+    body: MemberStateInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/onboarding/me';
+};
+
+export type UpdateOnboardingMemberErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UpdateOnboardingMemberError = UpdateOnboardingMemberErrors[keyof UpdateOnboardingMemberErrors];
+
+export type UpdateOnboardingMemberResponses = {
+    /**
+     * OK
+     */
+    200: OnboardingDto;
+};
+
+export type UpdateOnboardingMemberResponse = UpdateOnboardingMemberResponses[keyof UpdateOnboardingMemberResponses];
+
+export type SkipWhatsappData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/onboarding/skip-whatsapp';
+};
+
+export type SkipWhatsappErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SkipWhatsappError = SkipWhatsappErrors[keyof SkipWhatsappErrors];
+
+export type SkipWhatsappResponses = {
+    /**
+     * OK
+     */
+    200: OnboardingDto;
+};
+
+export type SkipWhatsappResponse = SkipWhatsappResponses[keyof SkipWhatsappResponses];
+
+export type ListRolesData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/roles';
+};
+
+export type ListRolesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListRolesError = ListRolesErrors[keyof ListRolesErrors];
+
+export type ListRolesResponses = {
+    /**
+     * OK
+     */
+    200: RolesOutputBody;
+};
+
+export type ListRolesResponse = ListRolesResponses[keyof ListRolesResponses];
+
+export type CreateRoleData = {
+    body: RoleBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'User-Agent'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/roles';
+};
+
+export type CreateRoleErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CreateRoleError = CreateRoleErrors[keyof CreateRoleErrors];
+
+export type CreateRoleResponses = {
+    /**
+     * Created
+     */
+    201: RoleDto;
+};
+
+export type CreateRoleResponse = CreateRoleResponses[keyof CreateRoleResponses];
+
+export type DeleteRoleData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'User-Agent'?: string;
+    };
+    path: {
+        roleId: string;
+    };
+    query: {
+        /**
+         * Where its members and pending invites go
+         */
+        move_to_role_id: string;
+    };
+    url: '/v1/workspace/roles/{roleId}';
+};
+
+export type DeleteRoleErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type DeleteRoleError = DeleteRoleErrors[keyof DeleteRoleErrors];
+
+export type DeleteRoleResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteRoleResponse = DeleteRoleResponses[keyof DeleteRoleResponses];
+
+export type UpdateRoleData = {
+    body: RoleBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'User-Agent'?: string;
+    };
+    path: {
+        roleId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/roles/{roleId}';
+};
+
+export type UpdateRoleErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UpdateRoleError = UpdateRoleErrors[keyof UpdateRoleErrors];
+
+export type UpdateRoleResponses = {
+    /**
+     * OK
+     */
+    200: RoleDto;
+};
+
+export type UpdateRoleResponse = UpdateRoleResponses[keyof UpdateRoleResponses];
+
+export type PreviewRoleData = {
+    body: RoleBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'User-Agent'?: string;
+    };
+    path: {
+        roleId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/roles/{roleId}/preview';
+};
+
+export type PreviewRoleErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type PreviewRoleError = PreviewRoleErrors[keyof PreviewRoleErrors];
+
+export type PreviewRoleResponses = {
+    /**
+     * OK
+     */
+    200: ChangeDto;
+};
+
+export type PreviewRoleResponse = PreviewRoleResponses[keyof PreviewRoleResponses];
+
+export type ResetRoleData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'User-Agent'?: string;
+    };
+    path: {
+        roleId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/roles/{roleId}/reset';
+};
+
+export type ResetRoleErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ResetRoleError = ResetRoleErrors[keyof ResetRoleErrors];
+
+export type ResetRoleResponses = {
+    /**
+     * OK
+     */
+    200: RoleDto;
+};
+
+export type ResetRoleResponse = ResetRoleResponses[keyof ResetRoleResponses];
+
+export type GetSeatsData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/seats';
+};
+
+export type GetSeatsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetSeatsError = GetSeatsErrors[keyof GetSeatsErrors];
+
+export type GetSeatsResponses = {
+    /**
+     * OK
+     */
+    200: SeatsDto;
+};
+
+export type GetSeatsResponse = GetSeatsResponses[keyof GetSeatsResponses];
+
+export type ListTeamsData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/teams';
+};
+
+export type ListTeamsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListTeamsError = ListTeamsErrors[keyof ListTeamsErrors];
+
+export type ListTeamsResponses = {
+    /**
+     * OK
+     */
+    200: TeamsOutputBody;
+};
+
+export type ListTeamsResponse = ListTeamsResponses[keyof ListTeamsResponses];
+
+export type CreateTeamData = {
+    body: TeamBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'User-Agent'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/teams';
+};
+
+export type CreateTeamErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CreateTeamError = CreateTeamErrors[keyof CreateTeamErrors];
+
+export type CreateTeamResponses = {
+    /**
+     * Created
+     */
+    201: TeamDto;
+};
+
+export type CreateTeamResponse = CreateTeamResponses[keyof CreateTeamResponses];
+
+export type DeleteTeamData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'User-Agent'?: string;
+    };
+    path: {
+        teamId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/teams/{teamId}';
+};
+
+export type DeleteTeamErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type DeleteTeamError = DeleteTeamErrors[keyof DeleteTeamErrors];
+
+export type DeleteTeamResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteTeamResponse = DeleteTeamResponses[keyof DeleteTeamResponses];
+
+export type UpdateTeamData = {
+    body: TeamBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'User-Agent'?: string;
+    };
+    path: {
+        teamId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/teams/{teamId}';
+};
+
+export type UpdateTeamErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UpdateTeamError = UpdateTeamErrors[keyof UpdateTeamErrors];
+
+export type UpdateTeamResponses = {
+    /**
+     * OK
+     */
+    200: TeamDto;
+};
+
+export type UpdateTeamResponse = UpdateTeamResponses[keyof UpdateTeamResponses];
+
+export type SetTeamMembersData = {
+    body: TeamMembersInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'User-Agent'?: string;
+    };
+    path: {
+        teamId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/teams/{teamId}/members';
+};
+
+export type SetTeamMembersErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SetTeamMembersError = SetTeamMembersErrors[keyof SetTeamMembersErrors];
+
+export type SetTeamMembersResponses = {
+    /**
+     * OK
+     */
+    200: TeamDto;
+};
+
+export type SetTeamMembersResponse = SetTeamMembersResponses[keyof SetTeamMembersResponses];
+
+export type ListTemplatesData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: {
+        status?: 'draft' | 'pending' | 'approved' | 'rejected' | 'paused' | 'disabled';
+        category?: 'marketing' | 'utility' | 'authentication';
+        /**
+         * Part of the name, case-insensitive
+         */
+        q?: string;
+        limit?: number;
+        cursor?: string;
+    };
+    url: '/v1/workspace/templates';
+};
+
+export type ListTemplatesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListTemplatesError = ListTemplatesErrors[keyof ListTemplatesErrors];
+
+export type ListTemplatesResponses = {
+    /**
+     * OK
+     */
+    200: ListOutputBody1;
+};
+
+export type ListTemplatesResponse = ListTemplatesResponses[keyof ListTemplatesResponses];
+
+export type CreateTemplateData = {
+    body: CreateInputBody1;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/templates';
+};
+
+export type CreateTemplateErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CreateTemplateError = CreateTemplateErrors[keyof CreateTemplateErrors];
+
+export type CreateTemplateResponses = {
+    /**
+     * Created
+     */
+    201: TemplateDto;
+};
+
+export type CreateTemplateResponse = CreateTemplateResponses[keyof CreateTemplateResponses];
+
+export type SyncTemplatesData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/templates/sync';
+};
+
+export type SyncTemplatesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SyncTemplatesError = SyncTemplatesErrors[keyof SyncTemplatesErrors];
+
+export type SyncTemplatesResponses = {
+    /**
+     * OK
+     */
+    200: SyncOutputBody;
+};
+
+export type SyncTemplatesResponse = SyncTemplatesResponses[keyof SyncTemplatesResponses];
+
+export type DeleteTemplateData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        templateId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/templates/{templateId}';
+};
+
+export type DeleteTemplateErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type DeleteTemplateError = DeleteTemplateErrors[keyof DeleteTemplateErrors];
+
+export type DeleteTemplateResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteTemplateResponse = DeleteTemplateResponses[keyof DeleteTemplateResponses];
+
+export type GetTemplateData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        templateId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/templates/{templateId}';
+};
+
+export type GetTemplateErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetTemplateError = GetTemplateErrors[keyof GetTemplateErrors];
+
+export type GetTemplateResponses = {
+    /**
+     * OK
+     */
+    200: TemplateDto;
+};
+
+export type GetTemplateResponse = GetTemplateResponses[keyof GetTemplateResponses];
+
+export type UpdateTemplateData = {
+    body: UpdateInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        templateId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/templates/{templateId}';
+};
+
+export type UpdateTemplateErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UpdateTemplateError = UpdateTemplateErrors[keyof UpdateTemplateErrors];
+
+export type UpdateTemplateResponses = {
+    /**
+     * OK
+     */
+    200: TemplateDto;
+};
+
+export type UpdateTemplateResponse = UpdateTemplateResponses[keyof UpdateTemplateResponses];
+
+export type UploadTemplateHeaderSampleData = {
+    body?: {
+        /**
+         * JPG or PNG up to 5 MB, MP4 up to 16 MB, or PDF up to 100 MB; must match the header type
+         */
+        file: Blob | File;
+    };
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        templateId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/templates/{templateId}/header-sample';
+};
+
+export type UploadTemplateHeaderSampleErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UploadTemplateHeaderSampleError = UploadTemplateHeaderSampleErrors[keyof UploadTemplateHeaderSampleErrors];
+
+export type UploadTemplateHeaderSampleResponses = {
+    /**
+     * OK
+     */
+    200: TemplateDto;
+};
+
+export type UploadTemplateHeaderSampleResponse = UploadTemplateHeaderSampleResponses[keyof UploadTemplateHeaderSampleResponses];
+
+export type SubmitTemplateData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        templateId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/templates/{templateId}/submit';
+};
+
+export type SubmitTemplateErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SubmitTemplateError = SubmitTemplateErrors[keyof SubmitTemplateErrors];
+
+export type SubmitTemplateResponses = {
+    /**
+     * OK
+     */
+    200: TemplateDto;
+};
+
+export type SubmitTemplateResponse = SubmitTemplateResponses[keyof SubmitTemplateResponses];
+
+export type ConnectWhatsappData = {
+    body: ConnectInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/whatsapp/connections';
+};
+
+export type ConnectWhatsappErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ConnectWhatsappError = ConnectWhatsappErrors[keyof ConnectWhatsappErrors];
+
+export type ConnectWhatsappResponses = {
+    /**
+     * Accepted
+     */
+    202: NumberDto;
+};
+
+export type ConnectWhatsappResponse = ConnectWhatsappResponses[keyof ConnectWhatsappResponses];
+
+export type ListWhatsappNumbersData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/whatsapp/numbers';
+};
+
+export type ListWhatsappNumbersErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListWhatsappNumbersError = ListWhatsappNumbersErrors[keyof ListWhatsappNumbersErrors];
+
+export type ListWhatsappNumbersResponses = {
+    /**
+     * OK
+     */
+    200: NumbersOutputBody;
+};
+
+export type ListWhatsappNumbersResponse = ListWhatsappNumbersResponses[keyof ListWhatsappNumbersResponses];
+
+export type GetWhatsappNumberData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        numberId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/whatsapp/numbers/{numberId}';
+};
+
+export type GetWhatsappNumberErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetWhatsappNumberError = GetWhatsappNumberErrors[keyof GetWhatsappNumberErrors];
+
+export type GetWhatsappNumberResponses = {
+    /**
+     * OK
+     */
+    200: NumberDto;
+};
+
+export type GetWhatsappNumberResponse = GetWhatsappNumberResponses[keyof GetWhatsappNumberResponses];
+
+export type SendTestMessageData = {
+    body: SendTestInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        numberId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/whatsapp/numbers/{numberId}/test-messages';
+};
+
+export type SendTestMessageErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SendTestMessageError = SendTestMessageErrors[keyof SendTestMessageErrors];
+
+export type SendTestMessageResponses = {
+    /**
+     * Accepted
+     */
+    202: TestMessageOutputBody;
+};
+
+export type SendTestMessageResponse = SendTestMessageResponses[keyof SendTestMessageResponses];
+
+export type GetTestMessageData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        messageId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/whatsapp/test-messages/{messageId}';
+};
+
+export type GetTestMessageErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetTestMessageError = GetTestMessageErrors[keyof GetTestMessageErrors];
+
+export type GetTestMessageResponses = {
+    /**
+     * OK
+     */
+    200: TestMessageOutputBody;
+};
+
+export type GetTestMessageResponse = GetTestMessageResponses[keyof GetTestMessageResponses];
+
 export type ListWorkspacesData = {
     body?: never;
     path?: never;
@@ -2465,1953 +4671,3 @@ export type CreateWorkspaceResponses = {
 };
 
 export type CreateWorkspaceResponse = CreateWorkspaceResponses[keyof CreateWorkspaceResponses];
-
-export type GetWorkspaceData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}';
-};
-
-export type GetWorkspaceErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type GetWorkspaceError = GetWorkspaceErrors[keyof GetWorkspaceErrors];
-
-export type GetWorkspaceResponses = {
-    /**
-     * OK
-     */
-    200: WorkspaceDto;
-};
-
-export type GetWorkspaceResponse = GetWorkspaceResponses[keyof GetWorkspaceResponses];
-
-export type ListAccessLogData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-    };
-    query?: {
-        action?: string;
-        member?: string;
-        /**
-         * Oldest entry to include; at most 12 months back
-         */
-        since?: string;
-        cursor?: string;
-        page_size?: number;
-    };
-    url: '/v1/workspaces/{workspaceId}/access-log';
-};
-
-export type ListAccessLogErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type ListAccessLogError = ListAccessLogErrors[keyof ListAccessLogErrors];
-
-export type ListAccessLogResponses = {
-    /**
-     * OK
-     */
-    200: LogOutputBody;
-};
-
-export type ListAccessLogResponse = ListAccessLogResponses[keyof ListAccessLogResponses];
-
-export type GetAccessLogSummaryData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/access-log/summary';
-};
-
-export type GetAccessLogSummaryErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type GetAccessLogSummaryError = GetAccessLogSummaryErrors[keyof GetAccessLogSummaryErrors];
-
-export type GetAccessLogSummaryResponses = {
-    /**
-     * OK
-     */
-    200: LogSummaryOutputBody;
-};
-
-export type GetAccessLogSummaryResponse = GetAccessLogSummaryResponses[keyof GetAccessLogSummaryResponses];
-
-export type ListContactTagsData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/contact-tags';
-};
-
-export type ListContactTagsErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type ListContactTagsError = ListContactTagsErrors[keyof ListContactTagsErrors];
-
-export type ListContactTagsResponses = {
-    /**
-     * OK
-     */
-    200: Array<TagDto> | null;
-};
-
-export type ListContactTagsResponse = ListContactTagsResponses[keyof ListContactTagsResponses];
-
-export type CreateContactTagData = {
-    body: CreateTagInputBody;
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/contact-tags';
-};
-
-export type CreateContactTagErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type CreateContactTagError = CreateContactTagErrors[keyof CreateContactTagErrors];
-
-export type CreateContactTagResponses = {
-    /**
-     * Created
-     */
-    201: TagDto;
-};
-
-export type CreateContactTagResponse = CreateContactTagResponses[keyof CreateContactTagResponses];
-
-export type ListContactsData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-    };
-    query?: {
-        /**
-         * Name, phone or email contains this (case-insensitive)
-         */
-        q?: string;
-        opt_in?: 'in' | 'out' | 'pending';
-        tag_id?: string;
-        /**
-         * Last message within 24h/7d/30d, or over 90 days ago
-         */
-        last_message?: '24h' | '7d' | '30d' | 'over_90d';
-        limit?: number;
-        /**
-         * next_cursor from the previous page
-         */
-        cursor?: string;
-    };
-    url: '/v1/workspaces/{workspaceId}/contacts';
-};
-
-export type ListContactsErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type ListContactsError = ListContactsErrors[keyof ListContactsErrors];
-
-export type ListContactsResponses = {
-    /**
-     * OK
-     */
-    200: ContactsOutputBody;
-};
-
-export type ListContactsResponse = ListContactsResponses[keyof ListContactsResponses];
-
-export type CreateContactData = {
-    body: CreateContactInputBody;
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/contacts';
-};
-
-export type CreateContactErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type CreateContactError = CreateContactErrors[keyof CreateContactErrors];
-
-export type CreateContactResponses = {
-    /**
-     * Created
-     */
-    201: ContactDetailDto;
-};
-
-export type CreateContactResponse = CreateContactResponses[keyof CreateContactResponses];
-
-export type BulkContactsData = {
-    body: BulkInputBody;
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/contacts/bulk';
-};
-
-export type BulkContactsErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type BulkContactsError = BulkContactsErrors[keyof BulkContactsErrors];
-
-export type BulkContactsResponses = {
-    /**
-     * OK
-     */
-    200: BulkOutputBody;
-};
-
-export type BulkContactsResponse = BulkContactsResponses[keyof BulkContactsResponses];
-
-export type ExportContactsData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-    };
-    query?: {
-        /**
-         * Name, phone or email contains this (case-insensitive)
-         */
-        q?: string;
-        opt_in?: 'in' | 'out' | 'pending';
-        tag_id?: string;
-        /**
-         * Last message within 24h/7d/30d, or over 90 days ago
-         */
-        last_message?: '24h' | '7d' | '30d' | 'over_90d';
-    };
-    url: '/v1/workspaces/{workspaceId}/contacts/export';
-};
-
-export type ExportContactsErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type ExportContactsError = ExportContactsErrors[keyof ExportContactsErrors];
-
-export type ExportContactsResponses = {
-    /**
-     * CSV: name, phone, email, opt_in, tags, source, language, created_at, then one column per custom field
-     */
-    200: string;
-};
-
-export type ExportContactsResponse = ExportContactsResponses[keyof ExportContactsResponses];
-
-export type UploadContactImportData = {
-    body?: {
-        /**
-         * .csv or .xlsx, at most 10 MB and 50,000 rows
-         */
-        file: Blob | File;
-    };
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/contacts/imports';
-};
-
-export type UploadContactImportErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type UploadContactImportError = UploadContactImportErrors[keyof UploadContactImportErrors];
-
-export type UploadContactImportResponses = {
-    /**
-     * Created
-     */
-    201: UploadOutputBody;
-};
-
-export type UploadContactImportResponse = UploadContactImportResponses[keyof UploadContactImportResponses];
-
-export type GetContactImportData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-        importId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/contacts/imports/{importId}';
-};
-
-export type GetContactImportErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type GetContactImportError = GetContactImportErrors[keyof GetContactImportErrors];
-
-export type GetContactImportResponses = {
-    /**
-     * OK
-     */
-    200: ImportDto;
-};
-
-export type GetContactImportResponse = GetContactImportResponses[keyof GetContactImportResponses];
-
-export type SetContactImportMappingData = {
-    body: MappingInputBody;
-    path: {
-        workspaceId: string;
-        importId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/contacts/imports/{importId}/mapping';
-};
-
-export type SetContactImportMappingErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type SetContactImportMappingError = SetContactImportMappingErrors[keyof SetContactImportMappingErrors];
-
-export type SetContactImportMappingResponses = {
-    /**
-     * OK
-     */
-    200: ImportDto;
-};
-
-export type SetContactImportMappingResponse = SetContactImportMappingResponses[keyof SetContactImportMappingResponses];
-
-export type PreviewContactImportData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-        importId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/contacts/imports/{importId}/preview';
-};
-
-export type PreviewContactImportErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type PreviewContactImportError = PreviewContactImportErrors[keyof PreviewContactImportErrors];
-
-export type PreviewContactImportResponses = {
-    /**
-     * OK
-     */
-    200: PreviewOutputBody;
-};
-
-export type PreviewContactImportResponse = PreviewContactImportResponses[keyof PreviewContactImportResponses];
-
-export type DownloadContactImportSkippedData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-        importId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/contacts/imports/{importId}/skipped';
-};
-
-export type DownloadContactImportSkippedErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type DownloadContactImportSkippedError = DownloadContactImportSkippedErrors[keyof DownloadContactImportSkippedErrors];
-
-export type DownloadContactImportSkippedResponses = {
-    /**
-     * CSV: row, the file's columns, error
-     */
-    200: string;
-};
-
-export type DownloadContactImportSkippedResponse = DownloadContactImportSkippedResponses[keyof DownloadContactImportSkippedResponses];
-
-export type StartContactImportData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-        importId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/contacts/imports/{importId}/start';
-};
-
-export type StartContactImportErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type StartContactImportError = StartContactImportErrors[keyof StartContactImportErrors];
-
-export type StartContactImportResponses = {
-    /**
-     * Accepted
-     */
-    202: ImportDto;
-};
-
-export type StartContactImportResponse = StartContactImportResponses[keyof StartContactImportResponses];
-
-export type GetContactsSummaryData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/contacts/summary';
-};
-
-export type GetContactsSummaryErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type GetContactsSummaryError = GetContactsSummaryErrors[keyof GetContactsSummaryErrors];
-
-export type GetContactsSummaryResponses = {
-    /**
-     * OK
-     */
-    200: SummaryOutputBody;
-};
-
-export type GetContactsSummaryResponse = GetContactsSummaryResponses[keyof GetContactsSummaryResponses];
-
-export type DeleteContactData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-        contactId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/contacts/{contactId}';
-};
-
-export type DeleteContactErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type DeleteContactError = DeleteContactErrors[keyof DeleteContactErrors];
-
-export type DeleteContactResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type DeleteContactResponse = DeleteContactResponses[keyof DeleteContactResponses];
-
-export type GetContactData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-        contactId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/contacts/{contactId}';
-};
-
-export type GetContactErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type GetContactError = GetContactErrors[keyof GetContactErrors];
-
-export type GetContactResponses = {
-    /**
-     * OK
-     */
-    200: ContactDetailDto;
-};
-
-export type GetContactResponse = GetContactResponses[keyof GetContactResponses];
-
-export type UpdateContactData = {
-    body: UpdateContactInputBody;
-    path: {
-        workspaceId: string;
-        contactId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/contacts/{contactId}';
-};
-
-export type UpdateContactErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type UpdateContactError = UpdateContactErrors[keyof UpdateContactErrors];
-
-export type UpdateContactResponses = {
-    /**
-     * OK
-     */
-    200: ContactDetailDto;
-};
-
-export type UpdateContactResponse = UpdateContactResponses[keyof UpdateContactResponses];
-
-export type ListInvitationsData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/invitations';
-};
-
-export type ListInvitationsErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type ListInvitationsError = ListInvitationsErrors[keyof ListInvitationsErrors];
-
-export type ListInvitationsResponses = {
-    /**
-     * OK
-     */
-    200: InvitationsOutputBody;
-};
-
-export type ListInvitationsResponse = ListInvitationsResponses[keyof ListInvitationsResponses];
-
-export type CreateInvitationsData = {
-    body: InviteInputBody;
-    headers?: {
-        'User-Agent'?: string;
-    };
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/invitations';
-};
-
-export type CreateInvitationsErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type CreateInvitationsError = CreateInvitationsErrors[keyof CreateInvitationsErrors];
-
-export type CreateInvitationsResponses = {
-    /**
-     * Created
-     */
-    201: InvitationsOutputBody;
-};
-
-export type CreateInvitationsResponse = CreateInvitationsResponses[keyof CreateInvitationsResponses];
-
-export type RevokeInvitationData = {
-    body?: never;
-    headers?: {
-        'User-Agent'?: string;
-    };
-    path: {
-        workspaceId: string;
-        invitationId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/invitations/{invitationId}';
-};
-
-export type RevokeInvitationErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type RevokeInvitationError = RevokeInvitationErrors[keyof RevokeInvitationErrors];
-
-export type RevokeInvitationResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type RevokeInvitationResponse = RevokeInvitationResponses[keyof RevokeInvitationResponses];
-
-export type ResendInvitationData = {
-    body?: never;
-    headers?: {
-        'User-Agent'?: string;
-    };
-    path: {
-        workspaceId: string;
-        invitationId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/invitations/{invitationId}/resend';
-};
-
-export type ResendInvitationErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type ResendInvitationError = ResendInvitationErrors[keyof ResendInvitationErrors];
-
-export type ResendInvitationResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type ResendInvitationResponse = ResendInvitationResponses[keyof ResendInvitationResponses];
-
-export type GetMyAccessData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/me/access';
-};
-
-export type GetMyAccessErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type GetMyAccessError = GetMyAccessErrors[keyof GetMyAccessErrors];
-
-export type GetMyAccessResponses = {
-    /**
-     * OK
-     */
-    200: AccessDto;
-};
-
-export type GetMyAccessResponse = GetMyAccessResponses[keyof GetMyAccessResponses];
-
-export type SetAvailabilityData = {
-    body: AvailabilityInputBody;
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/me/availability';
-};
-
-export type SetAvailabilityErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type SetAvailabilityError = SetAvailabilityErrors[keyof SetAvailabilityErrors];
-
-export type SetAvailabilityResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type SetAvailabilityResponse = SetAvailabilityResponses[keyof SetAvailabilityResponses];
-
-export type LeaveWorkspaceData = {
-    body?: never;
-    headers?: {
-        'User-Agent'?: string;
-    };
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/me/leave';
-};
-
-export type LeaveWorkspaceErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type LeaveWorkspaceError = LeaveWorkspaceErrors[keyof LeaveWorkspaceErrors];
-
-export type LeaveWorkspaceResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type LeaveWorkspaceResponse = LeaveWorkspaceResponses[keyof LeaveWorkspaceResponses];
-
-export type ListMembersData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-    };
-    query?: {
-        role_id?: string;
-        team_id?: string;
-        status?: 'active' | 'suspended';
-        q?: string;
-        /**
-         * next_cursor from the previous page
-         */
-        cursor?: string;
-        page_size?: number;
-    };
-    url: '/v1/workspaces/{workspaceId}/members';
-};
-
-export type ListMembersErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type ListMembersError = ListMembersErrors[keyof ListMembersErrors];
-
-export type ListMembersResponses = {
-    /**
-     * OK
-     */
-    200: MembersOutputBody;
-};
-
-export type ListMembersResponse = ListMembersResponses[keyof ListMembersResponses];
-
-export type GetMemberData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-        userId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/members/{userId}';
-};
-
-export type GetMemberErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type GetMemberError = GetMemberErrors[keyof GetMemberErrors];
-
-export type GetMemberResponses = {
-    /**
-     * OK
-     */
-    200: MemberDetailDto;
-};
-
-export type GetMemberResponse = GetMemberResponses[keyof GetMemberResponses];
-
-export type UpdateMemberAccessData = {
-    body: MemberAccessInputBody;
-    headers?: {
-        'User-Agent'?: string;
-    };
-    path: {
-        workspaceId: string;
-        userId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/members/{userId}/access';
-};
-
-export type UpdateMemberAccessErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type UpdateMemberAccessError = UpdateMemberAccessErrors[keyof UpdateMemberAccessErrors];
-
-export type UpdateMemberAccessResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type UpdateMemberAccessResponse = UpdateMemberAccessResponses[keyof UpdateMemberAccessResponses];
-
-export type AddMemberOverrideData = {
-    body: OverrideBody;
-    headers?: {
-        'User-Agent'?: string;
-    };
-    path: {
-        workspaceId: string;
-        userId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/members/{userId}/overrides';
-};
-
-export type AddMemberOverrideErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type AddMemberOverrideError = AddMemberOverrideErrors[keyof AddMemberOverrideErrors];
-
-export type AddMemberOverrideResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type AddMemberOverrideResponse = AddMemberOverrideResponses[keyof AddMemberOverrideResponses];
-
-export type RevokeMemberOverrideData = {
-    body?: never;
-    headers?: {
-        'User-Agent'?: string;
-    };
-    path: {
-        workspaceId: string;
-        userId: string;
-        overrideId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/members/{userId}/overrides/{overrideId}';
-};
-
-export type RevokeMemberOverrideErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type RevokeMemberOverrideError = RevokeMemberOverrideErrors[keyof RevokeMemberOverrideErrors];
-
-export type RevokeMemberOverrideResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type RevokeMemberOverrideResponse = RevokeMemberOverrideResponses[keyof RevokeMemberOverrideResponses];
-
-export type RemoveMemberData = {
-    body: RemoveInputBody;
-    headers?: {
-        'User-Agent'?: string;
-    };
-    path: {
-        workspaceId: string;
-        userId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/members/{userId}/remove';
-};
-
-export type RemoveMemberErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type RemoveMemberError = RemoveMemberErrors[keyof RemoveMemberErrors];
-
-export type RemoveMemberResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type RemoveMemberResponse = RemoveMemberResponses[keyof RemoveMemberResponses];
-
-export type RestoreMemberData = {
-    body?: never;
-    headers?: {
-        'User-Agent'?: string;
-    };
-    path: {
-        workspaceId: string;
-        userId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/members/{userId}/restore';
-};
-
-export type RestoreMemberErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type RestoreMemberError = RestoreMemberErrors[keyof RestoreMemberErrors];
-
-export type RestoreMemberResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type RestoreMemberResponse = RestoreMemberResponses[keyof RestoreMemberResponses];
-
-export type ChangeMemberRoleData = {
-    body: MemberRoleInputBody;
-    headers?: {
-        'User-Agent'?: string;
-    };
-    path: {
-        workspaceId: string;
-        userId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/members/{userId}/role';
-};
-
-export type ChangeMemberRoleErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type ChangeMemberRoleError = ChangeMemberRoleErrors[keyof ChangeMemberRoleErrors];
-
-export type ChangeMemberRoleResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type ChangeMemberRoleResponse = ChangeMemberRoleResponses[keyof ChangeMemberRoleResponses];
-
-export type PreviewMemberRoleData = {
-    body: MemberRoleInputBody;
-    headers?: {
-        'User-Agent'?: string;
-    };
-    path: {
-        workspaceId: string;
-        userId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/members/{userId}/role/preview';
-};
-
-export type PreviewMemberRoleErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type PreviewMemberRoleError = PreviewMemberRoleErrors[keyof PreviewMemberRoleErrors];
-
-export type PreviewMemberRoleResponses = {
-    /**
-     * OK
-     */
-    200: ChangeDto;
-};
-
-export type PreviewMemberRoleResponse = PreviewMemberRoleResponses[keyof PreviewMemberRoleResponses];
-
-export type SuspendMemberData = {
-    body: SuspendInputBody;
-    headers?: {
-        'User-Agent'?: string;
-    };
-    path: {
-        workspaceId: string;
-        userId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/members/{userId}/suspend';
-};
-
-export type SuspendMemberErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type SuspendMemberError = SuspendMemberErrors[keyof SuspendMemberErrors];
-
-export type SuspendMemberResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type SuspendMemberResponse = SuspendMemberResponses[keyof SuspendMemberResponses];
-
-export type GetOnboardingData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/onboarding';
-};
-
-export type GetOnboardingErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type GetOnboardingError = GetOnboardingErrors[keyof GetOnboardingErrors];
-
-export type GetOnboardingResponses = {
-    /**
-     * OK
-     */
-    200: OnboardingDto;
-};
-
-export type GetOnboardingResponse = GetOnboardingResponses[keyof GetOnboardingResponses];
-
-export type SaveBusinessData = {
-    body: BusinessInputBody;
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/onboarding/business';
-};
-
-export type SaveBusinessErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type SaveBusinessError = SaveBusinessErrors[keyof SaveBusinessErrors];
-
-export type SaveBusinessResponses = {
-    /**
-     * OK
-     */
-    200: WorkspaceDto;
-};
-
-export type SaveBusinessResponse = SaveBusinessResponses[keyof SaveBusinessResponses];
-
-export type CompleteOnboardingData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/onboarding/complete';
-};
-
-export type CompleteOnboardingErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type CompleteOnboardingError = CompleteOnboardingErrors[keyof CompleteOnboardingErrors];
-
-export type CompleteOnboardingResponses = {
-    /**
-     * OK
-     */
-    200: OnboardingDto;
-};
-
-export type CompleteOnboardingResponse = CompleteOnboardingResponses[keyof CompleteOnboardingResponses];
-
-export type UpdateOnboardingMemberData = {
-    body: MemberStateInputBody;
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/onboarding/me';
-};
-
-export type UpdateOnboardingMemberErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type UpdateOnboardingMemberError = UpdateOnboardingMemberErrors[keyof UpdateOnboardingMemberErrors];
-
-export type UpdateOnboardingMemberResponses = {
-    /**
-     * OK
-     */
-    200: OnboardingDto;
-};
-
-export type UpdateOnboardingMemberResponse = UpdateOnboardingMemberResponses[keyof UpdateOnboardingMemberResponses];
-
-export type SkipWhatsappData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/onboarding/skip-whatsapp';
-};
-
-export type SkipWhatsappErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type SkipWhatsappError = SkipWhatsappErrors[keyof SkipWhatsappErrors];
-
-export type SkipWhatsappResponses = {
-    /**
-     * OK
-     */
-    200: OnboardingDto;
-};
-
-export type SkipWhatsappResponse = SkipWhatsappResponses[keyof SkipWhatsappResponses];
-
-export type ListRolesData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/roles';
-};
-
-export type ListRolesErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type ListRolesError = ListRolesErrors[keyof ListRolesErrors];
-
-export type ListRolesResponses = {
-    /**
-     * OK
-     */
-    200: RolesOutputBody;
-};
-
-export type ListRolesResponse = ListRolesResponses[keyof ListRolesResponses];
-
-export type CreateRoleData = {
-    body: RoleBody;
-    headers?: {
-        'User-Agent'?: string;
-    };
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/roles';
-};
-
-export type CreateRoleErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type CreateRoleError = CreateRoleErrors[keyof CreateRoleErrors];
-
-export type CreateRoleResponses = {
-    /**
-     * Created
-     */
-    201: RoleDto;
-};
-
-export type CreateRoleResponse = CreateRoleResponses[keyof CreateRoleResponses];
-
-export type DeleteRoleData = {
-    body?: never;
-    headers?: {
-        'User-Agent'?: string;
-    };
-    path: {
-        workspaceId: string;
-        roleId: string;
-    };
-    query: {
-        /**
-         * Where its members and pending invites go
-         */
-        move_to_role_id: string;
-    };
-    url: '/v1/workspaces/{workspaceId}/roles/{roleId}';
-};
-
-export type DeleteRoleErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type DeleteRoleError = DeleteRoleErrors[keyof DeleteRoleErrors];
-
-export type DeleteRoleResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type DeleteRoleResponse = DeleteRoleResponses[keyof DeleteRoleResponses];
-
-export type UpdateRoleData = {
-    body: RoleBody;
-    headers?: {
-        'User-Agent'?: string;
-    };
-    path: {
-        workspaceId: string;
-        roleId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/roles/{roleId}';
-};
-
-export type UpdateRoleErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type UpdateRoleError = UpdateRoleErrors[keyof UpdateRoleErrors];
-
-export type UpdateRoleResponses = {
-    /**
-     * OK
-     */
-    200: RoleDto;
-};
-
-export type UpdateRoleResponse = UpdateRoleResponses[keyof UpdateRoleResponses];
-
-export type PreviewRoleData = {
-    body: RoleBody;
-    headers?: {
-        'User-Agent'?: string;
-    };
-    path: {
-        workspaceId: string;
-        roleId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/roles/{roleId}/preview';
-};
-
-export type PreviewRoleErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type PreviewRoleError = PreviewRoleErrors[keyof PreviewRoleErrors];
-
-export type PreviewRoleResponses = {
-    /**
-     * OK
-     */
-    200: ChangeDto;
-};
-
-export type PreviewRoleResponse = PreviewRoleResponses[keyof PreviewRoleResponses];
-
-export type ResetRoleData = {
-    body?: never;
-    headers?: {
-        'User-Agent'?: string;
-    };
-    path: {
-        workspaceId: string;
-        roleId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/roles/{roleId}/reset';
-};
-
-export type ResetRoleErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type ResetRoleError = ResetRoleErrors[keyof ResetRoleErrors];
-
-export type ResetRoleResponses = {
-    /**
-     * OK
-     */
-    200: RoleDto;
-};
-
-export type ResetRoleResponse = ResetRoleResponses[keyof ResetRoleResponses];
-
-export type GetSeatsData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/seats';
-};
-
-export type GetSeatsErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type GetSeatsError = GetSeatsErrors[keyof GetSeatsErrors];
-
-export type GetSeatsResponses = {
-    /**
-     * OK
-     */
-    200: SeatsDto;
-};
-
-export type GetSeatsResponse = GetSeatsResponses[keyof GetSeatsResponses];
-
-export type ListTeamsData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/teams';
-};
-
-export type ListTeamsErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type ListTeamsError = ListTeamsErrors[keyof ListTeamsErrors];
-
-export type ListTeamsResponses = {
-    /**
-     * OK
-     */
-    200: TeamsOutputBody;
-};
-
-export type ListTeamsResponse = ListTeamsResponses[keyof ListTeamsResponses];
-
-export type CreateTeamData = {
-    body: TeamBody;
-    headers?: {
-        'User-Agent'?: string;
-    };
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/teams';
-};
-
-export type CreateTeamErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type CreateTeamError = CreateTeamErrors[keyof CreateTeamErrors];
-
-export type CreateTeamResponses = {
-    /**
-     * Created
-     */
-    201: TeamDto;
-};
-
-export type CreateTeamResponse = CreateTeamResponses[keyof CreateTeamResponses];
-
-export type DeleteTeamData = {
-    body?: never;
-    headers?: {
-        'User-Agent'?: string;
-    };
-    path: {
-        workspaceId: string;
-        teamId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/teams/{teamId}';
-};
-
-export type DeleteTeamErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type DeleteTeamError = DeleteTeamErrors[keyof DeleteTeamErrors];
-
-export type DeleteTeamResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type DeleteTeamResponse = DeleteTeamResponses[keyof DeleteTeamResponses];
-
-export type UpdateTeamData = {
-    body: TeamBody;
-    headers?: {
-        'User-Agent'?: string;
-    };
-    path: {
-        workspaceId: string;
-        teamId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/teams/{teamId}';
-};
-
-export type UpdateTeamErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type UpdateTeamError = UpdateTeamErrors[keyof UpdateTeamErrors];
-
-export type UpdateTeamResponses = {
-    /**
-     * OK
-     */
-    200: TeamDto;
-};
-
-export type UpdateTeamResponse = UpdateTeamResponses[keyof UpdateTeamResponses];
-
-export type SetTeamMembersData = {
-    body: TeamMembersInputBody;
-    headers?: {
-        'User-Agent'?: string;
-    };
-    path: {
-        workspaceId: string;
-        teamId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/teams/{teamId}/members';
-};
-
-export type SetTeamMembersErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type SetTeamMembersError = SetTeamMembersErrors[keyof SetTeamMembersErrors];
-
-export type SetTeamMembersResponses = {
-    /**
-     * OK
-     */
-    200: TeamDto;
-};
-
-export type SetTeamMembersResponse = SetTeamMembersResponses[keyof SetTeamMembersResponses];
-
-export type ListTemplatesData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-    };
-    query?: {
-        status?: 'draft' | 'pending' | 'approved' | 'rejected' | 'paused' | 'disabled';
-        category?: 'marketing' | 'utility' | 'authentication';
-        /**
-         * Part of the name, case-insensitive
-         */
-        q?: string;
-        limit?: number;
-        cursor?: string;
-    };
-    url: '/v1/workspaces/{workspaceId}/templates';
-};
-
-export type ListTemplatesErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type ListTemplatesError = ListTemplatesErrors[keyof ListTemplatesErrors];
-
-export type ListTemplatesResponses = {
-    /**
-     * OK
-     */
-    200: ListOutputBody1;
-};
-
-export type ListTemplatesResponse = ListTemplatesResponses[keyof ListTemplatesResponses];
-
-export type CreateTemplateData = {
-    body: CreateInputBody1;
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/templates';
-};
-
-export type CreateTemplateErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type CreateTemplateError = CreateTemplateErrors[keyof CreateTemplateErrors];
-
-export type CreateTemplateResponses = {
-    /**
-     * Created
-     */
-    201: TemplateDto;
-};
-
-export type CreateTemplateResponse = CreateTemplateResponses[keyof CreateTemplateResponses];
-
-export type SyncTemplatesData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/templates/sync';
-};
-
-export type SyncTemplatesErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type SyncTemplatesError = SyncTemplatesErrors[keyof SyncTemplatesErrors];
-
-export type SyncTemplatesResponses = {
-    /**
-     * OK
-     */
-    200: SyncOutputBody;
-};
-
-export type SyncTemplatesResponse = SyncTemplatesResponses[keyof SyncTemplatesResponses];
-
-export type DeleteTemplateData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-        templateId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/templates/{templateId}';
-};
-
-export type DeleteTemplateErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type DeleteTemplateError = DeleteTemplateErrors[keyof DeleteTemplateErrors];
-
-export type DeleteTemplateResponses = {
-    /**
-     * No Content
-     */
-    204: void;
-};
-
-export type DeleteTemplateResponse = DeleteTemplateResponses[keyof DeleteTemplateResponses];
-
-export type GetTemplateData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-        templateId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/templates/{templateId}';
-};
-
-export type GetTemplateErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type GetTemplateError = GetTemplateErrors[keyof GetTemplateErrors];
-
-export type GetTemplateResponses = {
-    /**
-     * OK
-     */
-    200: TemplateDto;
-};
-
-export type GetTemplateResponse = GetTemplateResponses[keyof GetTemplateResponses];
-
-export type UpdateTemplateData = {
-    body: UpdateInputBody;
-    path: {
-        workspaceId: string;
-        templateId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/templates/{templateId}';
-};
-
-export type UpdateTemplateErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type UpdateTemplateError = UpdateTemplateErrors[keyof UpdateTemplateErrors];
-
-export type UpdateTemplateResponses = {
-    /**
-     * OK
-     */
-    200: TemplateDto;
-};
-
-export type UpdateTemplateResponse = UpdateTemplateResponses[keyof UpdateTemplateResponses];
-
-export type UploadTemplateHeaderSampleData = {
-    body?: {
-        /**
-         * JPG or PNG up to 5 MB, MP4 up to 16 MB, or PDF up to 100 MB; must match the header type
-         */
-        file: Blob | File;
-    };
-    path: {
-        workspaceId: string;
-        templateId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/templates/{templateId}/header-sample';
-};
-
-export type UploadTemplateHeaderSampleErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type UploadTemplateHeaderSampleError = UploadTemplateHeaderSampleErrors[keyof UploadTemplateHeaderSampleErrors];
-
-export type UploadTemplateHeaderSampleResponses = {
-    /**
-     * OK
-     */
-    200: TemplateDto;
-};
-
-export type UploadTemplateHeaderSampleResponse = UploadTemplateHeaderSampleResponses[keyof UploadTemplateHeaderSampleResponses];
-
-export type SubmitTemplateData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-        templateId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/templates/{templateId}/submit';
-};
-
-export type SubmitTemplateErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type SubmitTemplateError = SubmitTemplateErrors[keyof SubmitTemplateErrors];
-
-export type SubmitTemplateResponses = {
-    /**
-     * OK
-     */
-    200: TemplateDto;
-};
-
-export type SubmitTemplateResponse = SubmitTemplateResponses[keyof SubmitTemplateResponses];
-
-export type ConnectWhatsappData = {
-    body: ConnectInputBody;
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/whatsapp/connections';
-};
-
-export type ConnectWhatsappErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type ConnectWhatsappError = ConnectWhatsappErrors[keyof ConnectWhatsappErrors];
-
-export type ConnectWhatsappResponses = {
-    /**
-     * Accepted
-     */
-    202: NumberDto;
-};
-
-export type ConnectWhatsappResponse = ConnectWhatsappResponses[keyof ConnectWhatsappResponses];
-
-export type ListWhatsappNumbersData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/whatsapp/numbers';
-};
-
-export type ListWhatsappNumbersErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type ListWhatsappNumbersError = ListWhatsappNumbersErrors[keyof ListWhatsappNumbersErrors];
-
-export type ListWhatsappNumbersResponses = {
-    /**
-     * OK
-     */
-    200: NumbersOutputBody;
-};
-
-export type ListWhatsappNumbersResponse = ListWhatsappNumbersResponses[keyof ListWhatsappNumbersResponses];
-
-export type GetWhatsappNumberData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-        numberId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/whatsapp/numbers/{numberId}';
-};
-
-export type GetWhatsappNumberErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type GetWhatsappNumberError = GetWhatsappNumberErrors[keyof GetWhatsappNumberErrors];
-
-export type GetWhatsappNumberResponses = {
-    /**
-     * OK
-     */
-    200: NumberDto;
-};
-
-export type GetWhatsappNumberResponse = GetWhatsappNumberResponses[keyof GetWhatsappNumberResponses];
-
-export type SendTestMessageData = {
-    body: SendTestInputBody;
-    path: {
-        workspaceId: string;
-        numberId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/whatsapp/numbers/{numberId}/test-messages';
-};
-
-export type SendTestMessageErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type SendTestMessageError = SendTestMessageErrors[keyof SendTestMessageErrors];
-
-export type SendTestMessageResponses = {
-    /**
-     * Accepted
-     */
-    202: TestMessageOutputBody;
-};
-
-export type SendTestMessageResponse = SendTestMessageResponses[keyof SendTestMessageResponses];
-
-export type GetTestMessageData = {
-    body?: never;
-    path: {
-        workspaceId: string;
-        messageId: string;
-    };
-    query?: never;
-    url: '/v1/workspaces/{workspaceId}/whatsapp/test-messages/{messageId}';
-};
-
-export type GetTestMessageErrors = {
-    /**
-     * Error
-     */
-    default: ErrorBody;
-};
-
-export type GetTestMessageError = GetTestMessageErrors[keyof GetTestMessageErrors];
-
-export type GetTestMessageResponses = {
-    /**
-     * OK
-     */
-    200: TestMessageOutputBody;
-};
-
-export type GetTestMessageResponse = GetTestMessageResponses[keyof GetTestMessageResponses];

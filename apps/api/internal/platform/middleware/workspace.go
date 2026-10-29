@@ -13,8 +13,9 @@ import (
 	"github.com/misbahurbd/relay-wp/apps/api/internal/shared/authctx"
 )
 
-// WorkspaceParam is the path parameter every workspace-scoped route uses.
-const WorkspaceParam = "workspaceId"
+// WorkspaceHeader names the workspace a request is scoped to. Every route under
+// /v1/workspace needs it; the web and mobile apps send the same header.
+const WorkspaceHeader = "X-Workspace-ID"
 
 // AccessVersionHeader tells the web app when the member's access changed, so it
 // can refetch GET /me/access.
@@ -27,6 +28,7 @@ type AccessResolver interface {
 }
 
 var (
+	errWorkspaceRequired = apperr.Validation("workspace_required", "Send the workspace ID in the "+WorkspaceHeader+" header")
 	errWorkspaceNotFound = apperr.NotFound("workspace_not_found", "Workspace not found")
 	errMemberSuspended   = apperr.Forbidden("member_suspended",
 		"Your access to this workspace is paused. Ask a workspace admin to restore it.")
@@ -35,14 +37,22 @@ var (
 	errAccessCheck      = apperr.Unavailable("membership_check_failed", "Could not check your workspace access. Try again.")
 )
 
-// RequireWorkspace is a huma middleware for routes under /v1/workspaces/{workspaceId}.
-// It runs after RequireAuth. A user who isn't a member gets 404, so workspace IDs
-// can't be probed; a suspended member gets 403. The member's access goes into the
+// RequireWorkspace is a huma middleware for routes under /v1/workspace. It runs
+// after RequireAuth and reads the workspace from WorkspaceHeader; a missing
+// header gets 422. A user who isn't a member gets 404, so workspace IDs can't be
+// probed; a suspended member gets 403. The member's access goes into the
 // context (authctx.AccessFrom).
 func RequireWorkspace(api huma.API, r AccessResolver) func(huma.Context, func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
+		// The same URL answers differently per workspace; keep shared caches apart.
+		ctx.AppendHeader("Vary", WorkspaceHeader)
+		raw := strings.TrimSpace(ctx.Header(WorkspaceHeader))
+		if raw == "" {
+			_ = huma.WriteErr(api, ctx, http.StatusUnprocessableEntity, "", errWorkspaceRequired)
+			return
+		}
 		userID, signedIn := authctx.UserID(ctx.Context())
-		workspaceID, err := uuid.Parse(ctx.Param(WorkspaceParam))
+		workspaceID, err := uuid.Parse(raw)
 		if !signedIn || err != nil {
 			_ = huma.WriteErr(api, ctx, http.StatusNotFound, "", errWorkspaceNotFound)
 			return

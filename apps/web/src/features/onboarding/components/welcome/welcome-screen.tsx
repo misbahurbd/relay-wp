@@ -49,12 +49,7 @@ export function WelcomeScreen({ userId, firstName, email }: Props) {
     create.mutate(
       { first_goal: goal, start_mode: mode, name: `${firstName}’s workspace` },
       {
-        onSuccess: (ws) =>
-          navigate(
-            mode === 'setup'
-              ? { to: '/w/$workspaceId/setup', params: { workspaceId: ws.id } }
-              : { to: '/w/$workspaceId', params: { workspaceId: ws.id } },
-          ),
+        onSuccess: () => navigate({ to: mode === 'setup' ? '/setup' : '/' }),
         onSettled: () => setStarting(null),
       },
     )

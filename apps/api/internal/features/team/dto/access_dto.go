@@ -35,7 +35,7 @@ func ToAccessDTO(a authctx.Access) AccessDTO {
 }
 
 type AvailabilityInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	Body        struct {
 		Availability string `json:"availability" enum:"online,away,offline"`
 	}

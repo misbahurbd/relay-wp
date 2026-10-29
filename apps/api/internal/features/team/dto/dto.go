@@ -14,11 +14,11 @@ import (
 // ---------- shared inputs ----------
 
 type WorkspaceInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 }
 
 type MemberPath struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	UserID      uuid.UUID `path:"userId"`
 }
 

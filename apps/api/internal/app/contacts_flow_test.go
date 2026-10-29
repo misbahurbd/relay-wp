@@ -37,7 +37,7 @@ func newContactsWorkspace(t *testing.T) *contactsWorkspace {
 		t.Fatal(err)
 	}
 	w := newTeamWorkspace(e)
-	return &contactsWorkspace{teamWorkspace: w, id: uuid.MustParse(strings.TrimPrefix(w.base, "/v1/workspaces/"))}
+	return &contactsWorkspace{teamWorkspace: w, id: uuid.MustParse(w.id)}
 }
 
 // upload posts a file as the multipart field "file".
@@ -56,6 +56,9 @@ func (b *browser) upload(path, name string, data []byte) resp {
 	req.Header.Set("User-Agent", b.ua)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 	req.Header.Set("Origin", testOrigin)
+	if b.workspace != "" {
+		req.Header.Set("X-Workspace-ID", b.workspace)
+	}
 	for _, c := range b.cookies {
 		if strings.HasPrefix(path, c.Path) {
 			req.AddCookie(c)
