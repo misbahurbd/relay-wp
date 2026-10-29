@@ -143,11 +143,11 @@ func (s *Service) AcceptInvitation(ctx context.Context, rawToken string, userID 
 			if err != nil {
 				return err
 			}
-			if seats.Used+seats.Reserved > int64(seats.Limit) {
-				return model.ErrNotEnoughSeats
-			}
 			if err := overMemberLimit(planLimit, seats.Used+seats.Reserved, 0); err != nil {
 				return err
+			}
+			if seats.Limit >= 0 && seats.Used+seats.Reserved > int64(seats.Limit) {
+				return model.ErrNotEnoughSeats
 			}
 		}
 		return s.join(ctx, tx, inv, userID, email, meta)

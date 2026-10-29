@@ -34,10 +34,8 @@ type Limits struct {
 	WhatsAppNumbers int `json:"whatsapp_numbers"`
 }
 
-// FreeLimits apply with no current grant, or while it is suspended.
-//
-// Placeholder until the free plan's caps are decided; it matches the seat
-// count team access gives a new workspace today.
+// FreeLimits apply with no current grant, or while it is suspended: the five
+// seats a workspace had before billing, and one WhatsApp number.
 var FreeLimits = Limits{Members: 5, WhatsAppNumbers: 1}
 
 // ParseLimits decodes plans.limits or plan_grants.limits.

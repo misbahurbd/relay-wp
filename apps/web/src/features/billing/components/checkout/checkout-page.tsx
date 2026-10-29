@@ -213,6 +213,7 @@ function Checkout({
             </NoPayPermission>
           ) : started ? (
             <PaymentStep
+              workspaceId={workspaceId}
               started={started}
               payLabel={`Pay ${formatMoney(started.session.amount_minor, started.session.currency)}`}
               onPaid={(session) => navigate({ to: '/billing/checkout', search: { session } })}

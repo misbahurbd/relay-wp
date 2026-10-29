@@ -83,6 +83,7 @@ export function PayDialog({
       )}
       {mutation.data && (
         <PaymentStep
+          workspaceId={workspaceId}
           started={mutation.data}
           payLabel={`Pay ${formatMoney(mutation.data.session.amount_minor, mutation.data.session.currency)}`}
           onPaid={(session) => {

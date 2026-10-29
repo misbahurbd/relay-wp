@@ -100,14 +100,14 @@ func (s *Service) Invite(ctx context.Context, actor authctx.Access, meta model.M
 			if err != nil {
 				return err
 			}
-			if seats.Available < int64(len(emails)) {
+			if err := overMemberLimit(planLimit, seats.Used+seats.Reserved, int64(len(emails))); err != nil {
+				return err
+			}
+			if seats.Limit >= 0 && seats.Available < int64(len(emails)) {
 				return model.ErrNotEnoughSeats.WithDetails(apperr.Detail{
 					Field:   "emails",
 					Message: fmt.Sprintf("%d seats needed, %d available", len(emails), seats.Available),
 				})
-			}
-			if err := overMemberLimit(planLimit, seats.Used+seats.Reserved, int64(len(emails))); err != nil {
-				return err
 			}
 		}
 		if n, err := r.CountWorkspaceNumbers(ctx, gen.CountWorkspaceNumbersParams{

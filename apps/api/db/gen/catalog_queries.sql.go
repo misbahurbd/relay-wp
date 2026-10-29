@@ -172,6 +172,25 @@ func (q *Queries) DeactivateProviderPrice(ctx context.Context, providerPriceID u
 	return result.RowsAffected(), nil
 }
 
+const findProviderPriceByExternalID = `-- name: FindProviderPriceByExternalID :one
+SELECT plan_price_id
+FROM provider_prices
+WHERE provider = $1 AND external_price_id = $2 AND installment_offer_id IS NULL
+`
+
+type FindProviderPriceByExternalIDParams struct {
+	Provider        string
+	ExternalPriceID *string
+}
+
+// Webhooks only: a provider-side price change names the provider's price.
+func (q *Queries) FindProviderPriceByExternalID(ctx context.Context, arg FindProviderPriceByExternalIDParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, findProviderPriceByExternalID, arg.Provider, arg.ExternalPriceID)
+	var plan_price_id uuid.UUID
+	err := row.Scan(&plan_price_id)
+	return plan_price_id, err
+}
+
 const getInstallmentOffer = `-- name: GetInstallmentOffer :one
 SELECT id, plan_price_id, count, interval, total_minor, grace_days, max_missed, is_active
 FROM installment_offers
@@ -495,6 +514,36 @@ func (q *Queries) ListActiveProviderPrices(ctx context.Context) ([]ListActivePro
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRecurringExternalPriceIDs = `-- name: ListRecurringExternalPriceIDs :many
+SELECT pp.external_price_id::text AS external_price_id
+FROM provider_prices pp
+JOIN plan_prices p ON p.id = pp.plan_price_id
+WHERE pp.provider = $1 AND pp.is_active AND pp.installment_offer_id IS NULL
+  AND pp.external_price_id IS NOT NULL AND p.is_active AND p.billing_type = 'recurring'
+ORDER BY pp.external_price_id
+`
+
+// The provider's products for active recurring prices: what a mirrored coupon applies to.
+func (q *Queries) ListRecurringExternalPriceIDs(ctx context.Context, provider string) ([]string, error) {
+	rows, err := q.db.Query(ctx, listRecurringExternalPriceIDs, provider)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var external_price_id string
+		if err := rows.Scan(&external_price_id); err != nil {
+			return nil, err
+		}
+		items = append(items, external_price_id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

@@ -477,6 +477,9 @@ func (s *Service) SyncSubscription(ctx context.Context, tx pgx.Tx, workspaceID, 
 		if err != nil {
 			return err
 		}
+		if planPriceID, err = followProviderPrice(ctx, r, next, planPriceID, ps); err != nil {
+			return err
+		}
 		return s.ensurePriceGrant(ctx, tx, workspaceID, sub.ID, planPriceID)
 	case model.SubscriptionPastDue:
 		if now.Before(*next.GraceEndsAt) {
@@ -554,6 +557,30 @@ func applyPendingChange(ctx context.Context, r repository.Repository, sub model.
 		return uuid.Nil, fmt.Errorf("apply plan change: %w", err)
 	}
 	return *sub.PendingPlanPriceID, nil
+}
+
+// followProviderPrice moves the subscription to the price the provider now
+// bills (a change made on the provider's side) when it is one of our prices,
+// and returns the subscription's price. An unknown provider price changes nothing.
+func followProviderPrice(ctx context.Context, r repository.Repository, sub model.Subscription, planPriceID uuid.UUID, ps payment.Subscription) (uuid.UUID, error) {
+	if ps.ExternalPriceID == "" {
+		return planPriceID, nil
+	}
+	billed, err := r.FindProviderPriceByExternalID(ctx, gen.FindProviderPriceByExternalIDParams{
+		Provider: string(sub.Provider), ExternalPriceID: &ps.ExternalPriceID,
+	})
+	if repository.IsNoRows(err) || (err == nil && billed == planPriceID) {
+		return planPriceID, nil
+	}
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("find provider price: %w", err)
+	}
+	if _, err := r.SetSubscriptionPrice(ctx, gen.SetSubscriptionPriceParams{
+		PlanPriceID: billed, WorkspaceID: sub.WorkspaceID, SubscriptionID: sub.ID,
+	}); err != nil {
+		return uuid.Nil, fmt.Errorf("follow provider price: %w", err)
+	}
+	return billed, nil
 }
 
 // ensurePriceGrant makes sure the workspace's grant is the plan of planPriceID, from this subscription.

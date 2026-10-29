@@ -82,6 +82,21 @@ WHERE plan_price_id = @plan_price_id
   AND provider = @provider
   AND is_active;
 
+-- name: FindProviderPriceByExternalID :one
+-- Webhooks only: a provider-side price change names the provider's price.
+SELECT plan_price_id
+FROM provider_prices
+WHERE provider = @provider AND external_price_id = @external_price_id AND installment_offer_id IS NULL;
+
+-- name: ListRecurringExternalPriceIDs :many
+-- The provider's products for active recurring prices: what a mirrored coupon applies to.
+SELECT pp.external_price_id::text AS external_price_id
+FROM provider_prices pp
+JOIN plan_prices p ON p.id = pp.plan_price_id
+WHERE pp.provider = @provider AND pp.is_active AND pp.installment_offer_id IS NULL
+  AND pp.external_price_id IS NOT NULL AND p.is_active AND p.billing_type = 'recurring'
+ORDER BY pp.external_price_id;
+
 -- name: CreateProviderPrice :one
 INSERT INTO provider_prices (plan_price_id, installment_offer_id, provider, external_price_id, collection)
 VALUES (@plan_price_id, sqlc.narg('installment_offer_id'), @provider, sqlc.narg('external_price_id'),

@@ -1070,7 +1070,7 @@ function RemovedState({ workspaceId, name }: { workspaceId: string; name: string
             <div className="flex justify-between gap-3 border-b py-3">
               <span className="text-muted-foreground">Seats</span>
               <span className="font-bold">
-                {taken} of {seats.data.limit} used
+                {seats.data.limit < 0 ? `${taken} used` : `${taken} of ${seats.data.limit} used`}
               </span>
             </div>
           )}

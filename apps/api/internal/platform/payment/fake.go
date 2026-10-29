@@ -44,6 +44,7 @@ type Fake struct {
 	subscriptions map[string]Subscription // by external ID
 	refunds       []Refund
 	coupons       []CouponRequest
+	canceled      []string // canceled schedule IDs
 	failNext      error
 }
 
@@ -242,6 +243,23 @@ func (f *Fake) CancelSubscription(_ context.Context, req CancelRequest) (Subscri
 	return s, nil
 }
 
+// CancelSchedule implements Gateway. It records the schedule as canceled.
+func (f *Fake) CancelSchedule(_ context.Context, externalScheduleID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.takeFailure(); err != nil {
+		return err
+	}
+	if !f.caps.Installments {
+		return fmt.Errorf("fake: installment schedules: %w", ErrUnsupported)
+	}
+	if externalScheduleID == "" {
+		return fmt.Errorf("fake: cancel needs a schedule: %w", ErrInvalidRequest)
+	}
+	f.canceled = append(f.canceled, externalScheduleID)
+	return nil
+}
+
 // Refund implements Gateway. Refunds succeed at once.
 func (f *Fake) Refund(_ context.Context, req RefundRequest) (Refund, error) {
 	f.mu.Lock()
@@ -410,6 +428,13 @@ func (f *Fake) Refunds() []Refund {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return slices.Clone(f.refunds)
+}
+
+// CanceledSchedules returns every schedule ID CancelSchedule stopped, oldest first.
+func (f *Fake) CanceledSchedules() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.canceled)
 }
 
 // Coupons returns every coupon created, oldest first.

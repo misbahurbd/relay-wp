@@ -486,10 +486,30 @@ func TestDisputes(t *testing.T) {
 	}
 
 	lost, lostPay := e.invoice(ws, 500)
+	// The lost invoice paid for the workspace's lifetime grant.
+	var orderID, planID uuid.UUID
+	if err := e.pool.QueryRow(e.ctx, `SELECT o.id, p.plan_id FROM invoices i JOIN orders o ON o.id = i.order_id
+		JOIN plan_prices p ON p.id = o.plan_price_id WHERE i.id = $1`, lost).Scan(&orderID, &planID); err != nil {
+		t.Fatal(err)
+	}
+	grantID, err := e.repo.CreateGrant(e.ctx, gen.CreateGrantParams{
+		WorkspaceID: ws, PlanID: planID, Source: model.GrantFromOrder, OrderID: &orderID, Limits: []byte(`{}`),
+		StartsAt: time.Now(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	e.mustProcess(dispute(payment.EventDisputeOpened, lostPay, ""))
 	e.mustProcess(dispute(payment.EventDisputeClosed, lostPay, "lost"))
 	if s := e.invoiceStatus(lost); s != model.InvoiceDisputed {
 		t.Errorf("lost: invoice %s, want disputed", s)
+	}
+	var status string
+	if err := e.pool.QueryRow(e.ctx, `SELECT status FROM plan_grants WHERE id = $1`, grantID).Scan(&status); err != nil {
+		t.Fatal(err)
+	}
+	if status != model.GrantSuspended {
+		t.Errorf("lost: grant %s, want suspended", status)
 	}
 }
 
@@ -595,8 +615,11 @@ func TestPurgeEventPayloads(t *testing.T) {
 
 func TestCheckPlanCacheDrift(t *testing.T) {
 	e := newEventsEnv(t)
-	// A new workspace caches "growth" but has no grant, so it is on free.
+	// The workspace caches "growth" but has no grant, so it is on free.
 	ws := e.workspace()
+	if _, err := e.pool.Exec(e.ctx, `UPDATE workspaces SET plan = 'growth' WHERE id = $1`, ws); err != nil {
+		t.Fatal(err)
+	}
 	n, err := e.svc.CheckPlanCacheDrift(e.ctx)
 	if err != nil {
 		t.Fatal(err)

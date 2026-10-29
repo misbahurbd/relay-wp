@@ -2,6 +2,7 @@ import {
   cancelPendingSubscriptionChange,
   cancelSubscription,
   changeSubscription,
+  completeTestCheckout,
   createCheckoutSession,
   type ProviderDto,
   payInstallment,
@@ -119,6 +120,18 @@ export function useChangeSubscription(workspaceId: string) {
     const { data } = await changeSubscription({
       headers: inWorkspace(workspaceId),
       body: { plan_price_id: priceId },
+      throwOnError: true,
+    })
+    return data
+  })
+}
+
+/** Pays a checkout on the development test gateway, as its provider would. */
+export function useCompleteTestCheckout(workspaceId: string) {
+  return useBillingMutation(workspaceId, async (sessionId: string) => {
+    const { data } = await completeTestCheckout({
+      headers: inWorkspace(workspaceId),
+      path: { sessionId },
       throwOnError: true,
     })
     return data

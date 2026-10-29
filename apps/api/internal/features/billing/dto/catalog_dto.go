@@ -74,6 +74,7 @@ type PlanDTO struct {
 type ProviderDTO struct {
 	Name                string   `json:"name" enum:"stripe,creem,paypal,sslcommerz"`
 	EmbeddedCheckout    bool     `json:"embedded_checkout" doc:"True: checkout returns a client_secret for an in-app form; false: a url to open"`
+	EmbeddableURL       bool     `json:"embeddable_url" doc:"The checkout url may be shown in an iframe (Creem's embed.js) instead of a redirect"`
 	RenewsSubscriptions bool     `json:"renews_subscriptions"`
 	Installments        bool     `json:"installments" doc:"The provider can run installment schedules itself"`
 	MerchantOfRecord    bool     `json:"merchant_of_record" doc:"The provider charges and reports tax"`
@@ -110,8 +111,9 @@ func ToCatalogOutput(c model.Catalog) *CatalogOutput {
 			currencies = []string{}
 		}
 		out.Body.Providers = append(out.Body.Providers, ProviderDTO{
-			Name: string(p.Provider), EmbeddedCheckout: caps.EmbeddedCheckout, RenewsSubscriptions: caps.RenewsSubscriptions,
-			Installments: caps.Installments, MerchantOfRecord: caps.MerchantOfRecord, Currencies: currencies,
+			Name: string(p.Provider), EmbeddedCheckout: caps.EmbeddedCheckout, EmbeddableURL: caps.EmbeddableURL,
+			RenewsSubscriptions: caps.RenewsSubscriptions,
+			Installments:        caps.Installments, MerchantOfRecord: caps.MerchantOfRecord, Currencies: currencies,
 			PublishableKey: nonEmpty(caps.PublishableKey),
 		})
 	}

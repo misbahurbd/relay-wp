@@ -13,6 +13,7 @@ import (
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/model"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/repository"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/database"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/mailer"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/payment"
 )
 
@@ -256,29 +257,42 @@ func (l lifetimeDeals) comeDue(ctx context.Context, row gen.ListInstallmentsComi
 	return true, nil
 }
 
-// remind gives an app_link installment its pay link and stamps the reminder.
+// remind stamps the installment's reminder and, for app_link, emails the
+// billing contact. The email links to the billing page, whose Pay now starts a
+// fresh checkout: one made here would expire long before it is opened.
 func (l lifetimeDeals) remind(ctx context.Context, o model.Order, row gen.ListInstallmentsComingDueRow, now time.Time) error {
 	coll, err := l.collection(ctx, o)
 	if err != nil {
 		return err
 	}
+	var count int
 	if coll == model.CollectionAppLink {
-		r := repository.NewRepository(l.pool)
-		insts, err := listInstallments(ctx, r, o.WorkspaceID, o.ID)
+		insts, err := listInstallments(ctx, repository.NewRepository(l.pool), o.WorkspaceID, o.ID)
 		if err != nil {
 			return err
 		}
-		inst := model.Installment{ID: row.ID, Seq: int(row.Seq), AmountMinor: row.AmountMinor}
-		// No user starts it: the daily pass does (created_by stays empty).
-		if _, err := l.t3.startPaymentCheckout(ctx, o.WorkspaceID, uuid.Nil, installmentCheckout(o, inst, len(insts),
-			"installment-due-"+row.ID.String(), l.billingURL(o.WorkspaceID))); err != nil {
-			return err
-		}
+		count = len(insts)
 	}
-	if _, err := repository.NewRepository(l.pool).SetInstallmentReminderSent(ctx, gen.SetInstallmentReminderSentParams{
-		Now: &now, WorkspaceID: o.WorkspaceID, InstallmentID: row.ID,
-	}); err != nil {
-		return fmt.Errorf("stamp installment reminder: %w", err)
+	err = database.WithTx(ctx, l.pool, func(tx pgx.Tx) error {
+		if coll == model.CollectionAppLink {
+			to, err := l.t3.billTo(ctx, tx, o.WorkspaceID)
+			if err != nil {
+				return err
+			}
+			msg := installmentDueEmail(to.Email, int(row.Seq), count, row.AmountMinor, o.Currency, row.DueAt, l.billingURL(o.WorkspaceID))
+			if _, err := l.queue.InsertTx(ctx, tx, mailer.SendArgs{Message: msg}, nil); err != nil {
+				return fmt.Errorf("enqueue installment reminder: %w", err)
+			}
+		}
+		if _, err := repository.NewRepository(tx).SetInstallmentReminderSent(ctx, gen.SetInstallmentReminderSentParams{
+			Now: &now, WorkspaceID: o.WorkspaceID, InstallmentID: row.ID,
+		}); err != nil {
+			return fmt.Errorf("stamp installment reminder: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 	l.log.InfoContext(ctx, "installment reminder", "workspace_id", o.WorkspaceID, "order_id", o.ID,
 		"installment_id", row.ID, "collection", coll)
@@ -332,6 +346,9 @@ func (l lifetimeDeals) pastGrace(ctx context.Context, row gen.ListInstallmentsPa
 			return fmt.Errorf("count missed installments: %w", err)
 		}
 		if missed >= row.MaxMissed {
+			if err := l.stopSchedule(ctx, o); err != nil {
+				return err
+			}
 			if err := setOrderStatus(ctx, r, o, model.OrderDefaulted, now); err != nil {
 				return err
 			}

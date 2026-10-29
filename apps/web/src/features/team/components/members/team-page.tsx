@@ -80,18 +80,23 @@ export function TeamPage({ workspaceId, meId, tab, onTab }: Props) {
             <div className="flex min-w-[200px] flex-col gap-1.5 rounded-lg border bg-card px-3.5 py-2.5">
               <div className="flex justify-between gap-3 text-[13px]">
                 <span className="font-bold">
-                  {taken} of {seats.data.limit} seats used
+                  {seats.data.limit < 0
+                    ? `${taken} seats used`
+                    : `${taken} of ${seats.data.limit} seats used`}
                 </span>
               </div>
-              <div aria-hidden="true" className="h-1.5 rounded-[3px] bg-neutral-soft">
-                <div
-                  className="h-1.5 rounded-[3px] bg-brand"
-                  style={{
-                    width: `${Math.min(100, (taken / Math.max(1, seats.data.limit)) * 100)}%`,
-                  }}
-                />
-              </div>
-              <span className="text-xs text-muted-foreground">Growth plan · Viewers are free</span>
+              {/* A negative limit: the plan has no member cap, so no meter. */}
+              {seats.data.limit >= 0 && (
+                <div aria-hidden="true" className="h-1.5 rounded-[3px] bg-neutral-soft">
+                  <div
+                    className="h-1.5 rounded-[3px] bg-brand"
+                    style={{
+                      width: `${Math.min(100, (taken / Math.max(1, seats.data.limit)) * 100)}%`,
+                    }}
+                  />
+                </div>
+              )}
+              <span className="text-xs text-muted-foreground">Viewers are free</span>
             </div>
           )}
           {can('team.invite') && (

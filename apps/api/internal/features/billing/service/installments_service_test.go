@@ -107,10 +107,14 @@ func TestRunInstallmentsDue(t *testing.T) {
 	if r := o.Installments[1]; r.Status != model.InstallmentDue || r.ReminderSentAt == nil {
 		t.Errorf("installment 2: %s reminded %v", r.Status, r.ReminderSentAt)
 	}
-	in := h.paymentInputs[0]
-	if in.InstallmentID == nil || *in.InstallmentID != o.Installments[1].ID || in.AmountMinor != 10333 ||
-		in.IdempotencyKey != "installment-due-"+o.Installments[1].ID.String() {
-		t.Errorf("pay link %+v", in)
+	// The reminder is an email linking to the billing page, not a checkout.
+	if len(h.paymentInputs) != 0 {
+		t.Errorf("reminder started %d checkouts, want none", len(h.paymentInputs))
+	}
+	msg := h.lastEmail()
+	if len(msg.To) != 1 || msg.To[0] != "billing@acme.test" || !strings.Contains(msg.Text, "USD 103.33") ||
+		!strings.Contains(msg.Text, "https://app.test/billing?workspace="+h.ws.String()) {
+		t.Errorf("reminder email %+v", msg)
 	}
 	if run := h.run(6 * 24 * time.Hour); run != (model.InstallmentRun{}) {
 		t.Errorf("within the 7 grace days: run %+v", run)
@@ -144,5 +148,24 @@ func TestRunInstallmentsDueCancelsAbandonedOrders(t *testing.T) {
 	wantOrder(t, h.order(o.ID), model.OrderCanceled, 0, "canceled", "canceled", "canceled")
 	if len(h.paymentInputs) != 0 {
 		t.Errorf("abandoned order got %d pay links", len(h.paymentInputs))
+	}
+}
+
+func TestDefaultStopsTheProviderSchedule(t *testing.T) {
+	h := newLTDHarness(t, model.CollectionProviderSchedule)
+	q, err := h.quote(h.basic, &h.basic3, "")
+	h.must(err)
+	o := h.buy(q, "sub_sched_default")
+	// The provider fails installments 2 and 3; the second miss defaults the order.
+	h.run(month)
+	h.must(h.providerPayment(o.ID, h.payment(10333), false))
+	h.run(8 * 24 * time.Hour)
+	h.run(month - 8*24*time.Hour)
+	h.must(h.providerPayment(o.ID, h.payment(10334), false))
+	if run := h.run(8 * 24 * time.Hour); run.Defaulted != 1 {
+		t.Fatalf("second miss: run %+v, want the order defaulted", run)
+	}
+	if got := h.fake.CanceledSchedules(); len(got) != 1 || got[0] != "sub_sched_default" {
+		t.Errorf("canceled schedules %v, want the order's", got)
 	}
 }

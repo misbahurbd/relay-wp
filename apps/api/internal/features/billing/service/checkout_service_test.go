@@ -131,3 +131,37 @@ func TestProviderFailureFailsTheCheckout(t *testing.T) {
 		t.Fatalf("discount after failure: %s, %d", status, count)
 	}
 }
+
+func TestCompleteTestCheckoutGoesThroughTheWebhook(t *testing.T) {
+	e := newT3Env(t)
+	queue := &recordingQueue{}
+	e.svc.queue = queue
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	started, err := e.svc.CreateCheckout(e.ctx, e.ws, e.user, model.CheckoutInput{
+		PlanPriceID: p.Monthly, IdempotencyKey: "t3-test-complete-" + uuid.NewString(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.CompleteTestCheckout(e.ctx, e.ws, started.Session.ID); err != nil {
+		t.Fatal(err)
+	}
+	jobs := queue.all()
+	if len(jobs) != 1 {
+		t.Fatalf("%d jobs, want the stored webhook's", len(jobs))
+	}
+	args := jobs[0].(model.ProcessPaymentEventArgs)
+	if err := e.svc.ProcessPaymentEvent(e.ctx, args.PaymentEventID, args.Event); err != nil {
+		t.Fatal(err)
+	}
+	if c, err := e.svc.CheckoutSession(e.ctx, e.ws, started.Session.ID); err != nil || c.Status != model.CheckoutCompleted {
+		t.Fatalf("session after the webhook: %+v, %v", c, err)
+	}
+	// Done once: a second call changes nothing.
+	if _, err := e.svc.CompleteTestCheckout(e.ctx, e.ws, started.Session.ID); err != nil || len(queue.all()) != 1 {
+		t.Errorf("second call: %v, %d jobs", err, len(queue.all()))
+	}
+	if _, err := e.svc.CompleteTestCheckout(e.ctx, e.ws, uuid.New()); !errors.Is(err, model.ErrCheckoutNotFound) {
+		t.Errorf("unknown session: %v", err)
+	}
+}

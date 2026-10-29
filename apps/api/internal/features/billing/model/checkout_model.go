@@ -74,7 +74,9 @@ type StartedCheckout struct {
 // an app_link installment, or the balance of a defaulted order (purpose installment).
 type PaymentCheckoutInput struct {
 	OrderID uuid.UUID
-	// InstallmentID is the installment being paid; nil pays the order's balance.
+	// InstallmentID is the installment being paid, and is required. To pay a
+	// defaulted order's balance, name its earliest open installment and set
+	// AmountMinor to the balance.
 	InstallmentID  *uuid.UUID
 	AmountMinor    int64
 	Currency       string

@@ -76,6 +76,10 @@ type Gateway interface {
 	ChangeSubscription(ctx context.Context, req ChangeRequest) (Subscription, error)
 	// CancelSubscription cancels now, at the period end, or undoes a cancel at the period end.
 	CancelSubscription(ctx context.Context, req CancelRequest) (Subscription, error)
+	// CancelSchedule stops a provider-run installment schedule
+	// (Checkout.ExternalScheduleID) so it charges nothing more: the order was
+	// upgraded or defaulted. ErrUnsupported without Capabilities.Installments.
+	CancelSchedule(ctx context.Context, externalScheduleID string) error
 	// Refund refunds all or part of a payment.
 	Refund(ctx context.Context, req RefundRequest) (Refund, error)
 	// CreateCoupon mirrors a Relay discount as a provider coupon, for
@@ -94,6 +98,9 @@ type Capabilities struct {
 	// EmbeddedCheckout: CreateCheckout returns a ClientSecret for an in-app
 	// form. Otherwise it returns a URL to the provider's hosted page.
 	EmbeddedCheckout bool `json:"embedded_checkout"`
+	// EmbeddableURL: the hosted page at Checkout.URL may be shown in an
+	// iframe inside Relay (Creem's embed.js) instead of a full redirect.
+	EmbeddableURL bool `json:"embeddable_url"`
 	// RenewsSubscriptions: the provider charges each period itself
 	// (renewal_mode provider). Otherwise Relay renews with a River job (app).
 	RenewsSubscriptions bool `json:"renews_subscriptions"`
@@ -133,7 +140,9 @@ type CheckoutRequest struct {
 	Reference      uuid.UUID
 	IdempotencyKey string
 	Mode           CheckoutMode
-	// ExternalPriceID is provider_prices.external_price_id (subscription and installment modes).
+	// ExternalPriceID is provider_prices.external_price_id. Subscription and
+	// installment modes always need it; payment mode needs it on a provider
+	// that charges a one-time product (Creem), and ignores it otherwise.
 	ExternalPriceID string
 	// AmountMinor is what the customer pays now, after any discount and credit.
 	AmountMinor int64
@@ -299,6 +308,10 @@ type CouponRequest struct {
 	// Duration is once, repeating (for DurationMonths) or forever.
 	Duration       string
 	DurationMonths int
+	// ExternalProductIDs are the provider prices the coupon applies to, for a
+	// provider that scopes coupons to products (Creem). Empty means every
+	// active recurring product.
+	ExternalProductIDs []string
 }
 
 // Coupon is a provider coupon; stored in provider_discounts.

@@ -152,7 +152,14 @@ func (s *Service) prepareSubscription(ctx context.Context, r repository.Reposito
 	c.params.AmountMinor = price.AmountMinor - c.params.DiscountMinor
 	if plan.TrialRequiresCard && plan.TrialDays > 0 {
 		// A trial with a card starts in trialing and charges nothing now (Q5).
-		c.req.TrialDays, c.params.AmountMinor = int(plan.TrialDays), 0
+		// A workspace gets one trial; after it, the first period is paid.
+		had, err := r.HasHadTrial(ctx, ws)
+		if err != nil {
+			return fmt.Errorf("has had trial: %w", err)
+		}
+		if !had {
+			c.req.TrialDays, c.params.AmountMinor = int(plan.TrialDays), 0
+		}
 	}
 	c.req.AmountMinor = c.params.AmountMinor
 	return nil
@@ -176,8 +183,12 @@ func (s *Service) prepareOrder(ctx context.Context, r repository.Repository, c *
 		c.params.DiscountID = &q.Discount.Discount.ID
 	}
 	c.quote = &q
+	product, err := oneTimeProduct(ctx, r, price.ID, c.gateway.Provider())
+	if err != nil {
+		return err
+	}
 	c.req = payment.CheckoutRequest{
-		Mode: payment.ModePayment, AmountMinor: q.DueNowMinor, Currency: q.Currency,
+		Mode: payment.ModePayment, ExternalPriceID: product, AmountMinor: q.DueNowMinor, Currency: q.Currency,
 		Description: price.PlanName + ", lifetime",
 	}
 	if offer == nil {
@@ -248,6 +259,10 @@ func (s *Service) StartPaymentCheckout(ctx context.Context, workspaceID, userID 
 	if currency == "" {
 		currency = order.Currency
 	}
+	product, err := oneTimeProduct(ctx, r, order.PlanPriceID, provider)
+	if err != nil {
+		return model.StartedCheckout{}, err
+	}
 	return s.openCheckout(ctx, workspaceID, checkoutStart{
 		gateway: g, profile: profile, matches: same, returnURL: in.ReturnURL,
 		params: gen.CreateCheckoutSessionParams{
@@ -257,7 +272,8 @@ func (s *Service) StartPaymentCheckout(ctx context.Context, workspaceID, userID 
 			CreatedBy: optionalID(userID),
 		},
 		req: payment.CheckoutRequest{
-			Mode: payment.ModePayment, AmountMinor: in.AmountMinor, Currency: currency, Description: in.Description,
+			Mode: payment.ModePayment, ExternalPriceID: product, AmountMinor: in.AmountMinor, Currency: currency,
+			Description: in.Description,
 		},
 	})
 }
@@ -332,7 +348,7 @@ func (s *Service) openCheckout(ctx context.Context, workspaceID uuid.UUID, c che
 	req.Customer = toCustomer(workspaceID, deref(customer.ExternalCustomerID), c.profile)
 	req.ReturnURL = c.returnURL
 	if req.ReturnURL == "" {
-		req.ReturnURL = strings.TrimRight(s.cfg.AppBaseURL, "/") + "/settings/billing"
+		req.ReturnURL = strings.TrimRight(s.cfg.AppBaseURL, "/") + "/billing"
 	}
 	started, err := c.gateway.CreateCheckout(ctx, req)
 	if err != nil {
@@ -453,6 +469,41 @@ func (s *Service) CheckoutSession(ctx context.Context, workspaceID, sessionID uu
 		return model.CheckoutSession{}, fmt.Errorf("get checkout session: %w", err)
 	}
 	return toCheckoutSession(row), nil
+}
+
+// CompleteTestCheckout pays a pending checkout on a test gateway the way its
+// provider would: the fake signs checkout.completed, and the event goes through
+// the webhook path, so the session completes once the job has run. Only fake
+// gateways (PAYMENT_PROVIDERS=stripe:fake, development only) support it; for
+// any other the session is model.ErrCheckoutNotFound.
+func (s *Service) CompleteTestCheckout(ctx context.Context, workspaceID, sessionID uuid.UUID) (model.CheckoutSession, error) {
+	c, err := s.CheckoutSession(ctx, workspaceID, sessionID)
+	if err != nil {
+		return model.CheckoutSession{}, err
+	}
+	g, err := s.gateway(c.Provider)
+	if err != nil {
+		return model.CheckoutSession{}, err
+	}
+	fake, ok := g.(*payment.Fake)
+	if !ok || c.ExternalSessionID == nil {
+		return model.CheckoutSession{}, model.ErrCheckoutNotFound
+	}
+	if c.Status != model.CheckoutPending {
+		return c, nil
+	}
+	ev, err := fake.CompleteCheckout(*c.ExternalSessionID)
+	if err != nil {
+		return model.CheckoutSession{}, fmt.Errorf("complete test checkout: %w", err)
+	}
+	header, body, err := fake.Webhook(ev)
+	if err != nil {
+		return model.CheckoutSession{}, fmt.Errorf("sign test webhook: %w", err)
+	}
+	if err := s.ReceiveWebhook(ctx, string(c.Provider), header, body); err != nil {
+		return model.CheckoutSession{}, err
+	}
+	return c, nil
 }
 
 // CompleteCheckout applies checkout.completed in tx: the session becomes

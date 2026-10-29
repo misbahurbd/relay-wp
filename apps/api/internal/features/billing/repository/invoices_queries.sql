@@ -32,7 +32,7 @@ LIMIT @max_rows;
 
 -- name: FindInvoiceByExternalPaymentID :one
 -- Webhooks only: refunds and disputes name the provider's payment.
-SELECT id, workspace_id, total_minor, status
+SELECT id, workspace_id, subscription_id, order_id, total_minor, status
 FROM invoices
 WHERE provider = @provider AND external_payment_id = @external_payment_id;
 

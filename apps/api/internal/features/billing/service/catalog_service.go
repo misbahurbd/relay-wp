@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -176,6 +177,20 @@ func externalPriceID(ctx context.Context, r repository.Repository, planPriceID u
 		return gen.GetProviderPriceRow{}, fmt.Errorf("get provider price: %w", err)
 	}
 	return pp, nil
+}
+
+// oneTimeProduct is the provider product a payment-mode checkout of
+// planPriceID charges, for providers that need one (Creem); "" when the price
+// has none on p, which providers that charge a bare amount (Stripe) accept.
+func oneTimeProduct(ctx context.Context, r repository.Repository, planPriceID uuid.UUID, p payment.Provider) (string, error) {
+	pp, err := externalPriceID(ctx, r, planPriceID, nil, p)
+	if errors.Is(err, model.ErrNoProviderForPrice) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return deref(pp.ExternalPriceID), nil
 }
 
 // deref returns *p, or the zero value for nil.

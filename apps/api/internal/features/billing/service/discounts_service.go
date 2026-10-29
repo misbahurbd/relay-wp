@@ -201,6 +201,10 @@ func (s *Service) providerCoupon(ctx context.Context, g payment.Gateway, d model
 	} else {
 		req.AmountOffMinor = deref(d.AmountOffMinor)
 	}
+	// Coupons are only for renewals the provider charges, so they cover its recurring products.
+	if req.ExternalProductIDs, err = r.ListRecurringExternalPriceIDs(ctx, string(g.Provider())); err != nil {
+		return "", fmt.Errorf("list recurring provider prices: %w", err)
+	}
 	c, err := g.CreateCoupon(ctx, req)
 	if err != nil {
 		return "", s.gatewayErr("create coupon", err)

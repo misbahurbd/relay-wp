@@ -399,6 +399,20 @@ func (g *stripeGateway) CancelSubscription(ctx context.Context, req CancelReques
 	return stripeSubscription(sub), nil
 }
 
+// CancelSchedule cancels the subscription schedule, which cancels the
+// subscription under it at once and without proration.
+func (g *stripeGateway) CancelSchedule(ctx context.Context, externalScheduleID string) error {
+	if externalScheduleID == "" {
+		return fmt.Errorf("stripe: cancel needs a schedule: %w", ErrInvalidRequest)
+	}
+	if _, err := g.sc.V1SubscriptionSchedules.Cancel(ctx, externalScheduleID, &stripe.SubscriptionScheduleCancelParams{
+		Prorate: stripe.Bool(false),
+	}); err != nil {
+		return stripeError("cancel subscription schedule", err)
+	}
+	return nil
+}
+
 func (g *stripeGateway) Refund(ctx context.Context, req RefundRequest) (Refund, error) {
 	if req.ExternalPaymentID == "" || req.AmountMinor <= 0 {
 		return Refund{}, fmt.Errorf("stripe: refund needs a payment and an amount: %w", ErrInvalidRequest)

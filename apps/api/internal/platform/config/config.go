@@ -111,7 +111,10 @@ type Auth struct {
 
 // Trial configures the free trial a new workspace starts with.
 type Trial struct {
-	Days int `env:"TRIAL_DAYS" envDefault:"14"`
+	// Plan is the code of the catalog plan a new workspace trials. Its
+	// trial_days set the length; 0, a card-required trial or no such plan
+	// means new workspaces start on the free plan.
+	Plan string `env:"TRIAL_PLAN" envDefault:"growth"`
 }
 
 // WhatsApp configures the Meta app used for Embedded Signup, the Cloud API and webhooks.

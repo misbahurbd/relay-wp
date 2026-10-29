@@ -74,7 +74,7 @@ func New(pool *pgxpool.Pool, workspaces Workspaces, channels Channels, accounts 
 // workspaces.Service calls it inside the create-workspace transaction.
 // Exploring with sample data counts as finishing setup: the dashboard opens and
 // its banner leads back to the steps.
-func (s *Service) Start(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID, firstGoal string, sample bool, trialEndsAt time.Time) error {
+func (s *Service) Start(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID, firstGoal string, sample bool, trialEndsAt *time.Time) error {
 	now := s.now()
 	var completedAt *time.Time
 	if sample {
@@ -91,6 +91,9 @@ func (s *Service) Start(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID, f
 		}
 	}
 	for _, days := range model.TrialReminderDays {
+		if trialEndsAt == nil {
+			break
+		}
 		at := trialEndsAt.AddDate(0, 0, -days)
 		if at.After(now) {
 			if err := s.schedule(ctx, tx, model.TrialReminderArgs{WorkspaceID: workspaceID, DaysLeft: days}, at); err != nil {

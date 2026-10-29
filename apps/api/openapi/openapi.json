@@ -3111,6 +3111,10 @@
               "null"
             ]
           },
+          "embeddable_url": {
+            "description": "The checkout url may be shown in an iframe (Creem's embed.js) instead of a redirect",
+            "type": "boolean"
+          },
           "embedded_checkout": {
             "description": "True: checkout returns a client_secret for an in-app form; false: a url to open",
             "type": "boolean"
@@ -3146,6 +3150,7 @@
         "required": [
           "name",
           "embedded_checkout",
+          "embeddable_url",
           "renews_subscriptions",
           "installments",
           "merchant_of_record",
@@ -3428,10 +3433,12 @@
         "additionalProperties": false,
         "properties": {
           "available": {
+            "description": "-1 when the plan has no member cap",
             "format": "int64",
             "type": "integer"
           },
           "limit": {
+            "description": "The plan's member cap; -1 when it has none",
             "format": "int32",
             "type": "integer"
           },
@@ -4387,7 +4394,8 @@
             "type": "string"
           },
           "plan": {
-            "enum": [
+            "description": "The current plan's code; free with no paid plan or trial",
+            "examples": [
               "growth"
             ],
             "type": "string"
@@ -7131,6 +7139,65 @@
           }
         ],
         "summary": "A checkout session's status",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/v1/workspace/billing/checkout-sessions/{sessionId}/test-complete": {
+      "post": {
+        "operationId": "complete-test-checkout",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutSessionDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Pay a checkout on the development test gateway (404 on a real provider)",
         "tags": [
           "billing"
         ]

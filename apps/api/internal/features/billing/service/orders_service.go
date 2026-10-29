@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -335,6 +336,11 @@ func (l lifetimeDeals) startOrder(ctx context.Context, tx pgx.Tx, r repository.R
 		if old.Status != model.OrderInInstallments && old.Status != model.OrderPaid {
 			return fmt.Errorf("upgraded order %s is %s: %w", old.ID, old.Status, model.ErrOrderNotUpgradable)
 		}
+		if old.Status == model.OrderInInstallments {
+			if err := l.stopSchedule(ctx, old); err != nil {
+				return err
+			}
+		}
 		if err := setOrderStatus(ctx, r, old, model.OrderUpgraded, now); err != nil {
 			return err
 		}
@@ -531,8 +537,25 @@ func (l lifetimeDeals) resumeOrder(ctx context.Context, workspaceID, userID, ord
 }
 
 // billingURL is the billing settings page of one workspace.
+// stopSchedule cancels the order's provider-run schedule, if it has one, so
+// the provider charges nothing more. It runs in the transaction that ends the
+// order: a failure rolls that back, and the job retries.
+func (l lifetimeDeals) stopSchedule(ctx context.Context, o model.Order) error {
+	if o.ExternalRef == nil {
+		return nil
+	}
+	g, err := l.gateway(o.Provider)
+	if err != nil {
+		return err
+	}
+	if err := g.CancelSchedule(ctx, *o.ExternalRef); err != nil && !errors.Is(err, payment.ErrNotFound) {
+		return l.gatewayErr("cancel installment schedule", err)
+	}
+	return nil
+}
+
 func (l lifetimeDeals) billingURL(workspaceID uuid.UUID) string {
-	return l.cfg.AppBaseURL + "/settings/billing?workspace=" + workspaceID.String()
+	return l.cfg.AppBaseURL + "/billing?workspace=" + workspaceID.String()
 }
 
 // firstOpen is the earliest installment still to be paid, or nil.

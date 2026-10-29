@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"slices"
@@ -19,6 +20,7 @@ import (
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/repository"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/database"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/database/dbtest"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/mailer"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/payment"
 )
 
@@ -49,6 +51,7 @@ type ltdHarness struct {
 	canceledForLTD  int
 	paymentInputs   []model.PaymentCheckoutInput
 	paymentSequence int
+	queue           *recordingQueue
 }
 
 func newLTDHarness(t *testing.T, collection string) *ltdHarness {
@@ -60,9 +63,10 @@ func newLTDHarness(t *testing.T, collection string) *ltdHarness {
 	if err != nil {
 		t.Fatal(err)
 	}
-	svc := New(pool, reg, nil, Config{AppBaseURL: "https://app.test"}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	queue := &recordingQueue{}
+	svc := New(pool, reg, queue, Config{AppBaseURL: "https://app.test"}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	h := &ltdHarness{
-		t: t, ctx: ctx, pool: pool, r: repository.NewRepository(pool), fake: fake,
+		t: t, ctx: ctx, pool: pool, r: repository.NewRepository(pool), fake: fake, queue: queue,
 		now:    time.Date(2026, time.January, 31, 12, 0, 0, 0, time.UTC),
 		prices: map[uuid.UUID]model.Price{}, offers: map[uuid.UUID]model.InstallmentOffer{},
 		discounts: map[string]model.AppliedDiscount{},
@@ -185,6 +189,19 @@ func (h *ltdHarness) activateGrant(ctx context.Context, tx pgx.Tx, ws uuid.UUID,
 		StartsAt: in.StartsAt, EndsAt: in.EndsAt, CreatedBy: in.CreatedBy,
 	})
 	return model.Grant{ID: id, PlanID: in.PlanID, Source: in.Source, OrderID: in.OrderID, Status: model.GrantActive}, err
+}
+
+// lastEmail is the last email the service enqueued.
+func (h *ltdHarness) lastEmail() mailer.Message {
+	h.t.Helper()
+	jobs := h.queue.all()
+	for i := len(jobs) - 1; i >= 0; i-- {
+		if a, ok := jobs[i].(mailer.SendArgs); ok {
+			return a.Message
+		}
+	}
+	h.t.Fatal("no email enqueued")
+	return mailer.Message{}
 }
 
 // startPaymentCheckout is T3's StartPaymentCheckout, reduced to its rows plus the fake gateway.
@@ -437,14 +454,14 @@ func TestLifetimeDealLifecycle(t *testing.T) {
 			o := h.buy(q, "")
 			for i := range 2 {
 				h.run(month)
-				// The emailed link's checkout, paid.
-				in := h.paymentInputs[len(h.paymentInputs)-1]
-				if !strings.HasPrefix(in.IdempotencyKey, "installment-due-") || *in.InstallmentID != o.Installments[i+1].ID {
-					t.Fatalf("after due date %d: pay link %+v, want installment %d's", i+2, in, i+2)
+				// The emailed reminder's Pay now, paid.
+				inst := o.Installments[i+1]
+				if msg := h.lastEmail(); !strings.Contains(msg.Subject, fmt.Sprintf("installment %d of 3", i+2)) {
+					t.Fatalf("after due date %d: reminder %q", i+2, msg.Subject)
 				}
-				started, err := h.l.payInstallment(h.ctx, h.ws, h.user, o.ID, *in.InstallmentID, "pay-"+in.InstallmentID.String())
+				started, err := h.l.payInstallment(h.ctx, h.ws, h.user, o.ID, inst.ID, "pay-"+inst.ID.String())
 				h.must(err)
-				h.complete(started.Session, h.payment(in.AmountMinor))
+				h.complete(started.Session, h.payment(inst.AmountMinor))
 			}
 			o = h.order(o.ID)
 			wantOrder(t, o, model.OrderPaid, 31000, "paid", "paid", "paid")
@@ -517,8 +534,8 @@ func TestLifetimeDealLifecycle(t *testing.T) {
 			h.must(err)
 			old := h.buy(q, "")
 			h.run(month)
-			in := h.paymentInputs[0]
-			started, err := h.l.payInstallment(h.ctx, h.ws, h.user, old.ID, *in.InstallmentID, "two")
+			in := old.Installments[1]
+			started, err := h.l.payInstallment(h.ctx, h.ws, h.user, old.ID, in.ID, "two")
 			h.must(err)
 			h.complete(started.Session, h.payment(in.AmountMinor))
 
@@ -666,8 +683,8 @@ func TestCompleteOrderCheckoutIgnoresAReplayedPayment(t *testing.T) {
 	h.must(err)
 	o := h.buy(q, "")
 	h.run(month)
-	in := h.paymentInputs[0]
-	started, err := h.l.payInstallment(h.ctx, h.ws, h.user, o.ID, *in.InstallmentID, "two")
+	in := o.Installments[1]
+	started, err := h.l.payInstallment(h.ctx, h.ws, h.user, o.ID, in.ID, "two")
 	h.must(err)
 	p := h.payment(in.AmountMinor)
 	h.complete(started.Session, p)

@@ -2,6 +2,7 @@ import { ExternalLinkIcon, FlaskConicalIcon } from 'lucide-react'
 import { useEffect } from 'react'
 import { Alert, AlertDescription, AlertTitle } from '#/components/ui/alert'
 import { Button } from '#/components/ui/button'
+import { useCompleteTestCheckout } from '../../api/billing.mutations'
 import { PROVIDER_LABEL } from '../../schemas/billing.schema'
 import type { StartedCheckout } from '../../types'
 import { checkoutReturnUrl, rememberCheckout } from './checkout-return'
@@ -21,16 +22,25 @@ function isFake(started: StartedCheckout) {
  * a client secret, the provider's own page when it sent a URL.
  */
 export function PaymentStep({
+  workspaceId,
   started,
   payLabel,
   onPaid,
 }: {
+  workspaceId: string
   started: StartedCheckout
   payLabel: string
   onPaid: (sessionId: string) => void
 }) {
   const { session } = started
-  if (isFake(started)) return <FakeGateway onDone={() => onPaid(session.id)} />
+  if (isFake(started))
+    return (
+      <FakeGateway
+        workspaceId={workspaceId}
+        sessionId={session.id}
+        onDone={() => onPaid(session.id)}
+      />
+    )
   if (started.client_secret && started.publishable_key) {
     return (
       <StripePaymentForm
@@ -92,7 +102,16 @@ function HostedCheckout({
   )
 }
 
-function FakeGateway({ onDone }: { onDone: () => void }) {
+function FakeGateway({
+  workspaceId,
+  sessionId,
+  onDone,
+}: {
+  workspaceId: string
+  sessionId: string
+  onDone: () => void
+}) {
+  const complete = useCompleteTestCheckout(workspaceId)
   return (
     <div className="flex flex-col gap-3">
       <Alert variant="info">
@@ -100,12 +119,24 @@ function FakeGateway({ onDone }: { onDone: () => void }) {
         <AlertTitle>Test gateway</AlertTitle>
         <AlertDescription>
           <p>
-            This server uses the fake payment gateway, so there is no card form. The checkout
-            completes when a signed fake webhook arrives.
+            This server uses the fake payment gateway, so there is no card form. Complete the test
+            payment to send the signed webhook a real provider would.
           </p>
         </AlertDescription>
       </Alert>
-      <Button size="lg" onClick={onDone}>
+      {complete.isError && (
+        <Alert variant="danger">
+          <AlertDescription>The test payment didn’t go through. Try again.</AlertDescription>
+        </Alert>
+      )}
+      <Button
+        size="lg"
+        disabled={complete.isPending}
+        onClick={() => complete.mutate(sessionId, { onSuccess: onDone })}
+      >
+        {complete.isPending ? 'Completing…' : 'Complete test payment'}
+      </Button>
+      <Button variant="outline" size="lg" onClick={onDone}>
         Check payment status
       </Button>
     </div>

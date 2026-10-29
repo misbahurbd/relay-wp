@@ -879,6 +879,10 @@ export type ProfileOutputBody = {
 export type ProviderDto = {
     currencies: Array<string> | null;
     /**
+     * The checkout url may be shown in an iframe (Creem's embed.js) instead of a redirect
+     */
+    embeddable_url: boolean;
+    /**
      * True: checkout returns a client_secret for an in-app form; false: a url to open
      */
     embedded_checkout: boolean;
@@ -984,7 +988,13 @@ export type ScheduledPaymentDto = {
 };
 
 export type SeatsDto = {
+    /**
+     * -1 when the plan has no member cap
+     */
     available: number;
+    /**
+     * The plan's member cap; -1 when it has none
+     */
     limit: number;
     /**
      * Pending invites whose role uses a seat
@@ -1281,7 +1291,10 @@ export type WorkspaceDto = {
     id: string;
     industry: 'retail_ecommerce' | 'food_restaurants' | 'education' | 'health_clinics' | 'travel' | 'real_estate' | 'other';
     name: string;
-    plan: 'growth';
+    /**
+     * The current plan's code; free with no paid plan or trial
+     */
+    plan: string;
     team_size: 'just_me' | '2_5' | '6_20' | '20_plus';
     trial_ends_at: string | null;
     website: string | null;
@@ -2707,6 +2720,39 @@ export type GetCheckoutSessionResponses = {
 };
 
 export type GetCheckoutSessionResponse = GetCheckoutSessionResponses[keyof GetCheckoutSessionResponses];
+
+export type CompleteTestCheckoutData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        sessionId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/billing/checkout-sessions/{sessionId}/test-complete';
+};
+
+export type CompleteTestCheckoutErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CompleteTestCheckoutError = CompleteTestCheckoutErrors[keyof CompleteTestCheckoutErrors];
+
+export type CompleteTestCheckoutResponses = {
+    /**
+     * OK
+     */
+    200: CheckoutSessionDto;
+};
+
+export type CompleteTestCheckoutResponse = CompleteTestCheckoutResponses[keyof CompleteTestCheckoutResponses];
 
 export type PreviewDiscountData = {
     body: PreviewDiscountInputBody;

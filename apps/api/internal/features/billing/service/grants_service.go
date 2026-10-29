@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -113,9 +114,27 @@ func (s *Service) DeletionCheck(ctx context.Context, workspaceID uuid.UUID) (mod
 	return model.DeletionCheck{Allowed: true}, nil
 }
 
+// StartWorkspaceTrial starts a new workspace's trial of cfg.TrialPlan in tx and
+// returns when it ends. Nil when that plan has no card-less trial or isn't in
+// the catalog. For features/workspaces, through an interface it declares.
+func (s *Service) StartWorkspaceTrial(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID) (*time.Time, error) {
+	if s.cfg.TrialPlan == "" {
+		return nil, nil
+	}
+	g, err := s.StartTrial(ctx, tx, workspaceID, s.cfg.TrialPlan)
+	if errors.Is(err, model.ErrPlanNotFound) {
+		s.logger().WarnContext(ctx, "billing: TRIAL_PLAN is not an active plan; no trial", "plan", s.cfg.TrialPlan)
+		return nil, nil
+	}
+	if err != nil || g == nil {
+		return nil, err
+	}
+	return g.EndsAt, nil
+}
+
 // StartTrial gives a new workspace planCode's card-less trial in tx (Q5): a
 // grant with source trial ending after plans.trial_days. Nil when the plan has
-// no trial or needs a card. For workspace creation, wired in Wave 2.
+// no trial or needs a card.
 func (s *Service) StartTrial(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID, planCode string) (*model.Grant, error) {
 	plans, err := repository.NewRepository(tx).ListActivePlans(ctx)
 	if err != nil {

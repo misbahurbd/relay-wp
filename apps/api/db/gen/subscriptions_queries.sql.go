@@ -315,6 +315,23 @@ func (q *Queries) GetSubscription(ctx context.Context, arg GetSubscriptionParams
 	return i, err
 }
 
+const hasHadTrial = `-- name: HasHadTrial :one
+SELECT EXISTS (
+    SELECT 1 FROM subscriptions s WHERE s.workspace_id = $1 AND s.status <> 'incomplete'
+    UNION ALL
+    SELECT 1 FROM plan_grants g WHERE g.workspace_id = $1 AND g.source = 'trial'
+)
+`
+
+// Whether the workspace has used its one trial: it had a subscription that
+// started (trialing or paid), or a card-less trial grant.
+func (q *Queries) HasHadTrial(ctx context.Context, workspaceID uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, hasHadTrial, workspaceID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const listAppRenewalsDue = `-- name: ListAppRenewalsDue :many
 SELECT id, workspace_id
 FROM subscriptions

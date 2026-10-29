@@ -122,3 +122,12 @@ FROM subscription_changes
 WHERE workspace_id = @workspace_id AND subscription_id = @subscription_id
 ORDER BY effective_at DESC
 LIMIT 100;
+
+-- name: HasHadTrial :one
+-- Whether the workspace has used its one trial: it had a subscription that
+-- started (trialing or paid), or a card-less trial grant.
+SELECT EXISTS (
+    SELECT 1 FROM subscriptions s WHERE s.workspace_id = @workspace_id AND s.status <> 'incomplete'
+    UNION ALL
+    SELECT 1 FROM plan_grants g WHERE g.workspace_id = @workspace_id AND g.source = 'trial'
+);

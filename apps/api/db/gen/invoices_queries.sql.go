@@ -115,7 +115,7 @@ func (q *Queries) CreateRefund(ctx context.Context, arg CreateRefundParams) (uui
 }
 
 const findInvoiceByExternalPaymentID = `-- name: FindInvoiceByExternalPaymentID :one
-SELECT id, workspace_id, total_minor, status
+SELECT id, workspace_id, subscription_id, order_id, total_minor, status
 FROM invoices
 WHERE provider = $1 AND external_payment_id = $2
 `
@@ -126,10 +126,12 @@ type FindInvoiceByExternalPaymentIDParams struct {
 }
 
 type FindInvoiceByExternalPaymentIDRow struct {
-	ID          uuid.UUID
-	WorkspaceID uuid.UUID
-	TotalMinor  int64
-	Status      string
+	ID             uuid.UUID
+	WorkspaceID    uuid.UUID
+	SubscriptionID *uuid.UUID
+	OrderID        *uuid.UUID
+	TotalMinor     int64
+	Status         string
 }
 
 // Webhooks only: refunds and disputes name the provider's payment.
@@ -139,6 +141,8 @@ func (q *Queries) FindInvoiceByExternalPaymentID(ctx context.Context, arg FindIn
 	err := row.Scan(
 		&i.ID,
 		&i.WorkspaceID,
+		&i.SubscriptionID,
+		&i.OrderID,
 		&i.TotalMinor,
 		&i.Status,
 	)

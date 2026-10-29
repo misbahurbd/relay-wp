@@ -142,6 +142,8 @@ type Querier interface {
 	FindInvoiceByExternalPaymentID(ctx context.Context, arg FindInvoiceByExternalPaymentIDParams) (FindInvoiceByExternalPaymentIDRow, error)
 	// Webhooks only: installment payments carry the provider's schedule ID, which we stored.
 	FindOrderByExternalRef(ctx context.Context, arg FindOrderByExternalRefParams) (FindOrderByExternalRefRow, error)
+	// Webhooks only: a provider-side price change names the provider's price.
+	FindProviderPriceByExternalID(ctx context.Context, arg FindProviderPriceByExternalIDParams) (uuid.UUID, error)
 	// Webhooks only: renewals carry the provider's subscription ID, which we stored.
 	FindSubscriptionByExternalID(ctx context.Context, arg FindSubscriptionByExternalIDParams) (FindSubscriptionByExternalIDRow, error)
 	// Moves a pending session to completed, failed or expired; a finished one is left alone.
@@ -215,6 +217,9 @@ type Querier interface {
 	GetWorkspaceName(ctx context.Context, workspaceID uuid.UUID) (string, error)
 	GetWorkspaceOwner(ctx context.Context, workspaceID uuid.UUID) (GetWorkspaceOwnerRow, error)
 	HasConnectedNumber(ctx context.Context, workspaceID uuid.UUID) (bool, error)
+	// Whether the workspace has used its one trial: it had a subscription that
+	// started (trialing or paid), or a card-less trial grant.
+	HasHadTrial(ctx context.Context, workspaceID uuid.UUID) (bool, error)
 	// ---------- Access log ----------
 	InsertAccessLog(ctx context.Context, arg InsertAccessLogParams) error
 	InsertAuthEvent(ctx context.Context, arg InsertAuthEventParams) error
@@ -276,6 +281,8 @@ type Querier interface {
 	ListPermissions(ctx context.Context) ([]ListPermissionsRow, error)
 	// Job only (all workspaces): workspaces whose cached plan disagrees with their grant.
 	ListPlanCacheDrift(ctx context.Context, arg ListPlanCacheDriftParams) ([]ListPlanCacheDriftRow, error)
+	// The provider's products for active recurring prices: what a mirrored coupon applies to.
+	ListRecurringExternalPriceIDs(ctx context.Context, provider string) ([]string, error)
 	// ---------- Roles ----------
 	ListRoles(ctx context.Context, workspaceID uuid.UUID) ([]ListRolesRow, error)
 	ListSubscriptionChanges(ctx context.Context, arg ListSubscriptionChangesParams) ([]ListSubscriptionChangesRow, error)

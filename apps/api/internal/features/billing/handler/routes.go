@@ -50,6 +50,8 @@ func Register(api huma.API, h *Handler, g Guards, security []map[string][]string
 		"Start a checkout for a price (subscription or lifetime deal)", created, pay), h.createCheckout)
 	huma.Register(api, ws("get-checkout-session", http.MethodGet, "/checkout-sessions/{sessionId}",
 		"A checkout session's status", ok, view), h.checkoutSession)
+	huma.Register(api, ws("complete-test-checkout", http.MethodPost, "/checkout-sessions/{sessionId}/test-complete",
+		"Pay a checkout on the development test gateway (404 on a real provider)", ok, pay), h.completeTestCheckout)
 	huma.Register(api, ws("preview-discount", http.MethodPost, "/discounts/preview",
 		"What a discount code takes off a price", ok, view), h.previewDiscount)
 

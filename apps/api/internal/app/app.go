@@ -136,7 +136,7 @@ func (a *App) buildFeatures() (err error) {
 		onboardingservice.Config{AppBaseURL: a.cfg.AppBaseURL})
 	a.team = teamservice.New(a.db, a.directory, a.accounts, a.queue, teamservice.Config{AppBaseURL: a.cfg.AppBaseURL})
 	a.access = teamservice.NewResolver(a.db)
-	a.workspaces = workspacesservice.New(a.db, a.accounts, a.onboarding, a.team, workspacesservice.Config{TrialDays: a.cfg.Trial.Days})
+	a.workspaces = workspacesservice.New(a.db, a.accounts, a.onboarding, a.team)
 	if err := a.buildWhatsApp(); err != nil {
 		return err
 	}
@@ -220,10 +220,13 @@ func (a *App) buildBilling() error {
 	if a.log != nil {
 		a.log.Info("payment providers", "enabled", a.payments.Providers())
 	}
-	a.billing = billingservice.New(a.db, a.payments, a.queue, billingservice.Config{AppBaseURL: a.cfg.AppBaseURL}, a.log)
+	a.billing = billingservice.New(a.db, a.payments, a.queue, billingservice.Config{
+		AppBaseURL: a.cfg.AppBaseURL, TrialPlan: a.cfg.Trial.Plan,
+	}, a.log)
 	a.team.SetPlanLimits(a.billing)
 	a.whatsapp.SetPlanLimits(a.billing)
 	a.workspaces.SetBilling(deletionGuard{a.billing})
+	a.workspaces.SetTrials(a.billing)
 	return nil
 }
 

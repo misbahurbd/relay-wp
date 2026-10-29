@@ -33,6 +33,8 @@ type Enqueuer interface {
 type Config struct {
 	// AppBaseURL builds links in emails (pay an installment, billing settings).
 	AppBaseURL string
+	// TrialPlan is the code of the plan a new workspace trials (TRIAL_PLAN).
+	TrialPlan string
 	// CheckoutTTL is how long a pending checkout session lives.
 	CheckoutTTL time.Duration
 	// EventPayloadTTL is how long payment_events.payload is kept.

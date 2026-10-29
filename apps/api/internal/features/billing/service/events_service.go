@@ -497,8 +497,18 @@ func (s *Service) onDisputeClosed(ctx context.Context, tx pgx.Tx, workspaceID uu
 		return nil
 	}
 	if ev.Payment.Status != "won" {
+		// The money went back to the customer: suspend the plan it paid for.
+		// Support can restore the grant once it is settled.
 		s.log.WarnContext(ctx, "billing: dispute lost", "event", ev, "workspace_id", workspaceID, "invoice_id", inv.ID,
 			"outcome", ev.Payment.Status)
+		g, err := currentGrant(ctx, repo, workspaceID)
+		if err != nil || g == nil || g.Status != model.GrantActive {
+			return err
+		}
+		if (inv.SubscriptionID != nil && sameID(g.SubscriptionID, *inv.SubscriptionID)) ||
+			(inv.OrderID != nil && sameID(g.OrderID, *inv.OrderID)) {
+			return s.SuspendGrant(ctx, tx, workspaceID, g.ID)
+		}
 		return nil
 	}
 	status, err := refundedStatus(ctx, repo, workspaceID, inv)

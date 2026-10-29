@@ -18,6 +18,8 @@ func TestCheckoutPermissions(t *testing.T) {
 	}}, authctx.PermBillingPay)
 	expectGuarded(t, []route{{method: http.MethodGet, path: checkoutsPath + "/" + uuid.NewString()}},
 		authctx.PermBillingView)
+	expectGuarded(t, []route{{method: http.MethodPost, path: checkoutsPath + "/" + uuid.NewString() + "/test-complete"}},
+		authctx.PermBillingPay)
 }
 
 func TestCreateCheckoutValidates(t *testing.T) {

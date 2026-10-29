@@ -68,7 +68,7 @@ func (g *creemGateway) Provider() Provider { return Creem }
 
 func (g *creemGateway) Capabilities() Capabilities {
 	return Capabilities{
-		RenewsSubscriptions: true, Coupons: true, MerchantOfRecord: true, Currencies: []string{"USD"},
+		EmbeddableURL: true, RenewsSubscriptions: true, Coupons: true, MerchantOfRecord: true, Currencies: []string{"USD"},
 	}
 }
 
@@ -234,9 +234,14 @@ type creemDiscountRequest struct {
 	AppliesToProducts []string `json:"applies_to_products"`
 }
 
+// CancelSchedule implements Gateway: Creem runs no installment schedules.
+func (g *creemGateway) CancelSchedule(context.Context, string) error {
+	return fmt.Errorf("creem: installment schedules: %w", ErrUnsupported)
+}
+
 // CreateCoupon mirrors a Relay discount as a Creem discount code. Creem needs
-// the products a code applies to; it gets the store's active recurring
-// products, so the code never discounts a one-time checkout twice.
+// the products a code applies to: req.ExternalProductIDs, or else the store's
+// active recurring products, so the code never discounts a one-time checkout twice.
 // ExternalCouponID is the code (what a checkout's discount_code takes) and
 // ExternalPromotionCodeID is Creem's discount ID.
 func (g *creemGateway) CreateCoupon(ctx context.Context, req CouponRequest) (Coupon, error) {
@@ -265,9 +270,12 @@ func (g *creemGateway) CreateCoupon(ctx context.Context, req CouponRequest) (Cou
 	default:
 		return Coupon{}, fmt.Errorf("creem: coupon duration %q: %w", req.Duration, ErrInvalidRequest)
 	}
-	products, err := g.recurringProducts(ctx)
-	if err != nil {
-		return Coupon{}, fmt.Errorf("creem: create coupon: %w", err)
+	products := req.ExternalProductIDs
+	if len(products) == 0 {
+		var err error
+		if products, err = g.recurringProducts(ctx); err != nil {
+			return Coupon{}, fmt.Errorf("creem: create coupon: %w", err)
+		}
 	}
 	if len(products) == 0 {
 		return Coupon{}, fmt.Errorf("creem: create coupon: the store has no active recurring products: %w", ErrInvalidRequest)
