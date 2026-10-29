@@ -237,11 +237,13 @@ apps/web/src/
 │       └── settings/
 │
 ├── features/
-│   └── <feature>/
-│       ├── api/                  # queryOptions, mutations, query keys
+│   └── <feature>/            # see ADR 0004
+│       ├── api/                  # <feature>.api.ts, or .keys.ts + .queries.ts + .mutations.ts
 │       ├── components/
+│       │   ├── <area>/           # e.g. members/, roles/, invite/ (once the feature has 2+ areas)
+│       │   └── kit/              # UI pieces shared by the feature's areas
 │       ├── hooks/
-│       ├── schemas/              # Zod
+│       ├── schemas/              # <feature>.schema.ts (Zod)
 │       ├── server/               # server functions (if any)
 │       ├── types.ts
 │       └── index.ts              # PUBLIC API
@@ -266,7 +268,8 @@ apps/web/src/
 3. **Never hand-write API types;** use `packages/api-client`.
 4. **Each feature owns its query keys;** mutations invalidate through them.
 5. **Promote to `components/` only when two features need it.**
-6. **Auth on SSR:** server-side requests forward the incoming cookies to the API. On `401`, the client calls `/v1/auth/refresh` once, then retries.
+6. **Name feature files by feature and role** (`team.queries.ts`, `auth.schema.ts`) and group components by area; see [ADR 0004](adr/0004-web-feature-file-layout.md).
+7. **Auth on SSR:** server-side requests forward the incoming cookies to the API. On `401`, the client calls `/v1/auth/refresh` once, then retries.
 
 ---
 

@@ -62,6 +62,22 @@ A new feature starts with only the files it needs. Do not create empty placehold
 - Never hand-write API types or fetch calls; use `@relay/api-client`.
 - Each feature owns its query keys; mutations invalidate through them.
 
+### Frontend feature layout ([ADR 0004](docs/adr/0004-web-feature-file-layout.md))
+
+```text
+features/<feature>/
+  index.ts  types.ts
+  api/         <feature>.api.ts, or <feature>.keys.ts + .queries.ts + .mutations.ts once it is big
+  schemas/     <feature>.schema.ts
+  hooks/       use-<thing>.ts
+  components/  <area>/<component>.tsx, kit/ for pieces shared by 2+ areas of the feature
+```
+
+- Name files in `api/` and `schemas/` after the feature and their role (`auth.api.ts`, `team.schema.ts`), so editor tabs and search results say which feature a file belongs to.
+- Group components by area (`members/`, `roles/`, `invite/`) once a feature has two or more areas or ~400 lines of components. A small feature keeps a flat `components/`.
+- `components/kit/` holds the feature's own UI pieces (one small file per piece, no barrel). It imports only `#/components`, `#/lib`, and the feature's `schemas/` and `types.ts`.
+- Split a file once it passes ~500 lines or holds unrelated things; never leave a grab-bag such as `parts.tsx` or `helpers.ts`.
+
 ### Generated files (never edit by hand)
 
 `apps/api/db/gen/**`, `apps/api/openapi/openapi.json`, `packages/api-client/src/gen/**`, `apps/web/src/routeTree.gen.ts`. Change the source and run `task gen`.

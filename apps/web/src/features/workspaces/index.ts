@@ -8,5 +8,5 @@ export {
   workspaceKeys,
   workspaceQueryOptions,
   workspacesQueryOptions,
-} from './api/workspaces'
+} from './api/workspaces.api'
 export type { FirstGoal, StartMode, Workspace, WorkspaceSummary } from './types'

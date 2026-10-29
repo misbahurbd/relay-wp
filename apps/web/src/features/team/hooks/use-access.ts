@@ -1,7 +1,8 @@
 import { client } from '@relay/api-client'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { accessQueryOptions, invalidateTeam, teamKeys } from '../api/team'
+import { invalidateTeam, teamKeys } from '../api/team.keys'
+import { accessQueryOptions } from '../api/team.queries'
 
 /**
  * What the signed-in member can do in the workspace. While it loads, nothing is allowed, so
