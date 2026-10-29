@@ -219,7 +219,7 @@ export function WhatsAppStep({ userId, workspaceId, onBack, onDone }: Props) {
               disabled={skip.isPending}
               onClick={() =>
                 skip.mutate(undefined, {
-                  onSuccess: () => navigate({ to: '/w/$workspaceId', params: { workspaceId } }),
+                  onSuccess: () => navigate({ to: '/' }),
                 })
               }
             >

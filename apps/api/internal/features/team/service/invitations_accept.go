@@ -192,7 +192,7 @@ func (s *Service) join(ctx context.Context, tx pgx.Tx, inv gen.GetInvitationByTo
 	if inv.InvitedBy != nil {
 		if to, _, _, err := s.accounts.AccountInfo(ctx, *inv.InvitedBy); err == nil {
 			if err := s.enqueueEmail(ctx, tx, joinedEmail(to, email, inv.WorkspaceName, inv.RoleName,
-				s.cfg.AppBaseURL+"/w/"+inv.WorkspaceID.String()+"/team")); err != nil {
+				s.teamLink(inv.WorkspaceID))); err != nil {
 				return err
 			}
 		}
@@ -229,7 +229,7 @@ func (s *Service) RequestRenewal(ctx context.Context, rawToken string) error {
 			return err
 		}
 		return s.enqueueEmail(ctx, tx, renewalEmail(to, inv.Email, inv.WorkspaceName,
-			s.cfg.AppBaseURL+"/w/"+inv.WorkspaceID.String()+"/team"))
+			s.teamLink(inv.WorkspaceID)))
 	})
 }
 
@@ -256,4 +256,9 @@ func (s *Service) InviteEmail(ctx context.Context, rawToken string) (string, err
 // JoinByInvite accepts an invite for a just-created account. Implements auth.Invites.
 func (s *Service) JoinByInvite(ctx context.Context, rawToken string, userID uuid.UUID, ip, userAgent string) (uuid.UUID, error) {
 	return s.AcceptInvitation(ctx, rawToken, userID, model.Meta{IP: ip, UserAgent: userAgent})
+}
+
+// teamLink is the workspace's Team page. The web app switches to ?workspace= and drops it.
+func (s *Service) teamLink(workspaceID uuid.UUID) string {
+	return strings.TrimRight(s.cfg.AppBaseURL, "/") + "/team?workspace=" + workspaceID.String()
 }

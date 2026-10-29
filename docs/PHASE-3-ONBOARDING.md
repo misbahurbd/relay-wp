@@ -33,16 +33,16 @@ Decisions marked **(proposed)** depend on an open question in section 9.
 
 ### Main path
 
-| #   | Screen              | Route (Phase 4)                        | Time    | User does                                                                                            | Server effect                                                                                        |
-| --- | ------------------- | -------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| 1   | Sign up             | `_auth/signup`                         | 1 min   | Full name, work email, password, accepts terms. Or "Continue with Google / Facebook / Apple".        | `POST /auth/signup` → user, profile, preferences; emails a code. Social: signed in, skips to 3.      |
-| 2   | Verify email        | `_auth/verify-email`                   | 30 sec  | Types the 6-digit code. "Change email" goes back to 1. Resend after 60 s.                            | `POST /auth/verify-email/code` → verified **and signed in**.                                         |
-| 3   | Welcome             | `_app/welcome`                         | 15 sec  | Picks a first goal (Send offers / Answer customers / Automate replies), then Start setup or Explore. | `POST /workspaces` → workspace, owner membership, onboarding row, trial dates.                       |
-| 4   | Business details    | `_app/w/$workspaceId/setup` (step 1)   | 1 min   | Business name, industry, website, country, team size, goals.                                         | `PUT /workspace/onboarding/business`                                                                 |
-| 5   | Connect WhatsApp    | `_app/w/$workspaceId/setup` (step 2)   | 3 min   | Logs in with Meta, picks the business, adds and verifies the number. Or "Skip for now".              | `POST /workspace/whatsapp/connections`, then the setup job. Skip: `POST …/onboarding/skip-whatsapp`. |
-| 6   | Send test message   | `_app/w/$workspaceId/setup` (step 3)   | 30 sec  | Enters their own number, sends `hello_world`, sees "Delivered", clicks Go to dashboard.              | `POST …/whatsapp/numbers/{id}/test-messages`; `POST …/onboarding/complete`.                          |
-| 7   | First-run dashboard | `_app/w/$workspaceId/` (not activated) | 2 min   | Takes the 4-step tour, works through the checklist.                                                  | `GET …/onboarding` drives the checklist; `PATCH …/onboarding/me` stores tour/checklist visibility.   |
-| 8   | Everyday dashboard  | `_app/w/$workspaceId/` (activated)     | Ongoing | Normal use.                                                                                          | `activated_at` set on the workspace.                                                                 |
+| #   | Screen              | Route (Phase 4)                    | Time    | User does                                                                                            | Server effect                                                                                        |
+| --- | ------------------- | ---------------------------------- | ------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| 1   | Sign up             | `_auth/signup`                     | 1 min   | Full name, work email, password, accepts terms. Or "Continue with Google / Facebook / Apple".        | `POST /auth/signup` → user, profile, preferences; emails a code. Social: signed in, skips to 3.      |
+| 2   | Verify email        | `_auth/verify-email`               | 30 sec  | Types the 6-digit code. "Change email" goes back to 1. Resend after 60 s.                            | `POST /auth/verify-email/code` → verified **and signed in**.                                         |
+| 3   | Welcome             | `_app/welcome`                     | 15 sec  | Picks a first goal (Send offers / Answer customers / Automate replies), then Start setup or Explore. | `POST /workspaces` → workspace, owner membership, onboarding row, trial dates.                       |
+| 4   | Business details    | `_app/_workspace/setup` (step 1)   | 1 min   | Business name, industry, website, country, team size, goals.                                         | `PUT /workspace/onboarding/business`                                                                 |
+| 5   | Connect WhatsApp    | `_app/_workspace/setup` (step 2)   | 3 min   | Logs in with Meta, picks the business, adds and verifies the number. Or "Skip for now".              | `POST /workspace/whatsapp/connections`, then the setup job. Skip: `POST …/onboarding/skip-whatsapp`. |
+| 6   | Send test message   | `_app/_workspace/setup` (step 3)   | 30 sec  | Enters their own number, sends `hello_world`, sees "Delivered", clicks Go to dashboard.              | `POST …/whatsapp/numbers/{id}/test-messages`; `POST …/onboarding/complete`.                          |
+| 7   | First-run dashboard | `_app/_workspace/` (not activated) | 2 min   | Takes the 4-step tour, works through the checklist.                                                  | `GET …/onboarding` drives the checklist; `PATCH …/onboarding/me` stores tour/checklist visibility.   |
+| 8   | Everyday dashboard  | `_app/_workspace/` (activated)     | Ongoing | Normal use.                                                                                          | `activated_at` set on the workspace.                                                                 |
 
 ### Where to send a signed-in user
 
@@ -50,7 +50,7 @@ Run on every app load and after every sign-in:
 
 1. Password user with an unverified email → **Verify email** (the login endpoint already returns `403 email_not_verified`).
 2. No workspace membership → **Welcome**.
-3. Last-used workspace has `onboarding.completed_at IS NULL` → **Setup**, at `onboarding.current_step`, with saved answers prefilled.
+3. The selected workspace (the switcher's choice, else the last used) has `onboarding.completed_at IS NULL` → **Setup**, at `onboarding.current_step`, with saved answers prefilled.
 4. Otherwise → the workspace dashboard (first-run or everyday, by `activated_at`).
 
 Invitees who sign up from an invite link join that workspace and skip 3–6 (team access document).

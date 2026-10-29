@@ -63,7 +63,7 @@ export function MemberPage({ workspaceId, userId, meId }: Props) {
   if (member.isError) {
     return (
       <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-5 p-4 sm:px-7 sm:pt-6 sm:pb-10">
-        <Breadcrumb workspaceId={workspaceId} current="Member" />
+        <Breadcrumb current="Member" />
         <Panel role="alert" className="text-destructive">
           {errorMessage(member.error, 'Could not load this member.')}
         </Panel>
@@ -91,7 +91,7 @@ export function MemberPage({ workspaceId, userId, meId }: Props) {
 
   return (
     <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-5 p-4 sm:px-7 sm:pt-6 sm:pb-10">
-      <Breadcrumb workspaceId={workspaceId} current={m.name} />
+      <Breadcrumb current={m.name} />
 
       <section
         aria-label="Member summary"
@@ -1011,12 +1011,7 @@ function ActivityCard({
         <h2 id="act-h" className="text-[17px] font-bold">
           Recent activity
         </h2>
-        <Link
-          to="/w/$workspaceId/team/log"
-          params={{ workspaceId }}
-          search={{ member: userId }}
-          className="text-[13px] font-bold"
-        >
+        <Link to="/team/log" search={{ member: userId }} className="text-[13px] font-bold">
           Full access log
         </Link>
       </div>
@@ -1054,7 +1049,7 @@ function RemovedState({ workspaceId, name }: { workspaceId: string; name: string
   const taken = seats.data ? seats.data.used + seats.data.reserved : 0
   return (
     <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-5 p-4 sm:px-7 sm:pt-6 sm:pb-10">
-      <Breadcrumb workspaceId={workspaceId} current={name} />
+      <Breadcrumb current={name} />
       <section
         aria-label="Member removed"
         className="mx-auto my-6 flex w-full max-w-[640px] flex-col items-center gap-4 rounded-[18px] border bg-card px-7 py-9 text-center shadow-card"
@@ -1082,22 +1077,19 @@ function RemovedState({ workspaceId, name }: { workspaceId: string; name: string
         </div>
         <div className="flex flex-wrap justify-center gap-2.5">
           <Link
-            to="/w/$workspaceId/team"
-            params={{ workspaceId }}
+            to="/team"
             className="inline-flex h-11 items-center rounded-lg bg-primary px-[18px] font-bold text-primary-foreground no-underline hover:bg-primary/90 hover:text-primary-foreground"
           >
             Back to Team
           </Link>
           <Link
-            to="/w/$workspaceId/team/log"
-            params={{ workspaceId }}
+            to="/team/log"
             className="inline-flex h-11 items-center rounded-lg border bg-card px-[18px] font-bold text-foreground no-underline hover:bg-muted"
           >
             View access log
           </Link>
           <Link
-            to="/w/$workspaceId/team/invite"
-            params={{ workspaceId }}
+            to="/team/invite"
             className="inline-flex h-11 items-center rounded-lg px-[18px] font-bold text-brand-text no-underline hover:bg-muted"
           >
             Re-invite {name.split(' ')[0]}

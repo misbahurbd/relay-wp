@@ -96,8 +96,7 @@ export function TeamPage({ workspaceId, meId, tab, onTab }: Props) {
           )}
           {can('team.invite') && (
             <Link
-              to="/w/$workspaceId/team/invite"
-              params={{ workspaceId }}
+              to="/team/invite"
               className="flex h-11 items-center gap-2 rounded-lg bg-primary px-[18px] font-bold text-primary-foreground no-underline hover:bg-primary/90 hover:text-primary-foreground"
             >
               <UserPlusIcon className="size-[18px]" aria-hidden="true" />
@@ -128,19 +127,9 @@ export function TeamPage({ workspaceId, meId, tab, onTab }: Props) {
       </div>
 
       <nav aria-label="Team tools" className="flex flex-wrap gap-2 text-[13px] font-bold">
-        {can('team.invite') && (
-          <ToolLink to="/w/$workspaceId/team/invite" workspaceId={workspaceId}>
-            Full invite flow
-          </ToolLink>
-        )}
-        <ToolLink to="/w/$workspaceId/team/roles" workspaceId={workspaceId}>
-          Roles &amp; permissions editor
-        </ToolLink>
-        {can('team.roles') && (
-          <ToolLink to="/w/$workspaceId/team/log" workspaceId={workspaceId}>
-            Access log
-          </ToolLink>
-        )}
+        {can('team.invite') && <ToolLink to="/team/invite">Full invite flow</ToolLink>}
+        <ToolLink to="/team/roles">Roles &amp; permissions editor</ToolLink>
+        {can('team.roles') && <ToolLink to="/team/log">Access log</ToolLink>}
       </nav>
 
       {tab === 'members' && <MembersTab workspaceId={workspaceId} meId={meId} />}
@@ -152,17 +141,14 @@ export function TeamPage({ workspaceId, meId, tab, onTab }: Props) {
 
 function ToolLink({
   to,
-  workspaceId,
   children,
 }: {
-  to: '/w/$workspaceId/team/invite' | '/w/$workspaceId/team/roles' | '/w/$workspaceId/team/log'
-  workspaceId: string
+  to: '/team/invite' | '/team/roles' | '/team/log'
   children: React.ReactNode
 }) {
   return (
     <Link
       to={to}
-      params={{ workspaceId }}
       className="rounded-full bg-brand-soft px-3 py-1.5 text-brand-text no-underline hover:text-foreground"
     >
       {children}
@@ -250,8 +236,8 @@ function MembersTab({ workspaceId, meId }: { workspaceId: string; meId: string }
       .join(', ')
   const goTo = (m: Member) =>
     navigate({
-      to: '/w/$workspaceId/team/members/$userId',
-      params: { workspaceId, userId: m.user_id },
+      to: '/team/members/$userId',
+      params: { userId: m.user_id },
     })
 
   return (
@@ -424,8 +410,8 @@ function MemberRow({
     <tr className="border-t hover:bg-muted">
       <td className="py-3 pr-2">
         <Link
-          to="/w/$workspaceId/team/members/$userId"
-          params={{ workspaceId, userId: m.user_id }}
+          to="/team/members/$userId"
+          params={{ userId: m.user_id }}
           className="flex items-center gap-3 rounded-md text-foreground no-underline"
         >
           <PersonAvatar name={m.name} seed={m.user_id} />
@@ -763,8 +749,7 @@ function RolesTab({ workspaceId }: { workspaceId: string }) {
         description="Agents only see chats assigned to them or their team."
         action={
           <Link
-            to="/w/$workspaceId/team/roles"
-            params={{ workspaceId }}
+            to="/team/roles"
             className="inline-flex h-10 items-center rounded-[10px] border bg-card px-3.5 text-[13px] font-bold text-foreground no-underline hover:bg-muted"
           >
             Manage roles &amp; permissions

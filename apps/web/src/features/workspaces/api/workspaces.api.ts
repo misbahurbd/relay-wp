@@ -1,7 +1,7 @@
 import { createWorkspace, getWorkspace, listWorkspaces, type WorkspaceDto } from '@relay/api-client'
 import { type QueryClient, queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 import { inWorkspace } from '#/lib/api'
-import type { FirstGoal, StartMode, Workspace } from '../types'
+import type { FirstGoal, StartMode, Workspace, WorkspaceSummary } from '../types'
 
 export const workspaceKeys = {
   all: (userId: string) => ['workspaces', userId] as const,
@@ -38,7 +38,7 @@ export function useCreateWorkspace(userId: string) {
       return data
     },
     onSuccess: (ws) => {
-      rememberWorkspace(ws.id)
+      selectWorkspace(ws.id)
       return queryClient.invalidateQueries({ queryKey: workspaceKeys.all(userId) })
     },
   })
@@ -50,39 +50,59 @@ export function trialDaysLeft(endsAt: string | null): number | null {
   return Math.max(0, Math.ceil((Date.parse(endsAt) - Date.now()) / 86_400_000))
 }
 
-const LAST_WORKSPACE_KEY = 'relay-last-workspace'
+const WORKSPACE_KEY = 'relay-last-workspace'
 
-export function rememberWorkspace(id: string) {
-  try {
-    localStorage.setItem(LAST_WORKSPACE_KEY, id)
-  } catch {
-    // Not remembered; the most recently used workspace is opened next time.
+/**
+ * Makes id the workspace this tab works in. Each tab keeps its own choice (sessionStorage), and
+ * the latest one is what new tabs open (localStorage). The API gets it as X-Workspace-ID.
+ */
+export function selectWorkspace(id: string) {
+  for (const store of [sessionStorage, localStorage]) {
+    try {
+      store.setItem(WORKSPACE_KEY, id)
+    } catch {
+      // Not remembered; the most recently used workspace is opened next time.
+    }
   }
 }
 
-function lastWorkspace() {
-  try {
-    return localStorage.getItem(LAST_WORKSPACE_KEY)
-  } catch {
-    return null
+function selectedWorkspace() {
+  for (const store of [sessionStorage, localStorage]) {
+    try {
+      const id = store.getItem(WORKSPACE_KEY)
+      if (id) return id
+    } catch {
+      // Storage blocked: fall through to the most recently used workspace.
+    }
   }
+  return null
 }
 
-export type HomePath =
-  | { to: '/welcome' }
-  | { to: '/w/$workspaceId/setup'; params: { workspaceId: string } }
-  | { to: '/w/$workspaceId'; params: { workspaceId: string } }
+/**
+ * The workspace to open: the one this tab picked, else the last one picked anywhere, else the
+ * most recently used (the API lists those first). Null when the user has none.
+ */
+export async function resolveWorkspace(
+  queryClient: QueryClient,
+  userId: string,
+): Promise<WorkspaceSummary | null> {
+  const selected = selectedWorkspace()
+  let workspaces = await queryClient.ensureQueryData(workspacesQueryOptions(userId))
+  // A workspace joined since the list was cached: refetch once before falling back.
+  if (selected && !workspaces.some((w) => w.id === selected)) {
+    workspaces = await queryClient.fetchQuery(workspacesQueryOptions(userId))
+  }
+  return workspaces.find((w) => w.id === selected) ?? workspaces[0] ?? null
+}
+
+export type HomePath = { to: '/welcome' } | { to: '/setup' } | { to: '/' }
 
 /**
  * Where a signed-in, verified user belongs (docs/PHASE-3-ONBOARDING.md, "Where to send a
  * signed-in user"): no workspace → Welcome; unfinished setup → Setup; otherwise the dashboard.
- * The API lists workspaces most recently used first.
  */
 export async function resolveHomePath(queryClient: QueryClient, userId: string): Promise<HomePath> {
-  const workspaces = await queryClient.fetchQuery(workspacesQueryOptions(userId))
-  if (workspaces.length === 0) return { to: '/welcome' }
-  const last = lastWorkspace()
-  const ws = workspaces.find((w) => w.id === last) ?? workspaces[0]
-  const params = { workspaceId: ws.id }
-  return ws.completed ? { to: '/w/$workspaceId', params } : { to: '/w/$workspaceId/setup', params }
+  const ws = await resolveWorkspace(queryClient, userId)
+  if (!ws) return { to: '/welcome' }
+  return ws.completed ? { to: '/' } : { to: '/setup' }
 }

@@ -61,7 +61,7 @@ export function TestMessageStep({ userId, workspace, onBack }: Props) {
 
   const finish = () =>
     complete.mutate(undefined, {
-      onSuccess: () => navigate({ to: '/w/$workspaceId', params: { workspaceId: workspace.id } }),
+      onSuccess: () => navigate({ to: '/' }),
     })
 
   const status = message.data?.status

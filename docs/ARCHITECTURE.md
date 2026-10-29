@@ -244,7 +244,7 @@ apps/web/src/
 │   ├── _auth/signup.tsx
 │   ├── _app.tsx                  # authenticated layout (beforeLoad → require user)
 │   ├── _app/onboarding.tsx       # create first workspace
-│   └── _app/w/$workspaceId/
+│   └── _app/_workspace/
 │       ├── route.tsx             # load workspace, check membership
 │       ├── index.tsx             # dashboard
 │       ├── members.tsx

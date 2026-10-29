@@ -318,6 +318,7 @@ func (s *Service) SendTrialReminder(ctx context.Context, workspaceID uuid.UUID, 
 	})
 }
 
+// link is a web app page in the workspace. The app switches to ?workspace= and drops it.
 func (s *Service) link(workspaceID uuid.UUID, path string) string {
-	return strings.TrimRight(s.cfg.AppBaseURL, "/") + "/w/" + workspaceID.String() + path
+	return strings.TrimRight(s.cfg.AppBaseURL, "/") + path + "?workspace=" + workspaceID.String()
 }

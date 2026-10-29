@@ -93,11 +93,7 @@ export function ChangeRoleDialog({
           </RadioCard>
         ))}
       </div>
-      <Link
-        to="/w/$workspaceId/team/roles"
-        params={{ workspaceId }}
-        className="self-start text-[13px] font-bold"
-      >
+      <Link to="/team/roles" className="self-start text-[13px] font-bold">
         Manage roles
       </Link>
       {diff && preview.data && (

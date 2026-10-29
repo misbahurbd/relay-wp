@@ -54,15 +54,14 @@ export function SectionLabel({ children, className }: { children: ReactNode; cla
   )
 }
 
-export function Breadcrumb({ workspaceId, current }: { workspaceId: string; current: string }) {
+export function Breadcrumb({ current }: { current: string }) {
   return (
     <nav
       aria-label="Breadcrumb"
       className="flex items-center gap-2 text-[13px] font-semibold text-muted-foreground"
     >
       <Link
-        to="/w/$workspaceId/team"
-        params={{ workspaceId }}
+        to="/team"
         className="inline-flex items-center gap-1.5 text-brand-text no-underline hover:text-foreground"
       >
         <ChevronLeftIcon className="size-4" aria-hidden="true" />

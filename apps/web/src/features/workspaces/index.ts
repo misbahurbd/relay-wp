@@ -1,7 +1,8 @@
 export {
   type HomePath,
-  rememberWorkspace,
   resolveHomePath,
+  resolveWorkspace,
+  selectWorkspace,
   toWorkspace,
   trialDaysLeft,
   useCreateWorkspace,
