@@ -17,6 +17,7 @@ export function FormDialog({
   description,
   submitLabel,
   pending,
+  disabled = false,
   error,
   onSubmit,
   onClose,
@@ -26,6 +27,8 @@ export function FormDialog({
   description?: ReactNode
   submitLabel: string
   pending: boolean
+  /** Nothing to submit yet, e.g. no plan to pick. */
+  disabled?: boolean
   error: unknown
   onSubmit: () => void
   onClose: () => void
@@ -69,7 +72,7 @@ export function FormDialog({
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" disabled={pending || disabled}>
               {pending ? 'Saving…' : submitLabel}
             </Button>
           </DialogFooter>

@@ -6,6 +6,7 @@ on:
     paths:
       [
         "apps/web/**",
+        "apps/crm/**",
         "packages/**",
         "pnpm-lock.yaml",
         "biome.json",
@@ -16,6 +17,7 @@ on:
     paths:
       [
         "apps/web/**",
+        "apps/crm/**",
         "packages/**",
         "pnpm-lock.yaml",
         "biome.json",
@@ -41,6 +43,7 @@ jobs:
           git diff --exit-code -- packages/api-client
       - run: pnpm typecheck
       - run: pnpm --filter @relay/web build
+      - run: pnpm --filter @relay/crm build
 
   image:
     needs: check

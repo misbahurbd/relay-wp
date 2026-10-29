@@ -8,7 +8,7 @@ This document describes how the project is structured and the rules that keep it
 
 | Area             | Decision                                                                      | Reason                                                           |
 | ---------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| Repo             | Monorepo (`apps/api`, `apps/web`, `packages/*`)                               | API and UI changes land in one PR                                |
+| Repo             | Monorepo (`apps/api`, `apps/web`, `apps/crm`, `packages/*`)                   | API and UI changes land in one PR                                |
 | Backend language | Go 1.27                                                                       | Low memory, high concurrency, single static binary               |
 | HTTP             | `chi` + `huma`                                                                | Standard `net/http`, no lock-in; OpenAPI generated from Go types |
 | Database         | Managed PostgreSQL                                                            | No DB to operate; API box stays small                            |
@@ -44,7 +44,8 @@ This document describes how the project is structured and the rules that keep it
 <repo>/
 ├── apps/
 │   ├── api/                 # Go backend
-│   └── web/                 # TanStack Start frontend
+│   ├── web/                 # TanStack Start frontend
+│   └── crm/                 # staff CRM: Vite SPA on /v1/admin (ADR 0007)
 ├── packages/
 │   └── api-client/          # TS client + types generated from OpenAPI
 ├── deploy/

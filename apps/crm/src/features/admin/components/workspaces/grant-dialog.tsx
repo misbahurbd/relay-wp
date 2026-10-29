@@ -42,6 +42,7 @@ export function GrantDialog({
       description="A manual grant: no payment, no invoice. It replaces a trial or an earlier manual grant."
       submitLabel="Grant plan"
       pending={grant.isPending}
+      disabled={plans.length === 0}
       error={grant.error}
       onSubmit={submit}
       onClose={onClose}

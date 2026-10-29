@@ -153,8 +153,9 @@ The contract changes and open questions the tracks reported, as settled when the
 
 ## 8. Staff admin tools (temporary)
 
-A stopgap so staff can build the catalog and fix a workspace's plan without SQL. The web page is
-`/admin` (tabs: plans and prices, discount codes, workspaces). The API admits a signed-in, verified
+A stopgap so staff can build the catalog and fix a workspace's plan without SQL. It is its own
+app, `apps/crm` ([ADR 0007](adr/0007-staff-crm-app.md); `task dev:crm`, port 3020), with tabs for
+plans and prices, discount codes and workspaces. The API admits a signed-in, verified
 account whose email is in `ADMIN_EMAILS`; anyone else gets 403 `staff_only`. Empty turns it off.
 Replace it with a real back office (roles, an audit log) before there are several staff.
 
