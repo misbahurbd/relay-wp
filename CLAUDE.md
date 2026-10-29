@@ -15,11 +15,11 @@ Never create a new top-level folder, a new folder under `apps/*/` or `internal/`
 | You are adding                                                              | It goes in                                                                                       |
 | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | Business logic for a domain (auth, workspaces, members, …)                  | `apps/api/internal/features/<feature>/`                                                          |
-| HTTP handler                                                                | `features/<feature>/handler.go`                                                                  |
-| Business rules                                                              | `features/<feature>/service.go`                                                                  |
-| SQL access                                                                  | `features/<feature>/repository.go` + `features/<feature>/queries.sql`                            |
-| Domain types                                                                | `features/<feature>/model.go`                                                                    |
-| Request/response shapes                                                     | `features/<feature>/dto.go`                                                                      |
+| HTTP handler                                                                | `features/<feature>/handler.go` (large feature: `<area>_handler.go`)                             |
+| Business rules                                                              | `features/<feature>/service.go` (large feature: `<area>_service.go`)                             |
+| SQL access                                                                  | `features/<feature>/repository.go` + `queries.sql` (large feature: `<area>_queries.sql`)         |
+| Domain types                                                                | `features/<feature>/model.go` (large feature: `<area>_model.go`)                                 |
+| Request/response shapes                                                     | `features/<feature>/dto.go` (large feature: `<area>_dto.go`)                                     |
 | Feature errors                                                              | `features/<feature>/errors.go`                                                                   |
 | Route registration                                                          | `features/<feature>/routes.go`                                                                   |
 | Background job args + workers                                               | `features/<feature>/jobs.go`                                                                     |
@@ -38,6 +38,13 @@ Never create a new top-level folder, a new folder under `apps/*/` or `internal/`
 | Architecture decision                                                       | `docs/adr/NNNN-title.md`                                                                         |
 
 A new feature starts with only the files it needs. Do not create empty placeholder files.
+
+### Large features: area files ([ADR 0003](docs/adr/0003-feature-file-layout.md))
+
+- A feature is **one Go package**: never create a subfolder inside `features/<feature>/`.
+- Once a feature has two or more distinct areas, or a file passes ~400 lines, name its files `<area>_<kind>.go` and `<area>_queries.sql` (`roles_service.go`, `roles_handler.go`, `roles_dto.go`, `roles_model.go`, `roles_queries.sql`). `auth` and `team` follow this.
+- Code shared by the whole feature keeps the plain names: `service.go` (the `Service` struct, `New`, interfaces, small helpers), `handler.go`, `dto.go`, `model.go`, `routes.go`, `errors.go`, `repository.go`, `jobs.go`, `email.go`.
+- Add new code to its area's file. A new area gets its own `<area>_*` files; don't grow the shared files.
 
 ### Backend dependency rules
 
@@ -135,7 +142,7 @@ Then check your change against sections 1 and 2:
 - [ ] No new factory outside the approved list.
 - [ ] No generated file was edited by hand.
 - [ ] Tenant data is scoped by `workspace_id`.
-- [ ] No `SELECT *` or `RETURNING *` in any query (`grep -rn '\*' --include=queries.sql apps/api/internal` finds none).
+- [ ] No `SELECT *` or `RETURNING *` in any query (`grep -rn '\*' --include='*.sql' apps/api/internal` finds none).
 - [ ] No password or token hash appears in a model, DTO, response or log line.
 
 ---

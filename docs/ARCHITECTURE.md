@@ -83,12 +83,14 @@ apps/api/
 │   │   ├── routes.go
 │   │   └── workers.go         # registers River workers
 │   │
-│   ├── features/              # business logic, one folder per feature
-│   │   ├── auth/              # signup, login, refresh, logout, password reset
-│   │   ├── users/
+│   ├── features/              # business logic, one folder (one Go package) per feature
+│   │   ├── auth/              # signup, login, sessions, passwords, social sign-in
+│   │   ├── profiles/
 │   │   ├── workspaces/
-│   │   ├── members/           # invites, roles
-│   │   └── <feature>/
+│   │   ├── onboarding/
+│   │   ├── whatsapp/
+│   │   ├── team/              # roles, members, teams, invitations, access log
+│   │   └── <feature>/         # a small feature: one file per kind
 │   │       ├── handler.go     # HTTP: decode → service → encode
 │   │       ├── service.go     # business rules (no HTTP, no SQL)
 │   │       ├── repository.go  # data access (wraps sqlc)
@@ -124,6 +126,21 @@ apps/api/
 ├── .air.toml
 └── go.mod
 ```
+
+### Large features: area files
+
+A feature stays one Go package; never add subfolders inside it (each folder is a separate package, so it couldn't use the feature's unexported types and would invite import cycles). When a feature grows past two or more distinct areas, or a file passes ~400 lines, name its files `<area>_<kind>.go` so one area's files sort together and a file search for the area finds all of them ([ADR 0003](adr/0003-feature-file-layout.md)):
+
+```text
+features/team/
+├── service.go  handler.go  dto.go  model.go       # shared: Service, New, interfaces, helpers
+├── routes.go  errors.go  repository.go  jobs.go  email.go
+├── roles_service.go  roles_handler.go  roles_dto.go  roles_model.go  roles_queries.sql
+├── members_service.go  members_handler.go  members_dto.go  members_model.go  members_queries.sql
+└── invitations_service.go  invitations_accept.go  invitations_handler.go  …
+```
+
+Kinds: `_service`, `_handler`, `_dto`, `_model`, `_queries.sql`, `_test`. A file may use a more specific word when the area needs two of a kind (`invitations_accept.go`, `oauth_google.go`, `log_writer.go`). sqlc reads every `.sql` file in each feature folder.
 
 ### Rules
 
