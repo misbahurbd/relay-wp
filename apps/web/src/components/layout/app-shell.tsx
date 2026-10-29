@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useLocation } from '@tanstack/react-router'
 import {
   BarChart3Icon,
   BotIcon,
@@ -42,10 +42,16 @@ import {
 import { LogoMark } from './logo'
 import { ThemeToggle } from './theme-toggle'
 
-type NavItem = { id: string; label: string; icon: typeof InboxIcon; ready?: boolean }
+type NavItem = {
+  id: string
+  label: string
+  icon: typeof InboxIcon
+  /** Built sections link somewhere; the rest show "Soon". */
+  to?: '/w/$workspaceId' | '/w/$workspaceId/team'
+}
 
 const NAV: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboardIcon, ready: true },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboardIcon, to: '/w/$workspaceId' },
   { id: 'inbox', label: 'Inbox', icon: InboxIcon },
   { id: 'contacts', label: 'Contacts', icon: ContactIcon },
   { id: 'broadcasts', label: 'Broadcasts', icon: MegaphoneIcon },
@@ -54,19 +60,26 @@ const NAV: NavItem[] = [
   { id: 'automations', label: 'Automations', icon: WorkflowIcon },
   { id: 'integrations', label: 'Integrations', icon: PlugIcon },
   { id: 'analytics', label: 'Analytics', icon: BarChart3Icon },
-  { id: 'team', label: 'Team', icon: UsersIcon },
+  { id: 'team', label: 'Team', icon: UsersIcon, to: '/w/$workspaceId/team' },
   { id: 'settings', label: 'Settings', icon: SettingsIcon },
   { id: 'billing', label: 'Billing', icon: CreditCardIcon },
 ]
 
 type Props = {
   workspace: { id: string; name: string; trialDaysLeft: number | null }
-  user: { name: string; email: string; avatarUrl: string | null }
+  user: { name: string; email: string; avatarUrl: string | null; roleName?: string }
   onLogout: () => void
   children: ReactNode
 }
 
 export function AppShell({ workspace, user, onLogout, children }: Props) {
+  const { pathname } = useLocation()
+  const base = `/w/${workspace.id}`
+  // Dashboard is active only on its own page; other sections own everything below them.
+  const isActive = (to: string) => {
+    const path = to.replace('/w/$workspaceId', base)
+    return path === base ? pathname.replace(/\/$/, '') === base : pathname.startsWith(path)
+  }
   return (
     <SidebarProvider>
       <Sidebar>
@@ -85,9 +98,14 @@ export function AppShell({ workspace, user, onLogout, children }: Props) {
               <SidebarMenu>
                 {NAV.map((item) => (
                   <SidebarMenuItem key={item.id} data-tour={item.id}>
-                    {item.ready ? (
-                      <SidebarMenuButton asChild isActive size="lg" className="h-10 font-bold">
-                        <Link to="/w/$workspaceId" params={{ workspaceId: workspace.id }}>
+                    {item.to ? (
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive(item.to)}
+                        size="lg"
+                        className="h-10 font-bold"
+                      >
+                        <Link to={item.to} params={{ workspaceId: workspace.id }}>
                           <item.icon aria-hidden="true" />
                           {item.label}
                         </Link>
@@ -156,7 +174,7 @@ function AccountMenu({ user, onLogout }: Pick<Props, 'user' | 'onLogout'>) {
         </Avatar>
         <span className="hidden text-left leading-tight sm:flex sm:flex-col">
           <span className="text-sm font-bold">{user.name}</span>
-          <span className="text-xs text-muted-foreground">Owner</span>
+          {user.roleName && <span className="text-xs text-muted-foreground">{user.roleName}</span>}
         </span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">

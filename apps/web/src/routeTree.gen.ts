@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AuthRouteImport } from './routes/_auth'
+import { Route as InviteRouteImport } from './routes/invite'
 import { Route as AppWelcomeRouteImport } from './routes/_app/welcome'
 import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-password'
 import { Route as AuthLoginRouteImport } from './routes/_auth/login'
@@ -21,6 +22,11 @@ import { Route as AuthVerifyEmailRouteImport } from './routes/_auth/verify-email
 import { Route as AppWWorkspaceIdShellRouteImport } from './routes/_app/w/$workspaceId/_shell'
 import { Route as AppWWorkspaceIdSetupRouteImport } from './routes/_app/w/$workspaceId/setup'
 import { Route as AppWWorkspaceIdShellIndexRouteImport } from './routes/_app/w/$workspaceId/_shell/index'
+import { Route as AppWWorkspaceIdShellTeamIndexRouteImport } from './routes/_app/w/$workspaceId/_shell/team/index'
+import { Route as AppWWorkspaceIdShellTeamInviteRouteImport } from './routes/_app/w/$workspaceId/_shell/team/invite'
+import { Route as AppWWorkspaceIdShellTeamLogRouteImport } from './routes/_app/w/$workspaceId/_shell/team/log'
+import { Route as AppWWorkspaceIdShellTeamRolesRouteImport } from './routes/_app/w/$workspaceId/_shell/team/roles'
+import { Route as AppWWorkspaceIdShellTeamMembersUserIdRouteImport } from './routes/_app/w/$workspaceId/_shell/team/members/$userId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -33,6 +39,11 @@ const AppRoute = AppRouteImport.update({
 } as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/_auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InviteRoute = InviteRouteImport.update({
+  id: '/invite',
+  path: '/invite',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppWelcomeRoute = AppWelcomeRouteImport.update({
@@ -81,9 +92,40 @@ const AppWWorkspaceIdShellIndexRoute =
     path: '/',
     getParentRoute: () => AppWWorkspaceIdShellRoute,
   } as any)
+const AppWWorkspaceIdShellTeamIndexRoute =
+  AppWWorkspaceIdShellTeamIndexRouteImport.update({
+    id: '/team/',
+    path: '/team/',
+    getParentRoute: () => AppWWorkspaceIdShellRoute,
+  } as any)
+const AppWWorkspaceIdShellTeamInviteRoute =
+  AppWWorkspaceIdShellTeamInviteRouteImport.update({
+    id: '/team/invite',
+    path: '/team/invite',
+    getParentRoute: () => AppWWorkspaceIdShellRoute,
+  } as any)
+const AppWWorkspaceIdShellTeamLogRoute =
+  AppWWorkspaceIdShellTeamLogRouteImport.update({
+    id: '/team/log',
+    path: '/team/log',
+    getParentRoute: () => AppWWorkspaceIdShellRoute,
+  } as any)
+const AppWWorkspaceIdShellTeamRolesRoute =
+  AppWWorkspaceIdShellTeamRolesRouteImport.update({
+    id: '/team/roles',
+    path: '/team/roles',
+    getParentRoute: () => AppWWorkspaceIdShellRoute,
+  } as any)
+const AppWWorkspaceIdShellTeamMembersUserIdRoute =
+  AppWWorkspaceIdShellTeamMembersUserIdRouteImport.update({
+    id: '/team/members/$userId',
+    path: '/team/members/$userId',
+    getParentRoute: () => AppWWorkspaceIdShellRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/invite': typeof InviteRoute
   '/welcome': typeof AppWelcomeRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/login': typeof AuthLoginRoute
@@ -93,9 +135,15 @@ export interface FileRoutesByFullPath {
   '/w/$workspaceId': typeof AppWWorkspaceIdShellRouteWithChildren
   '/w/$workspaceId/setup': typeof AppWWorkspaceIdSetupRoute
   '/w/$workspaceId/': typeof AppWWorkspaceIdShellIndexRoute
+  '/w/$workspaceId/team/invite': typeof AppWWorkspaceIdShellTeamInviteRoute
+  '/w/$workspaceId/team/log': typeof AppWWorkspaceIdShellTeamLogRoute
+  '/w/$workspaceId/team/roles': typeof AppWWorkspaceIdShellTeamRolesRoute
+  '/w/$workspaceId/team/': typeof AppWWorkspaceIdShellTeamIndexRoute
+  '/w/$workspaceId/team/members/$userId': typeof AppWWorkspaceIdShellTeamMembersUserIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/invite': typeof InviteRoute
   '/welcome': typeof AppWelcomeRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/login': typeof AuthLoginRoute
@@ -104,12 +152,18 @@ export interface FileRoutesByTo {
   '/verify-email': typeof AuthVerifyEmailRoute
   '/w/$workspaceId/setup': typeof AppWWorkspaceIdSetupRoute
   '/w/$workspaceId': typeof AppWWorkspaceIdShellIndexRoute
+  '/w/$workspaceId/team/invite': typeof AppWWorkspaceIdShellTeamInviteRoute
+  '/w/$workspaceId/team/log': typeof AppWWorkspaceIdShellTeamLogRoute
+  '/w/$workspaceId/team/roles': typeof AppWWorkspaceIdShellTeamRolesRoute
+  '/w/$workspaceId/team': typeof AppWWorkspaceIdShellTeamIndexRoute
+  '/w/$workspaceId/team/members/$userId': typeof AppWWorkspaceIdShellTeamMembersUserIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/_auth': typeof AuthRouteWithChildren
+  '/invite': typeof InviteRoute
   '/_app/welcome': typeof AppWelcomeRoute
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
   '/_auth/login': typeof AuthLoginRoute
@@ -119,11 +173,17 @@ export interface FileRoutesById {
   '/_app/w/$workspaceId/_shell': typeof AppWWorkspaceIdShellRouteWithChildren
   '/_app/w/$workspaceId/setup': typeof AppWWorkspaceIdSetupRoute
   '/_app/w/$workspaceId/_shell/': typeof AppWWorkspaceIdShellIndexRoute
+  '/_app/w/$workspaceId/_shell/team/invite': typeof AppWWorkspaceIdShellTeamInviteRoute
+  '/_app/w/$workspaceId/_shell/team/log': typeof AppWWorkspaceIdShellTeamLogRoute
+  '/_app/w/$workspaceId/_shell/team/roles': typeof AppWWorkspaceIdShellTeamRolesRoute
+  '/_app/w/$workspaceId/_shell/team/': typeof AppWWorkspaceIdShellTeamIndexRoute
+  '/_app/w/$workspaceId/_shell/team/members/$userId': typeof AppWWorkspaceIdShellTeamMembersUserIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/invite'
     | '/welcome'
     | '/forgot-password'
     | '/login'
@@ -133,9 +193,15 @@ export interface FileRouteTypes {
     | '/w/$workspaceId'
     | '/w/$workspaceId/setup'
     | '/w/$workspaceId/'
+    | '/w/$workspaceId/team/invite'
+    | '/w/$workspaceId/team/log'
+    | '/w/$workspaceId/team/roles'
+    | '/w/$workspaceId/team/'
+    | '/w/$workspaceId/team/members/$userId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/invite'
     | '/welcome'
     | '/forgot-password'
     | '/login'
@@ -144,11 +210,17 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/w/$workspaceId/setup'
     | '/w/$workspaceId'
+    | '/w/$workspaceId/team/invite'
+    | '/w/$workspaceId/team/log'
+    | '/w/$workspaceId/team/roles'
+    | '/w/$workspaceId/team'
+    | '/w/$workspaceId/team/members/$userId'
   id:
     | '__root__'
     | '/'
     | '/_app'
     | '/_auth'
+    | '/invite'
     | '/_app/welcome'
     | '/_auth/forgot-password'
     | '/_auth/login'
@@ -158,12 +230,18 @@ export interface FileRouteTypes {
     | '/_app/w/$workspaceId/_shell'
     | '/_app/w/$workspaceId/setup'
     | '/_app/w/$workspaceId/_shell/'
+    | '/_app/w/$workspaceId/_shell/team/invite'
+    | '/_app/w/$workspaceId/_shell/team/log'
+    | '/_app/w/$workspaceId/_shell/team/roles'
+    | '/_app/w/$workspaceId/_shell/team/'
+    | '/_app/w/$workspaceId/_shell/team/members/$userId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
+  InviteRoute: typeof InviteRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -187,6 +265,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invite': {
+      id: '/invite'
+      path: '/invite'
+      fullPath: '/invite'
+      preLoaderRoute: typeof InviteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/welcome': {
@@ -252,15 +337,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWWorkspaceIdShellIndexRouteImport
       parentRoute: typeof AppWWorkspaceIdShellRoute
     }
+    '/_app/w/$workspaceId/_shell/team/': {
+      id: '/_app/w/$workspaceId/_shell/team/'
+      path: '/team'
+      fullPath: '/w/$workspaceId/team/'
+      preLoaderRoute: typeof AppWWorkspaceIdShellTeamIndexRouteImport
+      parentRoute: typeof AppWWorkspaceIdShellRoute
+    }
+    '/_app/w/$workspaceId/_shell/team/invite': {
+      id: '/_app/w/$workspaceId/_shell/team/invite'
+      path: '/team/invite'
+      fullPath: '/w/$workspaceId/team/invite'
+      preLoaderRoute: typeof AppWWorkspaceIdShellTeamInviteRouteImport
+      parentRoute: typeof AppWWorkspaceIdShellRoute
+    }
+    '/_app/w/$workspaceId/_shell/team/log': {
+      id: '/_app/w/$workspaceId/_shell/team/log'
+      path: '/team/log'
+      fullPath: '/w/$workspaceId/team/log'
+      preLoaderRoute: typeof AppWWorkspaceIdShellTeamLogRouteImport
+      parentRoute: typeof AppWWorkspaceIdShellRoute
+    }
+    '/_app/w/$workspaceId/_shell/team/roles': {
+      id: '/_app/w/$workspaceId/_shell/team/roles'
+      path: '/team/roles'
+      fullPath: '/w/$workspaceId/team/roles'
+      preLoaderRoute: typeof AppWWorkspaceIdShellTeamRolesRouteImport
+      parentRoute: typeof AppWWorkspaceIdShellRoute
+    }
+    '/_app/w/$workspaceId/_shell/team/members/$userId': {
+      id: '/_app/w/$workspaceId/_shell/team/members/$userId'
+      path: '/team/members/$userId'
+      fullPath: '/w/$workspaceId/team/members/$userId'
+      preLoaderRoute: typeof AppWWorkspaceIdShellTeamMembersUserIdRouteImport
+      parentRoute: typeof AppWWorkspaceIdShellRoute
+    }
   }
 }
 
 interface AppWWorkspaceIdShellRouteChildren {
   AppWWorkspaceIdShellIndexRoute: typeof AppWWorkspaceIdShellIndexRoute
+  AppWWorkspaceIdShellTeamInviteRoute: typeof AppWWorkspaceIdShellTeamInviteRoute
+  AppWWorkspaceIdShellTeamLogRoute: typeof AppWWorkspaceIdShellTeamLogRoute
+  AppWWorkspaceIdShellTeamRolesRoute: typeof AppWWorkspaceIdShellTeamRolesRoute
+  AppWWorkspaceIdShellTeamIndexRoute: typeof AppWWorkspaceIdShellTeamIndexRoute
+  AppWWorkspaceIdShellTeamMembersUserIdRoute: typeof AppWWorkspaceIdShellTeamMembersUserIdRoute
 }
 
 const AppWWorkspaceIdShellRouteChildren: AppWWorkspaceIdShellRouteChildren = {
   AppWWorkspaceIdShellIndexRoute: AppWWorkspaceIdShellIndexRoute,
+  AppWWorkspaceIdShellTeamInviteRoute: AppWWorkspaceIdShellTeamInviteRoute,
+  AppWWorkspaceIdShellTeamLogRoute: AppWWorkspaceIdShellTeamLogRoute,
+  AppWWorkspaceIdShellTeamRolesRoute: AppWWorkspaceIdShellTeamRolesRoute,
+  AppWWorkspaceIdShellTeamIndexRoute: AppWWorkspaceIdShellTeamIndexRoute,
+  AppWWorkspaceIdShellTeamMembersUserIdRoute:
+    AppWWorkspaceIdShellTeamMembersUserIdRoute,
 }
 
 const AppWWorkspaceIdShellRouteWithChildren =
@@ -302,6 +433,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
+  InviteRoute: InviteRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -27,6 +27,8 @@ func Register(api huma.API, h *Handler, requireAuth func(huma.Context, func(huma
 
 	huma.Register(api, public("signup", http.MethodPost, "/v1/auth/signup",
 		"Create a password account and send a verification email", http.StatusAccepted), h.signup)
+	huma.Register(api, public("invite-signup", http.MethodPost, "/v1/auth/signup/invite",
+		"Create an account from an invite link, sign in and join the workspace", http.StatusOK), h.inviteSignup)
 	huma.Register(api, public("verify-email", http.MethodPost, "/v1/auth/verify-email",
 		"Verify an email address from the emailed link (with the account's password, if it has one)", http.StatusNoContent), h.verifyEmail)
 	huma.Register(api, public("verify-email-code", http.MethodPost, "/v1/auth/verify-email/code",
@@ -85,6 +87,7 @@ func RateLimits() []middleware.RouteLimit {
 	limits := []middleware.RouteLimit{
 		{Method: http.MethodPost, Path: "/v1/auth/login", Requests: 10, Window: time.Minute},
 		{Method: http.MethodPost, Path: "/v1/auth/signup", Requests: 5, Window: time.Hour},
+		{Method: http.MethodPost, Path: "/v1/auth/signup/invite", Requests: 10, Window: time.Hour},
 		{Method: http.MethodPost, Path: "/v1/auth/verify-email/resend", Requests: 5, Window: time.Hour},
 		// The link page checks a password, so it gets a login-like limit.
 		{Method: http.MethodPost, Path: "/v1/auth/verify-email", Requests: 10, Window: time.Minute},

@@ -2,8 +2,9 @@ package middleware
 
 import (
 	"context"
+	"fmt"
 	"net/http"
-	"slices"
+	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
@@ -15,23 +16,30 @@ import (
 // WorkspaceParam is the path parameter every workspace-scoped route uses.
 const WorkspaceParam = "workspaceId"
 
-// MembershipChecker returns the user's role in a workspace; ok is false when
-// they are not a member.
-type MembershipChecker interface {
-	MemberRole(ctx context.Context, workspaceID, userID uuid.UUID) (role string, ok bool, err error)
+// AccessVersionHeader tells the web app when the member's access changed, so it
+// can refetch GET /me/access.
+const AccessVersionHeader = "X-Access-Version"
+
+// AccessResolver returns a member's access in a workspace; ok is false when they
+// are not a member. Implemented by features/team with one query (ADR 0002).
+type AccessResolver interface {
+	ResolveAccess(ctx context.Context, workspaceID, userID uuid.UUID) (a authctx.Access, suspended, ok bool, err error)
 }
 
 var (
 	errWorkspaceNotFound = apperr.NotFound("workspace_not_found", "Workspace not found")
-	errRoleForbidden     = apperr.Forbidden("forbidden", "Your role in this workspace can't do that")
-	errMembershipCheck   = apperr.Unavailable("membership_check_failed", "Could not check your workspace access. Try again.")
+	errMemberSuspended   = apperr.Forbidden("member_suspended",
+		"Your access to this workspace is paused. Ask a workspace admin to restore it.")
+	errPermissionDenied = apperr.Forbidden("permission_denied", "Your role in this workspace can't do that")
+	errOwnerOnly        = apperr.Forbidden("owner_only", "Only the workspace owner can do that")
+	errAccessCheck      = apperr.Unavailable("membership_check_failed", "Could not check your workspace access. Try again.")
 )
 
 // RequireWorkspace is a huma middleware for routes under /v1/workspaces/{workspaceId}.
 // It runs after RequireAuth. A user who isn't a member gets 404, so workspace IDs
-// can't be probed; with roles given, other members get 403. The workspace and
-// role go into the context (authctx.WorkspaceID, authctx.Role).
-func RequireWorkspace(api huma.API, m MembershipChecker, roles ...string) func(huma.Context, func(huma.Context)) {
+// can't be probed; a suspended member gets 403. The member's access goes into the
+// context (authctx.AccessFrom).
+func RequireWorkspace(api huma.API, r AccessResolver) func(huma.Context, func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
 		userID, signedIn := authctx.UserID(ctx.Context())
 		workspaceID, err := uuid.Parse(ctx.Param(WorkspaceParam))
@@ -39,18 +47,51 @@ func RequireWorkspace(api huma.API, m MembershipChecker, roles ...string) func(h
 			_ = huma.WriteErr(api, ctx, http.StatusNotFound, "", errWorkspaceNotFound)
 			return
 		}
-		role, ok, err := m.MemberRole(ctx.Context(), workspaceID, userID)
+		a, suspended, ok, err := r.ResolveAccess(ctx.Context(), workspaceID, userID)
 		switch {
 		case err != nil:
-			_ = huma.WriteErr(api, ctx, http.StatusServiceUnavailable, "", errMembershipCheck.Wrap(err))
+			_ = huma.WriteErr(api, ctx, http.StatusServiceUnavailable, "", errAccessCheck.Wrap(err))
 			return
 		case !ok:
 			_ = huma.WriteErr(api, ctx, http.StatusNotFound, "", errWorkspaceNotFound)
 			return
-		case len(roles) > 0 && !slices.Contains(roles, role):
-			_ = huma.WriteErr(api, ctx, http.StatusForbidden, "", errRoleForbidden)
+		case suspended:
+			_ = huma.WriteErr(api, ctx, http.StatusForbidden, "", errMemberSuspended)
 			return
 		}
-		next(huma.WithContext(ctx, authctx.WithWorkspace(ctx.Context(), workspaceID, role)))
+		ctx.SetHeader(AccessVersionHeader, fmt.Sprintf("%d.%d", a.RoleVersion, a.AccessVersion))
+		next(huma.WithContext(ctx, authctx.WithWorkspace(ctx.Context(), a)))
+	}
+}
+
+// RequirePermission lets the request through when the member has every one of
+// perms. It runs after RequireWorkspace. The error names what's missing so the
+// web app can say so.
+func RequirePermission(api huma.API, perms ...authctx.Permission) func(huma.Context, func(huma.Context)) {
+	return func(ctx huma.Context, next func(huma.Context)) {
+		a, _ := authctx.AccessFrom(ctx.Context())
+		var missing []string
+		for _, p := range perms {
+			if !a.Can(p) {
+				missing = append(missing, p.Key())
+			}
+		}
+		if len(missing) > 0 {
+			_ = huma.WriteErr(api, ctx, http.StatusForbidden, "",
+				errPermissionDenied.WithDetails(apperr.Detail{Field: "permission", Message: strings.Join(missing, ",")}))
+			return
+		}
+		next(ctx)
+	}
+}
+
+// RequireOwner lets only the workspace owner through. It runs after RequireWorkspace.
+func RequireOwner(api huma.API) func(huma.Context, func(huma.Context)) {
+	return func(ctx huma.Context, next func(huma.Context)) {
+		if a, _ := authctx.AccessFrom(ctx.Context()); !a.Owner {
+			_ = huma.WriteErr(api, ctx, http.StatusForbidden, "", errOwnerOnly)
+			return
+		}
+		next(ctx)
 	}
 }

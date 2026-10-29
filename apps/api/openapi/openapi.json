@@ -1,6 +1,96 @@
 {
   "components": {
     "schemas": {
+      "AcceptOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "workspace_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace_id"
+        ],
+        "type": "object"
+      },
+      "AccessDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "access_version": {
+            "description": "Same value as the X-Access-Version header",
+            "type": "string"
+          },
+          "chat_scope": {
+            "enum": [
+              "assigned",
+              "team",
+              "all"
+            ],
+            "type": "string"
+          },
+          "is_owner": {
+            "type": "boolean"
+          },
+          "number_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "permissions": {
+            "description": "Every permission key the member has now",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "role_id": {
+            "type": "string"
+          },
+          "team_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "role_id",
+          "is_owner",
+          "permissions",
+          "chat_scope",
+          "team_ids",
+          "number_ids",
+          "access_version"
+        ],
+        "type": "object"
+      },
+      "AvailabilityInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "availability": {
+            "enum": [
+              "online",
+              "away",
+              "offline"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "availability"
+        ],
+        "type": "object"
+      },
       "BusinessInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -61,6 +151,49 @@
           "country",
           "team_size",
           "goals"
+        ],
+        "type": "object"
+      },
+      "ChangeDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "affected": {
+            "items": {
+              "$ref": "#/components/schemas/MemberRefDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "gains": {
+            "description": "Permission keys, or a chat access label",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "losses": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "sensitive_gain": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "gains",
+          "losses",
+          "sensitive_gain",
+          "affected"
         ],
         "type": "object"
       },
@@ -311,6 +444,31 @@
         ],
         "type": "object"
       },
+      "ExpiringDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "permission_key": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "name",
+          "permission_key",
+          "expires_at"
+        ],
+        "type": "object"
+      },
       "IdentitiesOutputBody": {
         "additionalProperties": false,
         "properties": {
@@ -364,6 +522,241 @@
         ],
         "type": "object"
       },
+      "InvitationDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "invited_by_name": {
+            "type": "string"
+          },
+          "last_sent_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "renewal_requested_at": {
+            "description": "The invitee asked for a new link",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role_id": {
+            "type": "string"
+          },
+          "role_name": {
+            "type": "string"
+          },
+          "send_count": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "accepted",
+              "revoked",
+              "expired"
+            ],
+            "type": "string"
+          },
+          "team_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "role_id",
+          "role_name",
+          "status",
+          "expires_at",
+          "last_sent_at",
+          "send_count",
+          "renewal_requested_at",
+          "created_at",
+          "invited_by_name",
+          "team_ids"
+        ],
+        "type": "object"
+      },
+      "InvitationsOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "invitations": {
+            "items": {
+              "$ref": "#/components/schemas/InvitationDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "invitations"
+        ],
+        "type": "object"
+      },
+      "InviteInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "chat_scope": {
+            "description": "Omit to use the role's scope",
+            "enum": [
+              "assigned",
+              "team",
+              "all"
+            ],
+            "type": "string"
+          },
+          "emails": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "expires_in": {
+            "default": "7d",
+            "enum": [
+              "24h",
+              "7d",
+              "30d"
+            ],
+            "type": "string"
+          },
+          "number_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "overrides": {
+            "description": "Changes for these people only; the role stays the same",
+            "items": {
+              "$ref": "#/components/schemas/OverrideBody"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "personal_message": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "require_2fa": {
+            "type": "boolean"
+          },
+          "role_id": {
+            "type": "string"
+          },
+          "team_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "emails",
+          "role_id"
+        ],
+        "type": "object"
+      },
+      "InviteSignupInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "accept_terms": {
+            "type": "boolean"
+          },
+          "first_name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "last_name": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "timezone": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "token": {
+            "description": "From the invite link's #t= fragment",
+            "maxLength": 100,
+            "minLength": 20,
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "password",
+          "first_name",
+          "accept_terms"
+        ],
+        "type": "object"
+      },
+      "InviteSignupOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "join_error": {
+            "description": "Why joining failed; the person is signed in anyway",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "workspace_id": {
+            "description": "Null when the account was made but joining failed",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "workspace_id",
+          "join_error"
+        ],
+        "type": "object"
+      },
       "ListOutputBody": {
         "additionalProperties": false,
         "properties": {
@@ -379,6 +772,179 @@
         },
         "required": [
           "workspaces"
+        ],
+        "type": "object"
+      },
+      "LogDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "actor_id": {
+            "description": "Null for the system",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "actor_name": {
+            "type": "string"
+          },
+          "after": {
+            "type": [
+              "",
+              "null"
+            ]
+          },
+          "before": {
+            "type": [
+              "",
+              "null"
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "subject_email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "subject_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "subject_name": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "user_agent": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "actor_id",
+          "actor_name",
+          "subject_id",
+          "subject_name",
+          "subject_email",
+          "action",
+          "target",
+          "before",
+          "after",
+          "note",
+          "ip",
+          "user_agent"
+        ],
+        "type": "object"
+      },
+      "LogOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/LogDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "entries",
+          "next_cursor"
+        ],
+        "type": "object"
+      },
+      "LogSummaryOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "alerts": {
+            "description": "Members with 3+ failed sign-ins in 30 days",
+            "items": {
+              "$ref": "#/components/schemas/LoginAlertDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "events": {
+            "description": "Access log entries in the last 30 days",
+            "format": "int64",
+            "type": "integer"
+          },
+          "expiring": {
+            "description": "Temporary permissions ending within 7 days",
+            "items": {
+              "$ref": "#/components/schemas/ExpiringDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "permission_changes": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "events",
+          "permission_changes",
+          "expiring",
+          "alerts"
+        ],
+        "type": "object"
+      },
+      "LoginAlertDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "failures": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "last_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "name",
+          "failures",
+          "last_at"
         ],
         "type": "object"
       },
@@ -429,6 +995,311 @@
         ],
         "type": "object"
       },
+      "MemberAccessInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "chat_scope": {
+            "description": "\"assigned\", \"team\" or \"all\"; \"\" to use the role's scope; omit to keep",
+            "type": "string"
+          },
+          "number_ids": {
+            "description": "Replaces the member's WhatsApp numbers; omit to keep",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "team_ids": {
+            "description": "Replaces the member's teams; omit to keep",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "MemberDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "availability": {
+            "enum": [
+              "online",
+              "away",
+              "offline"
+            ],
+            "type": "string"
+          },
+          "avatar_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "email": {
+            "type": "string"
+          },
+          "joined_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "last_active_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role_id": {
+            "type": "string"
+          },
+          "role_key": {
+            "description": "Null for a custom role",
+            "enum": [
+              "owner",
+              "admin",
+              "agent",
+              "viewer"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role_name": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "suspended"
+            ],
+            "type": "string"
+          },
+          "team_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "uses_seat": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "user_id",
+          "email",
+          "name",
+          "avatar_url",
+          "role_id",
+          "role_name",
+          "role_key",
+          "uses_seat",
+          "status",
+          "availability",
+          "last_active_at",
+          "joined_at",
+          "team_ids"
+        ],
+        "type": "object"
+      },
+      "MemberDetailDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "access_version": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "availability": {
+            "enum": [
+              "online",
+              "away",
+              "offline"
+            ],
+            "type": "string"
+          },
+          "avatar_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "chat_scope": {
+            "description": "Null means the role's scope",
+            "enum": [
+              "assigned",
+              "team",
+              "all"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "effective_permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "email": {
+            "type": "string"
+          },
+          "joined_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "last_active_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "number_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "overrides": {
+            "description": "Empty unless you can change roles",
+            "items": {
+              "$ref": "#/components/schemas/OverrideDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "role_chat_scope": {
+            "enum": [
+              "assigned",
+              "team",
+              "all"
+            ],
+            "type": "string"
+          },
+          "role_id": {
+            "type": "string"
+          },
+          "role_key": {
+            "description": "Null for a custom role",
+            "enum": [
+              "owner",
+              "admin",
+              "agent",
+              "viewer"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role_name": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "suspended"
+            ],
+            "type": "string"
+          },
+          "suspend_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "suspended_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "team_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "uses_seat": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "chat_scope",
+          "role_chat_scope",
+          "suspended_at",
+          "suspend_reason",
+          "access_version",
+          "number_ids",
+          "overrides",
+          "effective_permissions",
+          "user_id",
+          "email",
+          "name",
+          "avatar_url",
+          "role_id",
+          "role_name",
+          "role_key",
+          "uses_seat",
+          "status",
+          "availability",
+          "last_active_at",
+          "joined_at",
+          "team_ids"
+        ],
+        "type": "object"
+      },
+      "MemberRefDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "MemberRoleInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "role_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role_id"
+        ],
+        "type": "object"
+      },
       "MemberStateInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -439,6 +1310,31 @@
             "type": "boolean"
           }
         },
+        "type": "object"
+      },
+      "MembersOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/MemberDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "members",
+          "next_cursor"
+        ],
         "type": "object"
       },
       "MessageOutputBody": {
@@ -720,6 +1616,153 @@
         ],
         "type": "object"
       },
+      "OverrideBody": {
+        "additionalProperties": false,
+        "properties": {
+          "effect": {
+            "default": "grant",
+            "enum": [
+              "grant",
+              "deny"
+            ],
+            "type": "string"
+          },
+          "expires_at": {
+            "description": "Removed automatically at this time",
+            "format": "date-time",
+            "type": "string"
+          },
+          "permission_key": {
+            "type": "string"
+          },
+          "reason": {
+            "description": "Shown in the access log",
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "permission_key",
+          "effect"
+        ],
+        "type": "object"
+      },
+      "OverrideDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "effect": {
+            "enum": [
+              "grant",
+              "deny"
+            ],
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "granted_by": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "granted_by_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "permission_key": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "revoked_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "permission_key",
+          "effect",
+          "reason",
+          "expires_at",
+          "revoked_at",
+          "created_at",
+          "granted_by",
+          "granted_by_name",
+          "active"
+        ],
+        "type": "object"
+      },
+      "PermissionDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "group": {
+            "examples": [
+              "contacts"
+            ],
+            "type": "string"
+          },
+          "key": {
+            "examples": [
+              "contacts.export"
+            ],
+            "type": "string"
+          },
+          "label": {
+            "examples": [
+              "Export contacts"
+            ],
+            "type": "string"
+          },
+          "sensitive": {
+            "description": "Show a warning before giving it",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "group",
+          "label",
+          "sensitive"
+        ],
+        "type": "object"
+      },
+      "PermissionsOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "permissions": {
+            "items": {
+              "$ref": "#/components/schemas/PermissionDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "permissions"
+        ],
+        "type": "object"
+      },
       "PreferencesDTO": {
         "additionalProperties": false,
         "properties": {
@@ -739,6 +1782,99 @@
         "required": [
           "locale",
           "timezone"
+        ],
+        "type": "object"
+      },
+      "PreviewDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "can_do": {
+            "description": "Labels of what they'll be able to do; empty unless valid",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "email": {
+            "description": "The address the invite is for",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "invited_by_name": {
+            "type": "string"
+          },
+          "invited_by_role": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "number_labels": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "role_name": {
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "valid",
+              "expired",
+              "revoked",
+              "accepted"
+            ],
+            "type": "string"
+          },
+          "team_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "workspace_id": {
+            "type": "string"
+          },
+          "workspace_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "workspace_id",
+          "workspace_name",
+          "email",
+          "role_name",
+          "invited_by_name",
+          "invited_by_role",
+          "expires_at",
+          "message",
+          "can_do",
+          "permissions",
+          "team_names",
+          "number_labels"
         ],
         "type": "object"
       },
@@ -815,6 +1951,19 @@
         ],
         "type": "object"
       },
+      "RemoveInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm_name": {
+            "description": "The member's name, typed to confirm",
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirm_name"
+        ],
+        "type": "object"
+      },
       "ResetPasswordInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -832,6 +1981,191 @@
         "required": [
           "token",
           "new_password"
+        ],
+        "type": "object"
+      },
+      "RoleBody": {
+        "additionalProperties": false,
+        "properties": {
+          "chat_scope": {
+            "enum": [
+              "assigned",
+              "team",
+              "all"
+            ],
+            "type": "string"
+          },
+          "color": {
+            "enum": [
+              "green",
+              "blue",
+              "amber",
+              "red",
+              "gray"
+            ],
+            "type": "string"
+          },
+          "copy_from_role_id": {
+            "description": "Start a new role from another role",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "expected_version": {
+            "description": "The version you edited; 409 if it changed",
+            "format": "int32",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "notify_members": {
+            "type": "boolean"
+          },
+          "permissions": {
+            "description": "Omit to keep the current set (or copy_from's)",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "RoleDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "chat_scope": {
+            "enum": [
+              "assigned",
+              "team",
+              "all"
+            ],
+            "type": "string"
+          },
+          "color": {
+            "enum": [
+              "green",
+              "blue",
+              "amber",
+              "red",
+              "gray"
+            ],
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "locked": {
+            "description": "The Owner role can't be edited",
+            "type": "boolean"
+          },
+          "member_count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "system_key": {
+            "description": "Null for a custom role",
+            "enum": [
+              "owner",
+              "admin",
+              "agent",
+              "viewer"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uses_seat": {
+            "type": "boolean"
+          },
+          "version": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "system_key",
+          "name",
+          "description",
+          "color",
+          "chat_scope",
+          "uses_seat",
+          "locked",
+          "version",
+          "permissions",
+          "member_count"
+        ],
+        "type": "object"
+      },
+      "RolesOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/RoleDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "roles"
+        ],
+        "type": "object"
+      },
+      "SeatsDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "limit": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "reserved": {
+            "description": "Pending invites whose role uses a seat",
+            "format": "int64",
+            "type": "integer"
+          },
+          "used": {
+            "description": "Members whose role uses a seat",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "limit",
+          "used",
+          "reserved",
+          "available"
         ],
         "type": "object"
       },
@@ -1148,6 +2482,9 @@
           "id": {
             "type": "string"
           },
+          "is_owner": {
+            "type": "boolean"
+          },
           "last_active_at": {
             "format": "date-time",
             "type": "string"
@@ -1155,9 +2492,114 @@
           "name": {
             "type": "string"
           },
-          "role": {
+          "role_name": {
+            "description": "The member's role, e.g. Owner or Agent",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "role_name",
+          "is_owner",
+          "last_active_at",
+          "current_step",
+          "completed",
+          "activated"
+        ],
+        "type": "object"
+      },
+      "SuspendInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "TeamBody": {
+        "additionalProperties": false,
+        "properties": {
+          "color": {
             "enum": [
-              "owner"
+              "green",
+              "blue",
+              "amber",
+              "red",
+              "gray"
+            ],
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 50,
+            "minLength": 1,
+            "type": "string"
+          },
+          "number_id": {
+            "type": "string"
+          },
+          "routing_method": {
+            "enum": [
+              "round_robin",
+              "least_busy",
+              "manual"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "TeamDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "color": {
+            "enum": [
+              "green",
+              "blue",
+              "amber",
+              "red",
+              "gray"
+            ],
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "member_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "number_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "routing_method": {
+            "enum": [
+              "round_robin",
+              "least_busy",
+              "manual"
             ],
             "type": "string"
           }
@@ -1165,11 +2607,48 @@
         "required": [
           "id",
           "name",
-          "role",
-          "last_active_at",
-          "current_step",
-          "completed",
-          "activated"
+          "description",
+          "color",
+          "number_id",
+          "routing_method",
+          "member_ids"
+        ],
+        "type": "object"
+      },
+      "TeamMembersInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "user_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5000,
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "user_ids"
+        ],
+        "type": "object"
+      },
+      "TeamsOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "teams": {
+            "items": {
+              "$ref": "#/components/schemas/TeamDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "teams"
         ],
         "type": "object"
       },
@@ -1239,6 +2718,21 @@
         "required": [
           "access_expires_at",
           "refresh_expires_at"
+        ],
+        "type": "object"
+      },
+      "TokenInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "description": "From the invite link's #t= fragment",
+            "maxLength": 100,
+            "minLength": 20,
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
         ],
         "type": "object"
       },
@@ -2883,6 +4377,72 @@
         ]
       }
     },
+    "/v1/auth/signup/invite": {
+      "post": {
+        "operationId": "invite-signup",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Device name sent by the mobile app, e.g. iPhone 15",
+            "in": "header",
+            "name": "X-Device-Name",
+            "schema": {
+              "description": "Device name sent by the mobile app, e.g. iPhone 15",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteSignupInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteSignupOutputBody"
+                }
+              }
+            },
+            "description": "OK",
+            "headers": {
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Create an account from an invite link, sign in and join the workspace",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/v1/auth/token/refresh": {
       "post": {
         "operationId": "refresh-token",
@@ -3148,6 +4708,130 @@
         ]
       }
     },
+    "/v1/invitations/accept": {
+      "post": {
+        "operationId": "accept-invitation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Join the workspace as the signed-in user",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/invitations/preview": {
+      "post": {
+        "operationId": "preview-invitation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "What an invite link offers, before signing in",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/invitations/request-renewal": {
+      "post": {
+        "operationId": "request-invitation-renewal",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Ask the inviter for a new link after it expired",
+        "tags": [
+          "team"
+        ]
+      }
+    },
     "/v1/me": {
       "get": {
         "operationId": "get-me",
@@ -3282,6 +4966,45 @@
         "summary": "Update name fields",
         "tags": [
           "profile"
+        ]
+      }
+    },
+    "/v1/permissions": {
+      "get": {
+        "operationId": "list-permissions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PermissionsOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "The permission catalog",
+        "tags": [
+          "team"
         ]
       }
     },
@@ -3568,6 +5291,1144 @@
         ]
       }
     },
+    "/v1/workspaces/{workspaceId}/access-log": {
+      "get": {
+        "operationId": "list-access-log",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "action",
+            "schema": {
+              "maxLength": 40,
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "member",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Oldest entry to include; at most 12 months back",
+            "explode": false,
+            "in": "query",
+            "name": "since",
+            "schema": {
+              "description": "Oldest entry to include; at most 12 months back",
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "default": 50,
+              "format": "int32",
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Every change to who can do what, newest first",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/access-log/summary": {
+      "get": {
+        "operationId": "get-access-log-summary",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogSummaryOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "The last 30 days at a glance",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/invitations": {
+      "get": {
+        "operationId": "list-invitations",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationsOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Pending invites and those that ended recently",
+        "tags": [
+          "team"
+        ]
+      },
+      "post": {
+        "operationId": "create-invitations",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationsOutputBody"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Invite people by email",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/invitations/{invitationId}": {
+      "delete": {
+        "operationId": "revoke-invitation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "invitationId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Cancel a pending invite",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/invitations/{invitationId}/resend": {
+      "post": {
+        "operationId": "resend-invitation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "invitationId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Send a new link; the old one stops working",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/me/access": {
+      "get": {
+        "operationId": "get-my-access",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "What I can do in this workspace",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/me/availability": {
+      "patch": {
+        "operationId": "set-availability",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvailabilityInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Set my status to online, away or offline",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/me/leave": {
+      "post": {
+        "operationId": "leave-workspace",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Leave this workspace",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/members": {
+      "get": {
+        "operationId": "list-members",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "role_id",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "team_id",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "enum": [
+                "active",
+                "suspended"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "description": "next_cursor from the previous page",
+            "explode": false,
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "description": "next_cursor from the previous page",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "default": 100,
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MembersOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Workspace members",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/members/{userId}": {
+      "get": {
+        "operationId": "get-member",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberDetailDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "One member's role, reach and permissions",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/members/{userId}/access": {
+      "patch": {
+        "operationId": "update-member-access",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberAccessInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Change a member's chat scope, teams or WhatsApp numbers",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/members/{userId}/overrides": {
+      "post": {
+        "operationId": "add-member-override",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OverrideBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Give or take away one permission for one member",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/members/{userId}/overrides/{overrideId}": {
+      "delete": {
+        "operationId": "revoke-member-override",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "overrideId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Remove an extra or removed permission",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/members/{userId}/remove": {
+      "post": {
+        "operationId": "remove-member",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Remove a member from the workspace",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/members/{userId}/restore": {
+      "post": {
+        "operationId": "restore-member",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Give a suspended member their access back",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/members/{userId}/role": {
+      "put": {
+        "operationId": "change-member-role",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberRoleInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Move a member to another role",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/members/{userId}/role/preview": {
+      "post": {
+        "operationId": "preview-member-role",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberRoleInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "What a role change would give and take away",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/members/{userId}/suspend": {
+      "post": {
+        "operationId": "suspend-member",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuspendInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Pause a member's access; their seat stays reserved",
+        "tags": [
+          "team"
+        ]
+      }
+    },
     "/v1/workspaces/{workspaceId}/onboarding": {
       "get": {
         "operationId": "get-onboarding",
@@ -3830,6 +6691,699 @@
         "summary": "Finish setup without connecting WhatsApp",
         "tags": [
           "onboarding"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/roles": {
+      "get": {
+        "operationId": "list-roles",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RolesOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Roles with their permissions",
+        "tags": [
+          "team"
+        ]
+      },
+      "post": {
+        "operationId": "create-role",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleDTO"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Create a custom role",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/roles/{roleId}": {
+      "delete": {
+        "operationId": "delete-role",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "roleId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Where its members and pending invites go",
+            "explode": false,
+            "in": "query",
+            "name": "move_to_role_id",
+            "required": true,
+            "schema": {
+              "description": "Where its members and pending invites go",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Delete a custom role after moving its members",
+        "tags": [
+          "team"
+        ]
+      },
+      "patch": {
+        "operationId": "update-role",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "roleId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Edit a role; its members get the change on their next request",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/roles/{roleId}/preview": {
+      "post": {
+        "operationId": "preview-role",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "roleId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "What an edit would give and take away, and from whom",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/roles/{roleId}/reset": {
+      "post": {
+        "operationId": "reset-role",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "roleId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Restore a system role's defaults",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/seats": {
+      "get": {
+        "operationId": "get-seats",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeatsDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Seats on the plan and how they're used",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/teams": {
+      "get": {
+        "operationId": "list-teams",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamsOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Teams and their members",
+        "tags": [
+          "team"
+        ]
+      },
+      "post": {
+        "operationId": "create-team",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamDTO"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Create a team",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/teams/{teamId}": {
+      "delete": {
+        "operationId": "delete-team",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "teamId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Delete a team",
+        "tags": [
+          "team"
+        ]
+      },
+      "patch": {
+        "operationId": "update-team",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "teamId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Edit a team",
+        "tags": [
+          "team"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/teams/{teamId}/members": {
+      "put": {
+        "operationId": "set-team-members",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "teamId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamMembersInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Replace a team's members",
+        "tags": [
+          "team"
         ]
       }
     },

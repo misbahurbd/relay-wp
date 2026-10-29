@@ -5,6 +5,7 @@ import (
 
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/auth"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/onboarding"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/features/team"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/whatsapp"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/mailer"
 )
@@ -23,6 +24,8 @@ func (a *App) addFeatureWorkers(w *river.Workers) {
 	river.AddWorker(w, whatsapp.NewSetupWorker(a.whatsapp))
 	river.AddWorker(w, whatsapp.NewWebhookWorker(a.whatsapp))
 	river.AddWorker(w, auth.NewCleanupWorker(a.db))
+	river.AddWorker(w, team.NewMaintenanceWorker(a.team))
 	// Periodic jobs run on the leader only, so several workers don't repeat them.
 	a.queue.PeriodicJobs().Add(auth.CleanupPeriodicJob())
+	a.queue.PeriodicJobs().Add(team.MaintenancePeriodicJob())
 }

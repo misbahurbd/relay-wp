@@ -11,6 +11,38 @@ import (
 	"github.com/google/uuid"
 )
 
+type AccessLogEvent struct {
+	ID            uuid.UUID
+	CreatedAt     time.Time
+	WorkspaceID   uuid.UUID
+	ActorUserID   *uuid.UUID
+	SubjectUserID *uuid.UUID
+	SubjectEmail  *string
+	Action        string
+	Target        string
+	BeforeValue   []byte
+	AfterValue    []byte
+	Note          string
+	Ip            *netip.Addr
+	UserAgent     string
+}
+
+type AccessLogEventsDefault struct {
+	ID            uuid.UUID
+	CreatedAt     time.Time
+	WorkspaceID   uuid.UUID
+	ActorUserID   *uuid.UUID
+	SubjectUserID *uuid.UUID
+	SubjectEmail  *string
+	Action        string
+	Target        string
+	BeforeValue   []byte
+	AfterValue    []byte
+	Note          string
+	Ip            *netip.Addr
+	UserAgent     string
+}
+
 type AuthEvent struct {
 	ID        uuid.UUID
 	UserID    *uuid.UUID
@@ -63,6 +95,71 @@ type EmailToken struct {
 	CreatedAt time.Time
 }
 
+type Invitation struct {
+	ID                 uuid.UUID
+	WorkspaceID        uuid.UUID
+	Email              string
+	RoleID             uuid.UUID
+	ChatScope          *string
+	TokenHash          []byte
+	PersonalMessage    string
+	Require2fa         bool
+	Status             string
+	InvitedBy          *uuid.UUID
+	SendCount          int32
+	LastSentAt         time.Time
+	ExpiresAt          time.Time
+	AcceptedAt         *time.Time
+	AcceptedUserID     *uuid.UUID
+	RevokedAt          *time.Time
+	RevokedBy          *uuid.UUID
+	RenewalRequestedAt *time.Time
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+}
+
+type InvitationNumber struct {
+	WorkspaceID  uuid.UUID
+	InvitationID uuid.UUID
+	NumberID     uuid.UUID
+}
+
+type InvitationPermissionOverride struct {
+	WorkspaceID   uuid.UUID
+	InvitationID  uuid.UUID
+	PermissionKey string
+	Effect        string
+}
+
+type InvitationTeam struct {
+	WorkspaceID  uuid.UUID
+	InvitationID uuid.UUID
+	TeamID       uuid.UUID
+}
+
+type MemberNumber struct {
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+	NumberID    uuid.UUID
+	CreatedAt   time.Time
+}
+
+type MemberPermissionOverride struct {
+	ID               uuid.UUID
+	WorkspaceID      uuid.UUID
+	UserID           uuid.UUID
+	PermissionKey    string
+	Effect           string
+	Reason           string
+	GrantedBy        *uuid.UUID
+	ExpiresAt        *time.Time
+	ExpiryNotifiedAt *time.Time
+	RevokedAt        *time.Time
+	RevokedBy        *uuid.UUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
 type OauthFlow struct {
 	ID                  uuid.UUID
 	StateHash           []byte
@@ -97,6 +194,15 @@ type OnboardingMemberState struct {
 	UpdatedAt         time.Time
 }
 
+type Permission struct {
+	Key       string
+	Bit       int16
+	GroupKey  string
+	Label     string
+	Sensitive bool
+	Position  int32
+}
+
 type RefreshToken struct {
 	ID        uuid.UUID
 	SessionID uuid.UUID
@@ -104,6 +210,47 @@ type RefreshToken struct {
 	ExpiresAt time.Time
 	UsedAt    *time.Time
 	CreatedAt time.Time
+}
+
+type Role struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	SystemKey   *string
+	Name        string
+	Description string
+	Color       string
+	ChatScope   string
+	UsesSeat    bool
+	Locked      bool
+	Version     int32
+	CreatedBy   *uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type RolePermission struct {
+	WorkspaceID   uuid.UUID
+	RoleID        uuid.UUID
+	PermissionKey string
+}
+
+type Team struct {
+	ID            uuid.UUID
+	WorkspaceID   uuid.UUID
+	Name          string
+	Description   string
+	Color         string
+	NumberID      *uuid.UUID
+	RoutingMethod string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+type TeamMember struct {
+	WorkspaceID uuid.UUID
+	TeamID      uuid.UUID
+	UserID      uuid.UUID
+	CreatedAt   time.Time
 }
 
 type User struct {
@@ -208,15 +355,25 @@ type Workspace struct {
 	CreatedBy   *uuid.UUID
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+	SeatLimit   int32
 }
 
 type WorkspaceMember struct {
-	WorkspaceID  uuid.UUID
-	UserID       uuid.UUID
-	Role         string
-	LastActiveAt time.Time
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	WorkspaceID   uuid.UUID
+	UserID        uuid.UUID
+	LastActiveAt  time.Time
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	RoleID        uuid.UUID
+	Status        string
+	ChatScope     *string
+	Availability  string
+	AccessVersion int32
+	InvitedBy     *uuid.UUID
+	JoinedAt      time.Time
+	SuspendedAt   *time.Time
+	SuspendedBy   *uuid.UUID
+	SuspendReason *string
 }
 
 type WorkspaceOnboarding struct {

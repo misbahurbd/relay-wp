@@ -6,9 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// RoleOwner is the only role until team access is built.
-const RoleOwner = "owner"
-
 // Answers on the Welcome screen.
 const (
 	StartSetup  = "setup"
@@ -41,7 +38,8 @@ type Workspace struct {
 type Summary struct {
 	ID           uuid.UUID
 	Name         string
-	Role         string
+	RoleName     string
+	IsOwner      bool
 	LastActiveAt time.Time
 	CurrentStep  string
 	Completed    bool

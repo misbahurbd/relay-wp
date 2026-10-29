@@ -2,7 +2,7 @@
 
 import { type Client, type ClientMeta, type Options as Options2, type RequestResult, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { ChangePasswordData, ChangePasswordErrors, ChangePasswordResponses, CompleteOnboardingData, CompleteOnboardingErrors, CompleteOnboardingResponses, ConnectWhatsappData, ConnectWhatsappErrors, ConnectWhatsappResponses, CreateWorkspaceData, CreateWorkspaceErrors, CreateWorkspaceResponses, FacebookDataDeletionData, FacebookDataDeletionErrors, FacebookDataDeletionResponses, ForgotPasswordData, ForgotPasswordErrors, ForgotPasswordResponses, GetMeData, GetMeErrors, GetMeResponses, GetOnboardingData, GetOnboardingErrors, GetOnboardingResponses, GetTestMessageData, GetTestMessageErrors, GetTestMessageResponses, GetWhatsappNumberData, GetWhatsappNumberErrors, GetWhatsappNumberResponses, GetWorkspaceData, GetWorkspaceErrors, GetWorkspaceResponses, HealthData, HealthErrors, HealthResponses, ListAuthEventsData, ListAuthEventsErrors, ListAuthEventsResponses, ListIdentitiesData, ListIdentitiesErrors, ListIdentitiesResponses, ListOauthProvidersData, ListOauthProvidersErrors, ListOauthProvidersResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListWhatsappNumbersData, ListWhatsappNumbersErrors, ListWhatsappNumbersResponses, ListWorkspacesData, ListWorkspacesErrors, ListWorkspacesResponses, LoginData, LoginErrors, LoginResponses, LogoutAllData, LogoutAllErrors, LogoutAllResponses, LogoutData, LogoutErrors, LogoutResponses, OauthCallbackData, OauthCallbackErrors, OauthCallbackResponses, OauthCompleteData, OauthCompleteErrors, OauthCompleteResponses, OauthCompleteVerifyData, OauthCompleteVerifyErrors, OauthCompleteVerifyResponses, OauthLinkData, OauthLinkErrors, OauthLinkResponses, OauthStartData, OauthStartErrors, OauthStartResponses, OauthTokenData, OauthTokenErrors, OauthTokenResponses, ReadyData, ReadyErrors, ReadyResponses, RefreshTokenData, RefreshTokenErrors, RefreshTokenResponses, ResendVerificationData, ResendVerificationErrors, ResendVerificationResponses, ResetPasswordData, ResetPasswordErrors, ResetPasswordResponses, RevokeSessionData, RevokeSessionErrors, RevokeSessionResponses, SaveBusinessData, SaveBusinessErrors, SaveBusinessResponses, SendTestMessageData, SendTestMessageErrors, SendTestMessageResponses, SetPasswordData, SetPasswordErrors, SetPasswordResponses, SignupData, SignupErrors, SignupResponses, SkipWhatsappData, SkipWhatsappErrors, SkipWhatsappResponses, UnlinkIdentityData, UnlinkIdentityErrors, UnlinkIdentityResponses, UpdateOnboardingMemberData, UpdateOnboardingMemberErrors, UpdateOnboardingMemberResponses, UpdatePreferencesData, UpdatePreferencesErrors, UpdatePreferencesResponses, UpdateProfileData, UpdateProfileErrors, UpdateProfileResponses, VerifyEmailCodeData, VerifyEmailCodeErrors, VerifyEmailCodeResponses, VerifyEmailData, VerifyEmailErrors, VerifyEmailResponses, WhatsappSignupConfigData, WhatsappSignupConfigErrors, WhatsappSignupConfigResponses, WhatsappWebhookData, WhatsappWebhookErrors, WhatsappWebhookResponses, WhatsappWebhookVerifyData, WhatsappWebhookVerifyErrors, WhatsappWebhookVerifyResponses } from './types.gen';
+import type { AcceptInvitationData, AcceptInvitationErrors, AcceptInvitationResponses, AddMemberOverrideData, AddMemberOverrideErrors, AddMemberOverrideResponses, ChangeMemberRoleData, ChangeMemberRoleErrors, ChangeMemberRoleResponses, ChangePasswordData, ChangePasswordErrors, ChangePasswordResponses, CompleteOnboardingData, CompleteOnboardingErrors, CompleteOnboardingResponses, ConnectWhatsappData, ConnectWhatsappErrors, ConnectWhatsappResponses, CreateInvitationsData, CreateInvitationsErrors, CreateInvitationsResponses, CreateRoleData, CreateRoleErrors, CreateRoleResponses, CreateTeamData, CreateTeamErrors, CreateTeamResponses, CreateWorkspaceData, CreateWorkspaceErrors, CreateWorkspaceResponses, DeleteRoleData, DeleteRoleErrors, DeleteRoleResponses, DeleteTeamData, DeleteTeamErrors, DeleteTeamResponses, FacebookDataDeletionData, FacebookDataDeletionErrors, FacebookDataDeletionResponses, ForgotPasswordData, ForgotPasswordErrors, ForgotPasswordResponses, GetAccessLogSummaryData, GetAccessLogSummaryErrors, GetAccessLogSummaryResponses, GetMeData, GetMeErrors, GetMemberData, GetMemberErrors, GetMemberResponses, GetMeResponses, GetMyAccessData, GetMyAccessErrors, GetMyAccessResponses, GetOnboardingData, GetOnboardingErrors, GetOnboardingResponses, GetSeatsData, GetSeatsErrors, GetSeatsResponses, GetTestMessageData, GetTestMessageErrors, GetTestMessageResponses, GetWhatsappNumberData, GetWhatsappNumberErrors, GetWhatsappNumberResponses, GetWorkspaceData, GetWorkspaceErrors, GetWorkspaceResponses, HealthData, HealthErrors, HealthResponses, InviteSignupData, InviteSignupErrors, InviteSignupResponses, LeaveWorkspaceData, LeaveWorkspaceErrors, LeaveWorkspaceResponses, ListAccessLogData, ListAccessLogErrors, ListAccessLogResponses, ListAuthEventsData, ListAuthEventsErrors, ListAuthEventsResponses, ListIdentitiesData, ListIdentitiesErrors, ListIdentitiesResponses, ListInvitationsData, ListInvitationsErrors, ListInvitationsResponses, ListMembersData, ListMembersErrors, ListMembersResponses, ListOauthProvidersData, ListOauthProvidersErrors, ListOauthProvidersResponses, ListPermissionsData, ListPermissionsErrors, ListPermissionsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListTeamsData, ListTeamsErrors, ListTeamsResponses, ListWhatsappNumbersData, ListWhatsappNumbersErrors, ListWhatsappNumbersResponses, ListWorkspacesData, ListWorkspacesErrors, ListWorkspacesResponses, LoginData, LoginErrors, LoginResponses, LogoutAllData, LogoutAllErrors, LogoutAllResponses, LogoutData, LogoutErrors, LogoutResponses, OauthCallbackData, OauthCallbackErrors, OauthCallbackResponses, OauthCompleteData, OauthCompleteErrors, OauthCompleteResponses, OauthCompleteVerifyData, OauthCompleteVerifyErrors, OauthCompleteVerifyResponses, OauthLinkData, OauthLinkErrors, OauthLinkResponses, OauthStartData, OauthStartErrors, OauthStartResponses, OauthTokenData, OauthTokenErrors, OauthTokenResponses, PreviewInvitationData, PreviewInvitationErrors, PreviewInvitationResponses, PreviewMemberRoleData, PreviewMemberRoleErrors, PreviewMemberRoleResponses, PreviewRoleData, PreviewRoleErrors, PreviewRoleResponses, ReadyData, ReadyErrors, ReadyResponses, RefreshTokenData, RefreshTokenErrors, RefreshTokenResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RequestInvitationRenewalData, RequestInvitationRenewalErrors, RequestInvitationRenewalResponses, ResendInvitationData, ResendInvitationErrors, ResendInvitationResponses, ResendVerificationData, ResendVerificationErrors, ResendVerificationResponses, ResetPasswordData, ResetPasswordErrors, ResetPasswordResponses, ResetRoleData, ResetRoleErrors, ResetRoleResponses, RestoreMemberData, RestoreMemberErrors, RestoreMemberResponses, RevokeInvitationData, RevokeInvitationErrors, RevokeInvitationResponses, RevokeMemberOverrideData, RevokeMemberOverrideErrors, RevokeMemberOverrideResponses, RevokeSessionData, RevokeSessionErrors, RevokeSessionResponses, SaveBusinessData, SaveBusinessErrors, SaveBusinessResponses, SendTestMessageData, SendTestMessageErrors, SendTestMessageResponses, SetAvailabilityData, SetAvailabilityErrors, SetAvailabilityResponses, SetPasswordData, SetPasswordErrors, SetPasswordResponses, SetTeamMembersData, SetTeamMembersErrors, SetTeamMembersResponses, SignupData, SignupErrors, SignupResponses, SkipWhatsappData, SkipWhatsappErrors, SkipWhatsappResponses, SuspendMemberData, SuspendMemberErrors, SuspendMemberResponses, UnlinkIdentityData, UnlinkIdentityErrors, UnlinkIdentityResponses, UpdateMemberAccessData, UpdateMemberAccessErrors, UpdateMemberAccessResponses, UpdateOnboardingMemberData, UpdateOnboardingMemberErrors, UpdateOnboardingMemberResponses, UpdatePreferencesData, UpdatePreferencesErrors, UpdatePreferencesResponses, UpdateProfileData, UpdateProfileErrors, UpdateProfileResponses, UpdateRoleData, UpdateRoleErrors, UpdateRoleResponses, UpdateTeamData, UpdateTeamErrors, UpdateTeamResponses, VerifyEmailCodeData, VerifyEmailCodeErrors, VerifyEmailCodeResponses, VerifyEmailData, VerifyEmailErrors, VerifyEmailResponses, WhatsappSignupConfigData, WhatsappSignupConfigErrors, WhatsappSignupConfigResponses, WhatsappWebhookData, WhatsappWebhookErrors, WhatsappWebhookResponses, WhatsappWebhookVerifyData, WhatsappWebhookVerifyErrors, WhatsappWebhookVerifyResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -283,6 +283,18 @@ export const signup = <ThrowOnError extends boolean = false>(options: Options<Si
 });
 
 /**
+ * Create an account from an invite link, sign in and join the workspace
+ */
+export const inviteSignup = <ThrowOnError extends boolean = false>(options: Options<InviteSignupData, ThrowOnError>): RequestResult<InviteSignupResponses, InviteSignupErrors, ThrowOnError> => (options.client ?? client).post<InviteSignupResponses, InviteSignupErrors, ThrowOnError>({
+    url: '/v1/auth/signup/invite',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
  * Rotate the refresh token and get a new access token
  */
 export const refreshToken = <ThrowOnError extends boolean = false>(options?: Options<RefreshTokenData, ThrowOnError>): RequestResult<RefreshTokenResponses, RefreshTokenErrors, ThrowOnError> => (options?.client ?? client).post<RefreshTokenResponses, RefreshTokenErrors, ThrowOnError>({
@@ -323,6 +335,47 @@ export const verifyEmailCode = <ThrowOnError extends boolean = false>(options: O
  */
 export const resendVerification = <ThrowOnError extends boolean = false>(options: Options<ResendVerificationData, ThrowOnError>): RequestResult<ResendVerificationResponses, ResendVerificationErrors, ThrowOnError> => (options.client ?? client).post<ResendVerificationResponses, ResendVerificationErrors, ThrowOnError>({
     url: '/v1/auth/verify-email/resend',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Join the workspace as the signed-in user
+ */
+export const acceptInvitation = <ThrowOnError extends boolean = false>(options: Options<AcceptInvitationData, ThrowOnError>): RequestResult<AcceptInvitationResponses, AcceptInvitationErrors, ThrowOnError> => (options.client ?? client).post<AcceptInvitationResponses, AcceptInvitationErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/invitations/accept',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * What an invite link offers, before signing in
+ */
+export const previewInvitation = <ThrowOnError extends boolean = false>(options: Options<PreviewInvitationData, ThrowOnError>): RequestResult<PreviewInvitationResponses, PreviewInvitationErrors, ThrowOnError> => (options.client ?? client).post<PreviewInvitationResponses, PreviewInvitationErrors, ThrowOnError>({
+    url: '/v1/invitations/preview',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Ask the inviter for a new link after it expired
+ */
+export const requestInvitationRenewal = <ThrowOnError extends boolean = false>(options: Options<RequestInvitationRenewalData, ThrowOnError>): RequestResult<RequestInvitationRenewalResponses, RequestInvitationRenewalErrors, ThrowOnError> => (options.client ?? client).post<RequestInvitationRenewalResponses, RequestInvitationRenewalErrors, ThrowOnError>({
+    url: '/v1/invitations/request-renewal',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -375,6 +428,19 @@ export const updateProfile = <ThrowOnError extends boolean = false>(options: Opt
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * The permission catalog
+ */
+export const listPermissions = <ThrowOnError extends boolean = false>(options?: Options<ListPermissionsData, ThrowOnError>): RequestResult<ListPermissionsResponses, ListPermissionsErrors, ThrowOnError> => (options?.client ?? client).get<ListPermissionsResponses, ListPermissionsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/permissions',
+    ...options
 });
 
 /**
@@ -452,6 +518,285 @@ export const getWorkspace = <ThrowOnError extends boolean = false>(options: Opti
 });
 
 /**
+ * Every change to who can do what, newest first
+ */
+export const listAccessLog = <ThrowOnError extends boolean = false>(options: Options<ListAccessLogData, ThrowOnError>): RequestResult<ListAccessLogResponses, ListAccessLogErrors, ThrowOnError> => (options.client ?? client).get<ListAccessLogResponses, ListAccessLogErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/access-log',
+    ...options
+});
+
+/**
+ * The last 30 days at a glance
+ */
+export const getAccessLogSummary = <ThrowOnError extends boolean = false>(options: Options<GetAccessLogSummaryData, ThrowOnError>): RequestResult<GetAccessLogSummaryResponses, GetAccessLogSummaryErrors, ThrowOnError> => (options.client ?? client).get<GetAccessLogSummaryResponses, GetAccessLogSummaryErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/access-log/summary',
+    ...options
+});
+
+/**
+ * Pending invites and those that ended recently
+ */
+export const listInvitations = <ThrowOnError extends boolean = false>(options: Options<ListInvitationsData, ThrowOnError>): RequestResult<ListInvitationsResponses, ListInvitationsErrors, ThrowOnError> => (options.client ?? client).get<ListInvitationsResponses, ListInvitationsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/invitations',
+    ...options
+});
+
+/**
+ * Invite people by email
+ */
+export const createInvitations = <ThrowOnError extends boolean = false>(options: Options<CreateInvitationsData, ThrowOnError>): RequestResult<CreateInvitationsResponses, CreateInvitationsErrors, ThrowOnError> => (options.client ?? client).post<CreateInvitationsResponses, CreateInvitationsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/invitations',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Cancel a pending invite
+ */
+export const revokeInvitation = <ThrowOnError extends boolean = false>(options: Options<RevokeInvitationData, ThrowOnError>): RequestResult<RevokeInvitationResponses, RevokeInvitationErrors, ThrowOnError> => (options.client ?? client).delete<RevokeInvitationResponses, RevokeInvitationErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/invitations/{invitationId}',
+    ...options
+});
+
+/**
+ * Send a new link; the old one stops working
+ */
+export const resendInvitation = <ThrowOnError extends boolean = false>(options: Options<ResendInvitationData, ThrowOnError>): RequestResult<ResendInvitationResponses, ResendInvitationErrors, ThrowOnError> => (options.client ?? client).post<ResendInvitationResponses, ResendInvitationErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/invitations/{invitationId}/resend',
+    ...options
+});
+
+/**
+ * What I can do in this workspace
+ */
+export const getMyAccess = <ThrowOnError extends boolean = false>(options: Options<GetMyAccessData, ThrowOnError>): RequestResult<GetMyAccessResponses, GetMyAccessErrors, ThrowOnError> => (options.client ?? client).get<GetMyAccessResponses, GetMyAccessErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/me/access',
+    ...options
+});
+
+/**
+ * Set my status to online, away or offline
+ */
+export const setAvailability = <ThrowOnError extends boolean = false>(options: Options<SetAvailabilityData, ThrowOnError>): RequestResult<SetAvailabilityResponses, SetAvailabilityErrors, ThrowOnError> => (options.client ?? client).patch<SetAvailabilityResponses, SetAvailabilityErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/me/availability',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Leave this workspace
+ */
+export const leaveWorkspace = <ThrowOnError extends boolean = false>(options: Options<LeaveWorkspaceData, ThrowOnError>): RequestResult<LeaveWorkspaceResponses, LeaveWorkspaceErrors, ThrowOnError> => (options.client ?? client).post<LeaveWorkspaceResponses, LeaveWorkspaceErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/me/leave',
+    ...options
+});
+
+/**
+ * Workspace members
+ */
+export const listMembers = <ThrowOnError extends boolean = false>(options: Options<ListMembersData, ThrowOnError>): RequestResult<ListMembersResponses, ListMembersErrors, ThrowOnError> => (options.client ?? client).get<ListMembersResponses, ListMembersErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/members',
+    ...options
+});
+
+/**
+ * One member's role, reach and permissions
+ */
+export const getMember = <ThrowOnError extends boolean = false>(options: Options<GetMemberData, ThrowOnError>): RequestResult<GetMemberResponses, GetMemberErrors, ThrowOnError> => (options.client ?? client).get<GetMemberResponses, GetMemberErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/members/{userId}',
+    ...options
+});
+
+/**
+ * Change a member's chat scope, teams or WhatsApp numbers
+ */
+export const updateMemberAccess = <ThrowOnError extends boolean = false>(options: Options<UpdateMemberAccessData, ThrowOnError>): RequestResult<UpdateMemberAccessResponses, UpdateMemberAccessErrors, ThrowOnError> => (options.client ?? client).patch<UpdateMemberAccessResponses, UpdateMemberAccessErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/members/{userId}/access',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Give or take away one permission for one member
+ */
+export const addMemberOverride = <ThrowOnError extends boolean = false>(options: Options<AddMemberOverrideData, ThrowOnError>): RequestResult<AddMemberOverrideResponses, AddMemberOverrideErrors, ThrowOnError> => (options.client ?? client).post<AddMemberOverrideResponses, AddMemberOverrideErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/members/{userId}/overrides',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Remove an extra or removed permission
+ */
+export const revokeMemberOverride = <ThrowOnError extends boolean = false>(options: Options<RevokeMemberOverrideData, ThrowOnError>): RequestResult<RevokeMemberOverrideResponses, RevokeMemberOverrideErrors, ThrowOnError> => (options.client ?? client).delete<RevokeMemberOverrideResponses, RevokeMemberOverrideErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/members/{userId}/overrides/{overrideId}',
+    ...options
+});
+
+/**
+ * Remove a member from the workspace
+ */
+export const removeMember = <ThrowOnError extends boolean = false>(options: Options<RemoveMemberData, ThrowOnError>): RequestResult<RemoveMemberResponses, RemoveMemberErrors, ThrowOnError> => (options.client ?? client).post<RemoveMemberResponses, RemoveMemberErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/members/{userId}/remove',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Give a suspended member their access back
+ */
+export const restoreMember = <ThrowOnError extends boolean = false>(options: Options<RestoreMemberData, ThrowOnError>): RequestResult<RestoreMemberResponses, RestoreMemberErrors, ThrowOnError> => (options.client ?? client).post<RestoreMemberResponses, RestoreMemberErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/members/{userId}/restore',
+    ...options
+});
+
+/**
+ * Move a member to another role
+ */
+export const changeMemberRole = <ThrowOnError extends boolean = false>(options: Options<ChangeMemberRoleData, ThrowOnError>): RequestResult<ChangeMemberRoleResponses, ChangeMemberRoleErrors, ThrowOnError> => (options.client ?? client).put<ChangeMemberRoleResponses, ChangeMemberRoleErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/members/{userId}/role',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * What a role change would give and take away
+ */
+export const previewMemberRole = <ThrowOnError extends boolean = false>(options: Options<PreviewMemberRoleData, ThrowOnError>): RequestResult<PreviewMemberRoleResponses, PreviewMemberRoleErrors, ThrowOnError> => (options.client ?? client).post<PreviewMemberRoleResponses, PreviewMemberRoleErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/members/{userId}/role/preview',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Pause a member's access; their seat stays reserved
+ */
+export const suspendMember = <ThrowOnError extends boolean = false>(options: Options<SuspendMemberData, ThrowOnError>): RequestResult<SuspendMemberResponses, SuspendMemberErrors, ThrowOnError> => (options.client ?? client).post<SuspendMemberResponses, SuspendMemberErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/members/{userId}/suspend',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
  * Setup progress, checklist and this member's tour state
  */
 export const getOnboarding = <ThrowOnError extends boolean = false>(options: Options<GetOnboardingData, ThrowOnError>): RequestResult<GetOnboardingResponses, GetOnboardingErrors, ThrowOnError> => (options.client ?? client).get<GetOnboardingResponses, GetOnboardingErrors, ThrowOnError>({
@@ -522,6 +867,186 @@ export const skipWhatsapp = <ThrowOnError extends boolean = false>(options: Opti
         }],
     url: '/v1/workspaces/{workspaceId}/onboarding/skip-whatsapp',
     ...options
+});
+
+/**
+ * Roles with their permissions
+ */
+export const listRoles = <ThrowOnError extends boolean = false>(options: Options<ListRolesData, ThrowOnError>): RequestResult<ListRolesResponses, ListRolesErrors, ThrowOnError> => (options.client ?? client).get<ListRolesResponses, ListRolesErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/roles',
+    ...options
+});
+
+/**
+ * Create a custom role
+ */
+export const createRole = <ThrowOnError extends boolean = false>(options: Options<CreateRoleData, ThrowOnError>): RequestResult<CreateRoleResponses, CreateRoleErrors, ThrowOnError> => (options.client ?? client).post<CreateRoleResponses, CreateRoleErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/roles',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete a custom role after moving its members
+ */
+export const deleteRole = <ThrowOnError extends boolean = false>(options: Options<DeleteRoleData, ThrowOnError>): RequestResult<DeleteRoleResponses, DeleteRoleErrors, ThrowOnError> => (options.client ?? client).delete<DeleteRoleResponses, DeleteRoleErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/roles/{roleId}',
+    ...options
+});
+
+/**
+ * Edit a role; its members get the change on their next request
+ */
+export const updateRole = <ThrowOnError extends boolean = false>(options: Options<UpdateRoleData, ThrowOnError>): RequestResult<UpdateRoleResponses, UpdateRoleErrors, ThrowOnError> => (options.client ?? client).patch<UpdateRoleResponses, UpdateRoleErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/roles/{roleId}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * What an edit would give and take away, and from whom
+ */
+export const previewRole = <ThrowOnError extends boolean = false>(options: Options<PreviewRoleData, ThrowOnError>): RequestResult<PreviewRoleResponses, PreviewRoleErrors, ThrowOnError> => (options.client ?? client).post<PreviewRoleResponses, PreviewRoleErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/roles/{roleId}/preview',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Restore a system role's defaults
+ */
+export const resetRole = <ThrowOnError extends boolean = false>(options: Options<ResetRoleData, ThrowOnError>): RequestResult<ResetRoleResponses, ResetRoleErrors, ThrowOnError> => (options.client ?? client).post<ResetRoleResponses, ResetRoleErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/roles/{roleId}/reset',
+    ...options
+});
+
+/**
+ * Seats on the plan and how they're used
+ */
+export const getSeats = <ThrowOnError extends boolean = false>(options: Options<GetSeatsData, ThrowOnError>): RequestResult<GetSeatsResponses, GetSeatsErrors, ThrowOnError> => (options.client ?? client).get<GetSeatsResponses, GetSeatsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/seats',
+    ...options
+});
+
+/**
+ * Teams and their members
+ */
+export const listTeams = <ThrowOnError extends boolean = false>(options: Options<ListTeamsData, ThrowOnError>): RequestResult<ListTeamsResponses, ListTeamsErrors, ThrowOnError> => (options.client ?? client).get<ListTeamsResponses, ListTeamsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/teams',
+    ...options
+});
+
+/**
+ * Create a team
+ */
+export const createTeam = <ThrowOnError extends boolean = false>(options: Options<CreateTeamData, ThrowOnError>): RequestResult<CreateTeamResponses, CreateTeamErrors, ThrowOnError> => (options.client ?? client).post<CreateTeamResponses, CreateTeamErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/teams',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete a team
+ */
+export const deleteTeam = <ThrowOnError extends boolean = false>(options: Options<DeleteTeamData, ThrowOnError>): RequestResult<DeleteTeamResponses, DeleteTeamErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTeamResponses, DeleteTeamErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/teams/{teamId}',
+    ...options
+});
+
+/**
+ * Edit a team
+ */
+export const updateTeam = <ThrowOnError extends boolean = false>(options: Options<UpdateTeamData, ThrowOnError>): RequestResult<UpdateTeamResponses, UpdateTeamErrors, ThrowOnError> => (options.client ?? client).patch<UpdateTeamResponses, UpdateTeamErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/teams/{teamId}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Replace a team's members
+ */
+export const setTeamMembers = <ThrowOnError extends boolean = false>(options: Options<SetTeamMembersData, ThrowOnError>): RequestResult<SetTeamMembersResponses, SetTeamMembersErrors, ThrowOnError> => (options.client ?? client).put<SetTeamMembersResponses, SetTeamMembersErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspaces/{workspaceId}/teams/{teamId}/members',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });
 
 /**
