@@ -20,6 +20,8 @@ const (
 	KindConflict
 	KindRateLimited
 	KindUnavailable
+	KindBadRequest
+	KindNotImplemented
 )
 
 // Detail describes one problem, usually tied to an input field.
@@ -82,6 +84,12 @@ func RateLimited(code, msg string) *Error { return newErr(KindRateLimited, code,
 
 // Unavailable reports a dependency that is temporarily down.
 func Unavailable(code, msg string) *Error { return newErr(KindUnavailable, code, msg) }
+
+// BadRequest reports a request that can't be read at all, such as a webhook whose signature fails.
+func BadRequest(code, msg string) *Error { return newErr(KindBadRequest, code, msg) }
+
+// NotImplemented reports an endpoint that exists but isn't built yet.
+func NotImplemented(code, msg string) *Error { return newErr(KindNotImplemented, code, msg) }
 
 // As returns the *Error in err's chain, if any.
 func As(err error) (*Error, bool) {

@@ -21,6 +21,7 @@ import (
 
 	authhandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/auth/handler"
 	authservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/auth/service"
+	billingservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/service"
 	onboardingservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/onboarding/service"
 	profilesservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/profiles/service"
 	teamservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/team/service"
@@ -32,6 +33,7 @@ import (
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/jwt"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/mailer"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/middleware"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/payment"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/queue"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/storage"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/shared/apperr"
@@ -69,6 +71,10 @@ type App struct {
 	whatsapp   *whatsappservice.Service
 	team       *teamservice.Service
 	access     *teamservice.Resolver
+	billing    *billingservice.Service
+
+	// payments is the payment gateway registry; tests set it to fakes before New builds features.
+	payments *payment.Registry
 
 	// oauth overrides the provider config built from cfg; tests point it at a fake provider.
 	oauth *authservice.ProvidersConfig
@@ -131,6 +137,9 @@ func (a *App) buildFeatures() (err error) {
 	a.access = teamservice.NewResolver(a.db)
 	a.workspaces = workspacesservice.New(a.db, a.accounts, a.onboarding, a.team, workspacesservice.Config{TrialDays: a.cfg.Trial.Days})
 	if err := a.buildWhatsApp(); err != nil {
+		return err
+	}
+	if err := a.buildBilling(); err != nil {
 		return err
 	}
 	if a.mode == ModeWorker {
@@ -196,6 +205,22 @@ func (a *App) buildWhatsApp() error {
 		GraphVersion: wa.GraphVersion, WebhookVerifyToken: wa.WebhookVerifyToken, TokenKey: tokenKey,
 	}, a.log)
 	return err
+}
+
+// buildBilling builds the payment gateways for PAYMENT_PROVIDERS and the billing service.
+func (a *App) buildBilling() error {
+	if a.payments == nil {
+		reg, err := payment.New(a.cfg.Payment, a.cfg.IsDevelopment())
+		if err != nil {
+			return err
+		}
+		a.payments = reg
+	}
+	if a.log != nil {
+		a.log.Info("payment providers", "enabled", a.payments.Providers())
+	}
+	a.billing = billingservice.New(a.db, a.payments, a.queue, billingservice.Config{AppBaseURL: a.cfg.AppBaseURL}, a.log)
+	return nil
 }
 
 // secretKey decodes a base64 32-byte key from config. Development gets a random

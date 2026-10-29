@@ -9,6 +9,7 @@ sql:
       - ../internal/features/onboarding/repository/
       - ../internal/features/whatsapp/repository/
       - ../internal/features/team/repository/
+      - ../internal/features/billing/repository/
     gen:
       go:
         package: gen

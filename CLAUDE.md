@@ -131,6 +131,7 @@ If any answer is no, write a plain constructor.
 | Webhook / job handler registry                                                                         | event type                                     | Map filled at startup                               |
 | Per-workspace external clients (e.g. messaging providers)                                              | provider + credentials stored on the workspace | Per workspace, **cached**                           |
 | `features/auth` OAuth provider registry ([ADR 0001](docs/adr/0001-oauth-provider-registry.md))         | `{provider}` path value; only configured ones  | Built once at startup                               |
+| `platform/payment` gateway registry ([ADR 0006](docs/adr/0006-payment-gateway-registry.md))            | `PAYMENT_PROVIDERS`, then the provider name    | Built once at startup                               |
 
 Adding a factory that is not in this table requires an ADR in `docs/adr/` **and** a new row here. Ask the user first.
 

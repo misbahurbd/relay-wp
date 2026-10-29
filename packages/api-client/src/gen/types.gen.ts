@@ -28,6 +28,23 @@ export type AvailabilityInputBody = {
     availability: 'online' | 'away' | 'offline';
 };
 
+export type BillToDto = {
+    address_line1: string | null;
+    address_line2: string | null;
+    city: string | null;
+    /**
+     * ISO 3166-1 alpha-2
+     */
+    country: string | null;
+    email: string;
+    legal_name: string;
+    phone: string | null;
+    postal_code: string | null;
+    state: string | null;
+    tax_id: string | null;
+    tax_id_type: string | null;
+};
+
 export type BusinessInputBody = {
     /**
      * ISO 3166-1 alpha-2
@@ -38,6 +55,21 @@ export type BusinessInputBody = {
     name: string;
     team_size: 'just_me' | '2_5' | '6_20' | '20_plus';
     website?: string;
+};
+
+export type CancelSubscriptionInputBody = {
+    /**
+     * True keeps access until the period ends; false cancels now
+     */
+    at_period_end: boolean;
+};
+
+export type CatalogOutputBody = {
+    plans: Array<PlanDto> | null;
+    /**
+     * Payment providers this server has enabled
+     */
+    providers: Array<ProviderDto> | null;
 };
 
 export type ChangeDto = {
@@ -55,9 +87,51 @@ export type ChangePasswordInputBody = {
     new_password: string;
 };
 
+export type ChangePlanInputBody = {
+    /**
+     * A recurring price of another plan or interval
+     */
+    plan_price_id: string;
+};
+
+export type ChangeQuoteOutputBody = {
+    currency: string;
+    /**
+     * Now for an upgrade; the period end for a downgrade
+     */
+    effective_at: string;
+    from_price_id: string;
+    kind: 'upgrade' | 'downgrade' | 'interval';
+    /**
+     * Charged now (positive) or credited (negative)
+     */
+    proration_minor: number;
+    to_price_id: string;
+};
+
 export type ChecklistItemDto = {
     done: boolean;
     id: 'account' | 'whatsapp' | 'template' | 'contacts' | 'broadcast' | 'team';
+};
+
+export type CheckoutSessionDto = {
+    /**
+     * Charged now, after discount and credit
+     */
+    amount_minor: number;
+    created_at: string;
+    currency: string;
+    discount_minor: number;
+    expires_at: string;
+    id: string;
+    installment_id: string;
+    installment_offer_id: string;
+    order_id: string;
+    plan_price_id: string;
+    provider: 'stripe' | 'creem' | 'paypal' | 'sslcommerz';
+    purpose: 'new' | 'renewal' | 'change' | 'ltd' | 'installment';
+    status: 'pending' | 'completed' | 'failed' | 'expired';
+    subscription_id: string;
 };
 
 export type ConnectInputBody = {
@@ -76,6 +150,23 @@ export type ConnectInputBody = {
     waba_id: string;
 };
 
+export type CreateCheckoutInputBody = {
+    discount_code?: string;
+    /**
+     * Pay a one-time price in installments
+     */
+    installment_offer_id?: string;
+    plan_price_id: string;
+    /**
+     * Omit to use the first provider that sells this price
+     */
+    provider?: 'stripe' | 'creem' | 'paypal' | 'sslcommerz';
+    /**
+     * Where a hosted checkout or 3-D Secure returns to
+     */
+    return_url?: string;
+};
+
 export type CreateInputBody = {
     first_goal: 'offers' | 'support' | 'automate';
     /**
@@ -83,6 +174,19 @@ export type CreateInputBody = {
      */
     name: string;
     start_mode: 'setup' | 'sample';
+};
+
+export type CurrentPlanDto = {
+    grant?: GrantDto;
+    /**
+     * What applies right now
+     */
+    limits: LimitsDto;
+    /**
+     * free with no grant, or while it is suspended
+     */
+    plan_code: string;
+    plan_name: string;
 };
 
 export type DataDeletionOutputBody = {
@@ -96,6 +200,23 @@ export type DataDeletionOutputBody = {
 export type Detail = {
     field?: string;
     message: string;
+};
+
+export type DiscountPreviewOutputBody = {
+    code: string;
+    currency: string;
+    discount_minor: number;
+    duration: 'once' | 'repeating' | 'forever';
+    /**
+     * For repeating discounts
+     */
+    duration_months: number | null;
+    /**
+     * The reduced installments, for an installment offer
+     */
+    installments_minor: Array<number> | null;
+    subtotal_minor: number;
+    total_minor: number;
 };
 
 export type EmailInputBody = {
@@ -137,6 +258,21 @@ export type ExpiringDto = {
     user_id: string;
 };
 
+export type GrantDto = {
+    /**
+     * Null: lifetime
+     */
+    ends_at: string | null;
+    id: string;
+    source: 'subscription' | 'order' | 'trial' | 'manual';
+    starts_at: string;
+    status: 'active' | 'suspended';
+    /**
+     * A missed installment; free limits apply until it is paid
+     */
+    suspended_at: string | null;
+};
+
 export type IdentitiesOutputBody = {
     has_password: boolean;
     identities: Array<IdentityDto> | null;
@@ -150,6 +286,37 @@ export type IdentityDto = {
     email?: string;
     last_used_at: string;
     provider: 'google' | 'facebook' | 'apple';
+};
+
+export type InstallmentDto = {
+    amount_minor: number;
+    due_at: string;
+    id: string;
+    paid_at: string | null;
+    /**
+     * 1 is the first payment
+     */
+    seq: number;
+    status: 'scheduled' | 'due' | 'paid' | 'overdue' | 'failed' | 'waived' | 'canceled';
+};
+
+export type InstallmentOfferDto = {
+    /**
+     * Each installment, in order; the last absorbs rounding
+     */
+    amounts_minor: Array<number> | null;
+    count: number;
+    /**
+     * Days a missed installment has before access is suspended
+     */
+    grace_days: number;
+    id: string;
+    interval: 'month';
+    providers: Array<OfferProviderDto> | null;
+    /**
+     * What all installments add up to; may be more than the one-time price
+     */
+    total_minor: number;
 };
 
 export type InvitationDto = {
@@ -213,6 +380,55 @@ export type InviteSignupOutputBody = {
      * Null when the account was made but joining failed
      */
     workspace_id: string | null;
+};
+
+export type InvoiceDto = {
+    /**
+     * Billing details as they were when the invoice was issued; single invoice only
+     */
+    bill_to?: BillToDto;
+    created_at: string;
+    currency: string;
+    discount_minor: number;
+    id: string;
+    installment_id: string;
+    /**
+     * The provider's invoice number
+     */
+    number: string | null;
+    order_id: string;
+    paid_at: string | null;
+    period_end: string | null;
+    period_start: string | null;
+    provider: 'stripe' | 'creem' | 'paypal' | 'sslcommerz';
+    receipt_url: string | null;
+    status: 'open' | 'paid' | 'failed' | 'void' | 'partially_refunded' | 'refunded' | 'disputed';
+    subscription_id: string;
+    subtotal_minor: number;
+    tax_minor: number;
+    /**
+     * subtotal - discount + tax
+     */
+    total_minor: number;
+};
+
+export type InvoicesOutputBody = {
+    invoices: Array<InvoiceDto> | null;
+    /**
+     * Null on the last page
+     */
+    next_cursor: string | null;
+};
+
+export type LimitsDto = {
+    /**
+     * Seat-using members; -1 is unlimited
+     */
+    members: number;
+    /**
+     * Connected WhatsApp numbers; -1 is unlimited
+     */
+    whatsapp_numbers: number;
 };
 
 export type ListOutputBody = {
@@ -432,6 +648,14 @@ export type OauthTokenInputBody = {
     code_verifier: string;
 };
 
+export type OfferProviderDto = {
+    /**
+     * provider_schedule: the provider charges each installment; app_link: Relay emails a pay link for each one
+     */
+    collection: 'provider_schedule' | 'app_link' | 'provider_financed';
+    provider: 'stripe' | 'creem' | 'paypal' | 'sslcommerz';
+};
+
 export type OnboardingDto = {
     activated: boolean;
     checklist: Array<ChecklistItemDto> | null;
@@ -453,6 +677,55 @@ export type OnboardingDto = {
     tour_seen: boolean;
     trial_ends_at: string | null;
     whatsapp_skipped: boolean;
+};
+
+export type OrderDto = {
+    /**
+     * Still owed
+     */
+    balance_minor: number;
+    created_at: string;
+    /**
+     * Carried in from a replaced subscription or upgraded order
+     */
+    credit_minor: number;
+    currency: string;
+    defaulted_at: string | null;
+    discount_minor: number;
+    id: string;
+    installment_offer_id: string;
+    installments: Array<InstallmentDto> | null;
+    paid_in_full_at: string | null;
+    paid_minor: number;
+    plan_price_id: string;
+    price?: PriceDto;
+    provider: 'stripe' | 'creem' | 'paypal' | 'sslcommerz';
+    replaced_subscription_id: string;
+    status: 'pending' | 'in_installments' | 'paid' | 'defaulted' | 'upgraded' | 'refunded' | 'canceled';
+    total_minor: number;
+    upgraded_from_order_id: string;
+};
+
+export type OrderQuoteOutputBody = {
+    credit_minor: number;
+    currency: string;
+    discount_minor: number;
+    /**
+     * The first payment
+     */
+    due_now_minor: number;
+    installment_offer_id: string;
+    plan_price_id: string;
+    /**
+     * Canceled at checkout; its unused time is credit_minor
+     */
+    replaces_subscription_id: string;
+    schedule: Array<ScheduledPaymentDto> | null;
+    total_minor: number;
+    /**
+     * Upgraded at checkout; what was paid is credit_minor
+     */
+    upgrades_order_id: string;
 };
 
 export type OverrideBody = {
@@ -481,6 +754,15 @@ export type OverrideDto = {
     revoked_at: string | null;
 };
 
+export type OverviewOutputBody = {
+    /**
+     * The lifetime deal, with its installments
+     */
+    order?: OrderDto;
+    plan: CurrentPlanDto;
+    subscription?: SubscriptionDto;
+};
+
 export type PermissionDto = {
     group: string;
     key: string;
@@ -493,6 +775,20 @@ export type PermissionDto = {
 
 export type PermissionsOutputBody = {
     permissions: Array<PermissionDto> | null;
+};
+
+export type PlanDto = {
+    code: string;
+    id: string;
+    limits: LimitsDto;
+    name: string;
+    prices: Array<PriceDto> | null;
+    /**
+     * 0: no trial
+     */
+    trial_days: number;
+    trial_requires_card: boolean;
+    version: number;
 };
 
 export type PreferencesDto = {
@@ -522,6 +818,36 @@ export type PreviewDto = {
     workspace_name: string;
 };
 
+export type PreviewDiscountInputBody = {
+    /**
+     * Case doesn't matter
+     */
+    code: string;
+    installment_offer_id?: string;
+    plan_price_id: string;
+};
+
+export type PriceDto = {
+    amount_minor: number;
+    billing_type: 'recurring' | 'one_time';
+    currency: string;
+    id: string;
+    /**
+     * Ways to pay a one-time price in installments
+     */
+    installment_offers: Array<InstallmentOfferDto> | null;
+    /**
+     * Null for one-time prices
+     */
+    interval: 'month' | 'year';
+    plan_code: string;
+    plan_id: string;
+    /**
+     * Providers that can sell this price
+     */
+    providers: Array<string> | null;
+};
+
 export type ProfileDto = {
     avatar_url: string | null;
     /**
@@ -532,11 +858,60 @@ export type ProfileDto = {
     last_name: string | null;
 };
 
+export type ProfileOutputBody = {
+    address_line1: string | null;
+    address_line2: string | null;
+    city: string | null;
+    /**
+     * ISO 3166-1 alpha-2
+     */
+    country: string | null;
+    email: string;
+    legal_name: string;
+    phone: string | null;
+    postal_code: string | null;
+    state: string | null;
+    tax_id: string | null;
+    tax_id_type: string | null;
+    updated_at: string;
+};
+
+export type ProviderDto = {
+    currencies: Array<string> | null;
+    /**
+     * True: checkout returns a client_secret for an in-app form; false: a url to open
+     */
+    embedded_checkout: boolean;
+    /**
+     * The provider can run installment schedules itself
+     */
+    installments: boolean;
+    /**
+     * The provider charges and reports tax
+     */
+    merchant_of_record: boolean;
+    name: 'stripe' | 'creem' | 'paypal' | 'sslcommerz';
+    /**
+     * Browser key for the provider's embedded form (Stripe Elements)
+     */
+    publishable_key: string | null;
+    renews_subscriptions: boolean;
+};
+
 export type ProvidersOutputBody = {
     /**
      * Social sign-in providers this server offers
      */
     providers: Array<string> | null;
+};
+
+export type QuoteOrderInputBody = {
+    discount_code?: string;
+    installment_offer_id?: string;
+    /**
+     * A one-time (lifetime) price
+     */
+    plan_price_id: string;
 };
 
 export type RefreshInputBody = {
@@ -600,6 +975,12 @@ export type RoleDto = {
 
 export type RolesOutputBody = {
     roles: Array<RoleDto> | null;
+};
+
+export type ScheduledPaymentDto = {
+    amount_minor: number;
+    due_at: string;
+    seq: number;
 };
 
 export type SeatsDto = {
@@ -683,6 +1064,22 @@ export type SignupInputBody = {
     timezone?: string;
 };
 
+export type StartedCheckoutOutputBody = {
+    /**
+     * For the provider's embedded form; shown once, never stored
+     */
+    client_secret: string | null;
+    /**
+     * Browser key for the embedded form (Stripe Elements)
+     */
+    publishable_key: string | null;
+    session: CheckoutSessionDto;
+    /**
+     * The provider's hosted checkout page, when it has no embedded form
+     */
+    url: string | null;
+};
+
 export type StatusOutputBody = {
     status: string;
 };
@@ -690,6 +1087,32 @@ export type StatusOutputBody = {
 export type StepDto = {
     id: 'business' | 'whatsapp' | 'test_message';
     status: 'done' | 'current' | 'upcoming' | 'skipped';
+};
+
+export type SubscriptionDto = {
+    cancel_at_period_end: boolean;
+    canceled_at: string | null;
+    created_at: string;
+    current_period_end: string | null;
+    current_period_start: string | null;
+    /**
+     * When a repeating discount stops
+     */
+    discount_ends_at: string | null;
+    /**
+     * Past due: access continues until then
+     */
+    grace_ends_at: string | null;
+    id: string;
+    pending_change_at: string | null;
+    /**
+     * A downgrade waiting for pending_change_at
+     */
+    pending_plan_price_id: string;
+    plan_price_id: string;
+    price?: PriceDto;
+    provider: 'stripe' | 'creem' | 'paypal' | 'sslcommerz';
+    status: 'incomplete' | 'trialing' | 'active' | 'past_due' | 'canceled';
 };
 
 export type SummaryDto = {
@@ -786,6 +1209,32 @@ export type UpdateProfileInputBody = {
      * Empty string clears it
      */
     last_name?: string;
+};
+
+export type UpdateProfileInputBody1 = {
+    address_line1?: string;
+    address_line2?: string;
+    city?: string;
+    /**
+     * ISO 3166-1 alpha-2
+     */
+    country?: string;
+    /**
+     * Where invoices and payment emails go
+     */
+    email: string;
+    /**
+     * Person or company invoices are made out to
+     */
+    legal_name: string;
+    phone?: string;
+    postal_code?: string;
+    state?: string;
+    tax_id?: string;
+    /**
+     * e.g. eu_vat, bd_bin; set with tax_id
+     */
+    tax_id_type?: string;
 };
 
 export type UserDto = {
@@ -1744,6 +2193,31 @@ export type ResendVerificationResponses = {
 
 export type ResendVerificationResponse = ResendVerificationResponses[keyof ResendVerificationResponses];
 
+export type ListBillingPlansData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/billing/plans';
+};
+
+export type ListBillingPlansErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListBillingPlansError = ListBillingPlansErrors[keyof ListBillingPlansErrors];
+
+export type ListBillingPlansResponses = {
+    /**
+     * OK
+     */
+    200: CatalogOutputBody;
+};
+
+export type ListBillingPlansResponse = ListBillingPlansResponses[keyof ListBillingPlansResponses];
+
 export type AcceptInvitationData = {
     body: TokenInputBody;
     headers?: {
@@ -1928,6 +2402,31 @@ export type ListPermissionsResponses = {
 
 export type ListPermissionsResponse = ListPermissionsResponses[keyof ListPermissionsResponses];
 
+export type PaymentWebhookData = {
+    body: Blob | File;
+    path: {
+        provider: 'stripe' | 'creem' | 'paypal' | 'sslcommerz';
+    };
+    query?: never;
+    url: '/v1/webhooks/payments/{provider}';
+};
+
+export type PaymentWebhookErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type PaymentWebhookError = PaymentWebhookErrors[keyof PaymentWebhookErrors];
+
+export type PaymentWebhookResponses = {
+    /**
+     * OK
+     */
+    200: unknown;
+};
+
 export type WhatsappWebhookVerifyData = {
     body?: never;
     path?: never;
@@ -2109,6 +2608,617 @@ export type GetAccessLogSummaryResponses = {
 };
 
 export type GetAccessLogSummaryResponse = GetAccessLogSummaryResponses[keyof GetAccessLogSummaryResponses];
+
+export type GetBillingOverviewData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/billing';
+};
+
+export type GetBillingOverviewErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetBillingOverviewError = GetBillingOverviewErrors[keyof GetBillingOverviewErrors];
+
+export type GetBillingOverviewResponses = {
+    /**
+     * OK
+     */
+    200: OverviewOutputBody;
+};
+
+export type GetBillingOverviewResponse = GetBillingOverviewResponses[keyof GetBillingOverviewResponses];
+
+export type CreateCheckoutSessionData = {
+    body: CreateCheckoutInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        /**
+         * A retry with the same key returns the same checkout
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/billing/checkout-sessions';
+};
+
+export type CreateCheckoutSessionErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CreateCheckoutSessionError = CreateCheckoutSessionErrors[keyof CreateCheckoutSessionErrors];
+
+export type CreateCheckoutSessionResponses = {
+    /**
+     * Created
+     */
+    201: StartedCheckoutOutputBody;
+};
+
+export type CreateCheckoutSessionResponse = CreateCheckoutSessionResponses[keyof CreateCheckoutSessionResponses];
+
+export type GetCheckoutSessionData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        sessionId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/billing/checkout-sessions/{sessionId}';
+};
+
+export type GetCheckoutSessionErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetCheckoutSessionError = GetCheckoutSessionErrors[keyof GetCheckoutSessionErrors];
+
+export type GetCheckoutSessionResponses = {
+    /**
+     * OK
+     */
+    200: CheckoutSessionDto;
+};
+
+export type GetCheckoutSessionResponse = GetCheckoutSessionResponses[keyof GetCheckoutSessionResponses];
+
+export type PreviewDiscountData = {
+    body: PreviewDiscountInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/billing/discounts/preview';
+};
+
+export type PreviewDiscountErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type PreviewDiscountError = PreviewDiscountErrors[keyof PreviewDiscountErrors];
+
+export type PreviewDiscountResponses = {
+    /**
+     * OK
+     */
+    200: DiscountPreviewOutputBody;
+};
+
+export type PreviewDiscountResponse = PreviewDiscountResponses[keyof PreviewDiscountResponses];
+
+export type ListInvoicesData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * next_cursor from the previous page
+         */
+        cursor?: string;
+    };
+    url: '/v1/workspace/billing/invoices';
+};
+
+export type ListInvoicesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListInvoicesError = ListInvoicesErrors[keyof ListInvoicesErrors];
+
+export type ListInvoicesResponses = {
+    /**
+     * OK
+     */
+    200: InvoicesOutputBody;
+};
+
+export type ListInvoicesResponse = ListInvoicesResponses[keyof ListInvoicesResponses];
+
+export type GetInvoiceData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        invoiceId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/billing/invoices/{invoiceId}';
+};
+
+export type GetInvoiceErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetInvoiceError = GetInvoiceErrors[keyof GetInvoiceErrors];
+
+export type GetInvoiceResponses = {
+    /**
+     * OK
+     */
+    200: InvoiceDto;
+};
+
+export type GetInvoiceResponse = GetInvoiceResponses[keyof GetInvoiceResponses];
+
+export type GetCurrentOrderData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/billing/orders/current';
+};
+
+export type GetCurrentOrderErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetCurrentOrderError = GetCurrentOrderErrors[keyof GetCurrentOrderErrors];
+
+export type GetCurrentOrderResponses = {
+    /**
+     * OK
+     */
+    200: OrderDto;
+};
+
+export type GetCurrentOrderResponse = GetCurrentOrderResponses[keyof GetCurrentOrderResponses];
+
+export type QuoteOrderData = {
+    body: QuoteOrderInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/billing/orders/quote';
+};
+
+export type QuoteOrderErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type QuoteOrderError = QuoteOrderErrors[keyof QuoteOrderErrors];
+
+export type QuoteOrderResponses = {
+    /**
+     * OK
+     */
+    200: OrderQuoteOutputBody;
+};
+
+export type QuoteOrderResponse = QuoteOrderResponses[keyof QuoteOrderResponses];
+
+export type GetOrderData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        orderId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/billing/orders/{orderId}';
+};
+
+export type GetOrderErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetOrderError = GetOrderErrors[keyof GetOrderErrors];
+
+export type GetOrderResponses = {
+    /**
+     * OK
+     */
+    200: OrderDto;
+};
+
+export type GetOrderResponse = GetOrderResponses[keyof GetOrderResponses];
+
+export type PayInstallmentData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'Idempotency-Key': string;
+    };
+    path: {
+        orderId: string;
+        installmentId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/billing/orders/{orderId}/installments/{installmentId}/pay';
+};
+
+export type PayInstallmentErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type PayInstallmentError = PayInstallmentErrors[keyof PayInstallmentErrors];
+
+export type PayInstallmentResponses = {
+    /**
+     * Created
+     */
+    201: StartedCheckoutOutputBody;
+};
+
+export type PayInstallmentResponse = PayInstallmentResponses[keyof PayInstallmentResponses];
+
+export type ResumeOrderData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'Idempotency-Key': string;
+    };
+    path: {
+        orderId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/billing/orders/{orderId}/resume';
+};
+
+export type ResumeOrderErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ResumeOrderError = ResumeOrderErrors[keyof ResumeOrderErrors];
+
+export type ResumeOrderResponses = {
+    /**
+     * Created
+     */
+    201: StartedCheckoutOutputBody;
+};
+
+export type ResumeOrderResponse = ResumeOrderResponses[keyof ResumeOrderResponses];
+
+export type GetBillingProfileData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/billing/profile';
+};
+
+export type GetBillingProfileErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetBillingProfileError = GetBillingProfileErrors[keyof GetBillingProfileErrors];
+
+export type GetBillingProfileResponses = {
+    /**
+     * OK
+     */
+    200: ProfileOutputBody;
+};
+
+export type GetBillingProfileResponse = GetBillingProfileResponses[keyof GetBillingProfileResponses];
+
+export type UpdateBillingProfileData = {
+    body: UpdateProfileInputBody1;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/billing/profile';
+};
+
+export type UpdateBillingProfileErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UpdateBillingProfileError = UpdateBillingProfileErrors[keyof UpdateBillingProfileErrors];
+
+export type UpdateBillingProfileResponses = {
+    /**
+     * OK
+     */
+    200: ProfileOutputBody;
+};
+
+export type UpdateBillingProfileResponse = UpdateBillingProfileResponses[keyof UpdateBillingProfileResponses];
+
+export type GetSubscriptionData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/billing/subscription';
+};
+
+export type GetSubscriptionErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetSubscriptionError = GetSubscriptionErrors[keyof GetSubscriptionErrors];
+
+export type GetSubscriptionResponses = {
+    /**
+     * OK
+     */
+    200: SubscriptionDto;
+};
+
+export type GetSubscriptionResponse = GetSubscriptionResponses[keyof GetSubscriptionResponses];
+
+export type CancelSubscriptionData = {
+    body: CancelSubscriptionInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/billing/subscription/cancel';
+};
+
+export type CancelSubscriptionErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CancelSubscriptionError = CancelSubscriptionErrors[keyof CancelSubscriptionErrors];
+
+export type CancelSubscriptionResponses = {
+    /**
+     * OK
+     */
+    200: SubscriptionDto;
+};
+
+export type CancelSubscriptionResponse = CancelSubscriptionResponses[keyof CancelSubscriptionResponses];
+
+export type ChangeSubscriptionData = {
+    body: ChangePlanInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/billing/subscription/change';
+};
+
+export type ChangeSubscriptionErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ChangeSubscriptionError = ChangeSubscriptionErrors[keyof ChangeSubscriptionErrors];
+
+export type ChangeSubscriptionResponses = {
+    /**
+     * OK
+     */
+    200: SubscriptionDto;
+};
+
+export type ChangeSubscriptionResponse = ChangeSubscriptionResponses[keyof ChangeSubscriptionResponses];
+
+export type PreviewSubscriptionChangeData = {
+    body: ChangePlanInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/billing/subscription/change-preview';
+};
+
+export type PreviewSubscriptionChangeErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type PreviewSubscriptionChangeError = PreviewSubscriptionChangeErrors[keyof PreviewSubscriptionChangeErrors];
+
+export type PreviewSubscriptionChangeResponses = {
+    /**
+     * OK
+     */
+    200: ChangeQuoteOutputBody;
+};
+
+export type PreviewSubscriptionChangeResponse = PreviewSubscriptionChangeResponses[keyof PreviewSubscriptionChangeResponses];
+
+export type CancelPendingSubscriptionChangeData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/billing/subscription/pending-change';
+};
+
+export type CancelPendingSubscriptionChangeErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CancelPendingSubscriptionChangeError = CancelPendingSubscriptionChangeErrors[keyof CancelPendingSubscriptionChangeErrors];
+
+export type CancelPendingSubscriptionChangeResponses = {
+    /**
+     * OK
+     */
+    200: SubscriptionDto;
+};
+
+export type CancelPendingSubscriptionChangeResponse = CancelPendingSubscriptionChangeResponses[keyof CancelPendingSubscriptionChangeResponses];
+
+export type ResumeSubscriptionData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/billing/subscription/resume';
+};
+
+export type ResumeSubscriptionErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ResumeSubscriptionError = ResumeSubscriptionErrors[keyof ResumeSubscriptionErrors];
+
+export type ResumeSubscriptionResponses = {
+    /**
+     * OK
+     */
+    200: SubscriptionDto;
+};
+
+export type ResumeSubscriptionResponse = ResumeSubscriptionResponses[keyof ResumeSubscriptionResponses];
 
 export type ListInvitationsData = {
     body?: never;

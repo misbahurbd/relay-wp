@@ -96,6 +96,8 @@ type browser struct {
 	device  string // X-Device-Name, as the mobile app sends it
 	// workspace is sent as X-Workspace-ID when set.
 	workspace string
+	// idempotency is sent as Idempotency-Key when set.
+	idempotency string
 }
 
 func (e *authEnv) browser(ua string) *browser {
@@ -140,6 +142,9 @@ func (b *browser) do(method, path string, body any) resp {
 	}
 	if b.workspace != "" {
 		req.Header.Set("X-Workspace-ID", b.workspace)
+	}
+	if b.idempotency != "" {
+		req.Header.Set("Idempotency-Key", b.idempotency)
 	}
 	for _, c := range b.cookies {
 		if strings.HasPrefix(path, c.Path) {

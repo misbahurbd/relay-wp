@@ -27,6 +27,7 @@ type Config struct {
 	Auth     Auth
 	Trial    Trial
 	WhatsApp WhatsApp
+	Payment  Payment
 }
 
 // Database holds both connection strings. See docs/ARCHITECTURE.md (resource budget).
@@ -124,6 +125,22 @@ type WhatsApp struct {
 	WebhookVerifyToken string `env:"META_WEBHOOK_VERIFY_TOKEN"`
 	// TokenEncryptionKey is a base64 32-byte AES-256 key for stored Meta tokens and PINs.
 	TokenEncryptionKey string `env:"TOKEN_ENCRYPTION_KEY"`
+}
+
+// Payment configures payment providers (docs/adr/0006-payment-gateway-registry.md).
+// A listed provider with missing keys fails at startup; one not listed is never offered.
+type Payment struct {
+	// Providers are the enabled providers, e.g. "stripe,creem". In development,
+	// "stripe:fake" registers the in-memory fake under Stripe's name.
+	Providers []string `env:"PAYMENT_PROVIDERS" envSeparator:","`
+
+	StripeSecretKey string `env:"STRIPE_SECRET_KEY"`
+	// StripePublishableKey is safe for the browser (Stripe Elements).
+	StripePublishableKey string `env:"STRIPE_PUBLISHABLE_KEY"`
+	StripeWebhookSecret  string `env:"STRIPE_WEBHOOK_SECRET"`
+
+	CreemAPIKey        string `env:"CREEM_API_KEY"`
+	CreemWebhookSecret string `env:"CREEM_WEBHOOK_SECRET"`
 }
 
 // Storage configures object storage.

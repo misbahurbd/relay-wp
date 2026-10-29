@@ -2,7 +2,7 @@
 
 import { type Client, type ClientMeta, type Options as Options2, type RequestResult, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { AcceptInvitationData, AcceptInvitationErrors, AcceptInvitationResponses, AddMemberOverrideData, AddMemberOverrideErrors, AddMemberOverrideResponses, ChangeMemberRoleData, ChangeMemberRoleErrors, ChangeMemberRoleResponses, ChangePasswordData, ChangePasswordErrors, ChangePasswordResponses, CompleteOnboardingData, CompleteOnboardingErrors, CompleteOnboardingResponses, ConnectWhatsappData, ConnectWhatsappErrors, ConnectWhatsappResponses, CreateInvitationsData, CreateInvitationsErrors, CreateInvitationsResponses, CreateRoleData, CreateRoleErrors, CreateRoleResponses, CreateTeamData, CreateTeamErrors, CreateTeamResponses, CreateWorkspaceData, CreateWorkspaceErrors, CreateWorkspaceResponses, DeleteRoleData, DeleteRoleErrors, DeleteRoleResponses, DeleteTeamData, DeleteTeamErrors, DeleteTeamResponses, FacebookDataDeletionData, FacebookDataDeletionErrors, FacebookDataDeletionResponses, ForgotPasswordData, ForgotPasswordErrors, ForgotPasswordResponses, GetAccessLogSummaryData, GetAccessLogSummaryErrors, GetAccessLogSummaryResponses, GetMeData, GetMeErrors, GetMemberData, GetMemberErrors, GetMemberResponses, GetMeResponses, GetMyAccessData, GetMyAccessErrors, GetMyAccessResponses, GetOnboardingData, GetOnboardingErrors, GetOnboardingResponses, GetSeatsData, GetSeatsErrors, GetSeatsResponses, GetTestMessageData, GetTestMessageErrors, GetTestMessageResponses, GetWhatsappNumberData, GetWhatsappNumberErrors, GetWhatsappNumberResponses, GetWorkspaceData, GetWorkspaceErrors, GetWorkspaceResponses, HealthData, HealthErrors, HealthResponses, InviteSignupData, InviteSignupErrors, InviteSignupResponses, LeaveWorkspaceData, LeaveWorkspaceErrors, LeaveWorkspaceResponses, ListAccessLogData, ListAccessLogErrors, ListAccessLogResponses, ListAuthEventsData, ListAuthEventsErrors, ListAuthEventsResponses, ListIdentitiesData, ListIdentitiesErrors, ListIdentitiesResponses, ListInvitationsData, ListInvitationsErrors, ListInvitationsResponses, ListMembersData, ListMembersErrors, ListMembersResponses, ListOauthProvidersData, ListOauthProvidersErrors, ListOauthProvidersResponses, ListPermissionsData, ListPermissionsErrors, ListPermissionsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListTeamsData, ListTeamsErrors, ListTeamsResponses, ListWhatsappNumbersData, ListWhatsappNumbersErrors, ListWhatsappNumbersResponses, ListWorkspacesData, ListWorkspacesErrors, ListWorkspacesResponses, LoginData, LoginErrors, LoginResponses, LogoutAllData, LogoutAllErrors, LogoutAllResponses, LogoutData, LogoutErrors, LogoutResponses, OauthCallbackData, OauthCallbackErrors, OauthCallbackResponses, OauthCompleteData, OauthCompleteErrors, OauthCompleteResponses, OauthCompleteVerifyData, OauthCompleteVerifyErrors, OauthCompleteVerifyResponses, OauthLinkData, OauthLinkErrors, OauthLinkResponses, OauthStartData, OauthStartErrors, OauthStartResponses, OauthTokenData, OauthTokenErrors, OauthTokenResponses, PreviewInvitationData, PreviewInvitationErrors, PreviewInvitationResponses, PreviewMemberRoleData, PreviewMemberRoleErrors, PreviewMemberRoleResponses, PreviewRoleData, PreviewRoleErrors, PreviewRoleResponses, ReadyData, ReadyErrors, ReadyResponses, RefreshTokenData, RefreshTokenErrors, RefreshTokenResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RequestInvitationRenewalData, RequestInvitationRenewalErrors, RequestInvitationRenewalResponses, ResendInvitationData, ResendInvitationErrors, ResendInvitationResponses, ResendVerificationData, ResendVerificationErrors, ResendVerificationResponses, ResetPasswordData, ResetPasswordErrors, ResetPasswordResponses, ResetRoleData, ResetRoleErrors, ResetRoleResponses, RestoreMemberData, RestoreMemberErrors, RestoreMemberResponses, RevokeInvitationData, RevokeInvitationErrors, RevokeInvitationResponses, RevokeMemberOverrideData, RevokeMemberOverrideErrors, RevokeMemberOverrideResponses, RevokeSessionData, RevokeSessionErrors, RevokeSessionResponses, SaveBusinessData, SaveBusinessErrors, SaveBusinessResponses, SendTestMessageData, SendTestMessageErrors, SendTestMessageResponses, SetAvailabilityData, SetAvailabilityErrors, SetAvailabilityResponses, SetPasswordData, SetPasswordErrors, SetPasswordResponses, SetTeamMembersData, SetTeamMembersErrors, SetTeamMembersResponses, SignupData, SignupErrors, SignupResponses, SkipWhatsappData, SkipWhatsappErrors, SkipWhatsappResponses, SuspendMemberData, SuspendMemberErrors, SuspendMemberResponses, UnlinkIdentityData, UnlinkIdentityErrors, UnlinkIdentityResponses, UpdateMemberAccessData, UpdateMemberAccessErrors, UpdateMemberAccessResponses, UpdateOnboardingMemberData, UpdateOnboardingMemberErrors, UpdateOnboardingMemberResponses, UpdatePreferencesData, UpdatePreferencesErrors, UpdatePreferencesResponses, UpdateProfileData, UpdateProfileErrors, UpdateProfileResponses, UpdateRoleData, UpdateRoleErrors, UpdateRoleResponses, UpdateTeamData, UpdateTeamErrors, UpdateTeamResponses, VerifyEmailCodeData, VerifyEmailCodeErrors, VerifyEmailCodeResponses, VerifyEmailData, VerifyEmailErrors, VerifyEmailResponses, WhatsappSignupConfigData, WhatsappSignupConfigErrors, WhatsappSignupConfigResponses, WhatsappWebhookData, WhatsappWebhookErrors, WhatsappWebhookResponses, WhatsappWebhookVerifyData, WhatsappWebhookVerifyErrors, WhatsappWebhookVerifyResponses } from './types.gen';
+import type { AcceptInvitationData, AcceptInvitationErrors, AcceptInvitationResponses, AddMemberOverrideData, AddMemberOverrideErrors, AddMemberOverrideResponses, CancelPendingSubscriptionChangeData, CancelPendingSubscriptionChangeErrors, CancelPendingSubscriptionChangeResponses, CancelSubscriptionData, CancelSubscriptionErrors, CancelSubscriptionResponses, ChangeMemberRoleData, ChangeMemberRoleErrors, ChangeMemberRoleResponses, ChangePasswordData, ChangePasswordErrors, ChangePasswordResponses, ChangeSubscriptionData, ChangeSubscriptionErrors, ChangeSubscriptionResponses, CompleteOnboardingData, CompleteOnboardingErrors, CompleteOnboardingResponses, ConnectWhatsappData, ConnectWhatsappErrors, ConnectWhatsappResponses, CreateCheckoutSessionData, CreateCheckoutSessionErrors, CreateCheckoutSessionResponses, CreateInvitationsData, CreateInvitationsErrors, CreateInvitationsResponses, CreateRoleData, CreateRoleErrors, CreateRoleResponses, CreateTeamData, CreateTeamErrors, CreateTeamResponses, CreateWorkspaceData, CreateWorkspaceErrors, CreateWorkspaceResponses, DeleteRoleData, DeleteRoleErrors, DeleteRoleResponses, DeleteTeamData, DeleteTeamErrors, DeleteTeamResponses, FacebookDataDeletionData, FacebookDataDeletionErrors, FacebookDataDeletionResponses, ForgotPasswordData, ForgotPasswordErrors, ForgotPasswordResponses, GetAccessLogSummaryData, GetAccessLogSummaryErrors, GetAccessLogSummaryResponses, GetBillingOverviewData, GetBillingOverviewErrors, GetBillingOverviewResponses, GetBillingProfileData, GetBillingProfileErrors, GetBillingProfileResponses, GetCheckoutSessionData, GetCheckoutSessionErrors, GetCheckoutSessionResponses, GetCurrentOrderData, GetCurrentOrderErrors, GetCurrentOrderResponses, GetInvoiceData, GetInvoiceErrors, GetInvoiceResponses, GetMeData, GetMeErrors, GetMemberData, GetMemberErrors, GetMemberResponses, GetMeResponses, GetMyAccessData, GetMyAccessErrors, GetMyAccessResponses, GetOnboardingData, GetOnboardingErrors, GetOnboardingResponses, GetOrderData, GetOrderErrors, GetOrderResponses, GetSeatsData, GetSeatsErrors, GetSeatsResponses, GetSubscriptionData, GetSubscriptionErrors, GetSubscriptionResponses, GetTestMessageData, GetTestMessageErrors, GetTestMessageResponses, GetWhatsappNumberData, GetWhatsappNumberErrors, GetWhatsappNumberResponses, GetWorkspaceData, GetWorkspaceErrors, GetWorkspaceResponses, HealthData, HealthErrors, HealthResponses, InviteSignupData, InviteSignupErrors, InviteSignupResponses, LeaveWorkspaceData, LeaveWorkspaceErrors, LeaveWorkspaceResponses, ListAccessLogData, ListAccessLogErrors, ListAccessLogResponses, ListAuthEventsData, ListAuthEventsErrors, ListAuthEventsResponses, ListBillingPlansData, ListBillingPlansErrors, ListBillingPlansResponses, ListIdentitiesData, ListIdentitiesErrors, ListIdentitiesResponses, ListInvitationsData, ListInvitationsErrors, ListInvitationsResponses, ListInvoicesData, ListInvoicesErrors, ListInvoicesResponses, ListMembersData, ListMembersErrors, ListMembersResponses, ListOauthProvidersData, ListOauthProvidersErrors, ListOauthProvidersResponses, ListPermissionsData, ListPermissionsErrors, ListPermissionsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListTeamsData, ListTeamsErrors, ListTeamsResponses, ListWhatsappNumbersData, ListWhatsappNumbersErrors, ListWhatsappNumbersResponses, ListWorkspacesData, ListWorkspacesErrors, ListWorkspacesResponses, LoginData, LoginErrors, LoginResponses, LogoutAllData, LogoutAllErrors, LogoutAllResponses, LogoutData, LogoutErrors, LogoutResponses, OauthCallbackData, OauthCallbackErrors, OauthCallbackResponses, OauthCompleteData, OauthCompleteErrors, OauthCompleteResponses, OauthCompleteVerifyData, OauthCompleteVerifyErrors, OauthCompleteVerifyResponses, OauthLinkData, OauthLinkErrors, OauthLinkResponses, OauthStartData, OauthStartErrors, OauthStartResponses, OauthTokenData, OauthTokenErrors, OauthTokenResponses, PayInstallmentData, PayInstallmentErrors, PayInstallmentResponses, PaymentWebhookData, PaymentWebhookErrors, PaymentWebhookResponses, PreviewDiscountData, PreviewDiscountErrors, PreviewDiscountResponses, PreviewInvitationData, PreviewInvitationErrors, PreviewInvitationResponses, PreviewMemberRoleData, PreviewMemberRoleErrors, PreviewMemberRoleResponses, PreviewRoleData, PreviewRoleErrors, PreviewRoleResponses, PreviewSubscriptionChangeData, PreviewSubscriptionChangeErrors, PreviewSubscriptionChangeResponses, QuoteOrderData, QuoteOrderErrors, QuoteOrderResponses, ReadyData, ReadyErrors, ReadyResponses, RefreshTokenData, RefreshTokenErrors, RefreshTokenResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RequestInvitationRenewalData, RequestInvitationRenewalErrors, RequestInvitationRenewalResponses, ResendInvitationData, ResendInvitationErrors, ResendInvitationResponses, ResendVerificationData, ResendVerificationErrors, ResendVerificationResponses, ResetPasswordData, ResetPasswordErrors, ResetPasswordResponses, ResetRoleData, ResetRoleErrors, ResetRoleResponses, RestoreMemberData, RestoreMemberErrors, RestoreMemberResponses, ResumeOrderData, ResumeOrderErrors, ResumeOrderResponses, ResumeSubscriptionData, ResumeSubscriptionErrors, ResumeSubscriptionResponses, RevokeInvitationData, RevokeInvitationErrors, RevokeInvitationResponses, RevokeMemberOverrideData, RevokeMemberOverrideErrors, RevokeMemberOverrideResponses, RevokeSessionData, RevokeSessionErrors, RevokeSessionResponses, SaveBusinessData, SaveBusinessErrors, SaveBusinessResponses, SendTestMessageData, SendTestMessageErrors, SendTestMessageResponses, SetAvailabilityData, SetAvailabilityErrors, SetAvailabilityResponses, SetPasswordData, SetPasswordErrors, SetPasswordResponses, SetTeamMembersData, SetTeamMembersErrors, SetTeamMembersResponses, SignupData, SignupErrors, SignupResponses, SkipWhatsappData, SkipWhatsappErrors, SkipWhatsappResponses, SuspendMemberData, SuspendMemberErrors, SuspendMemberResponses, UnlinkIdentityData, UnlinkIdentityErrors, UnlinkIdentityResponses, UpdateBillingProfileData, UpdateBillingProfileErrors, UpdateBillingProfileResponses, UpdateMemberAccessData, UpdateMemberAccessErrors, UpdateMemberAccessResponses, UpdateOnboardingMemberData, UpdateOnboardingMemberErrors, UpdateOnboardingMemberResponses, UpdatePreferencesData, UpdatePreferencesErrors, UpdatePreferencesResponses, UpdateProfileData, UpdateProfileErrors, UpdateProfileResponses, UpdateRoleData, UpdateRoleErrors, UpdateRoleResponses, UpdateTeamData, UpdateTeamErrors, UpdateTeamResponses, VerifyEmailCodeData, VerifyEmailCodeErrors, VerifyEmailCodeResponses, VerifyEmailData, VerifyEmailErrors, VerifyEmailResponses, WhatsappSignupConfigData, WhatsappSignupConfigErrors, WhatsappSignupConfigResponses, WhatsappWebhookData, WhatsappWebhookErrors, WhatsappWebhookResponses, WhatsappWebhookVerifyData, WhatsappWebhookVerifyErrors, WhatsappWebhookVerifyResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -343,6 +343,11 @@ export const resendVerification = <ThrowOnError extends boolean = false>(options
 });
 
 /**
+ * The pricing catalog: plans, prices, installment offers and payment providers
+ */
+export const listBillingPlans = <ThrowOnError extends boolean = false>(options?: Options<ListBillingPlansData, ThrowOnError>): RequestResult<ListBillingPlansResponses, ListBillingPlansErrors, ThrowOnError> => (options?.client ?? client).get<ListBillingPlansResponses, ListBillingPlansErrors, ThrowOnError>({ url: '/v1/billing/plans', ...options });
+
+/**
  * Join the workspace as the signed-in user
  */
 export const acceptInvitation = <ThrowOnError extends boolean = false>(options: Options<AcceptInvitationData, ThrowOnError>): RequestResult<AcceptInvitationResponses, AcceptInvitationErrors, ThrowOnError> => (options.client ?? client).post<AcceptInvitationResponses, AcceptInvitationErrors, ThrowOnError>({
@@ -444,6 +449,19 @@ export const listPermissions = <ThrowOnError extends boolean = false>(options?: 
 });
 
 /**
+ * A payment provider's webhook (signed by the provider)
+ */
+export const paymentWebhook = <ThrowOnError extends boolean = false>(options: Options<PaymentWebhookData, ThrowOnError>): RequestResult<PaymentWebhookResponses, PaymentWebhookErrors, ThrowOnError> => (options.client ?? client).post<PaymentWebhookResponses, PaymentWebhookErrors, ThrowOnError>({
+    bodySerializer: null,
+    url: '/v1/webhooks/payments/{provider}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/octet-stream',
+        ...options.headers
+    }
+});
+
+/**
  * Meta's webhook subscription handshake
  */
 export const whatsappWebhookVerify = <ThrowOnError extends boolean = false>(options?: Options<WhatsappWebhookVerifyData, ThrowOnError>): RequestResult<WhatsappWebhookVerifyResponses, WhatsappWebhookVerifyErrors, ThrowOnError> => (options?.client ?? client).get<WhatsappWebhookVerifyResponses, WhatsappWebhookVerifyErrors, ThrowOnError>({ url: '/v1/webhooks/whatsapp', ...options });
@@ -510,6 +528,281 @@ export const getAccessLogSummary = <ThrowOnError extends boolean = false>(option
             type: 'apiKey'
         }],
     url: '/v1/workspace/access-log/summary',
+    ...options
+});
+
+/**
+ * The current plan, subscription and lifetime deal
+ */
+export const getBillingOverview = <ThrowOnError extends boolean = false>(options: Options<GetBillingOverviewData, ThrowOnError>): RequestResult<GetBillingOverviewResponses, GetBillingOverviewErrors, ThrowOnError> => (options.client ?? client).get<GetBillingOverviewResponses, GetBillingOverviewErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/billing',
+    ...options
+});
+
+/**
+ * Start a checkout for a price (subscription or lifetime deal)
+ */
+export const createCheckoutSession = <ThrowOnError extends boolean = false>(options: Options<CreateCheckoutSessionData, ThrowOnError>): RequestResult<CreateCheckoutSessionResponses, CreateCheckoutSessionErrors, ThrowOnError> => (options.client ?? client).post<CreateCheckoutSessionResponses, CreateCheckoutSessionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/billing/checkout-sessions',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * A checkout session's status
+ */
+export const getCheckoutSession = <ThrowOnError extends boolean = false>(options: Options<GetCheckoutSessionData, ThrowOnError>): RequestResult<GetCheckoutSessionResponses, GetCheckoutSessionErrors, ThrowOnError> => (options.client ?? client).get<GetCheckoutSessionResponses, GetCheckoutSessionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/billing/checkout-sessions/{sessionId}',
+    ...options
+});
+
+/**
+ * What a discount code takes off a price
+ */
+export const previewDiscount = <ThrowOnError extends boolean = false>(options: Options<PreviewDiscountData, ThrowOnError>): RequestResult<PreviewDiscountResponses, PreviewDiscountErrors, ThrowOnError> => (options.client ?? client).post<PreviewDiscountResponses, PreviewDiscountErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/billing/discounts/preview',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Invoices, newest first
+ */
+export const listInvoices = <ThrowOnError extends boolean = false>(options: Options<ListInvoicesData, ThrowOnError>): RequestResult<ListInvoicesResponses, ListInvoicesErrors, ThrowOnError> => (options.client ?? client).get<ListInvoicesResponses, ListInvoicesErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/billing/invoices',
+    ...options
+});
+
+/**
+ * One invoice with its billing details
+ */
+export const getInvoice = <ThrowOnError extends boolean = false>(options: Options<GetInvoiceData, ThrowOnError>): RequestResult<GetInvoiceResponses, GetInvoiceErrors, ThrowOnError> => (options.client ?? client).get<GetInvoiceResponses, GetInvoiceErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/billing/invoices/{invoiceId}',
+    ...options
+});
+
+/**
+ * The live lifetime deal with its installments
+ */
+export const getCurrentOrder = <ThrowOnError extends boolean = false>(options: Options<GetCurrentOrderData, ThrowOnError>): RequestResult<GetCurrentOrderResponses, GetCurrentOrderErrors, ThrowOnError> => (options.client ?? client).get<GetCurrentOrderResponses, GetCurrentOrderErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/billing/orders/current',
+    ...options
+});
+
+/**
+ * What a lifetime deal costs now, after discount and credit, and its schedule
+ */
+export const quoteOrder = <ThrowOnError extends boolean = false>(options: Options<QuoteOrderData, ThrowOnError>): RequestResult<QuoteOrderResponses, QuoteOrderErrors, ThrowOnError> => (options.client ?? client).post<QuoteOrderResponses, QuoteOrderErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/billing/orders/quote',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * One order with its installments
+ */
+export const getOrder = <ThrowOnError extends boolean = false>(options: Options<GetOrderData, ThrowOnError>): RequestResult<GetOrderResponses, GetOrderErrors, ThrowOnError> => (options.client ?? client).get<GetOrderResponses, GetOrderErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/billing/orders/{orderId}',
+    ...options
+});
+
+/**
+ * Start a checkout for a due installment
+ */
+export const payInstallment = <ThrowOnError extends boolean = false>(options: Options<PayInstallmentData, ThrowOnError>): RequestResult<PayInstallmentResponses, PayInstallmentErrors, ThrowOnError> => (options.client ?? client).post<PayInstallmentResponses, PayInstallmentErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/billing/orders/{orderId}/installments/{installmentId}/pay',
+    ...options
+});
+
+/**
+ * Start a checkout for a defaulted order's remaining balance
+ */
+export const resumeOrder = <ThrowOnError extends boolean = false>(options: Options<ResumeOrderData, ThrowOnError>): RequestResult<ResumeOrderResponses, ResumeOrderErrors, ThrowOnError> => (options.client ?? client).post<ResumeOrderResponses, ResumeOrderErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/billing/orders/{orderId}/resume',
+    ...options
+});
+
+/**
+ * Billing details
+ */
+export const getBillingProfile = <ThrowOnError extends boolean = false>(options: Options<GetBillingProfileData, ThrowOnError>): RequestResult<GetBillingProfileResponses, GetBillingProfileErrors, ThrowOnError> => (options.client ?? client).get<GetBillingProfileResponses, GetBillingProfileErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/billing/profile',
+    ...options
+});
+
+/**
+ * Replace billing details; past invoices keep theirs
+ */
+export const updateBillingProfile = <ThrowOnError extends boolean = false>(options: Options<UpdateBillingProfileData, ThrowOnError>): RequestResult<UpdateBillingProfileResponses, UpdateBillingProfileErrors, ThrowOnError> => (options.client ?? client).put<UpdateBillingProfileResponses, UpdateBillingProfileErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/billing/profile',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * The live subscription, or the latest one
+ */
+export const getSubscription = <ThrowOnError extends boolean = false>(options: Options<GetSubscriptionData, ThrowOnError>): RequestResult<GetSubscriptionResponses, GetSubscriptionErrors, ThrowOnError> => (options.client ?? client).get<GetSubscriptionResponses, GetSubscriptionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/billing/subscription',
+    ...options
+});
+
+/**
+ * Cancel now or at the period end
+ */
+export const cancelSubscription = <ThrowOnError extends boolean = false>(options: Options<CancelSubscriptionData, ThrowOnError>): RequestResult<CancelSubscriptionResponses, CancelSubscriptionErrors, ThrowOnError> => (options.client ?? client).post<CancelSubscriptionResponses, CancelSubscriptionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/billing/subscription/cancel',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Upgrade now (prorated) or downgrade at the period end
+ */
+export const changeSubscription = <ThrowOnError extends boolean = false>(options: Options<ChangeSubscriptionData, ThrowOnError>): RequestResult<ChangeSubscriptionResponses, ChangeSubscriptionErrors, ThrowOnError> => (options.client ?? client).post<ChangeSubscriptionResponses, ChangeSubscriptionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/billing/subscription/change',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * What changing to another price would do now
+ */
+export const previewSubscriptionChange = <ThrowOnError extends boolean = false>(options: Options<PreviewSubscriptionChangeData, ThrowOnError>): RequestResult<PreviewSubscriptionChangeResponses, PreviewSubscriptionChangeErrors, ThrowOnError> => (options.client ?? client).post<PreviewSubscriptionChangeResponses, PreviewSubscriptionChangeErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/billing/subscription/change-preview',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Drop a scheduled downgrade
+ */
+export const cancelPendingSubscriptionChange = <ThrowOnError extends boolean = false>(options: Options<CancelPendingSubscriptionChangeData, ThrowOnError>): RequestResult<CancelPendingSubscriptionChangeResponses, CancelPendingSubscriptionChangeErrors, ThrowOnError> => (options.client ?? client).delete<CancelPendingSubscriptionChangeResponses, CancelPendingSubscriptionChangeErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/billing/subscription/pending-change',
+    ...options
+});
+
+/**
+ * Keep a subscription that was set to cancel
+ */
+export const resumeSubscription = <ThrowOnError extends boolean = false>(options: Options<ResumeSubscriptionData, ThrowOnError>): RequestResult<ResumeSubscriptionResponses, ResumeSubscriptionErrors, ThrowOnError> => (options.client ?? client).post<ResumeSubscriptionResponses, ResumeSubscriptionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/billing/subscription/resume',
     ...options
 });
 

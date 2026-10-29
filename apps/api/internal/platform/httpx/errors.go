@@ -94,6 +94,10 @@ func statusFor(k apperr.Kind) int {
 		return http.StatusTooManyRequests
 	case apperr.KindUnavailable:
 		return http.StatusServiceUnavailable
+	case apperr.KindBadRequest:
+		return http.StatusBadRequest
+	case apperr.KindNotImplemented:
+		return http.StatusNotImplemented
 	default:
 		return http.StatusInternalServerError
 	}
@@ -121,6 +125,8 @@ func codeFor(status int) string {
 		return "rate_limited"
 	case http.StatusServiceUnavailable:
 		return "unavailable"
+	case http.StatusNotImplemented:
+		return "not_implemented"
 	default:
 		if status >= http.StatusInternalServerError {
 			return "internal_error"
