@@ -25,7 +25,6 @@ Each feature has one folder per layer, and each folder is its own Go package:
 | `dto/`        | request/response shapes and converters                        | `model`                          |
 | `model/`      | domain types, constants, errors, River job args               | no other layer                   |
 | `jobs/`       | River workers                                                 | `service`, `repository`, `model` |
-
 - Inside a layer, files are named by area once a feature has two or more areas (`roles_service.go`, `roles_queries.sql`). Shared code keeps the plain name (`service.go`, `dto.go`).
 - A name is exported only when another layer uses it. Exported names get doc comments, except in `dto/`, where the type names and huma `doc` tags describe them (revive's `exported` rule is turned off for `dto/`).
 - `internal/app` imports layer packages with the feature as prefix: `authservice`, `teamhandler`, `whatsappjobs`.
