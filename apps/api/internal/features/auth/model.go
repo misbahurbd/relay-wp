@@ -4,8 +4,6 @@ package auth
 
 import (
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // Clients: web gets tokens as httpOnly cookies, mobile in the response body.
@@ -101,70 +99,4 @@ type Tokens struct {
 	AccessExpiresAt  time.Time
 	RefreshToken     string
 	RefreshExpiresAt time.Time
-}
-
-// SignupInput is a new password account.
-type SignupInput struct {
-	Email       string
-	Password    string
-	FirstName   string
-	LastName    *string
-	Timezone    string
-	AcceptTerms bool
-}
-
-// Session is one signed-in device, as shown to its owner.
-type Session struct {
-	ID         uuid.UUID
-	Provider   string
-	Client     string
-	DeviceName string
-	DeviceType string
-	LastIP     string
-	LastUsedAt time.Time
-	CreatedAt  time.Time
-	Current    bool
-}
-
-// Event is one entry of a user's security activity.
-type Event struct {
-	ID        uuid.UUID
-	Event     string
-	Provider  string
-	IP        string
-	Device    string
-	CreatedAt time.Time
-}
-
-// OAuthStart begins a social sign-in or a link from settings.
-type OAuthStart struct {
-	Provider   string
-	Intent     string // login or link
-	LinkUserID uuid.UUID
-	SessionID  uuid.UUID // link only: the session must have signed in recently
-	Client     string
-	RedirectTo string
-	Timezone   string
-	// AppCodeChallenge is the mobile app's PKCE S256 challenge (required for mobile).
-	AppCodeChallenge string
-}
-
-// OAuthResult is where a callback sends the browser next. Exactly one outcome is set.
-type OAuthResult struct {
-	RedirectTo string
-	Tokens     *Tokens // web sign-in: set cookies
-	AppCode    string  // mobile sign-in: one-time code for POST /auth/oauth/token
-	// CompleteToken means the email needs proving: ask for one (POST /auth/oauth/complete).
-	CompleteToken string
-	PendingEmail  string // the provider's email, to prefill that form
-	Linked        string // provider connected from settings
-	ErrorCode     string // sign-in failed; shown by the page at RedirectTo
-}
-
-// Identity is one connected social account, as shown to its owner.
-type Identity struct {
-	Provider   string
-	Email      string
-	LastUsedAt time.Time
-	CreatedAt  time.Time
 }
