@@ -69,6 +69,7 @@ features/<feature>/
 - `platform/` and `shared/` never import `features/`.
 - Only `internal/app` (and `cmd/`) may know about every feature.
 - Every tenant-owned table has `workspace_id`, and every repository method on tenant data takes `workspaceID` as a parameter.
+- **The workspace is never in a URL** ([ADR 0005](docs/adr/0005-workspace-header.md)). Workspace-scoped routes go under `/v1/workspace/...`, run `RequireWorkspace`, and read the workspace from the `X-Workspace-ID` header; the DTO field is tagged `header:"X-Workspace-ID" required:"true"`. Never add a `{workspaceId}` path parameter. Email links that must open one workspace use `?workspace=<id>`.
 - Return `shared/apperr` errors from services; never write HTTP status codes outside `handler/` / `platform/httpx`.
 - **No `SELECT *`, ever.** Every query lists exactly the columns it needs, including `RETURNING` clauses and subqueries. This keeps secrets out of results, keeps sqlc's generated structs small, and stops a new column from silently changing existing queries.
 - **Secrets never leave their query.** `users.password_hash` is selected only by the login and change-password queries. It is never part of a user model, DTO or API response, and never logged. The same applies to every stored token hash (`refresh_tokens.token_hash`, `email_tokens.token_hash`, `oauth_flows.state_hash`, `oauth_flows.completion_token_hash`, `invitations.token_hash`) and to OAuth flow secrets (`oauth_flows.code_verifier`, `nonce`), which only `ConsumeOAuthFlow` reads; `invitations.token_hash` is compared only in `GetInvitationByTokenHash`'s `WHERE` and never selected. Likewise `email_codes.code_hash` (read only by `GetActiveEmailCode`), `oauth_flows.email_code_hash` (read only by `GetOAuthFlowEmailCode`), and the encrypted Meta secrets `whatsapp_accounts.access_token` (only `GetAccountToken`) and `whatsapp_numbers.registration_pin` (only `GetNumberPin`).
@@ -81,6 +82,7 @@ features/<feature>/
 - A component moves to `components/` only when 2+ features use it.
 - Never hand-write API types or fetch calls; use `@relay/api-client`.
 - Each feature owns its query keys; mutations invalidate through them.
+- **No workspace ID in page URLs or link params.** Pages under `routes/_app/_workspace/` read `context.workspaceId`; switch workspaces with `selectWorkspace(id)`. Workspace API calls pass `headers: inWorkspace(workspaceId)` (`#/lib/api`) per call, never as a client-wide default.
 
 ### Frontend feature layout ([ADR 0004](docs/adr/0004-web-feature-file-layout.md))
 
@@ -171,6 +173,7 @@ Then check your change against sections 1 and 2:
 - [ ] No new factory outside the approved list.
 - [ ] No generated file was edited by hand.
 - [ ] Tenant data is scoped by `workspace_id`.
+- [ ] No workspace ID in an API path or a web page URL (`grep -rn 'workspaceId}' apps/api/internal --include='*.go'` and `grep -rn '/w/' apps/web/src --include='*.tsx'` find none).
 - [ ] No `SELECT *` or `RETURNING *` in any query (`grep -rn '\*' --include='*.sql' apps/api/internal` finds none).
 - [ ] No password or token hash appears in a model, DTO, response or log line.
 
