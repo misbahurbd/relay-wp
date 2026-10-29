@@ -1,36 +1,41 @@
-# 0003. Large features split into area files, not subfolders
+# 0003. Features split into layer packages
 
 - **Status:** accepted
 - **Date:** 2026-10-29
 
 ## Context
 
-Every feature had one file per kind: `service.go`, `handler.go`, `dto.go`, `model.go`, `queries.sql`. That worked for small features, but `auth` and `team` outgrew it. `auth/service.go` was 917 lines covering signup, login, sessions and passwords; `team/dto.go` was 627 lines and `team/queries.sql` held 62 queries. Finding the code for one flow (say, signup validation) meant scrolling through unrelated flows, and editor tabs and file search showed many identical names (`service.go`, `dto.go`).
+Every feature was one Go package with one file per kind: `service.go`, `handler.go`, `dto.go`, `model.go`, `queries.sql`. That worked for small features, but `auth` and `team` outgrew it. `auth/service.go` was 917 lines covering signup, login, sessions and passwords; `team/dto.go` was 627 lines and `team/queries.sql` held 62 queries. Finding one flow's code meant scrolling through unrelated flows, and a flat folder of 40 files was hard to scan.
 
 We considered:
 
-- **Subfolders per area** (`auth/oauth/`, `team/roles/`). In Go each folder is its own package, so an area could not use the feature's unexported repository, errors and helpers without exporting them, and areas that call each other would hit import cycles.
-- **Feature-prefixed names** (`auth.dto.go`). The folder already names the feature, and a big feature would still have one huge `auth.service.go`.
-- **Area-prefixed names in one package** (`signup_service.go`, `signup_dto.go`).
+- **Area files in one package** (`signup_service.go`, `roles_dto.go`). Idiomatic Go and no code changes, but every file of every layer still sits in one folder.
+- **A package per area** (`team/roles/`, `team/invitations/`). Areas lean on each other heavily: signup, login, social sign-in and invites all start a session; accepting an invite adds a member, sets teams and creates overrides. That means many cross-package interfaces and a high risk of import cycles.
+- **A package per layer** (`team/handler/`, `team/service/`, …). The layers already only call one way, so they split into packages without cycles.
 
 ## Decision
 
-A feature stays one Go package with no subfolders. When it has two or more distinct areas, or a file passes ~400 lines, its files are named `<area>_<kind>.go` (`_service`, `_handler`, `_dto`, `_model`, `_test`) and its queries `<area>_queries.sql`. A more specific word is fine when an area needs two files of a kind (`invitations_accept.go`, `oauth_google.go`, `log_writer.go`).
+Each feature has one folder per layer, and each folder is its own Go package:
 
-Code shared by the whole feature keeps the plain names: `service.go` (the `Service` struct, `New`, interfaces, small helpers), `handler.go`, `dto.go`, `model.go`, `routes.go`, `errors.go`, `repository.go`, `jobs.go`, `email.go`.
+| Folder        | Holds                                                         | May import                       |
+| ------------- | ------------------------------------------------------------- | -------------------------------- |
+| `handler/`    | `routes.go`, HTTP handlers                                    | `service`, `dto`, `model`        |
+| `service/`    | business rules, emails, external clients (OAuth, Graph)       | `repository`, `model`            |
+| `repository/` | `repository.go` helpers and the feature's `*.sql` query files | `model`                          |
+| `dto/`        | request/response shapes and converters                        | `model`                          |
+| `model/`      | domain types, constants, errors, River job args               | no other layer                   |
+| `jobs/`       | River workers                                                 | `service`, `repository`, `model` |
 
-`sqlc.yaml` lists each feature folder, so sqlc reads every `.sql` file in it and new query files need no config change.
-
-Applied now:
-
-- `auth`: `signup`, `login`, `session`, `password`, `oauth`, `invite`, plus `account_queries.sql` and `cleanup_queries.sql` for queries several areas share.
-- `team`: `access`, `roles`, `members`, `overrides`, `teams`, `invitations`, `log`.
-
-The other features stay as they are.
+- Inside a layer, files are named by area once a feature has two or more areas (`roles_service.go`, `roles_queries.sql`). Shared code keeps the plain name (`service.go`, `dto.go`).
+- A name is exported only when another layer uses it. Exported names get doc comments, except in `dto/`, where the type names and huma `doc` tags describe them (revive's `exported` rule is turned off for `dto/`).
+- `internal/app` imports layer packages with the feature as prefix: `authservice`, `teamhandler`, `whatsappjobs`.
+- sqlc reads every `.sql` file in each feature's `repository/` folder.
+- No other folders inside a feature, and no folders inside a layer.
 
 ## Consequences
 
-- One area's files sort together, and searching for the area name finds its handler, service, DTOs, models and queries.
-- No exported names changed, so `internal/app` and other packages are untouched. The move kept every line as is.
-- sqlc writes one generated file per query file (`db/gen/roles_queries.sql.go`, …); the generated `Querier` interface and models are the same.
-- Choosing an area is a judgement call. Add new code to the area that owns the flow; put something in the shared files only when several areas use it.
+- Each layer is a short folder, and the import rules are checked by the compiler: a handler can't reach the repository without an import that review will spot.
+- Names that cross layers are exported (about 270 renames when this was applied), so packages expose more than a single-package feature did. Treat exported names in `model/`, `repository/` and `dto/` as internal to the feature; other features still never import them.
+- Every feature has packages called `service`, `handler` and so on, so imports outside a feature need aliases.
+- Applying it fixed one bug: team's request-header struct was unexported, so huma skipped it and the access log never recorded the User-Agent.
+- Not idiomatic Go for small packages. We accept that for one predictable layout across every feature.
