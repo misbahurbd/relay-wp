@@ -69,6 +69,16 @@ func dbEnv(t *testing.T) *env {
 	return newEnv(t, dbtest.New(t))
 }
 
+// workspace inserts a workspace row, so service writes that reference it hold.
+func (e *env) workspace() uuid.UUID {
+	e.t.Helper()
+	ws := uuid.New()
+	if _, err := e.pool.Exec(context.Background(), `INSERT INTO workspaces (id, name) VALUES ($1, 'Handler test')`, ws); err != nil {
+		e.t.Fatal(err)
+	}
+	return ws
+}
+
 func (e *env) auth(ctx huma.Context, next func(huma.Context)) {
 	id, err := uuid.Parse(ctx.Header(userHeader))
 	if err != nil {
@@ -163,12 +173,18 @@ func expectDenied(t *testing.T, r resp, perm authctx.Permission) {
 	}
 }
 
-// expectStub checks that the request got past routing, guards and decoding to
-// a service method that a Phase 6 track hasn't built on this branch. Once the
-// tracks merge, these become the Wave 3 flow tests.
-func expectStub(t *testing.T, r resp) {
+// expectReached checks that the request got past routing, guards and decoding
+// to the service: whatever the service answers (here, usually that the price
+// or subscription doesn't exist), it isn't a guard's or the decoder's refusal,
+// a stub, or a crash. Success paths are covered by the flow tests.
+func expectReached(t *testing.T, r resp) {
 	t.Helper()
-	expect(t, r, http.StatusNotImplemented, "not_implemented")
+	switch code, _ := r.body["code"].(string); {
+	case r.code >= http.StatusInternalServerError,
+		code == "permission_denied", code == "workspace_not_found", code == "unauthorized",
+		code == "validation_failed", code == "not_implemented":
+		t.Fatalf("status %d, want an answer from the service; body: %s", r.code, r.raw)
+	}
 }
 
 // expectKeys checks that m has exactly want as its keys.
@@ -193,10 +209,9 @@ func mapKeys(m map[string]any) []string {
 }
 
 func TestListPlansIsPublic(t *testing.T) {
-	e := newEnv(t, nil)
-	// No user and no workspace: the catalog backs the public pricing page, so
-	// the request reaches svc.Catalog.
-	expectStub(t, e.do(http.MethodGet, "/v1/billing/plans", nil))
+	e := dbEnv(t)
+	// No user and no workspace: the catalog backs the public pricing page.
+	expect(t, e.do(http.MethodGet, "/v1/billing/plans", nil), http.StatusOK)
 }
 
 func TestWorkspaceRoutesNeedAMember(t *testing.T) {
@@ -225,8 +240,8 @@ func (r route) String() string { return r.method + " " + r.path }
 // service, and that a member with view and pay reaches it.
 func expectGuarded(t *testing.T, routes []route, perm authctx.Permission) {
 	t.Helper()
-	e := newEnv(t, nil)
-	ws := uuid.New()
+	e := dbEnv(t)
+	ws := e.workspace()
 	without := e.member(ws)
 	if perm == authctx.PermBillingPay {
 		without = e.viewer(ws)
@@ -235,7 +250,7 @@ func expectGuarded(t *testing.T, routes []route, perm authctx.Permission) {
 	for _, r := range routes {
 		t.Run(r.String(), func(t *testing.T) {
 			expectDenied(t, without.do(r.method, r.path, r.body, r.args...), perm)
-			expectStub(t, payer.do(r.method, r.path, r.body, r.args...))
+			expectReached(t, payer.do(r.method, r.path, r.body, r.args...))
 		})
 	}
 }

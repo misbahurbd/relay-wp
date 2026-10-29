@@ -233,20 +233,3 @@ func TestNewBuildsOnlyConfiguredProviders(t *testing.T) {
 		t.Error("a nil registry has no gateways")
 	}
 }
-
-func TestStubGatewaysAreNotImplemented(t *testing.T) {
-	reg, err := payment.New(config.Payment{
-		Providers:       []string{"stripe", "creem"},
-		StripeSecretKey: "sk_test", StripePublishableKey: "pk_test", StripeWebhookSecret: "whsec",
-		CreemAPIKey: "creem_test", CreemWebhookSecret: "whsec",
-	}, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, p := range reg.Providers() {
-		g, _ := reg.Get(p)
-		if _, err := g.CreateCheckout(context.Background(), subscriptionCheckout()); !errors.Is(err, payment.ErrNotImplemented) {
-			t.Errorf("%s: err = %v", p, err)
-		}
-	}
-}

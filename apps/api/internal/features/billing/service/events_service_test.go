@@ -514,8 +514,8 @@ func TestUnmatchedEventRetriesThenGivesUp(t *testing.T) {
 }
 
 // A failing handler rolls the whole event back: no workspace, no processed_at,
-// so River's retry starts clean. Checkout completion belongs to track T3 and
-// is not built on this branch, so it fails here.
+// so River's retry starts clean. An ltd checkout session with no order fails
+// in CompleteCheckout.
 func TestHandlerErrorRollsBack(t *testing.T) {
 	e := newEventsEnv(t)
 	ws := e.workspace()
@@ -532,8 +532,8 @@ func TestHandlerErrorRollsBack(t *testing.T) {
 		OccurredAt: time.Now().UTC(), Reference: &ref,
 		Payment: &payment.Payment{ExternalID: "pay_" + uuid.NewString(), TotalMinor: 30000, Currency: "USD"},
 	})
-	if err := e.process(args); !errors.Is(err, model.ErrNotImplemented) {
-		t.Fatalf("err = %v, want the T3 stub's ErrNotImplemented", err)
+	if err := e.process(args); err == nil {
+		t.Fatal("completing an ltd checkout with no order should fail")
 	}
 	if got := e.stored(args.Event.ExternalID); got.processed || got.workspaceID != nil {
 		t.Errorf("after a failed handler: %+v, want unprocessed with no workspace", got)
