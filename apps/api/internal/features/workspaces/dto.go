@@ -9,7 +9,8 @@ import (
 type summaryDTO struct {
 	ID           uuid.UUID `json:"id"`
 	Name         string    `json:"name"`
-	Role         string    `json:"role" enum:"owner"`
+	RoleName     string    `json:"role_name" doc:"The member's role, e.g. Owner or Agent"`
+	IsOwner      bool      `json:"is_owner"`
 	LastActiveAt time.Time `json:"last_active_at"`
 	CurrentStep  string    `json:"current_step" enum:"business,whatsapp,test_message,done"`
 	Completed    bool      `json:"completed" doc:"Setup finished or skipped: open the dashboard"`

@@ -22,6 +22,7 @@ import (
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/auth"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/onboarding"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/profiles"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/features/team"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/whatsapp"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/workspaces"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/config"
@@ -65,6 +66,8 @@ type App struct {
 	workspaces *workspaces.Service
 	onboarding *onboarding.Service
 	whatsapp   *whatsapp.Service
+	team       *team.Service
+	access     *team.Resolver
 
 	// oauth overrides the provider config built from cfg; tests point it at a fake provider.
 	oauth *auth.ProvidersConfig
@@ -123,7 +126,9 @@ func (a *App) buildFeatures() (err error) {
 	a.directory = workspaces.NewDirectory(a.db)
 	a.onboarding = onboarding.New(a.db, a.directory, whatsapp.NewChannels(a.db), a.accounts, a.queue,
 		onboarding.Config{AppBaseURL: a.cfg.AppBaseURL})
-	a.workspaces = workspaces.New(a.db, a.accounts, a.onboarding, workspaces.Config{TrialDays: a.cfg.Trial.Days})
+	a.team = team.New(a.db, a.directory, a.accounts, a.queue, team.Config{AppBaseURL: a.cfg.AppBaseURL})
+	a.access = team.NewResolver(a.db)
+	a.workspaces = workspaces.New(a.db, a.accounts, a.onboarding, a.team, workspaces.Config{TrialDays: a.cfg.Trial.Days})
 	if err := a.buildWhatsApp(); err != nil {
 		return err
 	}
@@ -157,7 +162,7 @@ func (a *App) buildFeatures() (err error) {
 	if err != nil {
 		return err
 	}
-	a.auth, err = auth.New(a.db, a.jwt, a.queue, a.profiles, breach, providers, auth.Config{
+	a.auth, err = auth.New(a.db, a.jwt, a.queue, a.profiles, a.team, breach, providers, auth.Config{
 		RefreshTTL:       a.cfg.Auth.RefreshTokenTTL,
 		SessionMaxAge:    a.cfg.Auth.SessionMaxAge,
 		AppBaseURL:       a.cfg.AppBaseURL,

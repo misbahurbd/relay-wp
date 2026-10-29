@@ -4,6 +4,30 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type AcceptOutputBody = {
+    workspace_id: string;
+};
+
+export type AccessDto = {
+    /**
+     * Same value as the X-Access-Version header
+     */
+    access_version: string;
+    chat_scope: 'assigned' | 'team' | 'all';
+    is_owner: boolean;
+    number_ids: Array<string> | null;
+    /**
+     * Every permission key the member has now
+     */
+    permissions: Array<string> | null;
+    role_id: string;
+    team_ids: Array<string> | null;
+};
+
+export type AvailabilityInputBody = {
+    availability: 'online' | 'away' | 'offline';
+};
+
 export type BusinessInputBody = {
     /**
      * ISO 3166-1 alpha-2
@@ -14,6 +38,16 @@ export type BusinessInputBody = {
     name: string;
     team_size: 'just_me' | '2_5' | '6_20' | '20_plus';
     website?: string;
+};
+
+export type ChangeDto = {
+    affected: Array<MemberRefDto> | null;
+    /**
+     * Permission keys, or a chat access label
+     */
+    gains: Array<string> | null;
+    losses: Array<string> | null;
+    sensitive_gain: boolean;
 };
 
 export type ChangePasswordInputBody = {
@@ -96,6 +130,13 @@ export type EventsOutputBody = {
     events: Array<EventDto> | null;
 };
 
+export type ExpiringDto = {
+    expires_at: string;
+    name: string;
+    permission_key: string;
+    user_id: string;
+};
+
 export type IdentitiesOutputBody = {
     has_password: boolean;
     identities: Array<IdentityDto> | null;
@@ -111,8 +152,119 @@ export type IdentityDto = {
     provider: 'google' | 'facebook' | 'apple';
 };
 
+export type InvitationDto = {
+    created_at: string;
+    email: string;
+    expires_at: string;
+    id: string;
+    invited_by_name: string;
+    last_sent_at: string;
+    /**
+     * The invitee asked for a new link
+     */
+    renewal_requested_at: string | null;
+    role_id: string;
+    role_name: string;
+    send_count: number;
+    status: 'pending' | 'accepted' | 'revoked' | 'expired';
+    team_ids: Array<string> | null;
+};
+
+export type InvitationsOutputBody = {
+    invitations: Array<InvitationDto> | null;
+};
+
+export type InviteInputBody = {
+    /**
+     * Omit to use the role's scope
+     */
+    chat_scope?: 'assigned' | 'team' | 'all';
+    emails: Array<string> | null;
+    expires_in?: '24h' | '7d' | '30d';
+    number_ids?: Array<string> | null;
+    /**
+     * Changes for these people only; the role stays the same
+     */
+    overrides?: Array<OverrideBody> | null;
+    personal_message?: string;
+    require_2fa?: boolean;
+    role_id: string;
+    team_ids?: Array<string> | null;
+};
+
+export type InviteSignupInputBody = {
+    accept_terms: boolean;
+    first_name: string;
+    last_name?: string;
+    password: string;
+    timezone?: string;
+    /**
+     * From the invite link's #t= fragment
+     */
+    token: string;
+};
+
+export type InviteSignupOutputBody = {
+    /**
+     * Why joining failed; the person is signed in anyway
+     */
+    join_error: string | null;
+    /**
+     * Null when the account was made but joining failed
+     */
+    workspace_id: string | null;
+};
+
 export type ListOutputBody = {
     workspaces: Array<SummaryDto> | null;
+};
+
+export type LogDto = {
+    action: string;
+    /**
+     * Null for the system
+     */
+    actor_id: string | null;
+    actor_name: string;
+    after: unknown | null;
+    before: unknown | null;
+    created_at: string;
+    id: string;
+    ip: string;
+    note: string;
+    subject_email: string | null;
+    subject_id: string | null;
+    subject_name: string;
+    target: string;
+    user_agent: string;
+};
+
+export type LogOutputBody = {
+    entries: Array<LogDto> | null;
+    next_cursor: string | null;
+};
+
+export type LogSummaryOutputBody = {
+    /**
+     * Members with 3+ failed sign-ins in 30 days
+     */
+    alerts: Array<LoginAlertDto> | null;
+    /**
+     * Access log entries in the last 30 days
+     */
+    events: number;
+    /**
+     * Temporary permissions ending within 7 days
+     */
+    expiring: Array<ExpiringDto> | null;
+    permission_changes: number;
+};
+
+export type LoginAlertDto = {
+    failures: number;
+    last_at: string;
+    name: string;
+    user_id: string;
 };
 
 export type LoginInputBody = {
@@ -130,9 +282,90 @@ export type MeOutputBody = {
     user: UserDto;
 };
 
+export type MemberAccessInputBody = {
+    /**
+     * "assigned", "team" or "all"; "" to use the role's scope; omit to keep
+     */
+    chat_scope?: string;
+    /**
+     * Replaces the member's WhatsApp numbers; omit to keep
+     */
+    number_ids?: Array<string>;
+    /**
+     * Replaces the member's teams; omit to keep
+     */
+    team_ids?: Array<string>;
+};
+
+export type MemberDto = {
+    availability: 'online' | 'away' | 'offline';
+    avatar_url: string | null;
+    email: string;
+    joined_at: string;
+    last_active_at: string;
+    name: string;
+    role_id: string;
+    /**
+     * Null for a custom role
+     */
+    role_key: 'owner' | 'admin' | 'agent' | 'viewer';
+    role_name: string;
+    status: 'active' | 'suspended';
+    team_ids: Array<string> | null;
+    user_id: string;
+    uses_seat: boolean;
+};
+
+export type MemberDetailDto = {
+    access_version: number;
+    availability: 'online' | 'away' | 'offline';
+    avatar_url: string | null;
+    /**
+     * Null means the role's scope
+     */
+    chat_scope: 'assigned' | 'team' | 'all';
+    effective_permissions: Array<string> | null;
+    email: string;
+    joined_at: string;
+    last_active_at: string;
+    name: string;
+    number_ids: Array<string> | null;
+    /**
+     * Empty unless you can change roles
+     */
+    overrides: Array<OverrideDto> | null;
+    role_chat_scope: 'assigned' | 'team' | 'all';
+    role_id: string;
+    /**
+     * Null for a custom role
+     */
+    role_key: 'owner' | 'admin' | 'agent' | 'viewer';
+    role_name: string;
+    status: 'active' | 'suspended';
+    suspend_reason: string | null;
+    suspended_at: string | null;
+    team_ids: Array<string> | null;
+    user_id: string;
+    uses_seat: boolean;
+};
+
+export type MemberRefDto = {
+    name: string;
+    user_id: string;
+};
+
+export type MemberRoleInputBody = {
+    role_id: string;
+};
+
 export type MemberStateInputBody = {
     checklist_hidden?: boolean;
     tour_seen?: boolean;
+};
+
+export type MembersOutputBody = {
+    members: Array<MemberDto> | null;
+    next_cursor: string | null;
 };
 
 export type MessageOutputBody = {
@@ -222,9 +455,71 @@ export type OnboardingDto = {
     whatsapp_skipped: boolean;
 };
 
+export type OverrideBody = {
+    effect: 'grant' | 'deny';
+    /**
+     * Removed automatically at this time
+     */
+    expires_at?: string;
+    permission_key: string;
+    /**
+     * Shown in the access log
+     */
+    reason?: string;
+};
+
+export type OverrideDto = {
+    active: boolean;
+    created_at: string;
+    effect: 'grant' | 'deny';
+    expires_at: string | null;
+    granted_by: string | null;
+    granted_by_name: string;
+    id: string;
+    permission_key: string;
+    reason: string;
+    revoked_at: string | null;
+};
+
+export type PermissionDto = {
+    group: string;
+    key: string;
+    label: string;
+    /**
+     * Show a warning before giving it
+     */
+    sensitive: boolean;
+};
+
+export type PermissionsOutputBody = {
+    permissions: Array<PermissionDto> | null;
+};
+
 export type PreferencesDto = {
     locale: string;
     timezone: string;
+};
+
+export type PreviewDto = {
+    /**
+     * Labels of what they'll be able to do; empty unless valid
+     */
+    can_do: Array<string> | null;
+    /**
+     * The address the invite is for
+     */
+    email: string;
+    expires_at: string;
+    invited_by_name: string;
+    invited_by_role: string;
+    message: string;
+    number_labels: Array<string> | null;
+    permissions: Array<string> | null;
+    role_name: string;
+    state: 'valid' | 'expired' | 'revoked' | 'accepted';
+    team_names: Array<string> | null;
+    workspace_id: string;
+    workspace_name: string;
 };
 
 export type ProfileDto = {
@@ -251,9 +546,73 @@ export type RefreshInputBody = {
     refresh_token: string;
 };
 
+export type RemoveInputBody = {
+    /**
+     * The member's name, typed to confirm
+     */
+    confirm_name: string;
+};
+
 export type ResetPasswordInputBody = {
     new_password: string;
     token: string;
+};
+
+export type RoleBody = {
+    chat_scope?: 'assigned' | 'team' | 'all';
+    color?: 'green' | 'blue' | 'amber' | 'red' | 'gray';
+    /**
+     * Start a new role from another role
+     */
+    copy_from_role_id?: string;
+    description?: string;
+    /**
+     * The version you edited; 409 if it changed
+     */
+    expected_version?: number;
+    name?: string;
+    notify_members?: boolean;
+    /**
+     * Omit to keep the current set (or copy_from's)
+     */
+    permissions?: Array<string> | null;
+};
+
+export type RoleDto = {
+    chat_scope: 'assigned' | 'team' | 'all';
+    color: 'green' | 'blue' | 'amber' | 'red' | 'gray';
+    description: string;
+    id: string;
+    /**
+     * The Owner role can't be edited
+     */
+    locked: boolean;
+    member_count: number;
+    name: string;
+    permissions: Array<string> | null;
+    /**
+     * Null for a custom role
+     */
+    system_key: 'owner' | 'admin' | 'agent' | 'viewer';
+    uses_seat: boolean;
+    version: number;
+};
+
+export type RolesOutputBody = {
+    roles: Array<RoleDto> | null;
+};
+
+export type SeatsDto = {
+    available: number;
+    limit: number;
+    /**
+     * Pending invites whose role uses a seat
+     */
+    reserved: number;
+    /**
+     * Members whose role uses a seat
+     */
+    used: number;
 };
 
 export type SendTestInputBody = {
@@ -344,9 +703,43 @@ export type SummaryDto = {
     completed: boolean;
     current_step: 'business' | 'whatsapp' | 'test_message' | 'done';
     id: string;
+    is_owner: boolean;
     last_active_at: string;
     name: string;
-    role: 'owner';
+    /**
+     * The member's role, e.g. Owner or Agent
+     */
+    role_name: string;
+};
+
+export type SuspendInputBody = {
+    reason?: string;
+};
+
+export type TeamBody = {
+    color?: 'green' | 'blue' | 'amber' | 'red' | 'gray';
+    description?: string;
+    name: string;
+    number_id?: string;
+    routing_method?: 'round_robin' | 'least_busy' | 'manual';
+};
+
+export type TeamDto = {
+    color: 'green' | 'blue' | 'amber' | 'red' | 'gray';
+    description: string;
+    id: string;
+    member_ids: Array<string> | null;
+    name: string;
+    number_id: string | null;
+    routing_method: 'round_robin' | 'least_busy' | 'manual';
+};
+
+export type TeamMembersInputBody = {
+    user_ids: Array<string> | null;
+};
+
+export type TeamsOutputBody = {
+    teams: Array<TeamDto> | null;
 };
 
 export type TestMessageOutputBody = {
@@ -369,6 +762,13 @@ export type TokenBody = {
      * Mobile only
      */
     refresh_token?: string;
+};
+
+export type TokenInputBody = {
+    /**
+     * From the invite link's #t= fragment
+     */
+    token: string;
 };
 
 export type UpdatePreferencesInputBody = {
@@ -1182,6 +1582,38 @@ export type SignupResponses = {
 
 export type SignupResponse = SignupResponses[keyof SignupResponses];
 
+export type InviteSignupData = {
+    body: InviteSignupInputBody;
+    headers?: {
+        'User-Agent'?: string;
+        /**
+         * Device name sent by the mobile app, e.g. iPhone 15
+         */
+        'X-Device-Name'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/auth/signup/invite';
+};
+
+export type InviteSignupErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type InviteSignupError = InviteSignupErrors[keyof InviteSignupErrors];
+
+export type InviteSignupResponses = {
+    /**
+     * OK
+     */
+    200: InviteSignupOutputBody;
+};
+
+export type InviteSignupResponse = InviteSignupResponses[keyof InviteSignupResponses];
+
 export type RefreshTokenData = {
     body?: RefreshInputBody;
     headers?: {
@@ -1312,6 +1744,81 @@ export type ResendVerificationResponses = {
 
 export type ResendVerificationResponse = ResendVerificationResponses[keyof ResendVerificationResponses];
 
+export type AcceptInvitationData = {
+    body: TokenInputBody;
+    path?: never;
+    query?: never;
+    url: '/v1/invitations/accept';
+};
+
+export type AcceptInvitationErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AcceptInvitationError = AcceptInvitationErrors[keyof AcceptInvitationErrors];
+
+export type AcceptInvitationResponses = {
+    /**
+     * OK
+     */
+    200: AcceptOutputBody;
+};
+
+export type AcceptInvitationResponse = AcceptInvitationResponses[keyof AcceptInvitationResponses];
+
+export type PreviewInvitationData = {
+    body: TokenInputBody;
+    path?: never;
+    query?: never;
+    url: '/v1/invitations/preview';
+};
+
+export type PreviewInvitationErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type PreviewInvitationError = PreviewInvitationErrors[keyof PreviewInvitationErrors];
+
+export type PreviewInvitationResponses = {
+    /**
+     * OK
+     */
+    200: PreviewDto;
+};
+
+export type PreviewInvitationResponse = PreviewInvitationResponses[keyof PreviewInvitationResponses];
+
+export type RequestInvitationRenewalData = {
+    body: TokenInputBody;
+    path?: never;
+    query?: never;
+    url: '/v1/invitations/request-renewal';
+};
+
+export type RequestInvitationRenewalErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type RequestInvitationRenewalError = RequestInvitationRenewalErrors[keyof RequestInvitationRenewalErrors];
+
+export type RequestInvitationRenewalResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type RequestInvitationRenewalResponse = RequestInvitationRenewalResponses[keyof RequestInvitationRenewalResponses];
+
 export type GetMeData = {
     body?: never;
     path?: never;
@@ -1386,6 +1893,31 @@ export type UpdateProfileResponses = {
 };
 
 export type UpdateProfileResponse = UpdateProfileResponses[keyof UpdateProfileResponses];
+
+export type ListPermissionsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/permissions';
+};
+
+export type ListPermissionsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListPermissionsError = ListPermissionsErrors[keyof ListPermissionsErrors];
+
+export type ListPermissionsResponses = {
+    /**
+     * OK
+     */
+    200: PermissionsOutputBody;
+};
+
+export type ListPermissionsResponse = ListPermissionsResponses[keyof ListPermissionsResponses];
 
 export type WhatsappWebhookVerifyData = {
     body?: never;
@@ -1544,6 +2076,550 @@ export type GetWorkspaceResponses = {
 
 export type GetWorkspaceResponse = GetWorkspaceResponses[keyof GetWorkspaceResponses];
 
+export type ListAccessLogData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+    };
+    query?: {
+        action?: string;
+        member?: string;
+        /**
+         * Oldest entry to include; at most 12 months back
+         */
+        since?: string;
+        cursor?: string;
+        page_size?: number;
+    };
+    url: '/v1/workspaces/{workspaceId}/access-log';
+};
+
+export type ListAccessLogErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListAccessLogError = ListAccessLogErrors[keyof ListAccessLogErrors];
+
+export type ListAccessLogResponses = {
+    /**
+     * OK
+     */
+    200: LogOutputBody;
+};
+
+export type ListAccessLogResponse = ListAccessLogResponses[keyof ListAccessLogResponses];
+
+export type GetAccessLogSummaryData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/access-log/summary';
+};
+
+export type GetAccessLogSummaryErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetAccessLogSummaryError = GetAccessLogSummaryErrors[keyof GetAccessLogSummaryErrors];
+
+export type GetAccessLogSummaryResponses = {
+    /**
+     * OK
+     */
+    200: LogSummaryOutputBody;
+};
+
+export type GetAccessLogSummaryResponse = GetAccessLogSummaryResponses[keyof GetAccessLogSummaryResponses];
+
+export type ListInvitationsData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/invitations';
+};
+
+export type ListInvitationsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListInvitationsError = ListInvitationsErrors[keyof ListInvitationsErrors];
+
+export type ListInvitationsResponses = {
+    /**
+     * OK
+     */
+    200: InvitationsOutputBody;
+};
+
+export type ListInvitationsResponse = ListInvitationsResponses[keyof ListInvitationsResponses];
+
+export type CreateInvitationsData = {
+    body: InviteInputBody;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/invitations';
+};
+
+export type CreateInvitationsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CreateInvitationsError = CreateInvitationsErrors[keyof CreateInvitationsErrors];
+
+export type CreateInvitationsResponses = {
+    /**
+     * Created
+     */
+    201: InvitationsOutputBody;
+};
+
+export type CreateInvitationsResponse = CreateInvitationsResponses[keyof CreateInvitationsResponses];
+
+export type RevokeInvitationData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+        invitationId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/invitations/{invitationId}';
+};
+
+export type RevokeInvitationErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type RevokeInvitationError = RevokeInvitationErrors[keyof RevokeInvitationErrors];
+
+export type RevokeInvitationResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type RevokeInvitationResponse = RevokeInvitationResponses[keyof RevokeInvitationResponses];
+
+export type ResendInvitationData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+        invitationId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/invitations/{invitationId}/resend';
+};
+
+export type ResendInvitationErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ResendInvitationError = ResendInvitationErrors[keyof ResendInvitationErrors];
+
+export type ResendInvitationResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type ResendInvitationResponse = ResendInvitationResponses[keyof ResendInvitationResponses];
+
+export type GetMyAccessData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/me/access';
+};
+
+export type GetMyAccessErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetMyAccessError = GetMyAccessErrors[keyof GetMyAccessErrors];
+
+export type GetMyAccessResponses = {
+    /**
+     * OK
+     */
+    200: AccessDto;
+};
+
+export type GetMyAccessResponse = GetMyAccessResponses[keyof GetMyAccessResponses];
+
+export type SetAvailabilityData = {
+    body: AvailabilityInputBody;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/me/availability';
+};
+
+export type SetAvailabilityErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SetAvailabilityError = SetAvailabilityErrors[keyof SetAvailabilityErrors];
+
+export type SetAvailabilityResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type SetAvailabilityResponse = SetAvailabilityResponses[keyof SetAvailabilityResponses];
+
+export type LeaveWorkspaceData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/me/leave';
+};
+
+export type LeaveWorkspaceErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type LeaveWorkspaceError = LeaveWorkspaceErrors[keyof LeaveWorkspaceErrors];
+
+export type LeaveWorkspaceResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type LeaveWorkspaceResponse = LeaveWorkspaceResponses[keyof LeaveWorkspaceResponses];
+
+export type ListMembersData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+    };
+    query?: {
+        role_id?: string;
+        team_id?: string;
+        status?: 'active' | 'suspended';
+        q?: string;
+        /**
+         * next_cursor from the previous page
+         */
+        cursor?: string;
+        page_size?: number;
+    };
+    url: '/v1/workspaces/{workspaceId}/members';
+};
+
+export type ListMembersErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListMembersError = ListMembersErrors[keyof ListMembersErrors];
+
+export type ListMembersResponses = {
+    /**
+     * OK
+     */
+    200: MembersOutputBody;
+};
+
+export type ListMembersResponse = ListMembersResponses[keyof ListMembersResponses];
+
+export type GetMemberData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/members/{userId}';
+};
+
+export type GetMemberErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetMemberError = GetMemberErrors[keyof GetMemberErrors];
+
+export type GetMemberResponses = {
+    /**
+     * OK
+     */
+    200: MemberDetailDto;
+};
+
+export type GetMemberResponse = GetMemberResponses[keyof GetMemberResponses];
+
+export type UpdateMemberAccessData = {
+    body: MemberAccessInputBody;
+    path: {
+        workspaceId: string;
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/members/{userId}/access';
+};
+
+export type UpdateMemberAccessErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UpdateMemberAccessError = UpdateMemberAccessErrors[keyof UpdateMemberAccessErrors];
+
+export type UpdateMemberAccessResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type UpdateMemberAccessResponse = UpdateMemberAccessResponses[keyof UpdateMemberAccessResponses];
+
+export type AddMemberOverrideData = {
+    body: OverrideBody;
+    path: {
+        workspaceId: string;
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/members/{userId}/overrides';
+};
+
+export type AddMemberOverrideErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AddMemberOverrideError = AddMemberOverrideErrors[keyof AddMemberOverrideErrors];
+
+export type AddMemberOverrideResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type AddMemberOverrideResponse = AddMemberOverrideResponses[keyof AddMemberOverrideResponses];
+
+export type RevokeMemberOverrideData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+        userId: string;
+        overrideId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/members/{userId}/overrides/{overrideId}';
+};
+
+export type RevokeMemberOverrideErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type RevokeMemberOverrideError = RevokeMemberOverrideErrors[keyof RevokeMemberOverrideErrors];
+
+export type RevokeMemberOverrideResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type RevokeMemberOverrideResponse = RevokeMemberOverrideResponses[keyof RevokeMemberOverrideResponses];
+
+export type RemoveMemberData = {
+    body: RemoveInputBody;
+    path: {
+        workspaceId: string;
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/members/{userId}/remove';
+};
+
+export type RemoveMemberErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type RemoveMemberError = RemoveMemberErrors[keyof RemoveMemberErrors];
+
+export type RemoveMemberResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type RemoveMemberResponse = RemoveMemberResponses[keyof RemoveMemberResponses];
+
+export type RestoreMemberData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/members/{userId}/restore';
+};
+
+export type RestoreMemberErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type RestoreMemberError = RestoreMemberErrors[keyof RestoreMemberErrors];
+
+export type RestoreMemberResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type RestoreMemberResponse = RestoreMemberResponses[keyof RestoreMemberResponses];
+
+export type ChangeMemberRoleData = {
+    body: MemberRoleInputBody;
+    path: {
+        workspaceId: string;
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/members/{userId}/role';
+};
+
+export type ChangeMemberRoleErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ChangeMemberRoleError = ChangeMemberRoleErrors[keyof ChangeMemberRoleErrors];
+
+export type ChangeMemberRoleResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type ChangeMemberRoleResponse = ChangeMemberRoleResponses[keyof ChangeMemberRoleResponses];
+
+export type PreviewMemberRoleData = {
+    body: MemberRoleInputBody;
+    path: {
+        workspaceId: string;
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/members/{userId}/role/preview';
+};
+
+export type PreviewMemberRoleErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type PreviewMemberRoleError = PreviewMemberRoleErrors[keyof PreviewMemberRoleErrors];
+
+export type PreviewMemberRoleResponses = {
+    /**
+     * OK
+     */
+    200: ChangeDto;
+};
+
+export type PreviewMemberRoleResponse = PreviewMemberRoleResponses[keyof PreviewMemberRoleResponses];
+
+export type SuspendMemberData = {
+    body: SuspendInputBody;
+    path: {
+        workspaceId: string;
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/members/{userId}/suspend';
+};
+
+export type SuspendMemberErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SuspendMemberError = SuspendMemberErrors[keyof SuspendMemberErrors];
+
+export type SuspendMemberResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type SuspendMemberResponse = SuspendMemberResponses[keyof SuspendMemberResponses];
+
 export type GetOnboardingData = {
     body?: never;
     path: {
@@ -1678,6 +2754,342 @@ export type SkipWhatsappResponses = {
 };
 
 export type SkipWhatsappResponse = SkipWhatsappResponses[keyof SkipWhatsappResponses];
+
+export type ListRolesData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/roles';
+};
+
+export type ListRolesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListRolesError = ListRolesErrors[keyof ListRolesErrors];
+
+export type ListRolesResponses = {
+    /**
+     * OK
+     */
+    200: RolesOutputBody;
+};
+
+export type ListRolesResponse = ListRolesResponses[keyof ListRolesResponses];
+
+export type CreateRoleData = {
+    body: RoleBody;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/roles';
+};
+
+export type CreateRoleErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CreateRoleError = CreateRoleErrors[keyof CreateRoleErrors];
+
+export type CreateRoleResponses = {
+    /**
+     * Created
+     */
+    201: RoleDto;
+};
+
+export type CreateRoleResponse = CreateRoleResponses[keyof CreateRoleResponses];
+
+export type DeleteRoleData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+        roleId: string;
+    };
+    query: {
+        /**
+         * Where its members and pending invites go
+         */
+        move_to_role_id: string;
+    };
+    url: '/v1/workspaces/{workspaceId}/roles/{roleId}';
+};
+
+export type DeleteRoleErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type DeleteRoleError = DeleteRoleErrors[keyof DeleteRoleErrors];
+
+export type DeleteRoleResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteRoleResponse = DeleteRoleResponses[keyof DeleteRoleResponses];
+
+export type UpdateRoleData = {
+    body: RoleBody;
+    path: {
+        workspaceId: string;
+        roleId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/roles/{roleId}';
+};
+
+export type UpdateRoleErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UpdateRoleError = UpdateRoleErrors[keyof UpdateRoleErrors];
+
+export type UpdateRoleResponses = {
+    /**
+     * OK
+     */
+    200: RoleDto;
+};
+
+export type UpdateRoleResponse = UpdateRoleResponses[keyof UpdateRoleResponses];
+
+export type PreviewRoleData = {
+    body: RoleBody;
+    path: {
+        workspaceId: string;
+        roleId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/roles/{roleId}/preview';
+};
+
+export type PreviewRoleErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type PreviewRoleError = PreviewRoleErrors[keyof PreviewRoleErrors];
+
+export type PreviewRoleResponses = {
+    /**
+     * OK
+     */
+    200: ChangeDto;
+};
+
+export type PreviewRoleResponse = PreviewRoleResponses[keyof PreviewRoleResponses];
+
+export type ResetRoleData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+        roleId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/roles/{roleId}/reset';
+};
+
+export type ResetRoleErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ResetRoleError = ResetRoleErrors[keyof ResetRoleErrors];
+
+export type ResetRoleResponses = {
+    /**
+     * OK
+     */
+    200: RoleDto;
+};
+
+export type ResetRoleResponse = ResetRoleResponses[keyof ResetRoleResponses];
+
+export type GetSeatsData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/seats';
+};
+
+export type GetSeatsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetSeatsError = GetSeatsErrors[keyof GetSeatsErrors];
+
+export type GetSeatsResponses = {
+    /**
+     * OK
+     */
+    200: SeatsDto;
+};
+
+export type GetSeatsResponse = GetSeatsResponses[keyof GetSeatsResponses];
+
+export type ListTeamsData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/teams';
+};
+
+export type ListTeamsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListTeamsError = ListTeamsErrors[keyof ListTeamsErrors];
+
+export type ListTeamsResponses = {
+    /**
+     * OK
+     */
+    200: TeamsOutputBody;
+};
+
+export type ListTeamsResponse = ListTeamsResponses[keyof ListTeamsResponses];
+
+export type CreateTeamData = {
+    body: TeamBody;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/teams';
+};
+
+export type CreateTeamErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CreateTeamError = CreateTeamErrors[keyof CreateTeamErrors];
+
+export type CreateTeamResponses = {
+    /**
+     * Created
+     */
+    201: TeamDto;
+};
+
+export type CreateTeamResponse = CreateTeamResponses[keyof CreateTeamResponses];
+
+export type DeleteTeamData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+        teamId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/teams/{teamId}';
+};
+
+export type DeleteTeamErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type DeleteTeamError = DeleteTeamErrors[keyof DeleteTeamErrors];
+
+export type DeleteTeamResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteTeamResponse = DeleteTeamResponses[keyof DeleteTeamResponses];
+
+export type UpdateTeamData = {
+    body: TeamBody;
+    path: {
+        workspaceId: string;
+        teamId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/teams/{teamId}';
+};
+
+export type UpdateTeamErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UpdateTeamError = UpdateTeamErrors[keyof UpdateTeamErrors];
+
+export type UpdateTeamResponses = {
+    /**
+     * OK
+     */
+    200: TeamDto;
+};
+
+export type UpdateTeamResponse = UpdateTeamResponses[keyof UpdateTeamResponses];
+
+export type SetTeamMembersData = {
+    body: TeamMembersInputBody;
+    path: {
+        workspaceId: string;
+        teamId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/teams/{teamId}/members';
+};
+
+export type SetTeamMembersErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SetTeamMembersError = SetTeamMembersErrors[keyof SetTeamMembersErrors];
+
+export type SetTeamMembersResponses = {
+    /**
+     * OK
+     */
+    200: TeamDto;
+};
+
+export type SetTeamMembersResponse = SetTeamMembersResponses[keyof SetTeamMembersResponses];
 
 export type ConnectWhatsappData = {
     body: ConnectInputBody;

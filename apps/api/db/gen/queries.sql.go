@@ -13,19 +13,140 @@ import (
 	"github.com/google/uuid"
 )
 
-const addWorkspaceMember = `-- name: AddWorkspaceMember :exec
-INSERT INTO workspace_members (workspace_id, user_id, role)
-VALUES ($1, $2, $3)
+const acceptInvitation = `-- name: AcceptInvitation :exec
+UPDATE invitations
+SET status = 'accepted', accepted_at = now(), accepted_user_id = $1
+WHERE id = $2
 `
 
-type AddWorkspaceMemberParams struct {
-	WorkspaceID uuid.UUID
-	UserID      uuid.UUID
-	Role        string
+type AcceptInvitationParams struct {
+	UserID       *uuid.UUID
+	InvitationID uuid.UUID
 }
 
-func (q *Queries) AddWorkspaceMember(ctx context.Context, arg AddWorkspaceMemberParams) error {
-	_, err := q.db.Exec(ctx, addWorkspaceMember, arg.WorkspaceID, arg.UserID, arg.Role)
+func (q *Queries) AcceptInvitation(ctx context.Context, arg AcceptInvitationParams) error {
+	_, err := q.db.Exec(ctx, acceptInvitation, arg.UserID, arg.InvitationID)
+	return err
+}
+
+const accessLogSummary = `-- name: AccessLogSummary :one
+SELECT count(*)::bigint AS events,
+       count(*) FILTER (WHERE action IN ('role_changed', 'permission_granted', 'permission_denied',
+                                         'permission_revoked', 'permission_expired', 'role_updated'))::bigint AS permission_changes
+FROM access_log_events
+WHERE workspace_id = $1 AND created_at >= $2
+`
+
+type AccessLogSummaryParams struct {
+	WorkspaceID uuid.UUID
+	Since       time.Time
+}
+
+type AccessLogSummaryRow struct {
+	Events            int64
+	PermissionChanges int64
+}
+
+func (q *Queries) AccessLogSummary(ctx context.Context, arg AccessLogSummaryParams) (AccessLogSummaryRow, error) {
+	row := q.db.QueryRow(ctx, accessLogSummary, arg.WorkspaceID, arg.Since)
+	var i AccessLogSummaryRow
+	err := row.Scan(&i.Events, &i.PermissionChanges)
+	return i, err
+}
+
+const addInvitationNumbers = `-- name: AddInvitationNumbers :exec
+INSERT INTO invitation_numbers (workspace_id, invitation_id, number_id)
+SELECT $1, $2, n.id
+FROM whatsapp_numbers n
+WHERE n.workspace_id = $1 AND n.id = ANY ($3::uuid[])
+`
+
+type AddInvitationNumbersParams struct {
+	WorkspaceID  uuid.UUID
+	InvitationID uuid.UUID
+	NumberIds    []uuid.UUID
+}
+
+func (q *Queries) AddInvitationNumbers(ctx context.Context, arg AddInvitationNumbersParams) error {
+	_, err := q.db.Exec(ctx, addInvitationNumbers, arg.WorkspaceID, arg.InvitationID, arg.NumberIds)
+	return err
+}
+
+const addInvitationOverrides = `-- name: AddInvitationOverrides :exec
+INSERT INTO invitation_permission_overrides (workspace_id, invitation_id, permission_key, effect)
+SELECT $1, $2, unnest($3::text[]), unnest($4::text[])
+`
+
+type AddInvitationOverridesParams struct {
+	WorkspaceID  uuid.UUID
+	InvitationID uuid.UUID
+	Keys         []string
+	Effects      []string
+}
+
+func (q *Queries) AddInvitationOverrides(ctx context.Context, arg AddInvitationOverridesParams) error {
+	_, err := q.db.Exec(ctx, addInvitationOverrides,
+		arg.WorkspaceID,
+		arg.InvitationID,
+		arg.Keys,
+		arg.Effects,
+	)
+	return err
+}
+
+const addInvitationTeams = `-- name: AddInvitationTeams :exec
+INSERT INTO invitation_teams (workspace_id, invitation_id, team_id)
+SELECT $1, $2, t FROM unnest($3::uuid[]) AS t
+`
+
+type AddInvitationTeamsParams struct {
+	WorkspaceID  uuid.UUID
+	InvitationID uuid.UUID
+	TeamIds      []uuid.UUID
+}
+
+func (q *Queries) AddInvitationTeams(ctx context.Context, arg AddInvitationTeamsParams) error {
+	_, err := q.db.Exec(ctx, addInvitationTeams, arg.WorkspaceID, arg.InvitationID, arg.TeamIds)
+	return err
+}
+
+const addMember = `-- name: AddMember :exec
+INSERT INTO workspace_members (workspace_id, user_id, role_id, chat_scope, invited_by)
+VALUES ($1, $2, $3, $4, $5)
+`
+
+type AddMemberParams struct {
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+	RoleID      uuid.UUID
+	ChatScope   *string
+	InvitedBy   *uuid.UUID
+}
+
+func (q *Queries) AddMember(ctx context.Context, arg AddMemberParams) error {
+	_, err := q.db.Exec(ctx, addMember,
+		arg.WorkspaceID,
+		arg.UserID,
+		arg.RoleID,
+		arg.ChatScope,
+		arg.InvitedBy,
+	)
+	return err
+}
+
+const bumpAccessVersions = `-- name: BumpAccessVersions :exec
+UPDATE workspace_members
+SET access_version = access_version + 1
+WHERE workspace_id = $1 AND user_id = ANY ($2::uuid[])
+`
+
+type BumpAccessVersionsParams struct {
+	WorkspaceID uuid.UUID
+	UserIds     []uuid.UUID
+}
+
+func (q *Queries) BumpAccessVersions(ctx context.Context, arg BumpAccessVersionsParams) error {
+	_, err := q.db.Exec(ctx, bumpAccessVersions, arg.WorkspaceID, arg.UserIds)
 	return err
 }
 
@@ -232,16 +353,56 @@ func (q *Queries) CountRecentTestMessages(ctx context.Context, workspaceID uuid.
 	return count, err
 }
 
+const countSeatsUsed = `-- name: CountSeatsUsed :one
+SELECT
+    (SELECT count(*) FROM workspace_members m JOIN roles r ON r.id = m.role_id
+     WHERE m.workspace_id = $1 AND r.uses_seat) AS members,
+    (SELECT count(*) FROM invitations i JOIN roles r ON r.id = i.role_id
+     WHERE i.workspace_id = $1 AND i.status = 'pending' AND i.expires_at > now() AND r.uses_seat) AS reserved
+`
+
+type CountSeatsUsedRow struct {
+	Members  int64
+	Reserved int64
+}
+
+// Members and pending invites whose role uses a seat.
+func (q *Queries) CountSeatsUsed(ctx context.Context, workspaceID uuid.UUID) (CountSeatsUsedRow, error) {
+	row := q.db.QueryRow(ctx, countSeatsUsed, workspaceID)
+	var i CountSeatsUsedRow
+	err := row.Scan(&i.Members, &i.Reserved)
+	return i, err
+}
+
 const countTrialWorkspacesOwned = `-- name: CountTrialWorkspacesOwned :one
 SELECT count(*)
 FROM workspace_members m
+JOIN roles r ON r.id = m.role_id
 JOIN workspaces w ON w.id = m.workspace_id
-WHERE m.user_id = $1 AND m.role = 'owner' AND w.activated_at IS NULL
+WHERE m.user_id = $1 AND r.system_key = 'owner' AND w.activated_at IS NULL
 `
 
 // Workspaces this user owns that haven't sent a real message yet.
 func (q *Queries) CountTrialWorkspacesOwned(ctx context.Context, userID uuid.UUID) (int64, error) {
 	row := q.db.QueryRow(ctx, countTrialWorkspacesOwned, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countWorkspaceNumbers = `-- name: CountWorkspaceNumbers :one
+SELECT count(*)
+FROM whatsapp_numbers
+WHERE workspace_id = $1 AND id = ANY ($2::uuid[])
+`
+
+type CountWorkspaceNumbersParams struct {
+	WorkspaceID uuid.UUID
+	NumberIds   []uuid.UUID
+}
+
+func (q *Queries) CountWorkspaceNumbers(ctx context.Context, arg CountWorkspaceNumbersParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countWorkspaceNumbers, arg.WorkspaceID, arg.NumberIds)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -325,6 +486,42 @@ func (q *Queries) CreateIdentity(ctx context.Context, arg CreateIdentityParams) 
 	return err
 }
 
+const createInvitation = `-- name: CreateInvitation :exec
+
+INSERT INTO invitations (id, workspace_id, email, role_id, chat_scope, token_hash, personal_message, require_2fa, invited_by, expires_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+`
+
+type CreateInvitationParams struct {
+	ID              uuid.UUID
+	WorkspaceID     uuid.UUID
+	Email           string
+	RoleID          uuid.UUID
+	ChatScope       *string
+	TokenHash       []byte
+	PersonalMessage string
+	Require2fa      bool
+	InvitedBy       *uuid.UUID
+	ExpiresAt       time.Time
+}
+
+// ---------- Invitations ----------
+func (q *Queries) CreateInvitation(ctx context.Context, arg CreateInvitationParams) error {
+	_, err := q.db.Exec(ctx, createInvitation,
+		arg.ID,
+		arg.WorkspaceID,
+		arg.Email,
+		arg.RoleID,
+		arg.ChatScope,
+		arg.TokenHash,
+		arg.PersonalMessage,
+		arg.Require2fa,
+		arg.InvitedBy,
+		arg.ExpiresAt,
+	)
+	return err
+}
+
 const createOAuthFlow = `-- name: CreateOAuthFlow :exec
 INSERT INTO oauth_flows (
     id, state_hash, provider, intent, link_user_id, code_verifier, nonce,
@@ -386,6 +583,36 @@ func (q *Queries) CreateOnboarding(ctx context.Context, arg CreateOnboardingPara
 		arg.FirstGoal,
 		arg.SampleData,
 		arg.CompletedAt,
+	)
+	return err
+}
+
+const createOverride = `-- name: CreateOverride :exec
+INSERT INTO member_permission_overrides (id, workspace_id, user_id, permission_key, effect, reason, granted_by, expires_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+`
+
+type CreateOverrideParams struct {
+	ID            uuid.UUID
+	WorkspaceID   uuid.UUID
+	UserID        uuid.UUID
+	PermissionKey string
+	Effect        string
+	Reason        string
+	GrantedBy     *uuid.UUID
+	ExpiresAt     *time.Time
+}
+
+func (q *Queries) CreateOverride(ctx context.Context, arg CreateOverrideParams) error {
+	_, err := q.db.Exec(ctx, createOverride,
+		arg.ID,
+		arg.WorkspaceID,
+		arg.UserID,
+		arg.PermissionKey,
+		arg.Effect,
+		arg.Reason,
+		arg.GrantedBy,
+		arg.ExpiresAt,
 	)
 	return err
 }
@@ -498,6 +725,40 @@ func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshToken
 	return err
 }
 
+const createRole = `-- name: CreateRole :exec
+INSERT INTO roles (id, workspace_id, system_key, name, description, color, chat_scope, uses_seat, locked, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+`
+
+type CreateRoleParams struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	SystemKey   *string
+	Name        string
+	Description string
+	Color       string
+	ChatScope   string
+	UsesSeat    bool
+	Locked      bool
+	CreatedBy   *uuid.UUID
+}
+
+func (q *Queries) CreateRole(ctx context.Context, arg CreateRoleParams) error {
+	_, err := q.db.Exec(ctx, createRole,
+		arg.ID,
+		arg.WorkspaceID,
+		arg.SystemKey,
+		arg.Name,
+		arg.Description,
+		arg.Color,
+		arg.ChatScope,
+		arg.UsesSeat,
+		arg.Locked,
+		arg.CreatedBy,
+	)
+	return err
+}
+
 const createSession = `-- name: CreateSession :exec
 INSERT INTO auth_sessions (
     id, user_id, provider, client, user_agent, device_name, device_type,
@@ -551,6 +812,34 @@ type CreateSocialUserParams struct {
 // A user created by social sign-in: no password; verified only if the provider vouched.
 func (q *Queries) CreateSocialUser(ctx context.Context, arg CreateSocialUserParams) error {
 	_, err := q.db.Exec(ctx, createSocialUser, arg.ID, arg.Email, arg.EmailVerifiedAt)
+	return err
+}
+
+const createTeam = `-- name: CreateTeam :exec
+INSERT INTO teams (id, workspace_id, name, description, color, number_id, routing_method)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+`
+
+type CreateTeamParams struct {
+	ID            uuid.UUID
+	WorkspaceID   uuid.UUID
+	Name          string
+	Description   string
+	Color         string
+	NumberID      *uuid.UUID
+	RoutingMethod string
+}
+
+func (q *Queries) CreateTeam(ctx context.Context, arg CreateTeamParams) error {
+	_, err := q.db.Exec(ctx, createTeam,
+		arg.ID,
+		arg.WorkspaceID,
+		arg.Name,
+		arg.Description,
+		arg.Color,
+		arg.NumberID,
+		arg.RoutingMethod,
+	)
 	return err
 }
 
@@ -723,6 +1012,24 @@ func (q *Queries) DeleteIdentityByProviderUser(ctx context.Context, arg DeleteId
 	return user_id, err
 }
 
+const deleteMember = `-- name: DeleteMember :execrows
+DELETE FROM workspace_members
+WHERE workspace_id = $1 AND user_id = $2
+`
+
+type DeleteMemberParams struct {
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+}
+
+func (q *Queries) DeleteMember(ctx context.Context, arg DeleteMemberParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteMember, arg.WorkspaceID, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteOAuthFlow = `-- name: DeleteOAuthFlow :exec
 DELETE FROM oauth_flows
 WHERE id = $1
@@ -741,6 +1048,42 @@ WHERE created_at < now() - interval '180 days'
 // auth_events is kept 180 days (00002_auth.sql).
 func (q *Queries) DeleteOldAuthEvents(ctx context.Context) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteOldAuthEvents)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteRole = `-- name: DeleteRole :execrows
+DELETE FROM roles
+WHERE workspace_id = $1 AND id = $2 AND system_key IS NULL
+`
+
+type DeleteRoleParams struct {
+	WorkspaceID uuid.UUID
+	RoleID      uuid.UUID
+}
+
+func (q *Queries) DeleteRole(ctx context.Context, arg DeleteRoleParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteRole, arg.WorkspaceID, arg.RoleID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteTeam = `-- name: DeleteTeam :execrows
+DELETE FROM teams
+WHERE workspace_id = $1 AND id = $2
+`
+
+type DeleteTeamParams struct {
+	WorkspaceID uuid.UUID
+	TeamID      uuid.UUID
+}
+
+func (q *Queries) DeleteTeam(ctx context.Context, arg DeleteTeamParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteTeam, arg.WorkspaceID, arg.TeamID)
 	if err != nil {
 		return 0, err
 	}
@@ -794,6 +1137,96 @@ func (q *Queries) DisconnectWhatsAppAccount(ctx context.Context, arg DisconnectW
 	return err
 }
 
+const expireOverrides = `-- name: ExpireOverrides :many
+UPDATE member_permission_overrides
+SET revoked_at = expires_at
+WHERE revoked_at IS NULL AND expires_at <= now()
+RETURNING workspace_id, user_id, permission_key, effect, granted_by
+`
+
+type ExpireOverridesRow struct {
+	WorkspaceID   uuid.UUID
+	UserID        uuid.UUID
+	PermissionKey string
+	Effect        string
+	GrantedBy     *uuid.UUID
+}
+
+// Marks overrides past their end date as revoked, so they're processed once.
+func (q *Queries) ExpireOverrides(ctx context.Context) ([]ExpireOverridesRow, error) {
+	rows, err := q.db.Query(ctx, expireOverrides)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExpireOverridesRow{}
+	for rows.Next() {
+		var i ExpireOverridesRow
+		if err := rows.Scan(
+			&i.WorkspaceID,
+			&i.UserID,
+			&i.PermissionKey,
+			&i.Effect,
+			&i.GrantedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const expiringOverrides = `-- name: ExpiringOverrides :many
+SELECT o.user_id, o.permission_key, o.expires_at,
+       COALESCE(NULLIF(p.display_name, ''), NULLIF(p.first_name, ''), u.email::text)::text AS name
+FROM member_permission_overrides o
+JOIN users u ON u.id = o.user_id
+LEFT JOIN user_profiles p ON p.user_id = o.user_id
+WHERE o.workspace_id = $1 AND o.revoked_at IS NULL
+  AND o.expires_at > now() AND o.expires_at <= $2
+ORDER BY o.expires_at
+`
+
+type ExpiringOverridesParams struct {
+	WorkspaceID uuid.UUID
+	Until       *time.Time
+}
+
+type ExpiringOverridesRow struct {
+	UserID        uuid.UUID
+	PermissionKey string
+	ExpiresAt     *time.Time
+	Name          string
+}
+
+func (q *Queries) ExpiringOverrides(ctx context.Context, arg ExpiringOverridesParams) ([]ExpiringOverridesRow, error) {
+	rows, err := q.db.Query(ctx, expiringOverrides, arg.WorkspaceID, arg.Until)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExpiringOverridesRow{}
+	for rows.Next() {
+		var i ExpiringOverridesRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.PermissionKey,
+			&i.ExpiresAt,
+			&i.Name,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const extendSession = `-- name: ExtendSession :exec
 UPDATE auth_sessions
 SET last_used_at = now(), last_ip = $1, expires_at = $2
@@ -809,6 +1242,57 @@ type ExtendSessionParams struct {
 func (q *Queries) ExtendSession(ctx context.Context, arg ExtendSessionParams) error {
 	_, err := q.db.Exec(ctx, extendSession, arg.Ip, arg.ExpiresAt, arg.ID)
 	return err
+}
+
+const failedLoginAlerts = `-- name: FailedLoginAlerts :many
+SELECT e.user_id, count(*)::bigint AS failures, max(e.created_at)::timestamptz AS last_at,
+       COALESCE(NULLIF(p.display_name, ''), NULLIF(trim(concat_ws(' ', p.first_name, p.last_name)), ''), u.email::text)::text AS name
+FROM auth_events e
+JOIN workspace_members m ON m.user_id = e.user_id AND m.workspace_id = $1
+JOIN users u ON u.id = e.user_id
+LEFT JOIN user_profiles p ON p.user_id = e.user_id
+WHERE e.event = 'login_failed' AND e.created_at >= $2
+GROUP BY e.user_id, p.display_name, p.first_name, p.last_name, u.email
+HAVING count(*) >= 3
+ORDER BY max(e.created_at) DESC
+`
+
+type FailedLoginAlertsParams struct {
+	WorkspaceID uuid.UUID
+	Since       time.Time
+}
+
+type FailedLoginAlertsRow struct {
+	UserID   *uuid.UUID
+	Failures int64
+	LastAt   time.Time
+	Name     string
+}
+
+// Members with 3+ failed sign-ins in the window. Reads auth_events directly, never secrets.
+func (q *Queries) FailedLoginAlerts(ctx context.Context, arg FailedLoginAlertsParams) ([]FailedLoginAlertsRow, error) {
+	rows, err := q.db.Query(ctx, failedLoginAlerts, arg.WorkspaceID, arg.Since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []FailedLoginAlertsRow{}
+	for rows.Next() {
+		var i FailedLoginAlertsRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.Failures,
+			&i.LastAt,
+			&i.Name,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getAccount = `-- name: GetAccount :one
@@ -967,22 +1451,131 @@ func (q *Queries) GetIdentity(ctx context.Context, arg GetIdentityParams) (GetId
 	return i, err
 }
 
-const getMemberRole = `-- name: GetMemberRole :one
-SELECT role
-FROM workspace_members
-WHERE workspace_id = $1 AND user_id = $2
+const getInvitationByTokenHash = `-- name: GetInvitationByTokenHash :one
+SELECT i.id, i.workspace_id, i.email, i.role_id, i.chat_scope, i.status, i.expires_at, i.personal_message,
+       i.invited_by, w.name AS workspace_name, r.name AS role_name, r.system_key, r.uses_seat,
+       COALESCE(NULLIF(p.display_name, ''), NULLIF(trim(concat_ws(' ', p.first_name, p.last_name)), ''), '')::text AS invited_by_name,
+       COALESCE((SELECT x.name FROM roles x
+                 JOIN workspace_members im ON im.role_id = x.id
+                 WHERE im.workspace_id = i.workspace_id AND im.user_id = i.invited_by), '')::text AS invited_by_role
+FROM invitations i
+JOIN workspaces w ON w.id = i.workspace_id
+JOIN roles r ON r.id = i.role_id
+LEFT JOIN user_profiles p ON p.user_id = i.invited_by
+WHERE i.token_hash = $1
 `
 
-type GetMemberRoleParams struct {
+type GetInvitationByTokenHashRow struct {
+	ID              uuid.UUID
+	WorkspaceID     uuid.UUID
+	Email           string
+	RoleID          uuid.UUID
+	ChatScope       *string
+	Status          string
+	ExpiresAt       time.Time
+	PersonalMessage string
+	InvitedBy       *uuid.UUID
+	WorkspaceName   string
+	RoleName        string
+	SystemKey       *string
+	UsesSeat        bool
+	InvitedByName   string
+	InvitedByRole   string
+}
+
+// The only query that reads token_hash (CLAUDE.md secrets rule).
+func (q *Queries) GetInvitationByTokenHash(ctx context.Context, tokenHash []byte) (GetInvitationByTokenHashRow, error) {
+	row := q.db.QueryRow(ctx, getInvitationByTokenHash, tokenHash)
+	var i GetInvitationByTokenHashRow
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.Email,
+		&i.RoleID,
+		&i.ChatScope,
+		&i.Status,
+		&i.ExpiresAt,
+		&i.PersonalMessage,
+		&i.InvitedBy,
+		&i.WorkspaceName,
+		&i.RoleName,
+		&i.SystemKey,
+		&i.UsesSeat,
+		&i.InvitedByName,
+		&i.InvitedByRole,
+	)
+	return i, err
+}
+
+const getMember = `-- name: GetMember :one
+SELECT m.user_id, u.email,
+       COALESCE(NULLIF(p.display_name, ''), NULLIF(trim(concat_ws(' ', p.first_name, p.last_name)), ''), u.email::text)::text AS name,
+       p.avatar_url, m.role_id, r.name AS role_name, r.system_key, r.uses_seat, m.status, m.availability,
+       m.last_active_at, m.joined_at, m.chat_scope, r.chat_scope AS role_chat_scope,
+       m.suspended_at, m.suspend_reason, m.access_version,
+       ARRAY(SELECT tm.team_id FROM team_members tm
+             WHERE tm.workspace_id = m.workspace_id AND tm.user_id = m.user_id ORDER BY tm.team_id)::uuid[] AS team_ids,
+       ARRAY(SELECT mn.number_id FROM member_numbers mn
+             WHERE mn.workspace_id = m.workspace_id AND mn.user_id = m.user_id ORDER BY mn.number_id)::uuid[] AS number_ids
+FROM workspace_members m
+JOIN roles r ON r.id = m.role_id
+JOIN users u ON u.id = m.user_id
+LEFT JOIN user_profiles p ON p.user_id = m.user_id
+WHERE m.workspace_id = $1 AND m.user_id = $2
+`
+
+type GetMemberParams struct {
 	WorkspaceID uuid.UUID
 	UserID      uuid.UUID
 }
 
-func (q *Queries) GetMemberRole(ctx context.Context, arg GetMemberRoleParams) (string, error) {
-	row := q.db.QueryRow(ctx, getMemberRole, arg.WorkspaceID, arg.UserID)
-	var role string
-	err := row.Scan(&role)
-	return role, err
+type GetMemberRow struct {
+	UserID        uuid.UUID
+	Email         string
+	Name          string
+	AvatarUrl     *string
+	RoleID        uuid.UUID
+	RoleName      string
+	SystemKey     *string
+	UsesSeat      bool
+	Status        string
+	Availability  string
+	LastActiveAt  time.Time
+	JoinedAt      time.Time
+	ChatScope     *string
+	RoleChatScope string
+	SuspendedAt   *time.Time
+	SuspendReason *string
+	AccessVersion int32
+	TeamIds       []uuid.UUID
+	NumberIds     []uuid.UUID
+}
+
+func (q *Queries) GetMember(ctx context.Context, arg GetMemberParams) (GetMemberRow, error) {
+	row := q.db.QueryRow(ctx, getMember, arg.WorkspaceID, arg.UserID)
+	var i GetMemberRow
+	err := row.Scan(
+		&i.UserID,
+		&i.Email,
+		&i.Name,
+		&i.AvatarUrl,
+		&i.RoleID,
+		&i.RoleName,
+		&i.SystemKey,
+		&i.UsesSeat,
+		&i.Status,
+		&i.Availability,
+		&i.LastActiveAt,
+		&i.JoinedAt,
+		&i.ChatScope,
+		&i.RoleChatScope,
+		&i.SuspendedAt,
+		&i.SuspendReason,
+		&i.AccessVersion,
+		&i.TeamIds,
+		&i.NumberIds,
+	)
+	return i, err
 }
 
 const getMemberState = `-- name: GetMemberState :one
@@ -1212,6 +1805,52 @@ func (q *Queries) GetRefreshTokenForUpdate(ctx context.Context, tokenHash []byte
 	return i, err
 }
 
+const getRole = `-- name: GetRole :one
+SELECT r.id, r.system_key, r.name, r.description, r.color, r.chat_scope, r.uses_seat, r.locked, r.version,
+       ARRAY(SELECT rp.permission_key FROM role_permissions rp WHERE rp.role_id = r.id ORDER BY rp.permission_key)::text[] AS permissions,
+       (SELECT count(*) FROM workspace_members m WHERE m.workspace_id = r.workspace_id AND m.role_id = r.id) AS member_count
+FROM roles r
+WHERE r.workspace_id = $1 AND r.id = $2
+`
+
+type GetRoleParams struct {
+	WorkspaceID uuid.UUID
+	RoleID      uuid.UUID
+}
+
+type GetRoleRow struct {
+	ID          uuid.UUID
+	SystemKey   *string
+	Name        string
+	Description string
+	Color       string
+	ChatScope   string
+	UsesSeat    bool
+	Locked      bool
+	Version     int32
+	Permissions []string
+	MemberCount int64
+}
+
+func (q *Queries) GetRole(ctx context.Context, arg GetRoleParams) (GetRoleRow, error) {
+	row := q.db.QueryRow(ctx, getRole, arg.WorkspaceID, arg.RoleID)
+	var i GetRoleRow
+	err := row.Scan(
+		&i.ID,
+		&i.SystemKey,
+		&i.Name,
+		&i.Description,
+		&i.Color,
+		&i.ChatScope,
+		&i.UsesSeat,
+		&i.Locked,
+		&i.Version,
+		&i.Permissions,
+		&i.MemberCount,
+	)
+	return i, err
+}
+
 const getSessionAuthenticatedAt = `-- name: GetSessionAuthenticatedAt :one
 SELECT authenticated_at
 FROM auth_sessions
@@ -1229,6 +1868,61 @@ func (q *Queries) GetSessionAuthenticatedAt(ctx context.Context, arg GetSessionA
 	var authenticated_at time.Time
 	err := row.Scan(&authenticated_at)
 	return authenticated_at, err
+}
+
+const getSystemRoleID = `-- name: GetSystemRoleID :one
+SELECT id
+FROM roles
+WHERE workspace_id = $1 AND system_key = $2
+`
+
+type GetSystemRoleIDParams struct {
+	WorkspaceID uuid.UUID
+	SystemKey   *string
+}
+
+func (q *Queries) GetSystemRoleID(ctx context.Context, arg GetSystemRoleIDParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, getSystemRoleID, arg.WorkspaceID, arg.SystemKey)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const getTeam = `-- name: GetTeam :one
+SELECT t.id, t.name, t.description, t.color, t.number_id, t.routing_method,
+       ARRAY(SELECT tm.user_id FROM team_members tm WHERE tm.team_id = t.id ORDER BY tm.created_at)::uuid[] AS member_ids
+FROM teams t
+WHERE t.workspace_id = $1 AND t.id = $2
+`
+
+type GetTeamParams struct {
+	WorkspaceID uuid.UUID
+	TeamID      uuid.UUID
+}
+
+type GetTeamRow struct {
+	ID            uuid.UUID
+	Name          string
+	Description   string
+	Color         string
+	NumberID      *uuid.UUID
+	RoutingMethod string
+	MemberIds     []uuid.UUID
+}
+
+func (q *Queries) GetTeam(ctx context.Context, arg GetTeamParams) (GetTeamRow, error) {
+	row := q.db.QueryRow(ctx, getTeam, arg.WorkspaceID, arg.TeamID)
+	var i GetTeamRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.Color,
+		&i.NumberID,
+		&i.RoutingMethod,
+		&i.MemberIds,
+	)
+	return i, err
 }
 
 const getTestMessage = `-- name: GetTestMessage :one
@@ -1396,10 +2090,22 @@ func (q *Queries) GetWorkspace(ctx context.Context, workspaceID uuid.UUID) (GetW
 	return i, err
 }
 
+const getWorkspaceName = `-- name: GetWorkspaceName :one
+SELECT name FROM workspaces WHERE id = $1
+`
+
+func (q *Queries) GetWorkspaceName(ctx context.Context, workspaceID uuid.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, getWorkspaceName, workspaceID)
+	var name string
+	err := row.Scan(&name)
+	return name, err
+}
+
 const getWorkspaceOwner = `-- name: GetWorkspaceOwner :one
 SELECT w.name, m.user_id
 FROM workspaces w
-JOIN workspace_members m ON m.workspace_id = w.id AND m.role = 'owner'
+JOIN roles r ON r.workspace_id = w.id AND r.system_key = 'owner'
+JOIN workspace_members m ON m.workspace_id = w.id AND m.role_id = r.id
 WHERE w.id = $1
 ORDER BY m.created_at
 LIMIT 1
@@ -1428,6 +2134,48 @@ func (q *Queries) HasConnectedNumber(ctx context.Context, workspaceID uuid.UUID)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const insertAccessLog = `-- name: InsertAccessLog :exec
+
+INSERT INTO access_log_events (id, workspace_id, actor_user_id, subject_user_id, subject_email, action, target,
+                               before_value, after_value, note, ip, user_agent)
+VALUES ($1, $2, $3, $4, $5, $6, $7,
+        $8, $9, $10, $11, $12)
+`
+
+type InsertAccessLogParams struct {
+	ID            uuid.UUID
+	WorkspaceID   uuid.UUID
+	ActorUserID   *uuid.UUID
+	SubjectUserID *uuid.UUID
+	SubjectEmail  *string
+	Action        string
+	Target        string
+	BeforeValue   []byte
+	AfterValue    []byte
+	Note          string
+	Ip            *netip.Addr
+	UserAgent     string
+}
+
+// ---------- Access log ----------
+func (q *Queries) InsertAccessLog(ctx context.Context, arg InsertAccessLogParams) error {
+	_, err := q.db.Exec(ctx, insertAccessLog,
+		arg.ID,
+		arg.WorkspaceID,
+		arg.ActorUserID,
+		arg.SubjectUserID,
+		arg.SubjectEmail,
+		arg.Action,
+		arg.Target,
+		arg.BeforeValue,
+		arg.AfterValue,
+		arg.Note,
+		arg.Ip,
+		arg.UserAgent,
+	)
+	return err
 }
 
 const insertAuthEvent = `-- name: InsertAuthEvent :exec
@@ -1490,6 +2238,173 @@ func (q *Queries) InvalidateEmailTokens(ctx context.Context, arg InvalidateEmail
 	return err
 }
 
+const invitationNumberIDs = `-- name: InvitationNumberIDs :many
+SELECT number_id FROM invitation_numbers WHERE invitation_id = $1
+`
+
+func (q *Queries) InvitationNumberIDs(ctx context.Context, invitationID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, invitationNumberIDs, invitationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var number_id uuid.UUID
+		if err := rows.Scan(&number_id); err != nil {
+			return nil, err
+		}
+		items = append(items, number_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const invitationNumberLabels = `-- name: InvitationNumberLabels :many
+SELECT n.verified_name, n.display_phone_number
+FROM invitation_numbers inn
+JOIN whatsapp_numbers n ON n.id = inn.number_id AND n.workspace_id = inn.workspace_id
+WHERE inn.workspace_id = $1 AND inn.invitation_id = $2
+ORDER BY n.verified_name
+`
+
+type InvitationNumberLabelsParams struct {
+	WorkspaceID  uuid.UUID
+	InvitationID uuid.UUID
+}
+
+type InvitationNumberLabelsRow struct {
+	VerifiedName       string
+	DisplayPhoneNumber string
+}
+
+func (q *Queries) InvitationNumberLabels(ctx context.Context, arg InvitationNumberLabelsParams) ([]InvitationNumberLabelsRow, error) {
+	rows, err := q.db.Query(ctx, invitationNumberLabels, arg.WorkspaceID, arg.InvitationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []InvitationNumberLabelsRow{}
+	for rows.Next() {
+		var i InvitationNumberLabelsRow
+		if err := rows.Scan(&i.VerifiedName, &i.DisplayPhoneNumber); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const invitationOverrides = `-- name: InvitationOverrides :many
+SELECT permission_key, effect FROM invitation_permission_overrides WHERE invitation_id = $1
+`
+
+type InvitationOverridesRow struct {
+	PermissionKey string
+	Effect        string
+}
+
+func (q *Queries) InvitationOverrides(ctx context.Context, invitationID uuid.UUID) ([]InvitationOverridesRow, error) {
+	rows, err := q.db.Query(ctx, invitationOverrides, invitationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []InvitationOverridesRow{}
+	for rows.Next() {
+		var i InvitationOverridesRow
+		if err := rows.Scan(&i.PermissionKey, &i.Effect); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const invitationTeamIDs = `-- name: InvitationTeamIDs :many
+SELECT team_id FROM invitation_teams WHERE invitation_id = $1
+`
+
+func (q *Queries) InvitationTeamIDs(ctx context.Context, invitationID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, invitationTeamIDs, invitationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var team_id uuid.UUID
+		if err := rows.Scan(&team_id); err != nil {
+			return nil, err
+		}
+		items = append(items, team_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const invitationTeamNames = `-- name: InvitationTeamNames :many
+SELECT t.name
+FROM invitation_teams it
+JOIN teams t ON t.workspace_id = it.workspace_id AND t.id = it.team_id
+WHERE it.workspace_id = $1 AND it.invitation_id = $2
+ORDER BY t.name
+`
+
+type InvitationTeamNamesParams struct {
+	WorkspaceID  uuid.UUID
+	InvitationID uuid.UUID
+}
+
+func (q *Queries) InvitationTeamNames(ctx context.Context, arg InvitationTeamNamesParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, invitationTeamNames, arg.WorkspaceID, arg.InvitationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		items = append(items, name)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const isMemberEmail = `-- name: IsMemberEmail :one
+SELECT EXISTS (
+    SELECT 1 FROM workspace_members m JOIN users u ON u.id = m.user_id
+    WHERE m.workspace_id = $1 AND u.email = $2
+)
+`
+
+type IsMemberEmailParams struct {
+	WorkspaceID uuid.UUID
+	Email       string
+}
+
+func (q *Queries) IsMemberEmail(ctx context.Context, arg IsMemberEmailParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isMemberEmail, arg.WorkspaceID, arg.Email)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const isSessionActive = `-- name: IsSessionActive :one
 SELECT EXISTS (
     SELECT 1
@@ -1517,6 +2432,95 @@ func (q *Queries) IsSessionActive(ctx context.Context, arg IsSessionActiveParams
 	var active bool
 	err := row.Scan(&active)
 	return active, err
+}
+
+const listAccessLog = `-- name: ListAccessLog :many
+SELECT e.id, e.created_at, e.actor_user_id, e.subject_user_id, e.subject_email, e.action, e.target,
+       e.before_value, e.after_value, e.note, e.ip, e.user_agent,
+       COALESCE(NULLIF(ap.display_name, ''), NULLIF(trim(concat_ws(' ', ap.first_name, ap.last_name)), ''), '')::text AS actor_name,
+       COALESCE(NULLIF(sp.display_name, ''), NULLIF(trim(concat_ws(' ', sp.first_name, sp.last_name)), ''), '')::text AS subject_name
+FROM access_log_events e
+LEFT JOIN user_profiles ap ON ap.user_id = e.actor_user_id
+LEFT JOIN user_profiles sp ON sp.user_id = e.subject_user_id
+WHERE e.workspace_id = $1
+  AND e.created_at >= $2
+  AND ($3::text IS NULL OR e.action = $3)
+  AND ($4::uuid IS NULL OR e.subject_user_id = $4)
+  AND ($5::timestamptz IS NULL
+       OR (e.created_at, e.id) < ($5::timestamptz, $6::uuid))
+ORDER BY e.created_at DESC, e.id DESC
+LIMIT $7
+`
+
+type ListAccessLogParams struct {
+	WorkspaceID     uuid.UUID
+	Since           time.Time
+	Action          *string
+	SubjectUserID   *uuid.UUID
+	BeforeCreatedAt *time.Time
+	BeforeID        *uuid.UUID
+	PageSize        int32
+}
+
+type ListAccessLogRow struct {
+	ID            uuid.UUID
+	CreatedAt     time.Time
+	ActorUserID   *uuid.UUID
+	SubjectUserID *uuid.UUID
+	SubjectEmail  *string
+	Action        string
+	Target        string
+	BeforeValue   []byte
+	AfterValue    []byte
+	Note          string
+	Ip            *netip.Addr
+	UserAgent     string
+	ActorName     string
+	SubjectName   string
+}
+
+// Newest first. Cursor: (created_at, id) of the last row of the previous page.
+func (q *Queries) ListAccessLog(ctx context.Context, arg ListAccessLogParams) ([]ListAccessLogRow, error) {
+	rows, err := q.db.Query(ctx, listAccessLog,
+		arg.WorkspaceID,
+		arg.Since,
+		arg.Action,
+		arg.SubjectUserID,
+		arg.BeforeCreatedAt,
+		arg.BeforeID,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAccessLogRow{}
+	for rows.Next() {
+		var i ListAccessLogRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.ActorUserID,
+			&i.SubjectUserID,
+			&i.SubjectEmail,
+			&i.Action,
+			&i.Target,
+			&i.BeforeValue,
+			&i.AfterValue,
+			&i.Note,
+			&i.Ip,
+			&i.UserAgent,
+			&i.ActorName,
+			&i.SubjectName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listActiveSessions = `-- name: ListActiveSessions :many
@@ -1649,9 +2653,134 @@ func (q *Queries) ListIdentities(ctx context.Context, userID uuid.UUID) ([]ListI
 	return items, nil
 }
 
+const listInvitations = `-- name: ListInvitations :many
+SELECT i.id, i.email, i.role_id, r.name AS role_name, i.status, i.expires_at, i.last_sent_at, i.send_count,
+       i.renewal_requested_at, i.created_at,
+       COALESCE(NULLIF(p.display_name, ''), NULLIF(trim(concat_ws(' ', p.first_name, p.last_name)), ''), '')::text AS invited_by_name,
+       ARRAY(SELECT it.team_id FROM invitation_teams it WHERE it.invitation_id = i.id ORDER BY it.team_id)::uuid[] AS team_ids
+FROM invitations i
+JOIN roles r ON r.id = i.role_id
+LEFT JOIN user_profiles p ON p.user_id = i.invited_by
+WHERE i.workspace_id = $1
+  AND (i.status = 'pending' OR i.updated_at > now() - interval '30 days')
+ORDER BY i.created_at DESC
+LIMIT 200
+`
+
+type ListInvitationsRow struct {
+	ID                 uuid.UUID
+	Email              string
+	RoleID             uuid.UUID
+	RoleName           string
+	Status             string
+	ExpiresAt          time.Time
+	LastSentAt         time.Time
+	SendCount          int32
+	RenewalRequestedAt *time.Time
+	CreatedAt          time.Time
+	InvitedByName      string
+	TeamIds            []uuid.UUID
+}
+
+func (q *Queries) ListInvitations(ctx context.Context, workspaceID uuid.UUID) ([]ListInvitationsRow, error) {
+	rows, err := q.db.Query(ctx, listInvitations, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListInvitationsRow{}
+	for rows.Next() {
+		var i ListInvitationsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.RoleID,
+			&i.RoleName,
+			&i.Status,
+			&i.ExpiresAt,
+			&i.LastSentAt,
+			&i.SendCount,
+			&i.RenewalRequestedAt,
+			&i.CreatedAt,
+			&i.InvitedByName,
+			&i.TeamIds,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMemberOverrides = `-- name: ListMemberOverrides :many
+
+SELECT o.id, o.permission_key, o.effect, o.reason, o.expires_at, o.revoked_at, o.created_at,
+       o.granted_by,
+       COALESCE(NULLIF(p.display_name, ''), NULLIF(trim(concat_ws(' ', p.first_name, p.last_name)), ''), '')::text AS granted_by_name
+FROM member_permission_overrides o
+LEFT JOIN user_profiles p ON p.user_id = o.granted_by
+WHERE o.workspace_id = $1 AND o.user_id = $2
+  AND (o.revoked_at IS NULL OR o.revoked_at > now() - interval '30 days')
+ORDER BY o.revoked_at IS NOT NULL, o.created_at DESC
+LIMIT 50
+`
+
+type ListMemberOverridesParams struct {
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+}
+
+type ListMemberOverridesRow struct {
+	ID            uuid.UUID
+	PermissionKey string
+	Effect        string
+	Reason        string
+	ExpiresAt     *time.Time
+	RevokedAt     *time.Time
+	CreatedAt     time.Time
+	GrantedBy     *uuid.UUID
+	GrantedByName string
+}
+
+// ---------- Overrides ----------
+func (q *Queries) ListMemberOverrides(ctx context.Context, arg ListMemberOverridesParams) ([]ListMemberOverridesRow, error) {
+	rows, err := q.db.Query(ctx, listMemberOverrides, arg.WorkspaceID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMemberOverridesRow{}
+	for rows.Next() {
+		var i ListMemberOverridesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.PermissionKey,
+			&i.Effect,
+			&i.Reason,
+			&i.ExpiresAt,
+			&i.RevokedAt,
+			&i.CreatedAt,
+			&i.GrantedBy,
+			&i.GrantedByName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMemberWorkspaces = `-- name: ListMemberWorkspaces :many
-SELECT w.id, w.name, m.role, m.last_active_at, w.activated_at
+SELECT w.id, w.name, r.name AS role_name, COALESCE(r.system_key = 'owner', false)::boolean AS is_owner,
+       m.status, m.last_active_at, w.activated_at
 FROM workspace_members m
+JOIN roles r ON r.id = m.role_id
 JOIN workspaces w ON w.id = m.workspace_id
 WHERE m.user_id = $1
 ORDER BY m.last_active_at DESC, w.created_at DESC
@@ -1660,7 +2789,9 @@ ORDER BY m.last_active_at DESC, w.created_at DESC
 type ListMemberWorkspacesRow struct {
 	ID           uuid.UUID
 	Name         string
-	Role         string
+	RoleName     string
+	IsOwner      bool
+	Status       string
 	LastActiveAt time.Time
 	ActivatedAt  *time.Time
 }
@@ -1677,9 +2808,254 @@ func (q *Queries) ListMemberWorkspaces(ctx context.Context, userID uuid.UUID) ([
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
-			&i.Role,
+			&i.RoleName,
+			&i.IsOwner,
+			&i.Status,
 			&i.LastActiveAt,
 			&i.ActivatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMembers = `-- name: ListMembers :many
+
+SELECT m.user_id, u.email,
+       COALESCE(NULLIF(p.display_name, ''), NULLIF(trim(concat_ws(' ', p.first_name, p.last_name)), ''), u.email::text)::text AS name,
+       p.avatar_url, m.role_id, r.name AS role_name, r.system_key, r.uses_seat, m.status, m.availability,
+       m.last_active_at, m.joined_at,
+       ARRAY(SELECT tm.team_id FROM team_members tm
+             WHERE tm.workspace_id = m.workspace_id AND tm.user_id = m.user_id ORDER BY tm.team_id)::uuid[] AS team_ids
+FROM workspace_members m
+JOIN roles r ON r.id = m.role_id
+JOIN users u ON u.id = m.user_id
+LEFT JOIN user_profiles p ON p.user_id = m.user_id
+WHERE m.workspace_id = $1
+  AND ($2::uuid IS NULL OR m.role_id = $2)
+  AND ($3::text IS NULL OR m.status = $3)
+  AND ($4::uuid IS NULL OR EXISTS (
+        SELECT 1 FROM team_members tm WHERE tm.workspace_id = m.workspace_id AND tm.user_id = m.user_id
+          AND tm.team_id = $4))
+  AND ($5::text IS NULL OR u.email ILIKE '%' || $5 || '%'
+       OR concat_ws(' ', p.display_name, p.first_name, p.last_name) ILIKE '%' || $5 || '%')
+  AND ($6::timestamptz IS NULL
+       OR (m.joined_at, m.user_id) > ($6::timestamptz, $7::uuid))
+ORDER BY m.joined_at, m.user_id
+LIMIT $8
+`
+
+type ListMembersParams struct {
+	WorkspaceID   uuid.UUID
+	RoleID        *uuid.UUID
+	Status        *string
+	TeamID        *uuid.UUID
+	Query         *string
+	AfterJoinedAt *time.Time
+	AfterUserID   *uuid.UUID
+	PageSize      int32
+}
+
+type ListMembersRow struct {
+	UserID       uuid.UUID
+	Email        string
+	Name         string
+	AvatarUrl    *string
+	RoleID       uuid.UUID
+	RoleName     string
+	SystemKey    *string
+	UsesSeat     bool
+	Status       string
+	Availability string
+	LastActiveAt time.Time
+	JoinedAt     time.Time
+	TeamIds      []uuid.UUID
+}
+
+// ---------- Members ----------
+// Cursor: (joined_at, user_id) of the last row of the previous page.
+func (q *Queries) ListMembers(ctx context.Context, arg ListMembersParams) ([]ListMembersRow, error) {
+	rows, err := q.db.Query(ctx, listMembers,
+		arg.WorkspaceID,
+		arg.RoleID,
+		arg.Status,
+		arg.TeamID,
+		arg.Query,
+		arg.AfterJoinedAt,
+		arg.AfterUserID,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMembersRow{}
+	for rows.Next() {
+		var i ListMembersRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.Email,
+			&i.Name,
+			&i.AvatarUrl,
+			&i.RoleID,
+			&i.RoleName,
+			&i.SystemKey,
+			&i.UsesSeat,
+			&i.Status,
+			&i.Availability,
+			&i.LastActiveAt,
+			&i.JoinedAt,
+			&i.TeamIds,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPermissions = `-- name: ListPermissions :many
+SELECT key, bit, group_key, label, sensitive
+FROM permissions
+ORDER BY position
+`
+
+type ListPermissionsRow struct {
+	Key       string
+	Bit       int16
+	GroupKey  string
+	Label     string
+	Sensitive bool
+}
+
+func (q *Queries) ListPermissions(ctx context.Context) ([]ListPermissionsRow, error) {
+	rows, err := q.db.Query(ctx, listPermissions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPermissionsRow{}
+	for rows.Next() {
+		var i ListPermissionsRow
+		if err := rows.Scan(
+			&i.Key,
+			&i.Bit,
+			&i.GroupKey,
+			&i.Label,
+			&i.Sensitive,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRoles = `-- name: ListRoles :many
+
+SELECT r.id, r.system_key, r.name, r.description, r.color, r.chat_scope, r.uses_seat, r.locked, r.version,
+       ARRAY(SELECT rp.permission_key FROM role_permissions rp WHERE rp.role_id = r.id ORDER BY rp.permission_key)::text[] AS permissions,
+       (SELECT count(*) FROM workspace_members m WHERE m.workspace_id = r.workspace_id AND m.role_id = r.id) AS member_count
+FROM roles r
+WHERE r.workspace_id = $1
+ORDER BY r.system_key IS NULL, array_position(ARRAY['owner', 'admin', 'agent', 'viewer'], r.system_key), lower(r.name)
+`
+
+type ListRolesRow struct {
+	ID          uuid.UUID
+	SystemKey   *string
+	Name        string
+	Description string
+	Color       string
+	ChatScope   string
+	UsesSeat    bool
+	Locked      bool
+	Version     int32
+	Permissions []string
+	MemberCount int64
+}
+
+// ---------- Roles ----------
+func (q *Queries) ListRoles(ctx context.Context, workspaceID uuid.UUID) ([]ListRolesRow, error) {
+	rows, err := q.db.Query(ctx, listRoles, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRolesRow{}
+	for rows.Next() {
+		var i ListRolesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.SystemKey,
+			&i.Name,
+			&i.Description,
+			&i.Color,
+			&i.ChatScope,
+			&i.UsesSeat,
+			&i.Locked,
+			&i.Version,
+			&i.Permissions,
+			&i.MemberCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTeams = `-- name: ListTeams :many
+
+SELECT t.id, t.name, t.description, t.color, t.number_id, t.routing_method,
+       ARRAY(SELECT tm.user_id FROM team_members tm WHERE tm.team_id = t.id ORDER BY tm.created_at)::uuid[] AS member_ids
+FROM teams t
+WHERE t.workspace_id = $1
+ORDER BY lower(t.name)
+`
+
+type ListTeamsRow struct {
+	ID            uuid.UUID
+	Name          string
+	Description   string
+	Color         string
+	NumberID      *uuid.UUID
+	RoutingMethod string
+	MemberIds     []uuid.UUID
+}
+
+// ---------- Teams ----------
+func (q *Queries) ListTeams(ctx context.Context, workspaceID uuid.UUID) ([]ListTeamsRow, error) {
+	rows, err := q.db.Query(ctx, listTeams, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTeamsRow{}
+	for rows.Next() {
+		var i ListTeamsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.Color,
+			&i.NumberID,
+			&i.RoutingMethod,
+			&i.MemberIds,
 		); err != nil {
 			return nil, err
 		}
@@ -1749,6 +3125,117 @@ func (q *Queries) ListWhatsAppNumbers(ctx context.Context, workspaceID uuid.UUID
 	return items, nil
 }
 
+const lockInvitation = `-- name: LockInvitation :one
+SELECT id, email, role_id, status, expires_at, send_count
+FROM invitations
+WHERE workspace_id = $1 AND id = $2
+FOR UPDATE
+`
+
+type LockInvitationParams struct {
+	WorkspaceID  uuid.UUID
+	InvitationID uuid.UUID
+}
+
+type LockInvitationRow struct {
+	ID        uuid.UUID
+	Email     string
+	RoleID    uuid.UUID
+	Status    string
+	ExpiresAt time.Time
+	SendCount int32
+}
+
+func (q *Queries) LockInvitation(ctx context.Context, arg LockInvitationParams) (LockInvitationRow, error) {
+	row := q.db.QueryRow(ctx, lockInvitation, arg.WorkspaceID, arg.InvitationID)
+	var i LockInvitationRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.RoleID,
+		&i.Status,
+		&i.ExpiresAt,
+		&i.SendCount,
+	)
+	return i, err
+}
+
+const lockMember = `-- name: LockMember :one
+SELECT m.role_id, m.status, m.access_version, COALESCE(r.system_key = 'owner', false)::boolean AS is_owner,
+       r.uses_seat, u.email,
+       COALESCE(NULLIF(p.display_name, ''), NULLIF(trim(concat_ws(' ', p.first_name, p.last_name)), ''), u.email::text)::text AS name
+FROM workspace_members m
+JOIN roles r ON r.id = m.role_id
+JOIN users u ON u.id = m.user_id
+LEFT JOIN user_profiles p ON p.user_id = m.user_id
+WHERE m.workspace_id = $1 AND m.user_id = $2
+FOR UPDATE OF m
+`
+
+type LockMemberParams struct {
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+}
+
+type LockMemberRow struct {
+	RoleID        uuid.UUID
+	Status        string
+	AccessVersion int32
+	IsOwner       bool
+	UsesSeat      bool
+	Email         string
+	Name          string
+}
+
+func (q *Queries) LockMember(ctx context.Context, arg LockMemberParams) (LockMemberRow, error) {
+	row := q.db.QueryRow(ctx, lockMember, arg.WorkspaceID, arg.UserID)
+	var i LockMemberRow
+	err := row.Scan(
+		&i.RoleID,
+		&i.Status,
+		&i.AccessVersion,
+		&i.IsOwner,
+		&i.UsesSeat,
+		&i.Email,
+		&i.Name,
+	)
+	return i, err
+}
+
+const lockRole = `-- name: LockRole :one
+SELECT version
+FROM roles
+WHERE workspace_id = $1 AND id = $2
+FOR UPDATE
+`
+
+type LockRoleParams struct {
+	WorkspaceID uuid.UUID
+	RoleID      uuid.UUID
+}
+
+func (q *Queries) LockRole(ctx context.Context, arg LockRoleParams) (int32, error) {
+	row := q.db.QueryRow(ctx, lockRole, arg.WorkspaceID, arg.RoleID)
+	var version int32
+	err := row.Scan(&version)
+	return version, err
+}
+
+const lockSeatLimit = `-- name: LockSeatLimit :one
+SELECT seat_limit
+FROM workspaces
+WHERE id = $1
+FOR UPDATE
+`
+
+// Locks the workspace row so seat checks in concurrent invites and accepts run one at a time.
+func (q *Queries) LockSeatLimit(ctx context.Context, workspaceID uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, lockSeatLimit, workspaceID)
+	var seat_limit int32
+	err := row.Scan(&seat_limit)
+	return seat_limit, err
+}
+
 const markBusinessDone = `-- name: MarkBusinessDone :exec
 UPDATE workspace_onboarding
 SET business_done_at = COALESCE(business_done_at, now())
@@ -1813,6 +3300,56 @@ func (q *Queries) MarkWorkspaceActivated(ctx context.Context, workspaceID uuid.U
 	return result.RowsAffected(), nil
 }
 
+const moveRoleInvitations = `-- name: MoveRoleInvitations :exec
+UPDATE invitations
+SET role_id = $1
+WHERE workspace_id = $2 AND role_id = $3
+`
+
+type MoveRoleInvitationsParams struct {
+	ToRoleID    uuid.UUID
+	WorkspaceID uuid.UUID
+	FromRoleID  uuid.UUID
+}
+
+func (q *Queries) MoveRoleInvitations(ctx context.Context, arg MoveRoleInvitationsParams) error {
+	_, err := q.db.Exec(ctx, moveRoleInvitations, arg.ToRoleID, arg.WorkspaceID, arg.FromRoleID)
+	return err
+}
+
+const moveRoleMembers = `-- name: MoveRoleMembers :many
+UPDATE workspace_members
+SET role_id = $1, access_version = access_version + 1
+WHERE workspace_id = $2 AND role_id = $3
+RETURNING user_id
+`
+
+type MoveRoleMembersParams struct {
+	ToRoleID    uuid.UUID
+	WorkspaceID uuid.UUID
+	FromRoleID  uuid.UUID
+}
+
+func (q *Queries) MoveRoleMembers(ctx context.Context, arg MoveRoleMembersParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, moveRoleMembers, arg.ToRoleID, arg.WorkspaceID, arg.FromRoleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var user_id uuid.UUID
+		if err := rows.Scan(&user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const recordEmailCodeAttempt = `-- name: RecordEmailCodeAttempt :one
 UPDATE email_codes
 SET attempts = attempts + 1
@@ -1839,6 +3376,180 @@ func (q *Queries) RecordOAuthFlowCodeAttempt(ctx context.Context, id uuid.UUID) 
 	var email_code_attempts int32
 	err := row.Scan(&email_code_attempts)
 	return email_code_attempts, err
+}
+
+const requestInvitationRenewal = `-- name: RequestInvitationRenewal :execrows
+UPDATE invitations
+SET renewal_requested_at = now()
+WHERE id = $1 AND renewal_requested_at IS NULL
+`
+
+func (q *Queries) RequestInvitationRenewal(ctx context.Context, invitationID uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, requestInvitationRenewal, invitationID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const resendInvitation = `-- name: ResendInvitation :exec
+UPDATE invitations
+SET token_hash = $1, expires_at = $2, send_count = send_count + 1, last_sent_at = now()
+WHERE workspace_id = $3 AND id = $4
+`
+
+type ResendInvitationParams struct {
+	TokenHash    []byte
+	ExpiresAt    time.Time
+	WorkspaceID  uuid.UUID
+	InvitationID uuid.UUID
+}
+
+func (q *Queries) ResendInvitation(ctx context.Context, arg ResendInvitationParams) error {
+	_, err := q.db.Exec(ctx, resendInvitation,
+		arg.TokenHash,
+		arg.ExpiresAt,
+		arg.WorkspaceID,
+		arg.InvitationID,
+	)
+	return err
+}
+
+const resolveAccess = `-- name: ResolveAccess :one
+
+SELECT m.status, m.role_id,
+       COALESCE(r.system_key = 'owner', false)::boolean AS is_owner,
+       COALESCE(m.chat_scope, r.chat_scope)::text AS scope,
+       COALESCE((SELECT bit_or(1::bigint << p.bit) FROM role_permissions rp
+                 JOIN permissions p ON p.key = rp.permission_key
+                 WHERE rp.role_id = m.role_id), 0)::bigint AS role_bits,
+       COALESCE((SELECT bit_or(1::bigint << p.bit) FROM member_permission_overrides o
+                 JOIN permissions p ON p.key = o.permission_key
+                 WHERE o.workspace_id = m.workspace_id AND o.user_id = m.user_id AND o.revoked_at IS NULL
+                   AND o.effect = 'grant' AND (o.expires_at IS NULL OR o.expires_at > now())), 0)::bigint AS grant_bits,
+       COALESCE((SELECT bit_or(1::bigint << p.bit) FROM member_permission_overrides o
+                 JOIN permissions p ON p.key = o.permission_key
+                 WHERE o.workspace_id = m.workspace_id AND o.user_id = m.user_id AND o.revoked_at IS NULL
+                   AND o.effect = 'deny' AND (o.expires_at IS NULL OR o.expires_at > now())), 0)::bigint AS deny_bits,
+       ARRAY(SELECT tm.team_id FROM team_members tm
+             WHERE tm.workspace_id = m.workspace_id AND tm.user_id = m.user_id ORDER BY tm.team_id)::uuid[] AS team_ids,
+       ARRAY(SELECT mn.number_id FROM member_numbers mn
+             WHERE mn.workspace_id = m.workspace_id AND mn.user_id = m.user_id ORDER BY mn.number_id)::uuid[] AS number_ids,
+       r.version AS role_version, m.access_version
+FROM workspace_members m
+JOIN roles r ON r.id = m.role_id
+WHERE m.workspace_id = $1 AND m.user_id = $2
+`
+
+type ResolveAccessParams struct {
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+}
+
+type ResolveAccessRow struct {
+	Status        string
+	RoleID        uuid.UUID
+	IsOwner       bool
+	Scope         string
+	RoleBits      int64
+	GrantBits     int64
+	DenyBits      int64
+	TeamIds       []uuid.UUID
+	NumberIds     []uuid.UUID
+	RoleVersion   int32
+	AccessVersion int32
+}
+
+// ---------- Access (ADR 0002: one query per request) ----------
+func (q *Queries) ResolveAccess(ctx context.Context, arg ResolveAccessParams) (ResolveAccessRow, error) {
+	row := q.db.QueryRow(ctx, resolveAccess, arg.WorkspaceID, arg.UserID)
+	var i ResolveAccessRow
+	err := row.Scan(
+		&i.Status,
+		&i.RoleID,
+		&i.IsOwner,
+		&i.Scope,
+		&i.RoleBits,
+		&i.GrantBits,
+		&i.DenyBits,
+		&i.TeamIds,
+		&i.NumberIds,
+		&i.RoleVersion,
+		&i.AccessVersion,
+	)
+	return i, err
+}
+
+const revokeActiveOverride = `-- name: RevokeActiveOverride :exec
+UPDATE member_permission_overrides
+SET revoked_at = now(), revoked_by = $1
+WHERE workspace_id = $2 AND user_id = $3 AND permission_key = $4 AND revoked_at IS NULL
+`
+
+type RevokeActiveOverrideParams struct {
+	RevokedBy     *uuid.UUID
+	WorkspaceID   uuid.UUID
+	UserID        uuid.UUID
+	PermissionKey string
+}
+
+// Clears an active override for the same permission before a new one is added.
+func (q *Queries) RevokeActiveOverride(ctx context.Context, arg RevokeActiveOverrideParams) error {
+	_, err := q.db.Exec(ctx, revokeActiveOverride,
+		arg.RevokedBy,
+		arg.WorkspaceID,
+		arg.UserID,
+		arg.PermissionKey,
+	)
+	return err
+}
+
+const revokeInvitation = `-- name: RevokeInvitation :exec
+UPDATE invitations
+SET status = 'revoked', revoked_at = now(), revoked_by = $1
+WHERE workspace_id = $2 AND id = $3
+`
+
+type RevokeInvitationParams struct {
+	RevokedBy    *uuid.UUID
+	WorkspaceID  uuid.UUID
+	InvitationID uuid.UUID
+}
+
+func (q *Queries) RevokeInvitation(ctx context.Context, arg RevokeInvitationParams) error {
+	_, err := q.db.Exec(ctx, revokeInvitation, arg.RevokedBy, arg.WorkspaceID, arg.InvitationID)
+	return err
+}
+
+const revokeOverride = `-- name: RevokeOverride :one
+UPDATE member_permission_overrides
+SET revoked_at = now(), revoked_by = $1
+WHERE workspace_id = $2 AND user_id = $3 AND id = $4 AND revoked_at IS NULL
+RETURNING permission_key, effect
+`
+
+type RevokeOverrideParams struct {
+	RevokedBy   *uuid.UUID
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+	ID          uuid.UUID
+}
+
+type RevokeOverrideRow struct {
+	PermissionKey string
+	Effect        string
+}
+
+func (q *Queries) RevokeOverride(ctx context.Context, arg RevokeOverrideParams) (RevokeOverrideRow, error) {
+	row := q.db.QueryRow(ctx, revokeOverride,
+		arg.RevokedBy,
+		arg.WorkspaceID,
+		arg.UserID,
+		arg.ID,
+	)
+	var i RevokeOverrideRow
+	err := row.Scan(&i.PermissionKey, &i.Effect)
+	return i, err
 }
 
 const revokeSession = `-- name: RevokeSession :execrows
@@ -1898,6 +3609,148 @@ func (q *Queries) RevokeUserSessions(ctx context.Context, arg RevokeUserSessions
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const roleBits = `-- name: RoleBits :one
+SELECT COALESCE((SELECT bit_or(1::bigint << p.bit) FROM role_permissions rp
+                 JOIN permissions p ON p.key = rp.permission_key
+                 WHERE rp.role_id = $1), 0)::bigint AS bits
+`
+
+func (q *Queries) RoleBits(ctx context.Context, roleID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, roleBits, roleID)
+	var bits int64
+	err := row.Scan(&bits)
+	return bits, err
+}
+
+const setAvailability = `-- name: SetAvailability :exec
+UPDATE workspace_members
+SET availability = $1
+WHERE workspace_id = $2 AND user_id = $3
+`
+
+type SetAvailabilityParams struct {
+	Availability string
+	WorkspaceID  uuid.UUID
+	UserID       uuid.UUID
+}
+
+func (q *Queries) SetAvailability(ctx context.Context, arg SetAvailabilityParams) error {
+	_, err := q.db.Exec(ctx, setAvailability, arg.Availability, arg.WorkspaceID, arg.UserID)
+	return err
+}
+
+const setMemberNumbers = `-- name: SetMemberNumbers :execrows
+WITH removed AS (
+    DELETE FROM member_numbers
+    WHERE workspace_id = $1 AND user_id = $2 AND NOT (number_id = ANY ($3::uuid[]))
+)
+INSERT INTO member_numbers (workspace_id, user_id, number_id)
+SELECT $1, $2, n.id
+FROM whatsapp_numbers n
+WHERE n.workspace_id = $1 AND n.id = ANY ($3::uuid[])
+ON CONFLICT ON CONSTRAINT member_numbers_pkey DO UPDATE SET created_at = member_numbers.created_at
+`
+
+type SetMemberNumbersParams struct {
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+	NumberIds   []uuid.UUID
+}
+
+// Replaces the member's numbers with those of @number_ids that belong to the workspace.
+// Returns how many were kept, so the caller can spot foreign IDs.
+func (q *Queries) SetMemberNumbers(ctx context.Context, arg SetMemberNumbersParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setMemberNumbers, arg.WorkspaceID, arg.UserID, arg.NumberIds)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setMemberRole = `-- name: SetMemberRole :exec
+UPDATE workspace_members
+SET role_id = $1, access_version = access_version + 1
+WHERE workspace_id = $2 AND user_id = $3
+`
+
+type SetMemberRoleParams struct {
+	RoleID      uuid.UUID
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+}
+
+func (q *Queries) SetMemberRole(ctx context.Context, arg SetMemberRoleParams) error {
+	_, err := q.db.Exec(ctx, setMemberRole, arg.RoleID, arg.WorkspaceID, arg.UserID)
+	return err
+}
+
+const setMemberScope = `-- name: SetMemberScope :exec
+UPDATE workspace_members
+SET chat_scope = $1, access_version = access_version + 1
+WHERE workspace_id = $2 AND user_id = $3
+`
+
+type SetMemberScopeParams struct {
+	ChatScope   *string
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+}
+
+func (q *Queries) SetMemberScope(ctx context.Context, arg SetMemberScopeParams) error {
+	_, err := q.db.Exec(ctx, setMemberScope, arg.ChatScope, arg.WorkspaceID, arg.UserID)
+	return err
+}
+
+const setMemberStatus = `-- name: SetMemberStatus :exec
+UPDATE workspace_members
+SET status = $1, suspended_at = $2, suspended_by = $3,
+    suspend_reason = $4, access_version = access_version + 1
+WHERE workspace_id = $5 AND user_id = $6
+`
+
+type SetMemberStatusParams struct {
+	Status        string
+	SuspendedAt   *time.Time
+	SuspendedBy   *uuid.UUID
+	SuspendReason *string
+	WorkspaceID   uuid.UUID
+	UserID        uuid.UUID
+}
+
+func (q *Queries) SetMemberStatus(ctx context.Context, arg SetMemberStatusParams) error {
+	_, err := q.db.Exec(ctx, setMemberStatus,
+		arg.Status,
+		arg.SuspendedAt,
+		arg.SuspendedBy,
+		arg.SuspendReason,
+		arg.WorkspaceID,
+		arg.UserID,
+	)
+	return err
+}
+
+const setMemberTeams = `-- name: SetMemberTeams :exec
+WITH removed AS (
+    DELETE FROM team_members
+    WHERE workspace_id = $1 AND user_id = $2 AND NOT (team_id = ANY ($3::uuid[]))
+)
+INSERT INTO team_members (workspace_id, team_id, user_id)
+SELECT $1, t, $2 FROM unnest($3::uuid[]) AS t
+ON CONFLICT DO NOTHING
+`
+
+type SetMemberTeamsParams struct {
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+	TeamIds     []uuid.UUID
+}
+
+// Replaces the member's teams with @team_ids (teams must belong to the workspace; the foreign key checks).
+func (q *Queries) SetMemberTeams(ctx context.Context, arg SetMemberTeamsParams) error {
+	_, err := q.db.Exec(ctx, setMemberTeams, arg.WorkspaceID, arg.UserID, arg.TeamIds)
+	return err
 }
 
 const setNumberPin = `-- name: SetNumberPin :exec
@@ -2023,6 +3876,49 @@ func (q *Queries) SetPasswordIfUnset(ctx context.Context, arg SetPasswordIfUnset
 	return result.RowsAffected(), nil
 }
 
+const setRolePermissions = `-- name: SetRolePermissions :exec
+WITH removed AS (
+    DELETE FROM role_permissions
+    WHERE role_id = $2 AND NOT (permission_key = ANY ($3::text[]))
+)
+INSERT INTO role_permissions (workspace_id, role_id, permission_key)
+SELECT $1, $2, k FROM unnest($3::text[]) AS k
+ON CONFLICT DO NOTHING
+`
+
+type SetRolePermissionsParams struct {
+	WorkspaceID uuid.UUID
+	RoleID      uuid.UUID
+	Keys        []string
+}
+
+// Replaces the role's permissions with @keys.
+func (q *Queries) SetRolePermissions(ctx context.Context, arg SetRolePermissionsParams) error {
+	_, err := q.db.Exec(ctx, setRolePermissions, arg.WorkspaceID, arg.RoleID, arg.Keys)
+	return err
+}
+
+const setTeamMembers = `-- name: SetTeamMembers :exec
+WITH removed AS (
+    DELETE FROM team_members
+    WHERE workspace_id = $1 AND team_id = $2 AND NOT (user_id = ANY ($3::uuid[]))
+)
+INSERT INTO team_members (workspace_id, team_id, user_id)
+SELECT $1, $2, u FROM unnest($3::uuid[]) AS u
+ON CONFLICT DO NOTHING
+`
+
+type SetTeamMembersParams struct {
+	WorkspaceID uuid.UUID
+	TeamID      uuid.UUID
+	UserIds     []uuid.UUID
+}
+
+func (q *Queries) SetTeamMembers(ctx context.Context, arg SetTeamMembersParams) error {
+	_, err := q.db.Exec(ctx, setTeamMembers, arg.WorkspaceID, arg.TeamID, arg.UserIds)
+	return err
+}
+
 const setTermsAccepted = `-- name: SetTermsAccepted :exec
 UPDATE users
 SET terms_accepted_at = now(), terms_version = $1
@@ -2082,6 +3978,37 @@ WHERE workspace_id = $1
 func (q *Queries) SkipWhatsAppStep(ctx context.Context, workspaceID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, skipWhatsAppStep, workspaceID)
 	return err
+}
+
+const teamMemberIDs = `-- name: TeamMemberIDs :many
+SELECT user_id
+FROM team_members
+WHERE workspace_id = $1 AND team_id = $2
+`
+
+type TeamMemberIDsParams struct {
+	WorkspaceID uuid.UUID
+	TeamID      uuid.UUID
+}
+
+func (q *Queries) TeamMemberIDs(ctx context.Context, arg TeamMemberIDsParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, teamMemberIDs, arg.WorkspaceID, arg.TeamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var user_id uuid.UUID
+		if err := rows.Scan(&user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const touchIdentity = `-- name: TouchIdentity :exec
@@ -2252,6 +4179,65 @@ func (q *Queries) UpdateProfile(ctx context.Context, arg UpdateProfileParams) er
 		arg.UserID,
 	)
 	return err
+}
+
+const updateRole = `-- name: UpdateRole :exec
+UPDATE roles
+SET name = $1, description = $2, color = $3, chat_scope = $4, version = version + 1
+WHERE workspace_id = $5 AND id = $6
+`
+
+type UpdateRoleParams struct {
+	Name        string
+	Description string
+	Color       string
+	ChatScope   string
+	WorkspaceID uuid.UUID
+	RoleID      uuid.UUID
+}
+
+func (q *Queries) UpdateRole(ctx context.Context, arg UpdateRoleParams) error {
+	_, err := q.db.Exec(ctx, updateRole,
+		arg.Name,
+		arg.Description,
+		arg.Color,
+		arg.ChatScope,
+		arg.WorkspaceID,
+		arg.RoleID,
+	)
+	return err
+}
+
+const updateTeam = `-- name: UpdateTeam :execrows
+UPDATE teams
+SET name = $1, description = $2, color = $3, number_id = $4, routing_method = $5
+WHERE workspace_id = $6 AND id = $7
+`
+
+type UpdateTeamParams struct {
+	Name          string
+	Description   string
+	Color         string
+	NumberID      *uuid.UUID
+	RoutingMethod string
+	WorkspaceID   uuid.UUID
+	TeamID        uuid.UUID
+}
+
+func (q *Queries) UpdateTeam(ctx context.Context, arg UpdateTeamParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateTeam,
+		arg.Name,
+		arg.Description,
+		arg.Color,
+		arg.NumberID,
+		arg.RoutingMethod,
+		arg.WorkspaceID,
+		arg.TeamID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const updateTestMessageStatus = `-- name: UpdateTestMessageStatus :one

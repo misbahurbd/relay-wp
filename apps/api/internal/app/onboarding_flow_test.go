@@ -171,7 +171,7 @@ func TestOnboardingFullJourney(t *testing.T) {
 	created := b.do("POST", "/v1/workspaces", map[string]any{"name": "Ada's workspace", "first_goal": "offers", "start_mode": "setup"})
 	expect(t, created, http.StatusCreated)
 	wsID := created.body["id"].(string)
-	if created.body["current_step"] != "business" || created.body["completed"] != false || created.body["role"] != "owner" {
+	if created.body["current_step"] != "business" || created.body["completed"] != false || created.body["is_owner"] != true {
 		t.Fatalf("created = %v", created.body)
 	}
 	expect(t, b.do("POST", "/v1/workspaces", map[string]any{"name": "Second", "first_goal": "offers", "start_mode": "setup"}),

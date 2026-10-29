@@ -68,6 +68,7 @@ type Service struct {
 	profiles ProfileCreator
 	breach   BreachChecker // nil disables the breach check
 	oauth    Providers     // only configured providers
+	invites  Invites
 	cfg      Config
 
 	dummyHash string // verified against for unknown emails so timing doesn't reveal them
@@ -75,7 +76,7 @@ type Service struct {
 }
 
 // New builds the service. breach may be nil; providers may be empty.
-func New(pool *pgxpool.Pool, tokens TokenIssuer, queue Enqueuer, profiles ProfileCreator, breach BreachChecker, providers Providers, cfg Config) (*Service, error) {
+func New(pool *pgxpool.Pool, tokens TokenIssuer, queue Enqueuer, profiles ProfileCreator, invites Invites, breach BreachChecker, providers Providers, cfg Config) (*Service, error) {
 	if len(cfg.EmailCodeKey) != 32 {
 		return nil, errors.New("auth: EMAIL_CODE_KEY must be 32 bytes")
 	}
@@ -84,7 +85,7 @@ func New(pool *pgxpool.Pool, tokens TokenIssuer, queue Enqueuer, profiles Profil
 		return nil, err
 	}
 	return &Service{
-		pool: pool, tokens: tokens, queue: queue, profiles: profiles, breach: breach, oauth: providers, cfg: cfg,
+		pool: pool, tokens: tokens, queue: queue, profiles: profiles, invites: invites, breach: breach, oauth: providers, cfg: cfg,
 		dummyHash: dummy,
 		now:       func() time.Time { return time.Now().UTC() },
 	}, nil

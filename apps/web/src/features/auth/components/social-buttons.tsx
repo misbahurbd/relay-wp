@@ -9,10 +9,12 @@ type Props = {
   action: 'sign up' | 'log in'
   /** Where to go after signing in; carried through the provider round trip. */
   redirect?: string
+  /** Replaces the "or … with email" divider text. */
+  divider?: string
 }
 
 /** One button per provider the API has configured; nothing at all when there are none. */
-export function SocialButtons({ action, redirect }: Props) {
+export function SocialButtons({ action, redirect, divider }: Props) {
   const returnPath = redirect ? `/login?redirect=${encodeURIComponent(redirect)}` : '/login'
   const { data } = useQuery(providersQueryOptions())
   const providers = sortProviders(data?.providers)
@@ -39,7 +41,7 @@ export function SocialButtons({ action, redirect }: Props) {
         })}
       </div>
       <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
-        or {action} with email
+        {divider ?? `or ${action} with email`}
       </FieldSeparator>
     </>
   )

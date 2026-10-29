@@ -8,6 +8,7 @@ sql:
       - ../internal/features/workspaces/queries.sql
       - ../internal/features/onboarding/queries.sql
       - ../internal/features/whatsapp/queries.sql
+      - ../internal/features/team/queries.sql
     gen:
       go:
         package: gen

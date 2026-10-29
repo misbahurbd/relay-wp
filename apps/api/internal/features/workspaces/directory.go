@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/misbahurbd/relay-wp/apps/api/db/gen"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/database"
 )
 
 // Directory gives the membership middleware and other features read access to
@@ -20,16 +20,17 @@ type Directory struct {
 // NewDirectory returns a Directory.
 func NewDirectory(pool *pgxpool.Pool) *Directory { return &Directory{pool: pool} }
 
-// MemberRole implements middleware.MembershipChecker.
-func (d *Directory) MemberRole(ctx context.Context, workspaceID, userID uuid.UUID) (string, bool, error) {
-	role, err := newRepository(d.pool).GetMemberRole(ctx, gen.GetMemberRoleParams{WorkspaceID: workspaceID, UserID: userID})
+// LockSeatLimit locks the workspace row in db's transaction and returns its seat limit,
+// so seat checks in features/team run one at a time.
+func (d *Directory) LockSeatLimit(ctx context.Context, db database.DBTX, workspaceID uuid.UUID) (int32, error) {
+	limit, err := newRepository(db).LockSeatLimit(ctx, workspaceID)
 	if isNoRows(err) {
-		return "", false, nil
+		return 0, ErrNotFound
 	}
 	if err != nil {
-		return "", false, fmt.Errorf("member role: %w", err)
+		return 0, fmt.Errorf("lock seat limit: %w", err)
 	}
-	return role, true, nil
+	return limit, nil
 }
 
 // Owner returns the workspace's name and its owner, for reminder emails.

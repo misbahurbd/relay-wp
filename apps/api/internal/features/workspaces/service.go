@@ -35,6 +35,12 @@ type Onboarding interface {
 	Progress(ctx context.Context, workspaceID uuid.UUID) (step string, completed bool, err error)
 }
 
+// Team sets up roles and the owner's membership. Implemented by features/team and injected by internal/app.
+type Team interface {
+	// Seed creates the system roles and adds ownerID as Owner, in the create-workspace transaction.
+	Seed(ctx context.Context, tx pgx.Tx, workspaceID, ownerID uuid.UUID) error
+}
+
 // Config holds workspace settings from the environment.
 type Config struct {
 	TrialDays int
@@ -45,14 +51,15 @@ type Service struct {
 	pool       *pgxpool.Pool
 	accounts   AccountReader
 	onboarding Onboarding
+	team       Team
 	cfg        Config
 	now        func() time.Time
 }
 
 // New builds the service.
-func New(pool *pgxpool.Pool, accounts AccountReader, onboarding Onboarding, cfg Config) *Service {
+func New(pool *pgxpool.Pool, accounts AccountReader, onboarding Onboarding, team Team, cfg Config) *Service {
 	return &Service{
-		pool: pool, accounts: accounts, onboarding: onboarding, cfg: cfg,
+		pool: pool, accounts: accounts, onboarding: onboarding, team: team, cfg: cfg,
 		now: func() time.Time { return time.Now().UTC() },
 	}
 }
@@ -70,7 +77,7 @@ func (s *Service) List(ctx context.Context, userID uuid.UUID) ([]Summary, error)
 			return nil, err
 		}
 		out = append(out, Summary{
-			ID: r.ID, Name: r.Name, Role: r.Role, LastActiveAt: r.LastActiveAt,
+			ID: r.ID, Name: r.Name, RoleName: r.RoleName, IsOwner: r.IsOwner, LastActiveAt: r.LastActiveAt,
 			CurrentStep: step, Completed: completed, Activated: r.ActivatedAt != nil,
 		})
 	}
@@ -125,8 +132,8 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, in CreateInput) 
 		if err := r.CreateWorkspace(ctx, gen.CreateWorkspaceParams{ID: id, Name: name, TrialEndsAt: &trialEnds, CreatedBy: &userID}); err != nil {
 			return fmt.Errorf("create workspace: %w", err)
 		}
-		if err := r.AddWorkspaceMember(ctx, gen.AddWorkspaceMemberParams{WorkspaceID: id, UserID: userID, Role: RoleOwner}); err != nil {
-			return fmt.Errorf("add owner: %w", err)
+		if err := s.team.Seed(ctx, tx, id, userID); err != nil {
+			return fmt.Errorf("seed team: %w", err)
 		}
 		return s.onboarding.Start(ctx, tx, id, in.FirstGoal, in.StartMode == StartSample, trialEnds)
 	})
@@ -137,7 +144,7 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, in CreateInput) 
 	if err != nil {
 		return Summary{}, err
 	}
-	return Summary{ID: id, Name: name, Role: RoleOwner, LastActiveAt: now, CurrentStep: step, Completed: completed}, nil
+	return Summary{ID: id, Name: name, RoleName: "Owner", IsOwner: true, LastActiveAt: now, CurrentStep: step, Completed: completed}, nil
 }
 
 // Get returns one workspace and marks it as the user's most recently used.

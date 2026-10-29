@@ -8,24 +8,19 @@ import (
 
 type workspaceKey struct{}
 
-type membership struct {
-	workspaceID uuid.UUID
-	role        string
-}
-
-// WithWorkspace returns ctx carrying the workspace in the URL and the user's role in it.
-func WithWorkspace(ctx context.Context, workspaceID uuid.UUID, role string) context.Context {
-	return context.WithValue(ctx, workspaceKey{}, membership{workspaceID: workspaceID, role: role})
+// WithWorkspace returns ctx carrying the member's access in the workspace in the URL.
+func WithWorkspace(ctx context.Context, a Access) context.Context {
+	return context.WithValue(ctx, workspaceKey{}, a)
 }
 
 // WorkspaceID returns the workspace the request is scoped to, if any.
 func WorkspaceID(ctx context.Context) (uuid.UUID, bool) {
-	m, ok := ctx.Value(workspaceKey{}).(membership)
-	return m.workspaceID, ok
+	a, ok := ctx.Value(workspaceKey{}).(Access)
+	return a.WorkspaceID, ok
 }
 
-// Role returns the signed-in user's role in the request's workspace, if any.
-func Role(ctx context.Context) (string, bool) {
-	m, ok := ctx.Value(workspaceKey{}).(membership)
-	return m.role, ok
+// AccessFrom returns the signed-in member's access in the request's workspace, if any.
+func AccessFrom(ctx context.Context) (Access, bool) {
+	a, ok := ctx.Value(workspaceKey{}).(Access)
+	return a, ok
 }
