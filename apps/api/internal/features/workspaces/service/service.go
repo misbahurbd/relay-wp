@@ -56,6 +56,7 @@ type Service struct {
 	accounts   AccountReader
 	onboarding Onboarding
 	team       Team
+	billing    Billing // nil: deletion is never blocked by billing
 	cfg        Config
 	now        func() time.Time
 }

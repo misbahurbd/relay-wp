@@ -49,6 +49,7 @@ type Service struct {
 	workspaces Workspaces
 	accounts   AccountReader
 	queue      Enqueuer
+	plans      PlanLimits // nil: no plan member cap
 	cfg        Config
 	now        func() time.Time
 }

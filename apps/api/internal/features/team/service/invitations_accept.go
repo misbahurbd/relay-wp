@@ -112,6 +112,12 @@ func (s *Service) AcceptInvitation(ctx context.Context, rawToken string, userID 
 	if !verified {
 		return uuid.Nil, model.ErrEmailNotVerified
 	}
+	planLimit := -1
+	if inv.UsesSeat {
+		if planLimit, err = s.memberLimit(ctx, inv.WorkspaceID); err != nil {
+			return uuid.Nil, err
+		}
+	}
 	err = database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
 		r := repository.NewRepository(tx)
 		locked, err := r.LockInvitation(ctx, gen.LockInvitationParams{WorkspaceID: inv.WorkspaceID, InvitationID: inv.ID})
@@ -139,6 +145,9 @@ func (s *Service) AcceptInvitation(ctx context.Context, rawToken string, userID 
 			}
 			if seats.Used+seats.Reserved > int64(seats.Limit) {
 				return model.ErrNotEnoughSeats
+			}
+			if err := overMemberLimit(planLimit, seats.Used+seats.Reserved, 0); err != nil {
+				return err
 			}
 		}
 		return s.join(ctx, tx, inv, userID, email, meta)
