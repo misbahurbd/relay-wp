@@ -23,7 +23,7 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 
-	"github.com/misbahurbd/relay-wp/apps/api/internal/features/auth"
+	authservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/auth/service"
 )
 
 const (
@@ -77,14 +77,14 @@ func newFakeProvider(t *testing.T) *fakeProvider {
 	return f
 }
 
-func (f *fakeProvider) config() *auth.ProvidersConfig {
-	return &auth.ProvidersConfig{
-		Google: auth.GoogleConfig{
+func (f *fakeProvider) config() *authservice.ProvidersConfig {
+	return &authservice.ProvidersConfig{
+		Google: authservice.GoogleConfig{
 			ClientID: googleClientID, ClientSecret: "google-test-secret",
 			AuthURL: f.srv.URL + "/google/auth", TokenURL: f.srv.URL + "/google/token",
 			JWKSURL: f.srv.URL + "/google/jwks", Issuer: f.srv.URL,
 		},
-		Facebook: auth.FacebookConfig{
+		Facebook: authservice.FacebookConfig{
 			AppID: "fb-test-app", AppSecret: fbAppSecret,
 			AuthURL: f.srv.URL + "/fb/auth", TokenURL: f.srv.URL + "/fb/token", GraphURL: f.srv.URL + "/fb",
 		},

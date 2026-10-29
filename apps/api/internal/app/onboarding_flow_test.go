@@ -18,8 +18,10 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
 
-	"github.com/misbahurbd/relay-wp/apps/api/internal/features/onboarding"
-	"github.com/misbahurbd/relay-wp/apps/api/internal/features/whatsapp"
+	onboardingjobs "github.com/misbahurbd/relay-wp/apps/api/internal/features/onboarding/jobs"
+	onboardingmodel "github.com/misbahurbd/relay-wp/apps/api/internal/features/onboarding/model"
+	whatsappjobs "github.com/misbahurbd/relay-wp/apps/api/internal/features/whatsapp/jobs"
+	whatsappmodel "github.com/misbahurbd/relay-wp/apps/api/internal/features/whatsapp/model"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/config"
 )
 
@@ -120,9 +122,9 @@ func (e *authEnv) signedIn() *browser {
 
 func (e *authEnv) runSetupJob(workspaceID, numberID string) {
 	e.t.Helper()
-	err := whatsapp.NewSetupWorker(e.a.whatsapp).Work(e.t.Context(), &river.Job[whatsapp.SetupArgs]{
+	err := whatsappjobs.NewSetupWorker(e.a.whatsapp).Work(e.t.Context(), &river.Job[whatsappmodel.SetupArgs]{
 		JobRow: &rivertype.JobRow{Attempt: 1, MaxAttempts: 5},
-		Args:   whatsapp.SetupArgs{WorkspaceID: uuid.MustParse(workspaceID), NumberID: uuid.MustParse(numberID)},
+		Args:   whatsappmodel.SetupArgs{WorkspaceID: uuid.MustParse(workspaceID), NumberID: uuid.MustParse(numberID)},
 	})
 	if err != nil {
 		e.t.Fatal(err)
@@ -143,8 +145,8 @@ func (e *authEnv) webhook(entry map[string]any) {
 	if rec.Code != http.StatusOK {
 		e.t.Fatalf("webhook: %d %s", rec.Code, rec.Body)
 	}
-	err := whatsapp.NewWebhookWorker(e.a.whatsapp).Work(e.t.Context(), &river.Job[whatsapp.WebhookArgs]{
-		JobRow: &rivertype.JobRow{Attempt: 1, MaxAttempts: 25}, Args: whatsapp.WebhookArgs{Payload: payload},
+	err := whatsappjobs.NewWebhookWorker(e.a.whatsapp).Work(e.t.Context(), &river.Job[whatsappmodel.WebhookArgs]{
+		JobRow: &rivertype.JobRow{Attempt: 1, MaxAttempts: 25}, Args: whatsappmodel.WebhookArgs{Payload: payload},
 	})
 	if err != nil {
 		e.t.Fatal(err)
@@ -400,8 +402,8 @@ func TestOnboardingReminders(t *testing.T) {
 		t.Fatal(err)
 	}
 	work := func(n int) {
-		err := onboarding.NewSetupReminderWorker(e.a.onboarding).Work(t.Context(), &river.Job[onboarding.SetupReminderArgs]{
-			JobRow: &rivertype.JobRow{Attempt: 1, MaxAttempts: 25}, Args: onboarding.SetupReminderArgs{WorkspaceID: wsID, N: n},
+		err := onboardingjobs.NewSetupReminderWorker(e.a.onboarding).Work(t.Context(), &river.Job[onboardingmodel.SetupReminderArgs]{
+			JobRow: &rivertype.JobRow{Attempt: 1, MaxAttempts: 25}, Args: onboardingmodel.SetupReminderArgs{WorkspaceID: wsID, N: n},
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -423,8 +425,8 @@ func TestOnboardingReminders(t *testing.T) {
 		t.Errorf("setup reminder emails = %d, want 2", count)
 	}
 
-	err := onboarding.NewTrialReminderWorker(e.a.onboarding).Work(t.Context(), &river.Job[onboarding.TrialReminderArgs]{
-		JobRow: &rivertype.JobRow{Attempt: 1, MaxAttempts: 25}, Args: onboarding.TrialReminderArgs{WorkspaceID: wsID, DaysLeft: 1},
+	err := onboardingjobs.NewTrialReminderWorker(e.a.onboarding).Work(t.Context(), &river.Job[onboardingmodel.TrialReminderArgs]{
+		JobRow: &rivertype.JobRow{Attempt: 1, MaxAttempts: 25}, Args: onboardingmodel.TrialReminderArgs{WorkspaceID: wsID, DaysLeft: 1},
 	})
 	if err != nil {
 		t.Fatal(err)

@@ -8,22 +8,22 @@ Full rationale lives in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Read it be
 
 ## 1. Folder structure (MUST)
 
-Never create a new top-level folder, a new folder under `apps/*/` or `internal/`, or a "utils"/"helpers"/"common"/"misc" package. Put code where this table says.
+Never create a new top-level folder, a new folder under `apps/*/` or `internal/` (other than a feature's layer folders below), or a "utils"/"helpers"/"common"/"misc" package. Put code where this table says.
 
 ### Where things go
 
 | You are adding                                                              | It goes in                                                                                       |
 | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | Business logic for a domain (auth, workspaces, members, …)                  | `apps/api/internal/features/<feature>/`                                                          |
-| HTTP handler                                                                | `features/<feature>/handler.go`                                                                  |
-| Business rules                                                              | `features/<feature>/service.go`                                                                  |
-| SQL access                                                                  | `features/<feature>/repository.go` + `features/<feature>/queries.sql`                            |
-| Domain types                                                                | `features/<feature>/model.go`                                                                    |
-| Request/response shapes                                                     | `features/<feature>/dto.go`                                                                      |
-| Feature errors                                                              | `features/<feature>/errors.go`                                                                   |
-| Route registration                                                          | `features/<feature>/routes.go`                                                                   |
-| Background job args + workers                                               | `features/<feature>/jobs.go`                                                                     |
-| Tests                                                                       | next to the code: `features/<feature>/*_test.go`                                                 |
+| HTTP handler                                                                | `features/<feature>/handler/<area>_handler.go`                                                   |
+| Business rules                                                              | `features/<feature>/service/<area>_service.go`                                                   |
+| SQL access                                                                  | `features/<feature>/repository/repository.go` + `repository/<area>_queries.sql`                  |
+| Domain types                                                                | `features/<feature>/model/<area>_model.go`                                                       |
+| Request/response shapes                                                     | `features/<feature>/dto/<area>_dto.go`                                                           |
+| Feature errors                                                              | `features/<feature>/model/errors.go`                                                             |
+| Route registration                                                          | `features/<feature>/handler/routes.go`                                                           |
+| Background job args + workers                                               | args: `features/<feature>/model/job_args.go`; workers: `features/<feature>/jobs/jobs.go`         |
+| Tests                                                                       | next to the code, in the same layer folder: `features/<feature>/<layer>/*_test.go`               |
 | Infrastructure (DB, mailer, storage, queue, cache, logger, JWT, middleware) | `apps/api/internal/platform/<name>/`                                                             |
 | Small cross-feature primitives (`apperr`, `authctx`, `id`)                  | `apps/api/internal/shared/<name>/`                                                               |
 | Wiring features and platform together                                       | `apps/api/internal/app/` only                                                                    |
@@ -39,6 +39,26 @@ Never create a new top-level folder, a new folder under `apps/*/` or `internal/`
 
 A new feature starts with only the files it needs. Do not create empty placeholder files.
 
+### Feature layout: layer folders ([ADR 0003](docs/adr/0003-feature-file-layout.md))
+
+Every feature has one folder per layer. Each folder is its own Go package:
+
+```text
+features/<feature>/
+  handler/     routes.go, handler.go, <area>_handler.go      HTTP only
+  service/     service.go, <area>_service.go, email.go, …     business rules
+  repository/  repository.go, <area>_queries.sql              sqlc queries + small DB helpers
+  dto/         dto.go, <area>_dto.go                          request/response shapes
+  model/       model.go, errors.go, <area>_model.go, job_args.go   domain types, constants, errors
+  jobs/        jobs.go                                        River workers (only if the feature has jobs)
+```
+
+- Imports go one way: `handler → service, dto, model`; `service → repository, model`; `dto → model`; `repository → model`; `jobs → service, repository, model`; `model` imports no other layer. Never import a layer "upwards".
+- Inside a layer, name files by area once a feature has two or more areas: `roles_service.go`, `roles_dto.go`, `roles_queries.sql`. Shared code keeps the plain name (`service.go`, `dto.go`, `model.go`, `repository.go`).
+- Export a name only when another layer uses it. Exported names need a doc comment, except in `dto/` (names and huma `doc` tags describe them).
+- `internal/app` imports layer packages with the feature as prefix: `authservice`, `teamhandler`, `whatsappjobs`.
+- No other folders inside a feature, and no folders inside a layer.
+
 ### Backend dependency rules
 
 - Layers call one way only: `handler → service → repository`.
@@ -49,7 +69,7 @@ A new feature starts with only the files it needs. Do not create empty placehold
 - `platform/` and `shared/` never import `features/`.
 - Only `internal/app` (and `cmd/`) may know about every feature.
 - Every tenant-owned table has `workspace_id`, and every repository method on tenant data takes `workspaceID` as a parameter.
-- Return `shared/apperr` errors from services; never write HTTP status codes outside `handler.go` / `platform/httpx`.
+- Return `shared/apperr` errors from services; never write HTTP status codes outside `handler/` / `platform/httpx`.
 - **No `SELECT *`, ever.** Every query lists exactly the columns it needs, including `RETURNING` clauses and subqueries. This keeps secrets out of results, keeps sqlc's generated structs small, and stops a new column from silently changing existing queries.
 - **Secrets never leave their query.** `users.password_hash` is selected only by the login and change-password queries. It is never part of a user model, DTO or API response, and never logged. The same applies to every stored token hash (`refresh_tokens.token_hash`, `email_tokens.token_hash`, `oauth_flows.state_hash`, `oauth_flows.completion_token_hash`, `invitations.token_hash`) and to OAuth flow secrets (`oauth_flows.code_verifier`, `nonce`), which only `ConsumeOAuthFlow` reads; `invitations.token_hash` is compared only in `GetInvitationByTokenHash`'s `WHERE` and never selected. Likewise `email_codes.code_hash` (read only by `GetActiveEmailCode`), `oauth_flows.email_code_hash` (read only by `GetOAuthFlowEmailCode`), and the encrypted Meta secrets `whatsapp_accounts.access_token` (only `GetAccountToken`) and `whatsapp_numbers.registration_pin` (only `GetNumberPin`).
 
@@ -135,7 +155,7 @@ Then check your change against sections 1 and 2:
 - [ ] No new factory outside the approved list.
 - [ ] No generated file was edited by hand.
 - [ ] Tenant data is scoped by `workspace_id`.
-- [ ] No `SELECT *` or `RETURNING *` in any query (`grep -rn '\*' --include=queries.sql apps/api/internal` finds none).
+- [ ] No `SELECT *` or `RETURNING *` in any query (`grep -rn '\*' --include='*.sql' apps/api/internal` finds none).
 - [ ] No password or token hash appears in a model, DTO, response or log line.
 
 ---

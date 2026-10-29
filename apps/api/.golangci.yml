@@ -29,6 +29,10 @@ linters:
       # Tests return errors straight from the code under test; wrapping adds noise.
       - path: _test\.go
         linters: [wrapcheck]
+      # Request/response shapes: their names and huma doc tags document them (ADR 0003).
+      - path: internal/features/[a-z]+/dto/
+        linters: [revive]
+        text: "^exported: "
 
 formatters:
   enable:

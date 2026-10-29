@@ -4711,6 +4711,15 @@
     "/v1/invitations/accept": {
       "post": {
         "operationId": "accept-invitation",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -4760,6 +4769,15 @@
     "/v1/invitations/preview": {
       "post": {
         "operationId": "preview-invitation",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -4801,6 +4819,15 @@
     "/v1/invitations/request-renewal": {
       "post": {
         "operationId": "request-invitation-renewal",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -5496,6 +5523,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -5563,6 +5597,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -5610,6 +5651,13 @@
             "in": "path",
             "name": "invitationId",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
             "schema": {
               "type": "string"
             }
@@ -5753,6 +5801,13 @@
             "in": "path",
             "name": "workspaceId",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
             "schema": {
               "type": "string"
             }
@@ -5973,6 +6028,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -6030,6 +6092,13 @@
             "in": "path",
             "name": "userId",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
             "schema": {
               "type": "string"
             }
@@ -6101,6 +6170,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -6148,6 +6224,13 @@
             "in": "path",
             "name": "userId",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
             "schema": {
               "type": "string"
             }
@@ -6211,6 +6294,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -6258,6 +6348,13 @@
             "in": "path",
             "name": "userId",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
             "schema": {
               "type": "string"
             }
@@ -6318,6 +6415,13 @@
             "in": "path",
             "name": "userId",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
             "schema": {
               "type": "string"
             }
@@ -6385,6 +6489,13 @@
             "in": "path",
             "name": "userId",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
             "schema": {
               "type": "string"
             }
@@ -6752,6 +6863,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -6830,6 +6948,13 @@
               "description": "Where its members and pending invites go",
               "type": "string"
             }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -6875,6 +7000,13 @@
             "in": "path",
             "name": "roleId",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
             "schema": {
               "type": "string"
             }
@@ -6945,6 +7077,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -7009,6 +7148,13 @@
             "in": "path",
             "name": "roleId",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
             "schema": {
               "type": "string"
             }
@@ -7157,6 +7303,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -7224,6 +7377,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -7269,6 +7429,13 @@
             "in": "path",
             "name": "teamId",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
             "schema": {
               "type": "string"
             }
@@ -7336,6 +7503,13 @@
             "in": "path",
             "name": "teamId",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
             "schema": {
               "type": "string"
             }

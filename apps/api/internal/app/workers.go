@@ -3,10 +3,10 @@ package app
 import (
 	"github.com/riverqueue/river"
 
-	"github.com/misbahurbd/relay-wp/apps/api/internal/features/auth"
-	"github.com/misbahurbd/relay-wp/apps/api/internal/features/onboarding"
-	"github.com/misbahurbd/relay-wp/apps/api/internal/features/team"
-	"github.com/misbahurbd/relay-wp/apps/api/internal/features/whatsapp"
+	authjobs "github.com/misbahurbd/relay-wp/apps/api/internal/features/auth/jobs"
+	onboardingjobs "github.com/misbahurbd/relay-wp/apps/api/internal/features/onboarding/jobs"
+	teamjobs "github.com/misbahurbd/relay-wp/apps/api/internal/features/team/jobs"
+	whatsappjobs "github.com/misbahurbd/relay-wp/apps/api/internal/features/whatsapp/jobs"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/mailer"
 )
 
@@ -19,13 +19,13 @@ func (a *App) workers() *river.Workers {
 
 // addFeatureWorkers registers each feature's workers once the features are built.
 func (a *App) addFeatureWorkers(w *river.Workers) {
-	river.AddWorker(w, onboarding.NewSetupReminderWorker(a.onboarding))
-	river.AddWorker(w, onboarding.NewTrialReminderWorker(a.onboarding))
-	river.AddWorker(w, whatsapp.NewSetupWorker(a.whatsapp))
-	river.AddWorker(w, whatsapp.NewWebhookWorker(a.whatsapp))
-	river.AddWorker(w, auth.NewCleanupWorker(a.db))
-	river.AddWorker(w, team.NewMaintenanceWorker(a.team))
+	river.AddWorker(w, onboardingjobs.NewSetupReminderWorker(a.onboarding))
+	river.AddWorker(w, onboardingjobs.NewTrialReminderWorker(a.onboarding))
+	river.AddWorker(w, whatsappjobs.NewSetupWorker(a.whatsapp))
+	river.AddWorker(w, whatsappjobs.NewWebhookWorker(a.whatsapp))
+	river.AddWorker(w, authjobs.NewCleanupWorker(a.db))
+	river.AddWorker(w, teamjobs.NewMaintenanceWorker(a.team))
 	// Periodic jobs run on the leader only, so several workers don't repeat them.
-	a.queue.PeriodicJobs().Add(auth.CleanupPeriodicJob())
-	a.queue.PeriodicJobs().Add(team.MaintenancePeriodicJob())
+	a.queue.PeriodicJobs().Add(authjobs.CleanupPeriodicJob())
+	a.queue.PeriodicJobs().Add(teamjobs.MaintenancePeriodicJob())
 }

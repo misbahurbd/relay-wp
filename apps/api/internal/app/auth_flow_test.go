@@ -20,7 +20,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/riverqueue/river"
 
-	"github.com/misbahurbd/relay-wp/apps/api/internal/features/auth"
+	authjobs "github.com/misbahurbd/relay-wp/apps/api/internal/features/auth/jobs"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/config"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/database/dbtest"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/jwt"
@@ -353,7 +353,7 @@ func TestCleanupDeletesStaleAuthRows(t *testing.T) {
 	e.exec(`UPDATE oauth_flows SET expires_at = now() - interval '1 minute'`)
 	e.exec(`UPDATE auth_events SET created_at = now() - interval '181 days' WHERE user_id = `+user, email)
 
-	if err := auth.NewCleanupWorker(e.a.db).Work(t.Context(), &river.Job[auth.CleanupArgs]{}); err != nil {
+	if err := authjobs.NewCleanupWorker(e.a.db).Work(t.Context(), &river.Job[authjobs.CleanupArgs]{}); err != nil {
 		t.Fatal(err)
 	}
 	for _, q := range []string{

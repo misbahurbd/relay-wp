@@ -84,21 +84,19 @@ apps/api/
 │   │   └── workers.go         # registers River workers
 │   │
 │   ├── features/              # business logic, one folder per feature
-│   │   ├── auth/              # signup, login, refresh, logout, password reset
-│   │   ├── users/
+│   │   ├── auth/              # signup, login, sessions, passwords, social sign-in
+│   │   ├── profiles/
 │   │   ├── workspaces/
-│   │   ├── members/           # invites, roles
-│   │   └── <feature>/
-│   │       ├── handler.go     # HTTP: decode → service → encode
-│   │       ├── service.go     # business rules (no HTTP, no SQL)
-│   │       ├── repository.go  # data access (wraps sqlc)
-│   │       ├── model.go       # domain types
-│   │       ├── dto.go         # request/response shapes
-│   │       ├── errors.go
-│   │       ├── routes.go      # Register(api huma.API, h *Handler)
-│   │       ├── jobs.go        # River job args + workers (if any)
-│   │       ├── queries.sql    # sqlc input
-│   │       └── *_test.go
+│   │   ├── onboarding/
+│   │   ├── whatsapp/
+│   │   ├── team/              # roles, members, teams, invitations, access log
+│   │   └── <feature>/         # one Go package per layer
+│   │       ├── handler/       # routes.go + HTTP handlers: decode → service → encode
+│   │       ├── service/       # business rules (no HTTP, no SQL)
+│   │       ├── repository/    # data access (wraps sqlc) + <area>_queries.sql
+│   │       ├── dto/           # request/response shapes
+│   │       ├── model/         # domain types, constants, errors, job args
+│   │       └── jobs/          # River workers (if any)
 │   │
 │   ├── platform/              # infrastructure only, no business logic
 │   │   ├── config/            # typed env config
@@ -125,9 +123,25 @@ apps/api/
 └── go.mod
 ```
 
+### Feature layout: layer packages
+
+Each feature is split into one Go package per layer ([ADR 0003](adr/0003-feature-file-layout.md)):
+
+```text
+features/team/
+├── handler/     routes.go  handler.go  roles_handler.go  members_handler.go  …
+├── service/     service.go  roles_service.go  members_service.go  invitations_accept.go  email.go  …
+├── repository/  repository.go  log_writer.go  roles_queries.sql  members_queries.sql  …
+├── dto/         dto.go  roles_dto.go  members_dto.go  …
+├── model/       model.go  errors.go  roles_model.go  roles_defaults.go  …
+└── jobs/        jobs.go
+```
+
+Imports only go down: `handler → service, dto, model`; `service → repository, model`; `dto → model`; `repository → model`; `jobs → service, repository, model`; `model` imports no other layer. Inside a layer, files are named by area (`roles_service.go`), and shared code keeps the plain name. A name is exported only when another layer uses it. `internal/app` imports layers with the feature as prefix (`authservice`, `teamhandler`). sqlc reads every `.sql` file in each feature's `repository/` folder.
+
 ### Rules
 
-1. **One-way dependencies:** `handler → service → repository`. Services never see `http.Request`; handlers never touch SQL.
+1. **One-way dependencies:** `handler → service → repository`, each its own package. Services never see `http.Request`; handlers never touch SQL.
 2. **Features don't import each other's internals.** A feature that needs another declares a small interface in its own package; `internal/app` injects the implementation.
 3. **All wiring lives in `internal/app`.** Constructors (`New(...)`), no globals, no `init()`.
 4. **Errors:** services return `apperr` types (`NotFound`, `Conflict`, `Forbidden`, `Unauthorized`, `Validation`); `httpx` maps them to `{ code, message, details }`.
