@@ -1,9 +1,17 @@
-export { fetchMe, meQueryOptions, useLogout } from './api/auth'
-export { AuthLayout } from './components/auth-layout'
-export { LoginForm } from './components/login-form'
-export { AddEmailForm, ForgotPasswordForm, ResetPasswordForm } from './components/password-reset'
-export { SignOutButton } from './components/sign-out-button'
-export { SignupForm } from './components/signup-form'
-export { SocialButtons } from './components/social-buttons'
-export { ResendVerification, VerifyEmailCode, VerifyEmailLink } from './components/verify-email'
+export { fetchMe, meQueryOptions, useLogout } from './api/auth.api'
+export { AuthLayout } from './components/kit/auth-layout'
+export { SignOutButton } from './components/kit/sign-out-button'
+export {
+  AddEmailForm,
+  ForgotPasswordForm,
+  ResetPasswordForm,
+} from './components/recovery/password-reset'
+export { LoginForm } from './components/sign-in/login-form'
+export { SignupForm } from './components/sign-in/signup-form'
+export { SocialButtons } from './components/sign-in/social-buttons'
+export {
+  ResendVerification,
+  VerifyEmailCode,
+  VerifyEmailLink,
+} from './components/verify/verify-email'
 export { safeRedirect, useOneTimeParam } from './hooks/use-one-time-param'

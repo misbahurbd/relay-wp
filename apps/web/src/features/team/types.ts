@@ -74,3 +74,5 @@ export type MemberFilter = {
   status?: Member['status']
   q?: string
 }
+
+export type LogFilter = { action?: string; member?: string; since?: string }
