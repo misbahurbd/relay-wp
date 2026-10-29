@@ -186,3 +186,20 @@ Replace it with a real back office (roles, an audit log) before there are severa
 
 Admin routes take the workspace in the body, never the URL or the `X-Workspace-ID` header: staff
 are not members.
+
+## 9. Review fixes
+
+- **Retried and late payments complete.** A declined Stripe attempt no longer ends the checkout
+  (`payment_intent.payment_failed` and a failed first invoice are ignored; the customer can retry).
+  A session stays open as long as the provider's checkout (`Checkout.ExpiresAt`, 23 hours on
+  Stripe). A payment that still lands on a failed or expired session completes it and takes its
+  discount back, unless the code was used up meanwhile.
+- **Downgrades wait for the period end.** The provider bills the lower price from the next
+  period, and reports it at once; that report no longer moves the plan before `pending_change_at`.
+- **Card trials start when the card is saved.** A $0 first invoice with a pending SetupIntent is
+  ignored; `customer.subscription.updated` clearing `pending_setup_intent` on a trialing
+  subscription completes the checkout as `trialing`. A provider update never makes an
+  `incomplete` subscription live: only a completed checkout does.
+- **A second payment for something already paid is refunded.** Two Pay windows for one
+  installment, or a balance settled meanwhile: the payment gets its own invoice and a full refund
+  (idempotency key `duplicate:<payment id>`), and the webhook succeeds.

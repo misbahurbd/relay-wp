@@ -141,6 +141,8 @@ type Querier interface {
 	// Marks overrides past their end date as revoked, so they're processed once.
 	ExpireOverrides(ctx context.Context) ([]ExpireOverridesRow, error)
 	ExpiringOverrides(ctx context.Context, arg ExpiringOverridesParams) ([]ExpiringOverridesRow, error)
+	// The provider keeps the checkout payable longer than our default.
+	ExtendCheckoutSession(ctx context.Context, arg ExtendCheckoutSessionParams) (int64, error)
 	ExtendSession(ctx context.Context, arg ExtendSessionParams) error
 	// Members with 3+ failed sign-ins in the window. Reads auth_events directly, never secrets.
 	FailedLoginAlerts(ctx context.Context, arg FailedLoginAlertsParams) ([]FailedLoginAlertsRow, error)
@@ -326,6 +328,9 @@ type Querier interface {
 	NextPlanVersion(ctx context.Context, code string) (int32, error)
 	// Nulls payloads older than the cutoff, a batch at a time.
 	PurgeEventPayloads(ctx context.Context, arg PurgeEventPayloadsParams) (int64, error)
+	// A released reservation's session was paid after all: hold the use again,
+	// unless the code has been used up since.
+	ReclaimDiscount(ctx context.Context, arg ReclaimDiscountParams) (int64, error)
 	RecordEmailCodeAttempt(ctx context.Context, id uuid.UUID) (int32, error)
 	RecordOAuthFlowCodeAttempt(ctx context.Context, id uuid.UUID) (int32, error)
 	// Payment went through: the reservation becomes a redemption.
@@ -333,6 +338,8 @@ type Querier interface {
 	// The checkout failed or expired: free the reservation and give the use back,
 	// in one statement so redeemed_count never drifts.
 	ReleaseDiscount(ctx context.Context, arg ReleaseDiscountParams) (int64, error)
+	// A payment arrived for a failed or expired session: it completes after all.
+	ReopenCheckoutSession(ctx context.Context, arg ReopenCheckoutSessionParams) (int64, error)
 	RequestInvitationRenewal(ctx context.Context, invitationID uuid.UUID) (int64, error)
 	ResendInvitation(ctx context.Context, arg ResendInvitationParams) error
 	// One statement: the conditional bump of redeemed_count takes the discount's

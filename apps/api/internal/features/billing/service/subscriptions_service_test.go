@@ -109,6 +109,25 @@ func TestDowngradeWaitsForPeriodEnd(t *testing.T) {
 		t.Fatalf("after downgrade: %+v", got)
 	}
 	e.wantCache(e.ws, pro.Code)
+
+	// The provider reports the lower price straight away (it bills it from the
+	// next period): the customer keeps the plan they paid for until then.
+	var lowerExt string
+	if err := e.pool.QueryRow(e.ctx, `SELECT external_price_id FROM provider_prices WHERE plan_price_id = $1`,
+		basic.Monthly).Scan(&lowerExt); err != nil {
+		t.Fatal(err)
+	}
+	e.inTx(func(tx pgx.Tx) error {
+		return e.svc.SyncSubscription(e.ctx, tx, e.ws, sub.ID, payment.Subscription{
+			ExternalID: *sub.ExternalSubscriptionID, Status: payment.SubscriptionActive, ExternalPriceID: lowerExt,
+			CurrentPeriodStart: sub.CurrentPeriodStart, CurrentPeriodEnd: sub.CurrentPeriodEnd,
+		})
+	})
+	if mid, err := e.svc.Subscription(e.ctx, e.ws); err != nil || mid.PlanPriceID != pro.Monthly || mid.PendingPlanPriceID == nil {
+		t.Fatalf("after the provider's update: %+v, %v", mid, err)
+	}
+	e.wantCache(e.ws, pro.Code)
+
 	ch := e.changes(sub.ID)
 	if len(ch) != 1 || ch[0].Kind != model.ChangeDowngrade || ch[0].ProrationMinor != 0 || !ch[0].EffectiveAt.Equal(*sub.CurrentPeriodEnd) {
 		t.Fatalf("changes = %+v", ch)

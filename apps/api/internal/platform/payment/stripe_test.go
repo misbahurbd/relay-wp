@@ -607,7 +607,8 @@ func TestStripeWebhookFixtures(t *testing.T) {
 				t.Fatalf("payment = %+v", p)
 			}
 		}},
-		{"payment_intent_payment_failed", EventCheckoutFailed, true, func(t *testing.T, ev Event) {
+		// A declined attempt leaves the checkout open: the customer can retry.
+		{"payment_intent_payment_failed", EventIgnored, true, func(t *testing.T, ev Event) {
 			if ev.Payment == nil || ev.Payment.FailureCode != "insufficient_funds" || ev.Payment.PaidAt != nil {
 				t.Fatalf("payment = %+v", ev.Payment)
 			}
@@ -628,7 +629,7 @@ func TestStripeWebhookFixtures(t *testing.T) {
 			}
 		}},
 		{"invoice_paid", EventPaymentSucceeded, true, nil},
-		{"invoice_payment_failed_subscription_create", EventCheckoutFailed, true, func(t *testing.T, ev Event) {
+		{"invoice_payment_failed_subscription_create", EventIgnored, true, func(t *testing.T, ev Event) {
 			if ev.Payment == nil || ev.Payment.ExternalID != "in_1" || ev.Payment.PaidAt != nil {
 				t.Fatalf("payment = %+v", ev.Payment)
 			}
@@ -639,6 +640,13 @@ func TestStripeWebhookFixtures(t *testing.T) {
 			if s == nil || s.ExternalID != "sub_1" || s.Status != SubscriptionActive || !s.CancelAtPeriodEnd ||
 				s.ExternalPriceID != "price_growth_month" || s.CurrentPeriodEnd == nil {
 				t.Fatalf("subscription = %+v", s)
+			}
+		}},
+		{"customer_subscription_trial_card_saved", EventCheckoutCompleted, true, func(t *testing.T, ev Event) {
+			s, p := ev.Subscription, ev.Payment
+			if s == nil || s.Status != SubscriptionTrialing || p == nil || p.ExternalID != "in_trial_1" ||
+				p.TotalMinor != 0 || p.Currency != "USD" || p.ExternalSubscriptionID != "sub_trial_1" {
+				t.Fatalf("subscription = %+v, payment = %+v", s, p)
 			}
 		}},
 		{"customer_subscription_deleted", EventSubscriptionCanceled, true, func(t *testing.T, ev Event) {
@@ -697,7 +705,7 @@ func TestStripeWebhookFixtures(t *testing.T) {
 		covered[tc.want] = true
 	}
 	for _, typ := range []EventType{
-		EventCheckoutCompleted, EventCheckoutFailed, EventCheckoutExpired, EventPaymentSucceeded, EventPaymentFailed,
+		EventCheckoutCompleted, EventCheckoutExpired, EventPaymentSucceeded, EventPaymentFailed,
 		EventSubscriptionUpdated, EventSubscriptionCanceled, EventRefundUpdated, EventDisputeOpened, EventDisputeClosed,
 		EventIgnored,
 	} {

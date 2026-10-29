@@ -169,7 +169,11 @@ func TestExpiredCheckoutReleasesDiscount(t *testing.T) {
 	d := e.discount(nil)
 	c := e.checkout(p.Monthly, d.Code)
 
-	e.tick(2 * time.Second)
+	// The session stays open as long as the provider's checkout (the fake's: an hour).
+	if n, _ := e.svc.ExpireCheckouts(e.ctx); n != 0 {
+		t.Fatalf("expired %d before the provider's checkout did", n)
+	}
+	e.tick(2 * time.Hour)
 	if n, err := e.svc.ExpireCheckouts(e.ctx); err != nil || n < 1 {
 		t.Fatalf("ExpireCheckouts = %d, %v", n, err)
 	}
@@ -185,6 +189,28 @@ func TestExpiredCheckoutReleasesDiscount(t *testing.T) {
 	if _, err := e.svc.ApplyDiscount(e.ctx, e.ws, d.Code, price, nil); err != nil {
 		t.Fatalf("code after release: %v", err)
 	}
+}
+
+func TestLatePaymentCompletesAnExpiredCheckout(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	d := e.discount(nil)
+	c := e.checkout(p.Monthly, d.Code)
+	e.tick(2 * time.Hour)
+	if n, err := e.svc.ExpireCheckouts(e.ctx); err != nil || n < 1 {
+		t.Fatalf("ExpireCheckouts = %d, %v", n, err)
+	}
+
+	// The customer pays from the tab they left open: the money is real.
+	e.pay(c)
+	s, err := e.svc.CheckoutSession(e.ctx, e.ws, c.Session.ID)
+	if err != nil || s.Status != model.CheckoutCompleted {
+		t.Fatalf("session = %+v, %v", s, err)
+	}
+	if status, count := e.redemption(c.Session.ID); status != model.RedemptionRedeemed || count != 1 {
+		t.Fatalf("discount after a late payment: %s, %d", status, count)
+	}
+	e.wantCache(e.ws, p.Code)
 }
 
 func TestCreateDiscountValidates(t *testing.T) {

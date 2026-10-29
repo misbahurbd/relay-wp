@@ -432,6 +432,11 @@ func (s *Service) SyncSubscription(ctx context.Context, tx pgx.Tx, workspaceID, 
 	if sub.Status == model.SubscriptionCanceled {
 		return nil // canceled is final; a late event changes nothing
 	}
+	if sub.Status == model.SubscriptionIncomplete && ps.Status != payment.SubscriptionCanceled {
+		// Only a completed checkout makes a subscription live: an update can
+		// arrive before the payment (or a trial's card) does, and must not grant.
+		return nil
+	}
 	switch ps.Status {
 	case payment.SubscriptionIncomplete, payment.SubscriptionTrialing, payment.SubscriptionActive,
 		payment.SubscriptionPastDue, payment.SubscriptionCanceled:
@@ -477,7 +482,7 @@ func (s *Service) SyncSubscription(ctx context.Context, tx pgx.Tx, workspaceID, 
 		if err != nil {
 			return err
 		}
-		if planPriceID, err = followProviderPrice(ctx, r, next, planPriceID, ps); err != nil {
+		if planPriceID, err = followProviderPrice(ctx, r, next, planPriceID, ps, at); err != nil {
 			return err
 		}
 		return s.ensurePriceGrant(ctx, tx, workspaceID, sub.ID, planPriceID)
@@ -561,8 +566,11 @@ func applyPendingChange(ctx context.Context, r repository.Repository, sub model.
 
 // followProviderPrice moves the subscription to the price the provider now
 // bills (a change made on the provider's side) when it is one of our prices,
-// and returns the subscription's price. An unknown provider price changes nothing.
-func followProviderPrice(ctx context.Context, r repository.Repository, sub model.Subscription, planPriceID uuid.UUID, ps payment.Subscription) (uuid.UUID, error) {
+// and returns the subscription's price. An unknown provider price changes
+// nothing, and neither does a scheduled downgrade before its date: the
+// provider bills it from the next period, the customer keeps what they paid
+// for until then (Q6).
+func followProviderPrice(ctx context.Context, r repository.Repository, sub model.Subscription, planPriceID uuid.UUID, ps payment.Subscription, at time.Time) (uuid.UUID, error) {
 	if ps.ExternalPriceID == "" {
 		return planPriceID, nil
 	}
@@ -570,6 +578,9 @@ func followProviderPrice(ctx context.Context, r repository.Repository, sub model
 		Provider: string(sub.Provider), ExternalPriceID: &ps.ExternalPriceID,
 	})
 	if repository.IsNoRows(err) || (err == nil && billed == planPriceID) {
+		return planPriceID, nil
+	}
+	if err == nil && sameID(sub.PendingPlanPriceID, billed) && sub.PendingChangeAt != nil && at.Before(*sub.PendingChangeAt) {
 		return planPriceID, nil
 	}
 	if err != nil {

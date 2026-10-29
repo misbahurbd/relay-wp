@@ -553,7 +553,9 @@ func (g *stripeGateway) normalise(ctx context.Context, ev *Event, se stripe.Even
 			ev.Type = EventCheckoutCompleted
 			ev.Payment.PaidAt = &ev.OccurredAt
 		case "payment_intent.payment_failed":
-			ev.Type = EventCheckoutFailed
+			// One declined attempt: the customer can retry with the same form,
+			// so the checkout stays open until the intent is canceled.
+			ev.Type = EventIgnored
 		default:
 			ev.Type = EventCheckoutExpired
 		}
@@ -574,13 +576,29 @@ func (g *stripeGateway) normalise(ctx context.Context, ev *Event, se stripe.Even
 		}
 		ev.Payment = p
 		first := inv.BillingReason == stripe.InvoiceBillingReasonSubscriptionCreate
+		if se.Type == "invoice.paid" && first && inv.Total == 0 {
+			// Nothing due now (a trial, or a 100% code): the $0 invoice is paid
+			// before any card is saved. The checkout completes once the card is
+			// in, so the subscription's own status decides.
+			sub, err := g.sc.V1Subscriptions.Retrieve(ctx, meta.Subscription.ID, nil)
+			if err != nil {
+				return stripeError("retrieve subscription", err)
+			}
+			if sub.PendingSetupIntent != nil {
+				return nil // EventIgnored: completed by customer.subscription.updated below
+			}
+			s := stripeSubscription(sub)
+			ev.Subscription = &s
+		}
 		switch {
 		case se.Type == "invoice.paid" && first:
 			ev.Type = EventCheckoutCompleted
 		case se.Type == "invoice.paid":
 			ev.Type = EventPaymentSucceeded
 		case first:
-			ev.Type = EventCheckoutFailed
+			// A declined first attempt; the customer can retry. The subscription
+			// ending incomplete_expired is what closes the checkout.
+			ev.Type = EventIgnored
 		default:
 			ev.Type = EventPaymentFailed
 		}
@@ -593,9 +611,19 @@ func (g *stripeGateway) normalise(ctx context.Context, ev *Event, se stripe.Even
 		s := stripeSubscription(&sub)
 		ev.Subscription = &s
 		ev.Reference = stripeReference(sub.Metadata)
+		_, setupDone := se.Data.PreviousAttributes["pending_setup_intent"]
 		switch {
 		case sub.Status == stripe.SubscriptionStatusIncompleteExpired:
 			ev.Type = EventCheckoutExpired // the first payment never went through
+		case se.Type == "customer.subscription.updated" && setupDone && sub.PendingSetupIntent == nil &&
+			sub.Status == stripe.SubscriptionStatusTrialing:
+			// The trial's card is saved: that, not the $0 invoice, completes the checkout.
+			ev.Type = EventCheckoutCompleted
+			ev.Payment = &Payment{
+				ExternalID: stripeInvoiceID(sub.LatestInvoice), ExternalCustomerID: s.ExternalCustomerID,
+				ExternalSubscriptionID: sub.ID, Currency: strings.ToUpper(string(sub.Currency)),
+				PeriodStart: s.CurrentPeriodStart, PeriodEnd: s.CurrentPeriodEnd, PaidAt: &ev.OccurredAt,
+			}
 		case se.Type == "customer.subscription.deleted":
 			ev.Type = EventSubscriptionCanceled
 		default:
@@ -633,6 +661,14 @@ func (g *stripeGateway) normalise(ctx context.Context, ev *Event, se stripe.Even
 		}
 	}
 	return nil
+}
+
+// stripeInvoiceID is an invoice's ID, expanded or not.
+func stripeInvoiceID(inv *stripe.Invoice) string {
+	if inv == nil {
+		return ""
+	}
+	return inv.ID
 }
 
 func invoiceSubscriptionMeta(inv *stripe.Invoice) *stripe.InvoiceParentSubscriptionDetails {

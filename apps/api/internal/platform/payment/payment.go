@@ -327,7 +327,8 @@ type EventType string
 const (
 	// EventCheckoutCompleted: a checkout's first payment went through. Payment is set.
 	EventCheckoutCompleted EventType = "checkout.completed"
-	// EventCheckoutFailed: the first payment failed for good. Payment may be set.
+	// EventCheckoutFailed: the first payment failed for good, not one declined
+	// attempt the customer can retry. Payment may be set.
 	EventCheckoutFailed EventType = "checkout.failed"
 	// EventCheckoutExpired: the customer never paid.
 	EventCheckoutExpired EventType = "checkout.expired"

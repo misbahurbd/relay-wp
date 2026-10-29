@@ -363,6 +363,37 @@ func (q *Queries) ListDiscounts(ctx context.Context, activeOnly bool) ([]ListDis
 	return items, nil
 }
 
+const reclaimDiscount = `-- name: ReclaimDiscount :execrows
+WITH bumped AS (
+    UPDATE discounts d
+    SET redeemed_count = d.redeemed_count + 1
+    FROM discount_redemptions r
+    WHERE r.workspace_id = $1 AND r.checkout_session_id = $2
+      AND r.status = 'released' AND d.id = r.discount_id
+      AND (d.max_redemptions IS NULL OR d.redeemed_count < d.max_redemptions)
+    RETURNING d.id
+)
+UPDATE discount_redemptions dr
+SET status = 'reserved'
+WHERE dr.workspace_id = $1 AND dr.checkout_session_id = $2 AND dr.status = 'released'
+  AND EXISTS (SELECT 1 FROM bumped)
+`
+
+type ReclaimDiscountParams struct {
+	WorkspaceID       uuid.UUID
+	CheckoutSessionID uuid.UUID
+}
+
+// A released reservation's session was paid after all: hold the use again,
+// unless the code has been used up since.
+func (q *Queries) ReclaimDiscount(ctx context.Context, arg ReclaimDiscountParams) (int64, error) {
+	result, err := q.db.Exec(ctx, reclaimDiscount, arg.WorkspaceID, arg.CheckoutSessionID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const redeemDiscount = `-- name: RedeemDiscount :execrows
 UPDATE discount_redemptions
 SET status = 'redeemed', redeemed_at = $1,

@@ -85,6 +85,23 @@ SET redeemed_count = d.redeemed_count - 1
 FROM released
 WHERE d.id = released.discount_id;
 
+-- name: ReclaimDiscount :execrows
+-- A released reservation's session was paid after all: hold the use again,
+-- unless the code has been used up since.
+WITH bumped AS (
+    UPDATE discounts d
+    SET redeemed_count = d.redeemed_count + 1
+    FROM discount_redemptions r
+    WHERE r.workspace_id = @workspace_id AND r.checkout_session_id = @checkout_session_id
+      AND r.status = 'released' AND d.id = r.discount_id
+      AND (d.max_redemptions IS NULL OR d.redeemed_count < d.max_redemptions)
+    RETURNING d.id
+)
+UPDATE discount_redemptions dr
+SET status = 'reserved'
+WHERE dr.workspace_id = @workspace_id AND dr.checkout_session_id = @checkout_session_id AND dr.status = 'released'
+  AND EXISTS (SELECT 1 FROM bumped);
+
 -- ---------- Provider coupons (subscriptions the provider renews) ----------
 
 -- name: GetProviderDiscount :one

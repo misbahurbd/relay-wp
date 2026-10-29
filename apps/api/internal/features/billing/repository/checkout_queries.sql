@@ -61,6 +61,18 @@ UPDATE checkout_sessions
 SET status = @status
 WHERE workspace_id = @workspace_id AND id = @checkout_session_id AND status = 'pending';
 
+-- name: ReopenCheckoutSession :execrows
+-- A payment arrived for a failed or expired session: it completes after all.
+UPDATE checkout_sessions
+SET status = 'pending'
+WHERE workspace_id = @workspace_id AND id = @checkout_session_id AND status IN ('failed', 'expired');
+
+-- name: ExtendCheckoutSession :execrows
+-- The provider keeps the checkout payable longer than our default.
+UPDATE checkout_sessions
+SET expires_at = @expires_at
+WHERE workspace_id = @workspace_id AND id = @checkout_session_id AND status = 'pending';
+
 -- name: ListExpiredCheckoutSessions :many
 -- Job only (all workspaces): pending sessions past their expiry, oldest first.
 SELECT id, workspace_id, discount_id

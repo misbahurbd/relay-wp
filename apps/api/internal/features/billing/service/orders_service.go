@@ -304,6 +304,9 @@ func (l lifetimeDeals) completeOrderCheckout(ctx context.Context, tx pgx.Tx, wor
 			v := installmentFromRow(gen.ListOrderInstallmentsRow(i))
 			inst = &v
 		}
+		if (inst != nil && inst.Status == model.InstallmentPaid) || p.TotalMinor-p.TaxMinor > o.BalanceMinor() {
+			return l.refundDuplicate(ctx, tx, r, o, inst, &session.ID, p)
+		}
 		recorded, o, err := l.recordPayment(ctx, tx, r, o, inst, &session.ID, p)
 		if err != nil || !recorded {
 			return err
@@ -401,38 +404,13 @@ func (l lifetimeDeals) startOrder(ctx context.Context, tx pgx.Tx, r repository.R
 // already recorded (a replayed webhook) records nothing and returns false.
 // Paying more than the balance is model.ErrOverpayment.
 func (l lifetimeDeals) recordPayment(ctx context.Context, tx pgx.Tx, r repository.Repository, o model.Order, inst *model.Installment, sessionID *uuid.UUID, p payment.Payment) (bool, model.Order, error) {
-	billTo, err := l.t3.billTo(ctx, tx, o.WorkspaceID)
-	if err != nil {
+	created, err := l.orderInvoice(ctx, tx, r, o, inst, sessionID, p)
+	if err != nil || !created {
 		return false, o, err
-	}
-	rawBillTo, err := json.Marshal(billTo)
-	if err != nil {
-		return false, o, fmt.Errorf("encode bill_to: %w", err)
 	}
 	paidAt := l.now()
 	if p.PaidAt != nil {
 		paidAt = p.PaidAt.UTC()
-	}
-	var discountID *uuid.UUID
-	if p.DiscountMinor > 0 {
-		discountID = o.DiscountID
-	}
-	var installmentID *uuid.UUID
-	if inst != nil {
-		installmentID = &inst.ID
-	}
-	_, err = r.CreateInvoice(ctx, gen.CreateInvoiceParams{
-		WorkspaceID: o.WorkspaceID, Number: nonEmpty(p.InvoiceNumber), OrderID: &o.ID, InstallmentID: installmentID,
-		CheckoutSessionID: sessionID, Provider: string(o.Provider), ExternalPaymentID: nonEmpty(p.ExternalID),
-		Status: model.InvoicePaid, SubtotalMinor: p.SubtotalMinor, TaxMinor: p.TaxMinor, TotalMinor: p.TotalMinor,
-		Currency: p.Currency, PeriodStart: p.PeriodStart, PeriodEnd: p.PeriodEnd, BillTo: rawBillTo,
-		DiscountID: discountID, DiscountMinor: p.DiscountMinor, ReceiptUrl: nonEmpty(p.ReceiptURL), PaidAt: &paidAt,
-	})
-	if repository.IsNoRows(err) {
-		return false, o, nil
-	}
-	if err != nil {
-		return false, o, fmt.Errorf("create invoice: %w", err)
 	}
 
 	// Tax belongs to the invoice, not the order's balance.
@@ -457,6 +435,68 @@ func (l lifetimeDeals) recordPayment(ctx context.Context, tx pgx.Tx, r repositor
 		}
 	}
 	return true, o, nil
+}
+
+// refundDuplicate handles a checkout paid for something already paid: two
+// Pay windows open for one installment, or a balance settled meanwhile. The
+// money is recorded on its own invoice and refunded in full, so the webhook
+// never fails over it and the customer isn't charged twice.
+func (l lifetimeDeals) refundDuplicate(ctx context.Context, tx pgx.Tx, r repository.Repository, o model.Order, inst *model.Installment, sessionID *uuid.UUID, p payment.Payment) error {
+	created, err := l.orderInvoice(ctx, tx, r, o, inst, sessionID, p)
+	if err != nil || !created {
+		return err
+	}
+	l.logger().Warn("refunding a duplicate order payment", "order_id", o.ID, "checkout_session_id", sessionID)
+	g, err := l.gateway(o.Provider)
+	if err != nil {
+		return err
+	}
+	if _, err := g.Refund(ctx, payment.RefundRequest{
+		ExternalPaymentID: p.ExternalID, AmountMinor: p.TotalMinor, Currency: p.Currency,
+		Reason: "duplicate", IdempotencyKey: "duplicate:" + p.ExternalID,
+	}); err != nil {
+		return l.gatewayErr("refund duplicate payment", err)
+	}
+	return nil
+}
+
+// orderInvoice issues the paid invoice for an order payment. False means the
+// provider's payment is already recorded (a replayed webhook).
+func (l lifetimeDeals) orderInvoice(ctx context.Context, tx pgx.Tx, r repository.Repository, o model.Order, inst *model.Installment, sessionID *uuid.UUID, p payment.Payment) (bool, error) {
+	billTo, err := l.t3.billTo(ctx, tx, o.WorkspaceID)
+	if err != nil {
+		return false, err
+	}
+	rawBillTo, err := json.Marshal(billTo)
+	if err != nil {
+		return false, fmt.Errorf("encode bill_to: %w", err)
+	}
+	paidAt := l.now()
+	if p.PaidAt != nil {
+		paidAt = p.PaidAt.UTC()
+	}
+	var discountID *uuid.UUID
+	if p.DiscountMinor > 0 {
+		discountID = o.DiscountID
+	}
+	var installmentID *uuid.UUID
+	if inst != nil {
+		installmentID = &inst.ID
+	}
+	_, err = r.CreateInvoice(ctx, gen.CreateInvoiceParams{
+		WorkspaceID: o.WorkspaceID, Number: nonEmpty(p.InvoiceNumber), OrderID: &o.ID, InstallmentID: installmentID,
+		CheckoutSessionID: sessionID, Provider: string(o.Provider), ExternalPaymentID: nonEmpty(p.ExternalID),
+		Status: model.InvoicePaid, SubtotalMinor: p.SubtotalMinor, TaxMinor: p.TaxMinor, TotalMinor: p.TotalMinor,
+		Currency: p.Currency, PeriodStart: p.PeriodStart, PeriodEnd: p.PeriodEnd, BillTo: rawBillTo,
+		DiscountID: discountID, DiscountMinor: p.DiscountMinor, ReceiptUrl: nonEmpty(p.ReceiptURL), PaidAt: &paidAt,
+	})
+	if repository.IsNoRows(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("create invoice: %w", err)
+	}
+	return true, nil
 }
 
 // settle brings a live order up to date after a later payment: paid once

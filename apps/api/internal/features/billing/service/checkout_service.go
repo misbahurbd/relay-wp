@@ -370,6 +370,15 @@ func (s *Service) openCheckout(ctx context.Context, workspaceID uuid.UUID, c che
 			}
 			session.ExternalSessionID = &started.ExternalSessionID
 		}
+		// Keep the session open as long as the provider takes payment for it.
+		if started.ExpiresAt.After(c.params.ExpiresAt) {
+			if _, err := r.ExtendCheckoutSession(ctx, gen.ExtendCheckoutSessionParams{
+				ExpiresAt: started.ExpiresAt, WorkspaceID: workspaceID, CheckoutSessionID: session.ID,
+			}); err != nil {
+				return fmt.Errorf("extend checkout session: %w", err)
+			}
+			session.ExpiresAt = started.ExpiresAt
+		}
 		if err := setCustomerExternalID(ctx, r, workspaceID, customer.ID, started.ExternalCustomerID); err != nil {
 			return err
 		}
@@ -520,16 +529,18 @@ func (s *Service) CompleteCheckout(ctx context.Context, tx pgx.Tx, workspaceID, 
 		return fmt.Errorf("lock checkout session: %w", err)
 	}
 	session := toCheckoutSession(gen.GetCheckoutSessionRow(row))
-	if session.Status != model.CheckoutPending {
-		if session.Status != model.CheckoutCompleted {
-			// Money arrived for a session we gave up on: support refunds or applies it.
-			s.logger().Warn("payment for a finished checkout", "checkout_session_id", session.ID, "status", session.Status,
-				"event", ev)
-		}
-		return nil
-	}
-	if ev.Payment == nil {
+	if ev.Payment == nil && session.Status != model.CheckoutCompleted {
 		return fmt.Errorf("checkout %s completed without a payment", session.ID)
+	}
+	switch session.Status {
+	case model.CheckoutCompleted:
+		return nil // a replay
+	case model.CheckoutFailed, model.CheckoutExpired:
+		// The customer paid after we gave up (a retried card, a tab left open):
+		// the money is real, so the checkout completes, with its discount back.
+		if err := s.reopenCheckout(ctx, r, session); err != nil {
+			return err
+		}
 	}
 	if _, err := r.FinishCheckoutSession(ctx, gen.FinishCheckoutSessionParams{
 		Status: model.CheckoutCompleted, WorkspaceID: workspaceID, CheckoutSessionID: session.ID,
@@ -551,6 +562,31 @@ func (s *Service) CompleteCheckout(ctx context.Context, tx pgx.Tx, workspaceID, 
 	default:
 		return fmt.Errorf("checkout %s: purpose %q has no completion", session.ID, session.Purpose)
 	}
+}
+
+// reopenCheckout puts a failed or expired session back to pending in tx, and
+// its discount reservation with it while the code has uses left.
+func (s *Service) reopenCheckout(ctx context.Context, r repository.Repository, session model.CheckoutSession) error {
+	s.logger().Info("late payment for a closed checkout", "checkout_session_id", session.ID, "status", session.Status)
+	if _, err := r.ReopenCheckoutSession(ctx, gen.ReopenCheckoutSessionParams{
+		WorkspaceID: session.WorkspaceID, CheckoutSessionID: session.ID,
+	}); err != nil {
+		return fmt.Errorf("reopen checkout session: %w", err)
+	}
+	if session.DiscountID == nil {
+		return nil
+	}
+	n, err := r.ReclaimDiscount(ctx, gen.ReclaimDiscountParams{
+		WorkspaceID: session.WorkspaceID, CheckoutSessionID: session.ID,
+	})
+	if err != nil {
+		return fmt.Errorf("reclaim discount: %w", err)
+	}
+	if n == 0 {
+		// Used up meanwhile: the customer keeps the price they paid, uncounted.
+		s.logger().Warn("discount used up before a late payment", "checkout_session_id", session.ID)
+	}
+	return nil
 }
 
 // activateSubscription makes a paid purpose-new checkout's subscription live

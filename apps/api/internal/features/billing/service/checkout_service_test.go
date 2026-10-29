@@ -81,6 +81,15 @@ func TestCardTrialStartsTrialing(t *testing.T) {
 	if fc, _ := e.fake.Checkout(*c.Session.ExternalSessionID); fc.Request.TrialDays != 14 {
 		t.Fatalf("trial days sent = %d", fc.Request.TrialDays)
 	}
+	// The provider reports the subscription trialing before any card is in:
+	// that grants nothing. Only the completed checkout does.
+	now, end := e.clock, e.clock.AddDate(0, 0, 14)
+	e.inTx(func(tx pgx.Tx) error {
+		return e.svc.SyncSubscription(e.ctx, tx, e.ws, *c.Session.SubscriptionID, payment.Subscription{
+			Status: payment.SubscriptionTrialing, CurrentPeriodStart: &now, CurrentPeriodEnd: &end,
+		})
+	})
+	e.wantCache(e.ws, model.FreePlan)
 	e.pay(c)
 	sub, err := e.svc.Subscription(e.ctx, e.ws)
 	if err != nil || sub.Status != model.SubscriptionTrialing {

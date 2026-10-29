@@ -78,6 +78,37 @@ func TestPayInstallmentOnlyTheNextDueAppLinkOne(t *testing.T) {
 	}
 }
 
+func TestPayingAnInstallmentTwiceRefundsTheSecond(t *testing.T) {
+	h := newLTDHarness(t, model.CollectionAppLink)
+	q, err := h.quote(h.basic, &h.basic3, "")
+	h.must(err)
+	o := h.buy(q, "")
+	h.run(month)
+
+	// Two Pay windows for installment 2, both paid.
+	first, err := h.l.payInstallment(h.ctx, h.ws, h.user, o.ID, o.Installments[1].ID, "window-1")
+	h.must(err)
+	second, err := h.l.payInstallment(h.ctx, h.ws, h.user, o.ID, o.Installments[1].ID, "window-2")
+	h.must(err)
+	h.complete(first.Session, h.payment(10333))
+	dup := h.payment(10333)
+	h.complete(second.Session, dup)
+
+	wantOrder(t, h.order(o.ID), model.OrderInInstallments, 20666, "paid", "paid", "scheduled")
+	if n := h.invoiceCount(o.ID); n != 3 {
+		t.Errorf("%d invoices, want 3: the duplicate is recorded", n)
+	}
+	refunds := h.fake.Refunds()
+	if len(refunds) != 1 || refunds[0].ExternalPaymentID != dup.ExternalID || refunds[0].AmountMinor != 10333 {
+		t.Fatalf("refunds = %+v, want the duplicate refunded in full", refunds)
+	}
+	// A replay of the duplicate's webhook refunds nothing more.
+	h.complete(second.Session, dup)
+	if n := len(h.fake.Refunds()); n != 1 {
+		t.Fatalf("%d refunds after a replay, want 1", n)
+	}
+}
+
 func TestPayInstallmentRefusesAProviderRunSchedule(t *testing.T) {
 	h := newLTDHarness(t, model.CollectionProviderSchedule)
 	q, err := h.quote(h.basic, &h.basic3, "")

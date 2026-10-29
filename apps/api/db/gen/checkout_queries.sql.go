@@ -110,6 +110,27 @@ func (q *Queries) CreateCheckoutSession(ctx context.Context, arg CreateCheckoutS
 	return i, err
 }
 
+const extendCheckoutSession = `-- name: ExtendCheckoutSession :execrows
+UPDATE checkout_sessions
+SET expires_at = $1
+WHERE workspace_id = $2 AND id = $3 AND status = 'pending'
+`
+
+type ExtendCheckoutSessionParams struct {
+	ExpiresAt         time.Time
+	WorkspaceID       uuid.UUID
+	CheckoutSessionID uuid.UUID
+}
+
+// The provider keeps the checkout payable longer than our default.
+func (q *Queries) ExtendCheckoutSession(ctx context.Context, arg ExtendCheckoutSessionParams) (int64, error) {
+	result, err := q.db.Exec(ctx, extendCheckoutSession, arg.ExpiresAt, arg.WorkspaceID, arg.CheckoutSessionID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const findCheckoutSessionWorkspace = `-- name: FindCheckoutSessionWorkspace :one
 SELECT workspace_id
 FROM checkout_sessions
@@ -398,6 +419,26 @@ func (q *Queries) LockCheckoutSession(ctx context.Context, arg LockCheckoutSessi
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const reopenCheckoutSession = `-- name: ReopenCheckoutSession :execrows
+UPDATE checkout_sessions
+SET status = 'pending'
+WHERE workspace_id = $1 AND id = $2 AND status IN ('failed', 'expired')
+`
+
+type ReopenCheckoutSessionParams struct {
+	WorkspaceID       uuid.UUID
+	CheckoutSessionID uuid.UUID
+}
+
+// A payment arrived for a failed or expired session: it completes after all.
+func (q *Queries) ReopenCheckoutSession(ctx context.Context, arg ReopenCheckoutSessionParams) (int64, error) {
+	result, err := q.db.Exec(ctx, reopenCheckoutSession, arg.WorkspaceID, arg.CheckoutSessionID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const setCheckoutSessionExternalID = `-- name: SetCheckoutSessionExternalID :execrows
