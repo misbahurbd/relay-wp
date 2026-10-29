@@ -1,0 +1,54 @@
+{
+  "id": "evt_inv_failed_first",
+  "object": "event",
+  "api_version": "2026-09-30.endive",
+  "created": 1761696000,
+  "type": "invoice.payment_failed",
+  "data": {
+    "object": {
+      "id": "in_1",
+      "object": "invoice",
+      "number": "RELAY-0001",
+      "customer": "cus_1",
+      "currency": "usd",
+      "billing_reason": "subscription_create",
+      "subtotal": 2900,
+      "total": 2320,
+      "amount_paid": 0,
+      "hosted_invoice_url": "https://invoice.stripe.com/i/in_1",
+      "total_discount_amounts": [
+        {
+          "amount": 580,
+          "discount": "di_1"
+        }
+      ],
+      "total_taxes": [],
+      "status_transitions": {
+        "paid_at": null
+      },
+      "lines": {
+        "object": "list",
+        "data": [
+          {
+            "id": "il_1",
+            "object": "line_item",
+            "period": {
+              "start": 1761696000,
+              "end": 1764374400
+            }
+          }
+        ]
+      },
+      "parent": {
+        "type": "subscription_details",
+        "subscription_details": {
+          "subscription": "sub_1",
+          "metadata": {
+            "relay_reference": "0199a0b2-7c3e-7d4a-9b1e-2f6a3c5d8e01",
+            "relay_schedule": "sub_sched_1"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "evt_customer_created",
+  "object": "event",
+  "api_version": "2026-09-30.endive",
+  "created": 1761696000,
+  "type": "customer.created",
+  "data": {
+    "object": {
+      "id": "cus_1",
+      "object": "customer"
+    }
+  }
+}
