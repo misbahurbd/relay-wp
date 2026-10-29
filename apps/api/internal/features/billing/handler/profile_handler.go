@@ -4,17 +4,22 @@ import (
 	"context"
 
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/dto"
-	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/model"
 )
 
-// Track T6 builds these. Until then each answers 501 not_implemented.
-
 // profile: GET /profile (svc.Profile).
-func (h *Handler) profile(context.Context, *dto.WorkspaceInput) (*dto.ProfileOutput, error) {
-	return nil, model.ErrNotImplemented
+func (h *Handler) profile(ctx context.Context, in *dto.WorkspaceInput) (*dto.ProfileOutput, error) {
+	p, err := h.svc.Profile(ctx, in.WorkspaceID)
+	if err != nil {
+		return nil, err
+	}
+	return dto.ToProfileOutput(p), nil
 }
 
 // updateProfile: PUT /profile (svc.UpdateProfile).
-func (h *Handler) updateProfile(context.Context, *dto.UpdateProfileInput) (*dto.ProfileOutput, error) {
-	return nil, model.ErrNotImplemented
+func (h *Handler) updateProfile(ctx context.Context, in *dto.UpdateProfileInput) (*dto.ProfileOutput, error) {
+	p, err := h.svc.UpdateProfile(ctx, in.WorkspaceID, in.ToModel())
+	if err != nil {
+		return nil, err
+	}
+	return dto.ToProfileOutput(p), nil
 }
