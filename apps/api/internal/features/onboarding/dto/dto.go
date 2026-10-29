@@ -56,11 +56,11 @@ func ToOutput(o model.Onboarding) *OnboardingOutput {
 }
 
 type WorkspaceInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 }
 
 type MemberStateInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	Body        struct {
 		TourSeen        *bool `json:"tour_seen,omitempty"`
 		ChecklistHidden *bool `json:"checklist_hidden,omitempty"`

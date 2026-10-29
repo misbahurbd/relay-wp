@@ -23,7 +23,7 @@ type Guards struct {
 func Register(api huma.API, h *Handler, g Guards, security []map[string][]string) {
 	ws := func(id, method, path, summary string, status int, mw ...Middleware) huma.Operation {
 		return huma.Operation{
-			OperationID: id, Method: method, Path: "/v1/workspaces/{workspaceId}" + path, Summary: summary,
+			OperationID: id, Method: method, Path: "/v1/workspace" + path, Summary: summary,
 			Tags: []string{"team"}, Security: security, DefaultStatus: status,
 			Middlewares: append(huma.Middlewares{g.Auth, g.Member}, mw...),
 		}

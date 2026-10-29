@@ -10,11 +10,11 @@ import (
 type Middleware = func(huma.Context, func(huma.Context))
 
 // Register adds the onboarding routes. member and owner run after requireAuth and
-// check the {workspaceId} in the path.
+// check the X-Workspace-ID header.
 func Register(api huma.API, h *Handler, requireAuth, member, owner Middleware, security []map[string][]string) {
 	op := func(id, method, path, summary string, mw Middleware) huma.Operation {
 		return huma.Operation{
-			OperationID: id, Method: method, Path: "/v1/workspaces/{workspaceId}/onboarding" + path, Summary: summary,
+			OperationID: id, Method: method, Path: "/v1/workspace/onboarding" + path, Summary: summary,
 			Tags: []string{"onboarding"}, Security: security, Middlewares: huma.Middlewares{requireAuth, mw},
 		}
 	}

@@ -356,7 +356,7 @@ Every workspace response carries `X-Access-Version: {role_version}.{access_versi
 
 ## 6. API endpoints
 
-All under `/v1/workspaces/{id}` unless noted. "Member" = any active member. Otherwise the column names the permission.
+All under `/v1/workspace` with the workspace in the `X-Workspace-ID` header, unless noted ([ADR 0005](adr/0005-workspace-header.md)). "Member" = any active member. Otherwise the column names the permission.
 
 ### Access
 

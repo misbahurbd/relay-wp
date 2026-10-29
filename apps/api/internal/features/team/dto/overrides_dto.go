@@ -33,14 +33,14 @@ func (b overrideBody) Input() model.OverrideInput {
 }
 
 type AddOverrideInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	UserID      uuid.UUID `path:"userId"`
 	MetaHeaders
 	Body overrideBody
 }
 
 type RevokeOverrideInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	UserID      uuid.UUID `path:"userId"`
 	OverrideID  uuid.UUID `path:"overrideId"`
 	MetaHeaders

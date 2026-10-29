@@ -13,6 +13,7 @@ import {
 } from '@relay/api-client'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toWorkspace, workspaceKeys } from '#/features/workspaces'
+import { inWorkspace } from '#/lib/api'
 import type { BusinessInput, NumberType, Onboarding, WhatsAppNumber } from '../types'
 
 export const onboardingKeys = {
@@ -31,7 +32,11 @@ export const onboardingQueryOptions = (userId: string, workspaceId: string) =>
   queryOptions({
     queryKey: onboardingKeys.progress(userId, workspaceId),
     queryFn: async ({ signal }) => {
-      const { data } = await getOnboarding({ path: { workspaceId }, signal, throwOnError: true })
+      const { data } = await getOnboarding({
+        headers: inWorkspace(workspaceId),
+        signal,
+        throwOnError: true,
+      })
       return toOnboarding(data)
     },
   })
@@ -42,7 +47,7 @@ export const numbersQueryOptions = (_userId: string, workspaceId: string) =>
     queryKey: onboardingKeys.numbers(workspaceId),
     queryFn: async ({ signal }): Promise<WhatsAppNumber[]> => {
       const { data } = await listWhatsappNumbers({
-        path: { workspaceId },
+        headers: inWorkspace(workspaceId),
         signal,
         throwOnError: true,
       })
@@ -56,7 +61,8 @@ export const testMessageQueryOptions = (_userId: string, workspaceId: string, me
     queryKey: onboardingKeys.testMessage(workspaceId, messageId),
     queryFn: async ({ signal }) => {
       const { data } = await getTestMessage({
-        path: { workspaceId, messageId },
+        headers: inWorkspace(workspaceId),
+        path: { messageId },
         signal,
         throwOnError: true,
       })
@@ -101,7 +107,7 @@ export function useSaveBusiness(userId: string, workspaceId: string) {
   return useMutation({
     mutationFn: async (input: BusinessInput) => {
       const { data } = await saveBusiness({
-        path: { workspaceId },
+        headers: inWorkspace(workspaceId),
         body: input,
         throwOnError: true,
       })
@@ -119,14 +125,17 @@ export function useSaveBusiness(userId: string, workspaceId: string) {
 
 export function useSkipWhatsApp(userId: string, workspaceId: string) {
   return useOnboardingMutation(userId, workspaceId, async () => {
-    const { data } = await skipWhatsapp({ path: { workspaceId }, throwOnError: true })
+    const { data } = await skipWhatsapp({ headers: inWorkspace(workspaceId), throwOnError: true })
     return data
   })
 }
 
 export function useCompleteOnboarding(userId: string, workspaceId: string) {
   return useOnboardingMutation(userId, workspaceId, async () => {
-    const { data } = await completeOnboarding({ path: { workspaceId }, throwOnError: true })
+    const { data } = await completeOnboarding({
+      headers: inWorkspace(workspaceId),
+      throwOnError: true,
+    })
     return data
   })
 }
@@ -137,7 +146,7 @@ export function useUpdateMemberState(userId: string, workspaceId: string) {
     workspaceId,
     async (input: { tour_seen?: boolean; checklist_hidden?: boolean }) => {
       const { data } = await updateOnboardingMember({
-        path: { workspaceId },
+        headers: inWorkspace(workspaceId),
         body: input,
         throwOnError: true,
       })
@@ -156,7 +165,7 @@ export function useConnectWhatsApp(userId: string, workspaceId: string) {
       number_type: NumberType
     }) => {
       const { data } = await connectWhatsapp({
-        path: { workspaceId },
+        headers: inWorkspace(workspaceId),
         body: input,
         throwOnError: true,
       })
@@ -174,7 +183,8 @@ export function useSendTestMessage(_userId: string, workspaceId: string) {
   return useMutation({
     mutationFn: async (input: { numberId: string; to: string }) => {
       const { data } = await sendTestMessage({
-        path: { workspaceId, numberId: input.numberId },
+        headers: inWorkspace(workspaceId),
+        path: { numberId: input.numberId },
         body: { to: input.to },
         throwOnError: true,
       })

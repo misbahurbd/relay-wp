@@ -56,26 +56,26 @@ func (b roleBody) Input() model.RoleInput {
 }
 
 type CreateRoleInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	MetaHeaders
 	Body roleBody
 }
 
 type UpdateRoleInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	RoleID      uuid.UUID `path:"roleId"`
 	MetaHeaders
 	Body roleBody
 }
 
 type ResetRoleInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	RoleID      uuid.UUID `path:"roleId"`
 	MetaHeaders
 }
 
 type DeleteRoleInput struct {
-	WorkspaceID  uuid.UUID `path:"workspaceId"`
+	WorkspaceID  uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	RoleID       uuid.UUID `path:"roleId"`
 	MoveToRoleID uuid.UUID `query:"move_to_role_id" required:"true" doc:"Where its members and pending invites go"`
 	MetaHeaders

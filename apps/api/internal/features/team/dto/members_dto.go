@@ -9,7 +9,7 @@ import (
 )
 
 type LeaveInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	MetaHeaders
 }
 
@@ -39,7 +39,7 @@ func ToMemberDTO(m model.Member) MemberDTO {
 }
 
 type ListMembersInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	RoleID      string    `query:"role_id" format:"uuid"`
 	TeamID      string    `query:"team_id" format:"uuid"`
 	Status      string    `query:"status" enum:"active,suspended"`
@@ -88,7 +88,7 @@ func ToMemberDetailDTO(d model.MemberDetail, now time.Time) MemberDetailDTO {
 }
 
 type MemberRoleInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	UserID      uuid.UUID `path:"userId"`
 	MetaHeaders
 	Body struct {
@@ -97,7 +97,7 @@ type MemberRoleInput struct {
 }
 
 type MemberAccessInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	UserID      uuid.UUID `path:"userId"`
 	MetaHeaders
 	Body struct {
@@ -108,7 +108,7 @@ type MemberAccessInput struct {
 }
 
 type SuspendInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	UserID      uuid.UUID `path:"userId"`
 	MetaHeaders
 	Body struct {
@@ -117,13 +117,13 @@ type SuspendInput struct {
 }
 
 type MemberActionInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	UserID      uuid.UUID `path:"userId"`
 	MetaHeaders
 }
 
 type RemoveInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	UserID      uuid.UUID `path:"userId"`
 	MetaHeaders
 	Body struct {

@@ -38,7 +38,7 @@ type InvitationsOutput struct {
 }
 
 type InviteInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	MetaHeaders
 	Body struct {
 		Emails          []string       `json:"emails" minItems:"1" maxItems:"50"`
@@ -54,7 +54,7 @@ type InviteInput struct {
 }
 
 type InvitationActionInput struct {
-	WorkspaceID  uuid.UUID `path:"workspaceId"`
+	WorkspaceID  uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	InvitationID uuid.UUID `path:"invitationId"`
 	MetaHeaders
 }

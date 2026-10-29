@@ -57,7 +57,7 @@ type SummaryOutput struct {
 }
 
 type WorkspaceInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 }
 
 type WorkspaceOutput struct {
@@ -65,7 +65,7 @@ type WorkspaceOutput struct {
 }
 
 type BusinessInput struct {
-	WorkspaceID uuid.UUID `path:"workspaceId"`
+	WorkspaceID uuid.UUID `header:"X-Workspace-ID" required:"true" doc:"The workspace this request is for"`
 	Body        struct {
 		Name     string   `json:"name" minLength:"1" maxLength:"100"`
 		Industry string   `json:"industry" enum:"retail_ecommerce,food_restaurants,education,health_clinics,travel,real_estate,other"`

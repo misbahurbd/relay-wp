@@ -1,5 +1,6 @@
 import { createWorkspace, getWorkspace, listWorkspaces, type WorkspaceDto } from '@relay/api-client'
 import { type QueryClient, queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
+import { inWorkspace } from '#/lib/api'
 import type { FirstGoal, StartMode, Workspace } from '../types'
 
 export const workspaceKeys = {
@@ -20,7 +21,7 @@ export const workspaceQueryOptions = (userId: string, id: string) =>
   queryOptions({
     queryKey: workspaceKeys.detail(userId, id),
     queryFn: async ({ signal }) => {
-      const { data } = await getWorkspace({ path: { workspaceId: id }, signal, throwOnError: true })
+      const { data } = await getWorkspace({ headers: inWorkspace(id), signal, throwOnError: true })
       return toWorkspace(data)
     },
   })

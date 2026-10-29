@@ -26,6 +26,7 @@ import {
   updateTeam,
 } from '@relay/api-client'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { inWorkspace } from '#/lib/api'
 import type { ChatScope, Invitation, InviteInput, RoleChange, RoleInput, TeamInput } from '../types'
 import { invalidateTeam } from './team.keys'
 import { ids } from './team.queries'
@@ -46,7 +47,11 @@ function useTeamMutation<TInput, TOutput>(
 
 export function useCreateRole(workspaceId: string) {
   return useTeamMutation(workspaceId, async (body: RoleInput) => {
-    const { data } = await createRole({ path: { workspaceId }, body, throwOnError: true })
+    const { data } = await createRole({
+      headers: inWorkspace(workspaceId),
+      body,
+      throwOnError: true,
+    })
     return data
   })
 }
@@ -55,7 +60,12 @@ export function useUpdateRole(workspaceId: string) {
   return useTeamMutation(
     workspaceId,
     async ({ roleId, body }: { roleId: string; body: RoleInput }) => {
-      const { data } = await updateRole({ path: { workspaceId, roleId }, body, throwOnError: true })
+      const { data } = await updateRole({
+        headers: inWorkspace(workspaceId),
+        path: { roleId },
+        body,
+        throwOnError: true,
+      })
       return data
     },
   )
@@ -66,13 +76,18 @@ export async function fetchRolePreview(
   roleId: string,
   body: RoleInput,
 ): Promise<RoleChange> {
-  const { data } = await previewRole({ path: { workspaceId, roleId }, body, throwOnError: true })
+  const { data } = await previewRole({
+    headers: inWorkspace(workspaceId),
+    path: { roleId },
+    body,
+    throwOnError: true,
+  })
   return toChange(data)
 }
 
 export function useResetRole(workspaceId: string) {
   return useTeamMutation(workspaceId, async (roleId: string) => {
-    await resetRole({ path: { workspaceId, roleId }, throwOnError: true })
+    await resetRole({ headers: inWorkspace(workspaceId), path: { roleId }, throwOnError: true })
   })
 }
 
@@ -81,7 +96,8 @@ export function useDeleteRole(workspaceId: string) {
     workspaceId,
     async ({ roleId, moveTo }: { roleId: string; moveTo: string }) => {
       await deleteRole({
-        path: { workspaceId, roleId },
+        headers: inWorkspace(workspaceId),
+        path: { roleId },
         query: { move_to_role_id: moveTo },
         throwOnError: true,
       })
@@ -106,7 +122,8 @@ export async function fetchMemberRolePreview(
   roleId: string,
 ): Promise<RoleChange> {
   const { data } = await previewMemberRole({
-    path: { workspaceId, userId },
+    headers: inWorkspace(workspaceId),
+    path: { userId },
     body: { role_id: roleId },
     throwOnError: true,
   })
@@ -116,7 +133,8 @@ export async function fetchMemberRolePreview(
 export function useChangeMemberRole(workspaceId: string, userId: string) {
   return useTeamMutation(workspaceId, async (roleId: string) => {
     await changeMemberRole({
-      path: { workspaceId, userId },
+      headers: inWorkspace(workspaceId),
+      path: { userId },
       body: { role_id: roleId },
       throwOnError: true,
     })
@@ -127,39 +145,59 @@ export function useUpdateMemberAccess(workspaceId: string, userId: string) {
   return useTeamMutation(
     workspaceId,
     async (body: { chat_scope?: ChatScope | ''; team_ids?: string[]; number_ids?: string[] }) => {
-      await updateMemberAccess({ path: { workspaceId, userId }, body, throwOnError: true })
+      await updateMemberAccess({
+        headers: inWorkspace(workspaceId),
+        path: { userId },
+        body,
+        throwOnError: true,
+      })
     },
   )
 }
 
 export function useAddOverride(workspaceId: string, userId: string) {
   return useTeamMutation(workspaceId, async (body: OverrideBody) => {
-    await addMemberOverride({ path: { workspaceId, userId }, body, throwOnError: true })
+    await addMemberOverride({
+      headers: inWorkspace(workspaceId),
+      path: { userId },
+      body,
+      throwOnError: true,
+    })
   })
 }
 
 export function useRevokeOverride(workspaceId: string, userId: string) {
   return useTeamMutation(workspaceId, async (overrideId: string) => {
-    await revokeMemberOverride({ path: { workspaceId, userId, overrideId }, throwOnError: true })
+    await revokeMemberOverride({
+      headers: inWorkspace(workspaceId),
+      path: { userId, overrideId },
+      throwOnError: true,
+    })
   })
 }
 
 export function useSuspendMember(workspaceId: string, userId: string) {
   return useTeamMutation(workspaceId, async (reason: string) => {
-    await suspendMember({ path: { workspaceId, userId }, body: { reason }, throwOnError: true })
+    await suspendMember({
+      headers: inWorkspace(workspaceId),
+      path: { userId },
+      body: { reason },
+      throwOnError: true,
+    })
   })
 }
 
 export function useRestoreMember(workspaceId: string, userId: string) {
   return useTeamMutation(workspaceId, async () => {
-    await restoreMember({ path: { workspaceId, userId }, throwOnError: true })
+    await restoreMember({ headers: inWorkspace(workspaceId), path: { userId }, throwOnError: true })
   })
 }
 
 export function useRemoveMember(workspaceId: string, userId: string) {
   return useTeamMutation(workspaceId, async (confirmName: string) => {
     await removeMember({
-      path: { workspaceId, userId },
+      headers: inWorkspace(workspaceId),
+      path: { userId },
       body: { confirm_name: confirmName },
       throwOnError: true,
     })
@@ -169,7 +207,7 @@ export function useRemoveMember(workspaceId: string, userId: string) {
 export function useLeaveWorkspace(workspaceId: string) {
   return useMutation({
     mutationFn: async () => {
-      await leaveWorkspace({ path: { workspaceId }, throwOnError: true })
+      await leaveWorkspace({ headers: inWorkspace(workspaceId), throwOnError: true })
     },
   })
 }
@@ -178,7 +216,11 @@ export function useLeaveWorkspace(workspaceId: string) {
 
 export function useCreateTeam(workspaceId: string) {
   return useTeamMutation(workspaceId, async (body: TeamInput) => {
-    const { data } = await createTeam({ path: { workspaceId }, body, throwOnError: true })
+    const { data } = await createTeam({
+      headers: inWorkspace(workspaceId),
+      body,
+      throwOnError: true,
+    })
     return data
   })
 }
@@ -187,7 +229,12 @@ export function useUpdateTeam(workspaceId: string) {
   return useTeamMutation(
     workspaceId,
     async ({ teamId, body }: { teamId: string; body: TeamInput }) => {
-      await updateTeam({ path: { workspaceId, teamId }, body, throwOnError: true })
+      await updateTeam({
+        headers: inWorkspace(workspaceId),
+        path: { teamId },
+        body,
+        throwOnError: true,
+      })
     },
   )
 }
@@ -197,7 +244,8 @@ export function useSetTeamMembers(workspaceId: string) {
     workspaceId,
     async ({ teamId, userIds }: { teamId: string; userIds: string[] }) => {
       await setTeamMembers({
-        path: { workspaceId, teamId },
+        headers: inWorkspace(workspaceId),
+        path: { teamId },
         body: { user_ids: userIds },
         throwOnError: true,
       })
@@ -207,7 +255,7 @@ export function useSetTeamMembers(workspaceId: string) {
 
 export function useDeleteTeam(workspaceId: string) {
   return useTeamMutation(workspaceId, async (teamId: string) => {
-    await deleteTeam({ path: { workspaceId, teamId }, throwOnError: true })
+    await deleteTeam({ headers: inWorkspace(workspaceId), path: { teamId }, throwOnError: true })
   })
 }
 
@@ -215,20 +263,32 @@ export function useDeleteTeam(workspaceId: string) {
 
 export function useInvite(workspaceId: string) {
   return useTeamMutation(workspaceId, async (body: InviteInput) => {
-    const { data } = await createInvitations({ path: { workspaceId }, body, throwOnError: true })
+    const { data } = await createInvitations({
+      headers: inWorkspace(workspaceId),
+      body,
+      throwOnError: true,
+    })
     return (data.invitations ?? []).map((i): Invitation => ({ ...i, team_ids: ids(i.team_ids) }))
   })
 }
 
 export function useResendInvitation(workspaceId: string) {
   return useTeamMutation(workspaceId, async (invitationId: string) => {
-    await resendInvitation({ path: { workspaceId, invitationId }, throwOnError: true })
+    await resendInvitation({
+      headers: inWorkspace(workspaceId),
+      path: { invitationId },
+      throwOnError: true,
+    })
   })
 }
 
 export function useRevokeInvitation(workspaceId: string) {
   return useTeamMutation(workspaceId, async (invitationId: string) => {
-    await revokeInvitation({ path: { workspaceId, invitationId }, throwOnError: true })
+    await revokeInvitation({
+      headers: inWorkspace(workspaceId),
+      path: { invitationId },
+      throwOnError: true,
+    })
   })
 }
 
