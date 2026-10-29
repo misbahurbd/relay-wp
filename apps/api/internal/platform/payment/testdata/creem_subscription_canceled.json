@@ -1,0 +1,20 @@
+{
+  "id": "evt_2iGTc600qGW6FBzloh2Nr7",
+  "eventType": "subscription.canceled",
+  "created_at": 1734004720000,
+  "object": {
+    "id": "sub_6pC2lNoI8ixy1kAoEqdhWl",
+    "object": "subscription",
+    "product": "prod_d1AY2Sadk9YAvLI0pj97f",
+    "customer": "cust_1OcIK1GEuVvXZwD19tjq2z",
+    "collection_method": "charge_automatically",
+    "status": "canceled",
+    "current_period_start_date": "2024-11-12T11:58:38.000Z",
+    "current_period_end_date": "2024-12-12T11:58:38.000Z",
+    "canceled_at": "2024-12-12T11:58:40.000Z",
+    "metadata": {
+      "relay_reference": "0192f7a4-7c1e-7b3a-9d2e-5f8a1c3b4d6e"
+    },
+    "mode": "test"
+  }
+}

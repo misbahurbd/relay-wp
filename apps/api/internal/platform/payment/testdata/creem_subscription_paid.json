@@ -1,0 +1,72 @@
+{
+  "id": "evt_21mO1jWmU2QHe7u2oFV7y1",
+  "eventType": "subscription.paid",
+  "created_at": 1731412725123,
+  "object": {
+    "id": "sub_6pC2lNoI8ixy1kAoEqdhWl",
+    "object": "subscription",
+    "product": {
+      "id": "prod_d1AY2Sadk9YAvLI0pj97f",
+      "object": "product",
+      "name": "Growth, monthly",
+      "price": 2900,
+      "currency": "USD",
+      "billing_type": "recurring",
+      "billing_period": "every-month",
+      "tax_mode": "inclusive",
+      "mode": "test"
+    },
+    "customer": {
+      "id": "cust_1OcIK1GEuVvXZwD19tjq2z",
+      "object": "customer",
+      "email": "owner@example.com",
+      "name": "Test Owner",
+      "country": "DE",
+      "mode": "test"
+    },
+    "items": [
+      {
+        "object": "subscription_item",
+        "id": "sitem_3l8jhRR2jWWhIBbJrKLwPT",
+        "product_id": "prod_d1AY2Sadk9YAvLI0pj97f",
+        "price_id": "pprice_4W0mJK6uGiQzHbVhfaFTl0",
+        "units": 1
+      }
+    ],
+    "collection_method": "charge_automatically",
+    "status": "active",
+    "last_transaction_id": "tran_3e6Z6TzvHKdsjEgXnGDEp0",
+    "last_transaction": {
+      "id": "tran_3e6Z6TzvHKdsjEgXnGDEp0",
+      "object": "transaction",
+      "amount": 2900,
+      "amount_paid": 2900,
+      "currency": "USD",
+      "type": "invoice",
+      "tax_country": "DE",
+      "tax_amount": 463,
+      "status": "paid",
+      "refunded_amount": null,
+      "order": "ord_57bf8042UmG8fFypxZrfnj",
+      "subscription": "sub_6pC2lNoI8ixy1kAoEqdhWl",
+      "customer": null,
+      "description": "Subscription payment",
+      "period_start": 1731412718000,
+      "period_end": 1734004718000,
+      "created_at": 1731412724900,
+      "mode": "test"
+    },
+    "last_transaction_date": "2024-11-12T11:58:44.900Z",
+    "next_transaction_date": "2024-12-12T11:58:38.000Z",
+    "current_period_start_date": "2024-11-12T11:58:38.000Z",
+    "current_period_end_date": "2024-12-12T11:58:38.000Z",
+    "canceled_at": null,
+    "created_at": "2024-10-12T11:58:38.000Z",
+    "updated_at": "2024-11-12T11:58:45.000Z",
+    "metadata": {
+      "relay_reference": "0192f7a4-7c1e-7b3a-9d2e-5f8a1c3b4d6e",
+      "workspace_id": "0192f7a4-0000-7000-8000-000000000001"
+    },
+    "mode": "test"
+  }
+}
