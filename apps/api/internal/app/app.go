@@ -19,12 +19,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/misbahurbd/relay-wp/apps/api/internal/features/auth"
-	"github.com/misbahurbd/relay-wp/apps/api/internal/features/onboarding"
-	"github.com/misbahurbd/relay-wp/apps/api/internal/features/profiles"
-	"github.com/misbahurbd/relay-wp/apps/api/internal/features/team"
-	"github.com/misbahurbd/relay-wp/apps/api/internal/features/whatsapp"
-	"github.com/misbahurbd/relay-wp/apps/api/internal/features/workspaces"
+	authhandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/auth/handler"
+	authservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/auth/service"
+	onboardingservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/onboarding/service"
+	profilesservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/profiles/service"
+	teamservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/team/service"
+	whatsappservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/whatsapp/service"
+	workspacesservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/workspaces/service"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/config"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/database"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/httpx"
@@ -59,18 +60,18 @@ type App struct {
 	storage  storage.Storage
 	jwt      *jwt.Manager
 
-	auth       *auth.Service
-	accounts   *auth.Accounts
-	profiles   *profiles.Service
-	directory  *workspaces.Directory
-	workspaces *workspaces.Service
-	onboarding *onboarding.Service
-	whatsapp   *whatsapp.Service
-	team       *team.Service
-	access     *team.Resolver
+	auth       *authservice.Service
+	accounts   *authservice.Accounts
+	profiles   *profilesservice.Service
+	directory  *workspacesservice.Directory
+	workspaces *workspacesservice.Service
+	onboarding *onboardingservice.Service
+	whatsapp   *whatsappservice.Service
+	team       *teamservice.Service
+	access     *teamservice.Resolver
 
 	// oauth overrides the provider config built from cfg; tests point it at a fake provider.
-	oauth *auth.ProvidersConfig
+	oauth *authservice.ProvidersConfig
 	// graphURL overrides the Meta Graph API address; tests point it at a fake server.
 	graphURL string
 }
@@ -121,14 +122,14 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger, mode Mode) (_
 // each gets what it needs from here through small interfaces.
 // A worker process builds everything except the HTTP-only auth service.
 func (a *App) buildFeatures() (err error) {
-	a.accounts = auth.NewAccounts(a.db)
-	a.profiles = profiles.New(a.db, a.accounts)
-	a.directory = workspaces.NewDirectory(a.db)
-	a.onboarding = onboarding.New(a.db, a.directory, whatsapp.NewChannels(a.db), a.accounts, a.queue,
-		onboarding.Config{AppBaseURL: a.cfg.AppBaseURL})
-	a.team = team.New(a.db, a.directory, a.accounts, a.queue, team.Config{AppBaseURL: a.cfg.AppBaseURL})
-	a.access = team.NewResolver(a.db)
-	a.workspaces = workspaces.New(a.db, a.accounts, a.onboarding, a.team, workspaces.Config{TrialDays: a.cfg.Trial.Days})
+	a.accounts = authservice.NewAccounts(a.db)
+	a.profiles = profilesservice.New(a.db, a.accounts)
+	a.directory = workspacesservice.NewDirectory(a.db)
+	a.onboarding = onboardingservice.New(a.db, a.directory, whatsappservice.NewChannels(a.db), a.accounts, a.queue,
+		onboardingservice.Config{AppBaseURL: a.cfg.AppBaseURL})
+	a.team = teamservice.New(a.db, a.directory, a.accounts, a.queue, teamservice.Config{AppBaseURL: a.cfg.AppBaseURL})
+	a.access = teamservice.NewResolver(a.db)
+	a.workspaces = workspacesservice.New(a.db, a.accounts, a.onboarding, a.team, workspacesservice.Config{TrialDays: a.cfg.Trial.Days})
 	if err := a.buildWhatsApp(); err != nil {
 		return err
 	}
@@ -140,18 +141,18 @@ func (a *App) buildFeatures() (err error) {
 		return err
 	}
 
-	var breach auth.BreachChecker
+	var breach authservice.BreachChecker
 	if a.cfg.Auth.PasswordBreachCheck {
-		breach = auth.NewHIBP()
+		breach = authservice.NewHIBP()
 	}
-	oauthCfg := auth.ProvidersConfig{
-		Google:   auth.GoogleConfig{ClientID: a.cfg.Auth.GoogleClientID, ClientSecret: a.cfg.Auth.GoogleClientSecret},
-		Facebook: auth.FacebookConfig{AppID: a.cfg.Auth.FacebookAppID, AppSecret: a.cfg.Auth.FacebookAppSecret},
+	oauthCfg := authservice.ProvidersConfig{
+		Google:   authservice.GoogleConfig{ClientID: a.cfg.Auth.GoogleClientID, ClientSecret: a.cfg.Auth.GoogleClientSecret},
+		Facebook: authservice.FacebookConfig{AppID: a.cfg.Auth.FacebookAppID, AppSecret: a.cfg.Auth.FacebookAppSecret},
 	}
 	if a.oauth != nil {
 		oauthCfg = *a.oauth
 	}
-	providers, err := auth.NewProviders(oauthCfg)
+	providers, err := authservice.NewProviders(oauthCfg)
 	if err != nil {
 		return err
 	}
@@ -162,7 +163,7 @@ func (a *App) buildFeatures() (err error) {
 	if err != nil {
 		return err
 	}
-	a.auth, err = auth.New(a.db, a.jwt, a.queue, a.profiles, a.team, breach, providers, auth.Config{
+	a.auth, err = authservice.New(a.db, a.jwt, a.queue, a.profiles, a.team, breach, providers, authservice.Config{
 		RefreshTTL:       a.cfg.Auth.RefreshTokenTTL,
 		SessionMaxAge:    a.cfg.Auth.SessionMaxAge,
 		AppBaseURL:       a.cfg.AppBaseURL,
@@ -187,10 +188,10 @@ func (a *App) buildWhatsApp() error {
 	}
 	base := a.graphURL
 	if base == "" {
-		base = whatsapp.GraphBaseURL
+		base = whatsappservice.GraphBaseURL
 	}
-	graph := whatsapp.NewGraph(&http.Client{Timeout: 15 * time.Second}, base+"/"+wa.GraphVersion, wa.AppID, wa.AppSecret)
-	a.whatsapp, err = whatsapp.New(a.db, graph, a.queue, a.onboarding, whatsapp.Config{
+	graph := whatsappservice.NewGraph(&http.Client{Timeout: 15 * time.Second}, base+"/"+wa.GraphVersion, wa.AppID, wa.AppSecret)
+	a.whatsapp, err = whatsappservice.New(a.db, graph, a.queue, a.onboarding, whatsappservice.Config{
 		Enabled: wa.Enabled, AppID: wa.AppID, AppSecret: wa.AppSecret, ESConfigID: wa.ESConfigID,
 		GraphVersion: wa.GraphVersion, WebhookVerifyToken: wa.WebhookVerifyToken, TokenKey: tokenKey,
 	}, a.log)
@@ -284,7 +285,7 @@ func (a *App) Handler() (http.Handler, error) {
 		middleware.SecurityHeaders,
 		middleware.CORS(a.cfg.HTTP.CORSAllowedOrigins),
 		middleware.RateLimit(a.cfg.HTTP.RateLimitRequests, a.cfg.HTTP.RateLimitWindow, "/healthz", "/readyz"),
-		middleware.RouteLimits(append(auth.RateLimits(), routeLimits()...)...),
+		middleware.RouteLimits(append(authhandler.RateLimits(), routeLimits()...)...),
 	)
 	r.NotFound(func(w http.ResponseWriter, _ *http.Request) {
 		httpx.WriteError(w, apperr.NotFound("not_found", "Route not found"))

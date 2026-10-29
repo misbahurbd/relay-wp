@@ -3,12 +3,12 @@ sql:
   - engine: postgresql
     schema: migrations
     queries:
-      - ../internal/features/auth/
-      - ../internal/features/profiles/
-      - ../internal/features/workspaces/
-      - ../internal/features/onboarding/
-      - ../internal/features/whatsapp/
-      - ../internal/features/team/
+      - ../internal/features/auth/repository/
+      - ../internal/features/profiles/repository/
+      - ../internal/features/workspaces/repository/
+      - ../internal/features/onboarding/repository/
+      - ../internal/features/whatsapp/repository/
+      - ../internal/features/team/repository/
     gen:
       go:
         package: gen

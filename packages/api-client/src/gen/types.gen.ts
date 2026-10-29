@@ -1746,6 +1746,9 @@ export type ResendVerificationResponse = ResendVerificationResponses[keyof Resen
 
 export type AcceptInvitationData = {
     body: TokenInputBody;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path?: never;
     query?: never;
     url: '/v1/invitations/accept';
@@ -1771,6 +1774,9 @@ export type AcceptInvitationResponse = AcceptInvitationResponses[keyof AcceptInv
 
 export type PreviewInvitationData = {
     body: TokenInputBody;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path?: never;
     query?: never;
     url: '/v1/invitations/preview';
@@ -1796,6 +1802,9 @@ export type PreviewInvitationResponse = PreviewInvitationResponses[keyof Preview
 
 export type RequestInvitationRenewalData = {
     body: TokenInputBody;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path?: never;
     query?: never;
     url: '/v1/invitations/request-renewal';
@@ -2168,6 +2177,9 @@ export type ListInvitationsResponse = ListInvitationsResponses[keyof ListInvitat
 
 export type CreateInvitationsData = {
     body: InviteInputBody;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path: {
         workspaceId: string;
     };
@@ -2195,6 +2207,9 @@ export type CreateInvitationsResponse = CreateInvitationsResponses[keyof CreateI
 
 export type RevokeInvitationData = {
     body?: never;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path: {
         workspaceId: string;
         invitationId: string;
@@ -2223,6 +2238,9 @@ export type RevokeInvitationResponse = RevokeInvitationResponses[keyof RevokeInv
 
 export type ResendInvitationData = {
     body?: never;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path: {
         workspaceId: string;
         invitationId: string;
@@ -2305,6 +2323,9 @@ export type SetAvailabilityResponse = SetAvailabilityResponses[keyof SetAvailabi
 
 export type LeaveWorkspaceData = {
     body?: never;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path: {
         workspaceId: string;
     };
@@ -2397,6 +2418,9 @@ export type GetMemberResponse = GetMemberResponses[keyof GetMemberResponses];
 
 export type UpdateMemberAccessData = {
     body: MemberAccessInputBody;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path: {
         workspaceId: string;
         userId: string;
@@ -2425,6 +2449,9 @@ export type UpdateMemberAccessResponse = UpdateMemberAccessResponses[keyof Updat
 
 export type AddMemberOverrideData = {
     body: OverrideBody;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path: {
         workspaceId: string;
         userId: string;
@@ -2453,6 +2480,9 @@ export type AddMemberOverrideResponse = AddMemberOverrideResponses[keyof AddMemb
 
 export type RevokeMemberOverrideData = {
     body?: never;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path: {
         workspaceId: string;
         userId: string;
@@ -2482,6 +2512,9 @@ export type RevokeMemberOverrideResponse = RevokeMemberOverrideResponses[keyof R
 
 export type RemoveMemberData = {
     body: RemoveInputBody;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path: {
         workspaceId: string;
         userId: string;
@@ -2510,6 +2543,9 @@ export type RemoveMemberResponse = RemoveMemberResponses[keyof RemoveMemberRespo
 
 export type RestoreMemberData = {
     body?: never;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path: {
         workspaceId: string;
         userId: string;
@@ -2538,6 +2574,9 @@ export type RestoreMemberResponse = RestoreMemberResponses[keyof RestoreMemberRe
 
 export type ChangeMemberRoleData = {
     body: MemberRoleInputBody;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path: {
         workspaceId: string;
         userId: string;
@@ -2566,6 +2605,9 @@ export type ChangeMemberRoleResponse = ChangeMemberRoleResponses[keyof ChangeMem
 
 export type PreviewMemberRoleData = {
     body: MemberRoleInputBody;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path: {
         workspaceId: string;
         userId: string;
@@ -2594,6 +2636,9 @@ export type PreviewMemberRoleResponse = PreviewMemberRoleResponses[keyof Preview
 
 export type SuspendMemberData = {
     body: SuspendInputBody;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path: {
         workspaceId: string;
         userId: string;
@@ -2784,6 +2829,9 @@ export type ListRolesResponse = ListRolesResponses[keyof ListRolesResponses];
 
 export type CreateRoleData = {
     body: RoleBody;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path: {
         workspaceId: string;
     };
@@ -2811,6 +2859,9 @@ export type CreateRoleResponse = CreateRoleResponses[keyof CreateRoleResponses];
 
 export type DeleteRoleData = {
     body?: never;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path: {
         workspaceId: string;
         roleId: string;
@@ -2844,6 +2895,9 @@ export type DeleteRoleResponse = DeleteRoleResponses[keyof DeleteRoleResponses];
 
 export type UpdateRoleData = {
     body: RoleBody;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path: {
         workspaceId: string;
         roleId: string;
@@ -2872,6 +2926,9 @@ export type UpdateRoleResponse = UpdateRoleResponses[keyof UpdateRoleResponses];
 
 export type PreviewRoleData = {
     body: RoleBody;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path: {
         workspaceId: string;
         roleId: string;
@@ -2900,6 +2957,9 @@ export type PreviewRoleResponse = PreviewRoleResponses[keyof PreviewRoleResponse
 
 export type ResetRoleData = {
     body?: never;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path: {
         workspaceId: string;
         roleId: string;
@@ -2982,6 +3042,9 @@ export type ListTeamsResponse = ListTeamsResponses[keyof ListTeamsResponses];
 
 export type CreateTeamData = {
     body: TeamBody;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path: {
         workspaceId: string;
     };
@@ -3009,6 +3072,9 @@ export type CreateTeamResponse = CreateTeamResponses[keyof CreateTeamResponses];
 
 export type DeleteTeamData = {
     body?: never;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path: {
         workspaceId: string;
         teamId: string;
@@ -3037,6 +3103,9 @@ export type DeleteTeamResponse = DeleteTeamResponses[keyof DeleteTeamResponses];
 
 export type UpdateTeamData = {
     body: TeamBody;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path: {
         workspaceId: string;
         teamId: string;
@@ -3065,6 +3134,9 @@ export type UpdateTeamResponse = UpdateTeamResponses[keyof UpdateTeamResponses];
 
 export type SetTeamMembersData = {
     body: TeamMembersInputBody;
+    headers?: {
+        'User-Agent'?: string;
+    };
     path: {
         workspaceId: string;
         teamId: string;
