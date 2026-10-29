@@ -4,12 +4,14 @@ import (
 	"context"
 
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/dto"
-	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/model"
 )
 
-// Track T6 builds these. Until then each answers 501 not_implemented.
-
-// previewDiscount: POST /discounts/preview (svc.PreviewDiscount).
-func (h *Handler) previewDiscount(context.Context, *dto.PreviewDiscountInput) (*dto.DiscountPreviewOutput, error) {
-	return nil, model.ErrNotImplemented
+// previewDiscount: POST /discounts/preview (svc.PreviewDiscount). A code that
+// doesn't apply answers 422 with the service's reason as the code.
+func (h *Handler) previewDiscount(ctx context.Context, in *dto.PreviewDiscountInput) (*dto.DiscountPreviewOutput, error) {
+	p, err := h.svc.PreviewDiscount(ctx, in.WorkspaceID, in.ToModel())
+	if err != nil {
+		return nil, err
+	}
+	return dto.ToDiscountPreviewOutput(p), nil
 }

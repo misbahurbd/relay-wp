@@ -4,17 +4,22 @@ import (
 	"context"
 
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/dto"
-	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/model"
 )
 
-// Track T6 builds these. Until then each answers 501 not_implemented.
-
 // listInvoices: GET /invoices (svc.Invoices).
-func (h *Handler) listInvoices(context.Context, *dto.ListInvoicesInput) (*dto.InvoicesOutput, error) {
-	return nil, model.ErrNotImplemented
+func (h *Handler) listInvoices(ctx context.Context, in *dto.ListInvoicesInput) (*dto.InvoicesOutput, error) {
+	p, err := h.svc.Invoices(ctx, in.WorkspaceID, in.Cursor)
+	if err != nil {
+		return nil, err
+	}
+	return dto.ToInvoicesOutput(p), nil
 }
 
 // invoice: GET /invoices/{invoiceId} (svc.Invoice).
-func (h *Handler) invoice(context.Context, *dto.InvoiceInput) (*dto.InvoiceOutput, error) {
-	return nil, model.ErrNotImplemented
+func (h *Handler) invoice(ctx context.Context, in *dto.InvoiceInput) (*dto.InvoiceOutput, error) {
+	i, err := h.svc.Invoice(ctx, in.WorkspaceID, in.InvoiceID)
+	if err != nil {
+		return nil, err
+	}
+	return &dto.InvoiceOutput{Body: dto.ToInvoiceDTO(i)}, nil
 }
