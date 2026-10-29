@@ -48,7 +48,7 @@ export function ContactPanel({
   return (
     <aside
       aria-labelledby="contact-panel-title"
-      className="flex w-full min-w-0 flex-col gap-[18px] border-t bg-card px-[18px] py-5 xl:sticky xl:top-16 xl:max-h-[calc(100dvh-4rem)] xl:w-[340px] xl:flex-none xl:overflow-y-auto xl:border-t-0 xl:border-l"
+      className="flex w-full min-w-0 flex-col gap-[18px] border-t bg-card px-[18px] py-5 xl:sticky xl:top-16 xl:h-[calc(100dvh-4rem)] xl:w-[340px] xl:flex-none xl:overflow-y-auto xl:border-t-0 xl:border-l"
     >
       <div className="flex items-center justify-between">
         <h2

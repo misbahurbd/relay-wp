@@ -44,6 +44,7 @@ export function BasicsSection({
                   autoComplete="off"
                   spellCheck={false}
                   placeholder="e.g. order_shipped_update"
+                  className="font-mono text-[13px] md:text-[13px]"
                   disabled={locked}
                   value={field.state.value}
                   onChange={(e) => {

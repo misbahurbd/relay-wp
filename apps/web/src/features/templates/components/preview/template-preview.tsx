@@ -3,7 +3,7 @@ import {
   ChevronLeftIcon,
   FileTextIcon,
   ImageIcon,
-  MicIcon,
+  SendHorizontalIcon,
   VideoIcon,
 } from 'lucide-react'
 import { cn } from '#/lib/utils'
@@ -65,11 +65,11 @@ export function TemplatePreview({
     <div
       role="img"
       aria-label="Phone preview of the template message"
-      className="mx-auto flex w-full max-w-[340px] flex-col overflow-hidden rounded-[28px] border-[6px] border-foreground/85 bg-chat shadow-card"
+      className="mx-auto flex w-full max-w-[340px] flex-col overflow-hidden rounded-[44px] border-[10px] border-[#1A1F1C] bg-chat shadow-[0_20px_50px_rgba(0,0,0,0.18)]"
     >
-      <div className="flex items-center gap-2.5 bg-panel px-3 py-2.5 text-panel-foreground">
-        <ChevronLeftIcon className="size-5" aria-hidden="true" />
-        <span className="flex size-8 items-center justify-center rounded-full bg-brand-soft text-xs font-extrabold text-brand-text">
+      <div className="flex items-center gap-2.5 bg-panel px-3.5 pt-4 pb-3 text-panel-foreground">
+        <ChevronLeftIcon className="size-[18px]" aria-hidden="true" />
+        <span className="flex size-[34px] flex-none items-center justify-center rounded-full bg-brand-soft text-[13px] font-extrabold text-brand-text">
           {initials(businessName)}
         </span>
         <span className="flex min-w-0 flex-col leading-tight">
@@ -81,32 +81,32 @@ export function TemplatePreview({
         </span>
       </div>
 
-      <div className="flex min-h-[360px] flex-col gap-1.5 px-3 py-4">
-        <span className="mb-1 self-center rounded-md bg-card px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+      <div className="flex min-h-[520px] flex-col gap-1 px-3 py-4">
+        <span className="mb-2 self-center rounded-lg bg-card px-2.5 py-0.5 text-[11px] font-semibold text-muted-foreground">
           Today
         </span>
-        <div className="max-w-[92%] overflow-hidden rounded-lg rounded-tl-none bg-bubble-in shadow-xs">
+        <div className="w-[86%] overflow-hidden rounded-xl rounded-tl-[4px] bg-bubble-in p-1 shadow-xs">
           {media && MediaIcon && (
-            <div className="p-1">
+            <div>
               {media === 'image' && localSample?.url ? (
                 <img
                   src={localSample.url}
                   alt=""
-                  className="aspect-[1.91/1] w-full rounded-md object-cover"
+                  className="aspect-[1.91/1] w-full rounded-lg object-cover"
                 />
               ) : (
-                <div className="flex aspect-[1.91/1] w-full flex-col items-center justify-center gap-1.5 rounded-md bg-muted text-muted-foreground">
+                <div className="flex h-[150px] w-full flex-col items-center justify-center gap-1.5 rounded-lg bg-brand-soft text-brand-text">
                   <MediaIcon className="size-7" aria-hidden="true" />
-                  <span className="px-2 text-center text-[11px]">
+                  <span className="px-2 text-center text-xs font-semibold">
                     {hasSample ? (localSample?.name ?? `Sample ${media}`) : `Your ${media} here`}
                   </span>
                 </div>
               )}
             </div>
           )}
-          <div className="flex flex-col gap-1 px-2.5 pt-1.5 pb-1 text-[13.5px] leading-snug break-words whitespace-pre-wrap text-foreground">
+          <div className="flex flex-col gap-1 px-2 pt-1.5 pb-0.5 text-sm leading-[1.4] break-words whitespace-pre-wrap text-foreground">
             {header.type === 'text' && header.text.trim() && (
-              <span className="font-bold">
+              <span className="text-[15px] font-bold">
                 <Rich text={header.text} samples={[header.example]} />
               </span>
             )}
@@ -120,7 +120,7 @@ export function TemplatePreview({
             {footer.text.trim() && (
               <span className="text-xs text-muted-foreground">{footer.text}</span>
             )}
-            <span className="self-end text-[10.5px] text-tick-sent">{formatClock()}</span>
+            <span className="self-end text-[11px] text-tick-sent">{formatClock()}</span>
           </div>
         </div>
         {buttons.map((b, i) => {
@@ -129,21 +129,21 @@ export function TemplatePreview({
             <div
               // biome-ignore lint/suspicious/noArrayIndexKey: mirrors the form rows by position
               key={i}
-              className="flex max-w-[92%] items-center justify-center gap-1.5 rounded-lg bg-bubble-in px-3 py-2 text-[13px] font-semibold text-info shadow-xs"
+              className="flex min-h-10 w-[86%] items-center justify-center gap-1.5 rounded-[10px] bg-bubble-in p-2 text-sm font-semibold text-info shadow-xs"
             >
-              <Icon className="size-3.5" aria-hidden="true" />
+              <Icon className="size-[15px]" aria-hidden="true" />
               <span className="truncate">{b.text.trim() || 'Button text'}</span>
             </div>
           )
         })}
       </div>
 
-      <div className="flex items-center gap-2 bg-chat px-3 pb-3">
-        <span className="flex h-9 flex-1 items-center rounded-full bg-card px-3.5 text-[13px] text-muted-foreground">
+      <div className="flex items-center gap-2 bg-chat px-2.5 pt-2 pb-3.5">
+        <span className="flex h-[38px] flex-1 items-center rounded-full bg-card px-3.5 text-[13px] text-muted-foreground">
           Message
         </span>
-        <span className="flex size-9 items-center justify-center rounded-full bg-brand text-primary-foreground">
-          <MicIcon className="size-4" aria-hidden="true" />
+        <span className="flex size-[38px] flex-none items-center justify-center rounded-full bg-panel text-panel-foreground">
+          <SendHorizontalIcon className="size-4" aria-hidden="true" />
         </span>
       </div>
     </div>

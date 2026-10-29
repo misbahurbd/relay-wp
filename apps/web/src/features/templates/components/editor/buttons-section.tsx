@@ -3,12 +3,19 @@ import { PlusIcon, XIcon } from 'lucide-react'
 import { describedBy, FormField } from '#/components/form'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
+import { cn } from '#/lib/utils'
 import type { TemplateEditorState } from '../../hooks/use-template-editor'
 import { BUTTON_TYPES, LIMITS, shortLinkWarnings } from '../../schemas/templates.schema'
 import type { ButtonType } from '../../types'
 import { BUTTON_ICON } from '../kit/button-icon'
 import { FormSection } from '../kit/form-section'
 import { WarningNote } from '../kit/warning-note'
+
+const TYPE_TONE: Record<ButtonType, string> = {
+  quick_reply: 'text-foreground',
+  url: 'text-info',
+  phone: 'text-brand-text',
+}
 
 /** 5. Buttons: up to 10, at most 2 website and 1 phone, quick replies kept together. */
 export function ButtonsSection({ editor }: { editor: TemplateEditorState }) {
@@ -42,9 +49,14 @@ export function ButtonsSection({ editor }: { editor: TemplateEditorState }) {
                     const Icon = BUTTON_ICON[b.type]
                     return (
                       // biome-ignore lint/suspicious/noArrayIndexKey: rows are addressed by index in the form
-                      <li key={i} className="flex flex-col gap-3 rounded-lg border bg-card p-3.5">
+                      <li key={i} className="flex flex-col gap-3 rounded-xl border bg-card p-3.5">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="inline-flex items-center gap-1.5 text-[13px] font-bold text-muted-foreground">
+                          <span
+                            className={cn(
+                              'inline-flex items-center gap-1.5 text-[13px] font-bold',
+                              TYPE_TONE[b.type],
+                            )}
+                          >
                             <Icon className="size-4" aria-hidden="true" />
                             {info.label}
                           </span>
@@ -164,7 +176,13 @@ function AddButton({
   onAdd: (type: ButtonType) => void
 }) {
   return (
-    <Button variant="outline" size="sm" disabled={disabled} onClick={() => onAdd(type)}>
+    <Button
+      variant="outline"
+      size="sm"
+      className="h-10 border-dashed bg-transparent px-3.5"
+      disabled={disabled}
+      onClick={() => onAdd(type)}
+    >
       <PlusIcon aria-hidden="true" />
       {BUTTON_TYPES[type].add}
     </Button>

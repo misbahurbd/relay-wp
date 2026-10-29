@@ -16,9 +16,13 @@ export function FooterSection({ editor }: { editor: TemplateEditorState }) {
           return (
             <FormField
               id="tpl-footer"
-              label="Footer text"
+              label={<span className="sr-only">Footer text</span>}
               error={error}
-              labelAside={<CharCounter value={field.state.value} max={LIMITS.footer} />}
+              description={
+                <span className="flex justify-end">
+                  <CharCounter value={field.state.value} max={LIMITS.footer} />
+                </span>
+              }
             >
               <Input
                 id="tpl-footer"
@@ -31,7 +35,7 @@ export function FooterSection({ editor }: { editor: TemplateEditorState }) {
                 }}
                 onBlur={field.handleBlur}
                 aria-invalid={!!error}
-                aria-describedby={describedBy('tpl-footer', { error })}
+                aria-describedby={describedBy('tpl-footer', { error, hint: true })}
               />
             </FormField>
           )

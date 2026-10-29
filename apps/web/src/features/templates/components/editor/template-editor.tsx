@@ -192,9 +192,9 @@ function PreviewColumn({
   const values = useStore(editor.form.store, (s) => s.values)
   return (
     <div className="flex flex-col gap-4 lg:sticky lg:top-4">
-      <div className="flex items-baseline justify-between gap-2">
+      <div className="flex items-center justify-between gap-2">
         <h2 className="text-base font-extrabold">Live preview</h2>
-        <span className="text-[13px] text-muted-foreground">
+        <span className="rounded-full bg-neutral-soft px-2.5 py-0.5 text-xs font-bold text-neutral">
           {categoryLabel(values.category)} · {languageLabel(values.language)}
         </span>
       </div>

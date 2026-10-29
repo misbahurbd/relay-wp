@@ -1,5 +1,5 @@
 import { useStore } from '@tanstack/react-form'
-import { BoldIcon, BracesIcon, ItalicIcon } from 'lucide-react'
+import { BoldIcon, ItalicIcon, PlusIcon } from 'lucide-react'
 import { useRef } from 'react'
 import { describedBy, FormField } from '#/components/form'
 import { Button } from '#/components/ui/button'
@@ -73,9 +73,10 @@ export function BodySection({ editor }: { editor: TemplateEditorState }) {
           <Button
             variant="soft"
             size="sm"
+            className="border border-primary"
             onClick={() => insert(`{{${exampleSlots(form.getFieldValue('body.text')) + 1}}}`)}
           >
-            <BracesIcon aria-hidden="true" />
+            <PlusIcon aria-hidden="true" />
             Add variable
           </Button>
         </div>
@@ -87,17 +88,24 @@ export function BodySection({ editor }: { editor: TemplateEditorState }) {
           return (
             <FormField
               id="tpl-body"
-              label="Message text"
+              label={<span className="sr-only">Message text</span>}
               error={error}
-              labelAside={<CharCounter value={field.state.value} max={LIMITS.body} />}
-              description="Use {{1}}, {{2}}… for details that change per customer, like name or order number."
+              description={
+                <span className="flex flex-wrap justify-between gap-2 text-xs">
+                  <span>
+                    Use {'{{1}}'}, {'{{2}}'}… for details that change per customer, like name or
+                    order number.
+                  </span>
+                  <CharCounter value={field.state.value} max={LIMITS.body} />
+                </span>
+              }
             >
               <Textarea
                 ref={area}
                 id="tpl-body"
                 rows={6}
                 maxLength={LIMITS.body}
-                className="min-h-36"
+                className="min-h-36 leading-relaxed"
                 placeholder="Hi {{1}}, your order {{2}} has shipped."
                 value={field.state.value}
                 onChange={(e) => setBody(e.target.value)}
@@ -112,17 +120,17 @@ export function BodySection({ editor }: { editor: TemplateEditorState }) {
       {warning && <WarningNote>{warning}</WarningNote>}
 
       {examples.length > 0 && (
-        <div className="flex flex-col gap-3 rounded-lg bg-muted p-3.5">
-          <p className="text-sm font-bold">
+        <div className="flex flex-col gap-2.5 rounded-xl bg-muted p-3.5">
+          <p className="text-[13px] font-bold">
             Sample values{' '}
-            <span className="font-normal text-muted-foreground">
+            <span className="font-medium text-muted-foreground">
               · Meta needs examples to review your template
             </span>
           </p>
           {extra['body.examples'] && (
             <p className="text-sm text-destructive">{extra['body.examples']}</p>
           )}
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-2.5 sm:grid-cols-2">
             {examples.map((_, i) => (
               <form.Field
                 // biome-ignore lint/suspicious/noArrayIndexKey: one input per variable number
@@ -131,22 +139,40 @@ export function BodySection({ editor }: { editor: TemplateEditorState }) {
               >
                 {(field) => {
                   const id = `tpl-example-${i + 1}`
+                  const token = `{{${i + 1}}}`
                   const error = errorOf(field)
                   return (
-                    <FormField id={id} label={`Sample for {{${i + 1}}}`} error={error}>
-                      <Input
-                        id={id}
-                        placeholder="Sample value"
-                        value={field.state.value}
-                        onChange={(e) => {
-                          field.handleChange(e.target.value)
-                          clearExtra(`body.examples[${i}]`, 'body.examples')
-                        }}
-                        onBlur={field.handleBlur}
-                        aria-invalid={!!error}
-                        aria-describedby={describedBy(id, { error })}
-                      />
-                    </FormField>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <span
+                          aria-hidden="true"
+                          className="inline-flex h-8 min-w-11 flex-none items-center justify-center rounded-lg bg-info-soft px-1.5 font-mono text-xs font-bold text-info"
+                        >
+                          {token}
+                        </span>
+                        <label htmlFor={id} className="sr-only">
+                          Sample for {token}
+                        </label>
+                        <Input
+                          id={id}
+                          className="h-10"
+                          placeholder="Sample value"
+                          value={field.state.value}
+                          onChange={(e) => {
+                            field.handleChange(e.target.value)
+                            clearExtra(`body.examples[${i}]`, 'body.examples')
+                          }}
+                          onBlur={field.handleBlur}
+                          aria-invalid={!!error}
+                          aria-describedby={describedBy(id, { error })}
+                        />
+                      </div>
+                      {error && (
+                        <p id={`${id}-error`} className="text-sm text-destructive">
+                          {error}
+                        </p>
+                      )}
+                    </div>
                   )
                 }}
               </form.Field>

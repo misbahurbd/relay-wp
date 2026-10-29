@@ -37,7 +37,7 @@ export function HeaderSection({ editor }: { editor: TemplateEditorState }) {
             type="single"
             variant="outline"
             aria-label="Header type"
-            className="flex w-full flex-wrap justify-start gap-1 rounded-lg bg-muted p-1"
+            className="flex flex-wrap justify-start gap-0.5 self-start rounded-xl bg-muted p-1"
             spacing={1}
             value={field.state.value}
             onValueChange={(v) => {
@@ -50,7 +50,7 @@ export function HeaderSection({ editor }: { editor: TemplateEditorState }) {
               <ToggleGroupItem
                 key={h.value}
                 value={h.value}
-                className="h-9 flex-1 border-transparent bg-transparent data-[state=on]:border-input data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-card"
+                className="h-9 rounded-[9px] border-transparent bg-transparent px-3.5 text-[13px] font-bold text-muted-foreground hover:text-foreground data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-card"
               >
                 {h.label}
               </ToggleGroupItem>
@@ -141,11 +141,15 @@ function MediaSample({ editor, type }: { editor: TemplateEditorState; type: Medi
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-input bg-muted p-3.5">
-        <span className="flex size-11 flex-none items-center justify-center rounded-lg bg-card text-muted-foreground">
-          <Icon className="size-5" aria-hidden="true" />
+      <div className="flex flex-wrap items-center gap-3.5 rounded-xl border-2 border-dashed border-input bg-muted p-4">
+        <span className="flex size-12 flex-none items-center justify-center rounded-xl bg-card text-brand-text">
+          {fits ? (
+            <Icon className="size-[22px]" aria-hidden="true" />
+          ) : (
+            <UploadIcon className="size-[22px]" aria-hidden="true" />
+          )}
         </span>
-        <span className="flex min-w-0 flex-1 flex-col">
+        <span className="flex min-w-0 flex-[1_1_200px] flex-col leading-snug">
           <span className="truncate text-sm font-bold">
             {fits ? (localSample?.name ?? `Sample ${type} uploaded`) : `No sample ${type} yet`}
           </span>
