@@ -172,6 +172,8 @@ type Querier interface {
 	// The only query that reads token_hash (CLAUDE.md secrets rule).
 	GetInvitationByTokenHash(ctx context.Context, tokenHash []byte) (GetInvitationByTokenHashRow, error)
 	GetInvoice(ctx context.Context, arg GetInvoiceParams) (GetInvoiceRow, error)
+	// The workspace's live subscription if it has one, else its most recent.
+	GetLatestSubscription(ctx context.Context, workspaceID uuid.UUID) (GetLatestSubscriptionRow, error)
 	// The workspace's one in_installments, paid or defaulted order.
 	GetLiveOrder(ctx context.Context, workspaceID uuid.UUID) (GetLiveOrderRow, error)
 	// The workspace's one trialing, active or past_due subscription.

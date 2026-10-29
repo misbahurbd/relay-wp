@@ -16,6 +16,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/sync/errgroup"
 
@@ -220,7 +221,19 @@ func (a *App) buildBilling() error {
 		a.log.Info("payment providers", "enabled", a.payments.Providers())
 	}
 	a.billing = billingservice.New(a.db, a.payments, a.queue, billingservice.Config{AppBaseURL: a.cfg.AppBaseURL}, a.log)
+	a.team.SetPlanLimits(a.billing)
+	a.whatsapp.SetPlanLimits(a.billing)
+	a.workspaces.SetBilling(deletionGuard{a.billing})
 	return nil
+}
+
+// deletionGuard gives the workspaces service billing's answer on whether a
+// workspace may be deleted, in the workspaces feature's own type.
+type deletionGuard struct{ billing *billingservice.Service }
+
+func (g deletionGuard) DeletionCheck(ctx context.Context, workspaceID uuid.UUID) (workspacesservice.DeletionCheck, error) {
+	c, err := g.billing.DeletionCheck(ctx, workspaceID)
+	return workspacesservice.DeletionCheck{Allowed: c.Allowed, Reason: c.Reason}, err
 }
 
 // secretKey decodes a base64 32-byte key from config. Development gets a random

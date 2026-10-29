@@ -29,7 +29,6 @@ const billingDiscountsUsage = `usage:
   relay billing discounts deactivate CODE`
 
 // runBilling runs `relay billing ...`: today only the discounts commands (Q18).
-// main.go's switch calls it with `case "billing"` (added by the integrator).
 func runBilling(ctx context.Context, cfg config.Config, log *slog.Logger, args []string, out io.Writer) error {
 	if len(args) < 2 || args[0] != "discounts" {
 		return errors.New(billingDiscountsUsage)

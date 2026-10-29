@@ -23,11 +23,16 @@ const pastDueGrace = 7 * 24 * time.Hour
 
 // Subscription returns the workspace's live subscription, or its latest one if
 // none is live. model.ErrNoSubscription if it never had one.
-//
-// Only the live one for now: the repository has no "latest subscription" query
-// (listed as a contract change).
 func (s *Service) Subscription(ctx context.Context, workspaceID uuid.UUID) (model.Subscription, error) {
-	return s.liveSubscription(ctx, repository.NewRepository(s.pool), workspaceID)
+	r := repository.NewRepository(s.pool)
+	row, err := r.GetLatestSubscription(ctx, workspaceID)
+	if repository.IsNoRows(err) {
+		return model.Subscription{}, model.ErrNoSubscription
+	}
+	if err != nil {
+		return model.Subscription{}, fmt.Errorf("get latest subscription: %w", err)
+	}
+	return s.withPrice(ctx, r, toSubscription(gen.GetSubscriptionRow(row)))
 }
 
 // liveSubscription reads the workspace's live subscription with its price through r.

@@ -226,8 +226,9 @@ func TestCancelNowEndsTheGrant(t *testing.T) {
 		t.Fatalf("cancel now: %+v, %v", got, err)
 	}
 	e.wantCache(e.ws, model.FreePlan)
-	if _, err := e.svc.Subscription(e.ctx, e.ws); !errors.Is(err, model.ErrNoSubscription) {
-		t.Fatalf("still live: %v", err)
+	// With nothing live, Subscription shows the one that just ended.
+	if latest, err := e.svc.Subscription(e.ctx, e.ws); err != nil || latest.Status != model.SubscriptionCanceled {
+		t.Fatalf("latest after cancel: %+v, %v", latest, err)
 	}
 }
 
