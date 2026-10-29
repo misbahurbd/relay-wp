@@ -1,0 +1,22 @@
+import { Badge } from '#/components/ui/badge'
+import { STATUS_LABEL } from '../../schemas/templates.schema'
+import type { TemplateStatus } from '../../types'
+
+const VARIANT = {
+  draft: 'neutral',
+  pending: 'warning',
+  approved: 'success',
+  rejected: 'danger',
+  paused: 'warning',
+  disabled: 'neutral',
+} as const satisfies Record<TemplateStatus, string>
+
+/** The template's status as a pill with a dot; the word carries the meaning, not the colour. */
+export function StatusBadge({ status }: { status: TemplateStatus }) {
+  return (
+    <Badge variant={VARIANT[status]}>
+      <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
+      {STATUS_LABEL[status]}
+    </Badge>
+  )
+}

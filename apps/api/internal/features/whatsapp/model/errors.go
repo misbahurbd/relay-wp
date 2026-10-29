@@ -18,4 +18,6 @@ var (
 	ErrTooManyTests     = apperr.RateLimited("too_many_test_messages", "You've sent 5 test messages this hour. Try again later.")
 	ErrWebhookForbidden = apperr.Forbidden("webhook_forbidden", "Webhook verification failed")
 	ErrWebhookSignature = apperr.Unauthorized("invalid_signature", "Webhook signature doesn't match")
+	ErrNoAccount        = apperr.Conflict("whatsapp_not_connected", "Connect a WhatsApp number first.")
+	ErrTemplateRefused  = apperr.Validation("meta_template_refused", "Meta refused this template")
 )

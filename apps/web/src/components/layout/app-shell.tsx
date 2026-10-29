@@ -47,15 +47,19 @@ type NavItem = {
   label: string
   icon: typeof InboxIcon
   /** Built sections link somewhere; the rest show "Soon". */
-  to?: '/w/$workspaceId' | '/w/$workspaceId/team'
+  to?:
+    | '/w/$workspaceId'
+    | '/w/$workspaceId/contacts'
+    | '/w/$workspaceId/templates'
+    | '/w/$workspaceId/team'
 }
 
 const NAV: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboardIcon, to: '/w/$workspaceId' },
   { id: 'inbox', label: 'Inbox', icon: InboxIcon },
-  { id: 'contacts', label: 'Contacts', icon: ContactIcon },
+  { id: 'contacts', label: 'Contacts', icon: ContactIcon, to: '/w/$workspaceId/contacts' },
   { id: 'broadcasts', label: 'Broadcasts', icon: MegaphoneIcon },
-  { id: 'templates', label: 'Templates', icon: FileTextIcon },
+  { id: 'templates', label: 'Templates', icon: FileTextIcon, to: '/w/$workspaceId/templates' },
   { id: 'chatbots', label: 'Chatbots', icon: BotIcon },
   { id: 'automations', label: 'Automations', icon: WorkflowIcon },
   { id: 'integrations', label: 'Integrations', icon: PlugIcon },

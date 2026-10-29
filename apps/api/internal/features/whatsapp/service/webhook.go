@@ -34,10 +34,11 @@ type account struct {
 // Fields not listed are ignored.
 func (s *Service) webhookHandlers() map[string]webhookHandler {
 	return map[string]webhookHandler{
-		"messages":                    s.onMessages,
-		"phone_number_name_update":    s.onNameUpdate,
-		"phone_number_quality_update": s.onQualityUpdate,
-		"account_update":              s.onAccountUpdate,
+		"messages":                       s.onMessages,
+		"phone_number_name_update":       s.onNameUpdate,
+		"phone_number_quality_update":    s.onQualityUpdate,
+		"account_update":                 s.onAccountUpdate,
+		"message_template_status_update": s.onTemplateStatus,
 	}
 }
 

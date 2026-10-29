@@ -55,10 +55,12 @@ type Service struct {
 	graph    *Graph
 	queue    Enqueuer
 	notifier Notifier
-	box      *secretBox
-	cfg      Config
-	log      *slog.Logger
-	webhooks map[string]webhookHandler
+	// templates hears template status webhooks; nil until SetTemplateStatusSink.
+	templates TemplateStatusSink
+	box       *secretBox
+	cfg       Config
+	log       *slog.Logger
+	webhooks  map[string]webhookHandler
 }
 
 // New builds the service. With cfg.Enabled the Meta app settings are required.

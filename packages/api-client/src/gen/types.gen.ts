@@ -28,6 +28,42 @@ export type AvailabilityInputBody = {
     availability: 'online' | 'away' | 'offline';
 };
 
+export type BodyDto = {
+    /**
+     * One example per variable, in order
+     */
+    examples: Array<string> | null;
+    /**
+     * Message text with {{1}}..{{N}} variables, at most 1024 characters
+     */
+    text: string;
+};
+
+export type BodyInput = {
+    examples?: Array<string> | null;
+    text?: string;
+};
+
+export type BulkInputBody = {
+    /**
+     * delete needs contacts.delete; the others contacts.edit
+     */
+    action: 'add_tag' | 'remove_tag' | 'assign' | 'delete';
+    contact_ids: Array<string> | null;
+    /**
+     * For add_tag and remove_tag
+     */
+    tag_id?: string;
+    /**
+     * For assign; omit to unassign
+     */
+    user_id?: string;
+};
+
+export type BulkOutputBody = {
+    affected: number;
+};
+
 export type BusinessInputBody = {
     /**
      * ISO 3166-1 alpha-2
@@ -38,6 +74,24 @@ export type BusinessInputBody = {
     name: string;
     team_size: 'just_me' | '2_5' | '6_20' | '20_plus';
     website?: string;
+};
+
+export type ButtonDto = {
+    text: string;
+    type: 'quick_reply' | 'url' | 'phone';
+    /**
+     * The https:// link or the E.164 phone number; empty for a quick reply
+     */
+    value: string;
+};
+
+export type ButtonInput = {
+    text?: string;
+    /**
+     * quick_reply, url or phone
+     */
+    type?: string;
+    value?: string;
 };
 
 export type ChangeDto = {
@@ -60,6 +114,32 @@ export type ChecklistItemDto = {
     id: 'account' | 'whatsapp' | 'template' | 'contacts' | 'broadcast' | 'team';
 };
 
+export type ColumnMappingDto = {
+    /**
+     * Custom field name for attribute; defaults to the column name
+     */
+    attribute_key?: string;
+    field: 'name' | 'phone' | 'email' | 'tag' | 'attribute' | 'skip';
+    /**
+     * The file's column name
+     */
+    name: string;
+};
+
+export type ComponentsDto = {
+    body: BodyDto;
+    buttons: Array<ButtonDto> | null;
+    footer: FooterDto;
+    header: HeaderDto;
+};
+
+export type ComponentsInput = {
+    body?: BodyInput;
+    buttons?: Array<ButtonInput> | null;
+    footer?: FooterInput;
+    header?: HeaderInput;
+};
+
 export type ConnectInputBody = {
     /**
      * From the FB.login callback
@@ -76,6 +156,92 @@ export type ConnectInputBody = {
     waba_id: string;
 };
 
+export type ContactDto = {
+    assigned_to: PersonDto;
+    created_at: string;
+    email: string | null;
+    id: string;
+    language: string | null;
+    last_message_at: string | null;
+    name: string;
+    opt_in: 'in' | 'out' | 'pending';
+    /**
+     * E.164, for example +447700900412
+     */
+    phone: string;
+    /**
+     * International format for display
+     */
+    phone_display: string;
+    source: 'manual' | 'import' | 'inbox' | 'api';
+    tags: Array<TagRefDto> | null;
+    updated_at: string;
+};
+
+export type ContactDetailDto = {
+    assigned_to: PersonDto;
+    /**
+     * Custom fields; string values only
+     */
+    attributes: {
+        [key: string]: string;
+    };
+    created_at: string;
+    email: string | null;
+    id: string;
+    language: string | null;
+    last_message_at: string | null;
+    name: string;
+    opt_in: 'in' | 'out' | 'pending';
+    opt_in_at: string | null;
+    opt_in_source: string | null;
+    /**
+     * E.164, for example +447700900412
+     */
+    phone: string;
+    /**
+     * International format for display
+     */
+    phone_display: string;
+    source: 'manual' | 'import' | 'inbox' | 'api';
+    tags: Array<TagRefDto> | null;
+    updated_at: string;
+};
+
+export type ContactsOutputBody = {
+    items: Array<ContactDto> | null;
+    next_cursor: string | null;
+    /**
+     * Contacts matching the filter
+     */
+    total: number;
+};
+
+export type CountsDto = {
+    all: number;
+    approved: number;
+    pending: number;
+    rejected: number;
+};
+
+export type CreateContactInputBody = {
+    attributes?: {
+        [key: string]: string;
+    };
+    email?: string;
+    language?: string;
+    name: string;
+    /**
+     * Defaults to pending
+     */
+    opt_in?: 'in' | 'out' | 'pending';
+    /**
+     * With country code; stored as E.164
+     */
+    phone: string;
+    tag_ids?: Array<string> | null;
+};
+
 export type CreateInputBody = {
     first_goal: 'offers' | 'support' | 'automate';
     /**
@@ -83,6 +249,26 @@ export type CreateInputBody = {
      */
     name: string;
     start_mode: 'setup' | 'sample';
+};
+
+export type CreateInputBody1 = {
+    /**
+     * marketing or utility
+     */
+    category: string;
+    components?: ComponentsInput;
+    /**
+     * en_US, en_GB, es, pt_BR, hi, bn or ar
+     */
+    language: string;
+    /**
+     * Lowercase letters, numbers and underscores
+     */
+    name: string;
+};
+
+export type CreateTagInputBody = {
+    name: string;
 };
 
 export type DataDeletionOutputBody = {
@@ -137,6 +323,35 @@ export type ExpiringDto = {
     user_id: string;
 };
 
+export type FooterDto = {
+    text: string;
+};
+
+export type FooterInput = {
+    text?: string;
+};
+
+export type HeaderDto = {
+    /**
+     * Example value for the text header's {{1}}
+     */
+    example: string;
+    /**
+     * Text header, at most 60 characters and one {{1}} variable
+     */
+    text: string;
+    type: 'none' | 'text' | 'image' | 'video' | 'document';
+};
+
+export type HeaderInput = {
+    example?: string;
+    text?: string;
+    /**
+     * none, text, image, video or document
+     */
+    type?: string;
+};
+
 export type IdentitiesOutputBody = {
     has_password: boolean;
     identities: Array<IdentityDto> | null;
@@ -150,6 +365,31 @@ export type IdentityDto = {
     email?: string;
     last_used_at: string;
     provider: 'google' | 'facebook' | 'apple';
+};
+
+export type ImportColumnDto = {
+    guess: 'name' | 'phone' | 'email' | 'tag' | 'attribute' | 'skip';
+    name: string;
+    /**
+     * Up to 3 values from the column
+     */
+    samples: Array<string> | null;
+};
+
+export type ImportDto = {
+    created: number;
+    created_at: string;
+    error?: string;
+    file_name: string;
+    /**
+     * The skipped rows can be downloaded
+     */
+    has_skipped_file: boolean;
+    id: string;
+    row_count: number;
+    skipped: number;
+    status: 'uploaded' | 'mapped' | 'importing' | 'done' | 'failed';
+    updated: number;
 };
 
 export type InvitationDto = {
@@ -219,6 +459,15 @@ export type ListOutputBody = {
     workspaces: Array<SummaryDto> | null;
 };
 
+export type ListOutputBody1 = {
+    /**
+     * Status tab counts for the same category and search
+     */
+    counts: CountsDto;
+    items: Array<TemplateDto> | null;
+    next_cursor: string | null;
+};
+
 export type LogDto = {
     action: string;
     /**
@@ -274,6 +523,18 @@ export type LoginInputBody = {
     client?: 'web' | 'mobile';
     email: string;
     password: string;
+};
+
+export type MappingInputBody = {
+    columns: Array<ColumnMappingDto> | null;
+    /**
+     * Must be true: these contacts agreed to get messages
+     */
+    opt_in_confirmed?: boolean;
+    /**
+     * A tag for every imported contact
+     */
+    tag_name?: string;
 };
 
 export type MeOutputBody = {
@@ -495,6 +756,11 @@ export type PermissionsOutputBody = {
     permissions: Array<PermissionDto> | null;
 };
 
+export type PersonDto = {
+    id: string;
+    name: string;
+};
+
 export type PreferencesDto = {
     locale: string;
     timezone: string;
@@ -520,6 +786,38 @@ export type PreviewDto = {
     team_names: Array<string> | null;
     workspace_id: string;
     workspace_name: string;
+};
+
+export type PreviewOutputBody = {
+    invalid: number;
+    /**
+     * New contacts
+     */
+    ready: number;
+    rows_found: number;
+    /**
+     * The first 10 rows
+     */
+    sample: Array<PreviewRowDto> | null;
+    /**
+     * Rows whose phone is already a contact
+     */
+    updates: number;
+};
+
+export type PreviewRowDto = {
+    email: string;
+    name: string;
+    phone: string;
+    /**
+     * Why the row is invalid
+     */
+    reason?: string;
+    /**
+     * 1-based data row; the header isn't counted
+     */
+    row: number;
+    status: 'new' | 'update' | 'invalid';
 };
 
 export type ProfileDto = {
@@ -600,6 +898,14 @@ export type RoleDto = {
 
 export type RolesOutputBody = {
     roles: Array<RoleDto> | null;
+};
+
+export type SampleDto = {
+    content_type: 'image/jpeg' | 'image/png' | 'video/mp4' | 'application/pdf';
+    /**
+     * Bytes
+     */
+    size: number;
 };
 
 export type SeatsDto = {
@@ -712,8 +1018,31 @@ export type SummaryDto = {
     role_name: string;
 };
 
+export type SummaryOutputBody = {
+    opted_in: number;
+    total: number;
+};
+
 export type SuspendInputBody = {
     reason?: string;
+};
+
+export type SyncOutputBody = {
+    /**
+     * Templates pulled from Meta and saved
+     */
+    synced: number;
+};
+
+export type TagDto = {
+    contact_count: number;
+    id: string;
+    name: string;
+};
+
+export type TagRefDto = {
+    id: string;
+    name: string;
 };
 
 export type TeamBody = {
@@ -740,6 +1069,35 @@ export type TeamMembersInputBody = {
 
 export type TeamsOutputBody = {
     teams: Array<TeamDto> | null;
+};
+
+export type TemplateDto = {
+    category: 'marketing' | 'utility' | 'authentication';
+    components: ComponentsDto;
+    created_at: string;
+    /**
+     * Null for templates synced from Meta
+     */
+    created_by: string | null;
+    /**
+     * The uploaded media header sample; absent until one is uploaded
+     */
+    header_sample?: SampleDto;
+    id: string;
+    /**
+     * Meta's language code; synced templates may use others
+     */
+    language: 'en_US' | 'en_GB' | 'es' | 'pt_BR' | 'hi' | 'bn' | 'ar';
+    meta_template_id: string | null;
+    name: string;
+    rejected_reason: string | null;
+    status: 'draft' | 'pending' | 'approved' | 'rejected' | 'paused' | 'disabled';
+    submitted_at: string | null;
+    updated_at: string;
+    /**
+     * Problems Meta may reject the template for; they don't block saving
+     */
+    warnings: Array<WarningDto> | null;
 };
 
 export type TestMessageOutputBody = {
@@ -771,6 +1129,40 @@ export type TokenInputBody = {
     token: string;
 };
 
+export type UpdateContactInputBody = {
+    /**
+     * Replaces every custom field; omit to keep
+     */
+    attributes?: {
+        [key: string]: string;
+    };
+    /**
+     * "" clears it
+     */
+    email?: string;
+    /**
+     * "" clears it
+     */
+    language?: string;
+    name?: string;
+    opt_in?: 'in' | 'out' | 'pending';
+    phone?: string;
+    /**
+     * Replaces the contact's tags; omit to keep
+     */
+    tag_ids?: Array<string> | null;
+};
+
+export type UpdateInputBody = {
+    category?: string;
+    /**
+     * Replaces all components
+     */
+    components?: ComponentsInput;
+    language?: string;
+    name?: string;
+};
+
 export type UpdatePreferencesInputBody = {
     locale?: string;
     timezone?: string;
@@ -786,6 +1178,13 @@ export type UpdateProfileInputBody = {
      * Empty string clears it
      */
     last_name?: string;
+};
+
+export type UploadOutputBody = {
+    columns: Array<ImportColumnDto> | null;
+    file_name: string;
+    id: string;
+    row_count: number;
 };
 
 export type UserDto = {
@@ -820,6 +1219,15 @@ export type VerifyEmailInputBody = {
      */
     password?: string;
     token: string;
+};
+
+export type WarningDto = {
+    code: 'short_link';
+    /**
+     * Where the problem is, e.g. buttons[0].value
+     */
+    field: string;
+    message: string;
 };
 
 export type WorkspaceDto = {
@@ -2148,6 +2556,478 @@ export type GetAccessLogSummaryResponses = {
 
 export type GetAccessLogSummaryResponse = GetAccessLogSummaryResponses[keyof GetAccessLogSummaryResponses];
 
+export type ListContactTagsData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/contact-tags';
+};
+
+export type ListContactTagsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListContactTagsError = ListContactTagsErrors[keyof ListContactTagsErrors];
+
+export type ListContactTagsResponses = {
+    /**
+     * OK
+     */
+    200: Array<TagDto> | null;
+};
+
+export type ListContactTagsResponse = ListContactTagsResponses[keyof ListContactTagsResponses];
+
+export type CreateContactTagData = {
+    body: CreateTagInputBody;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/contact-tags';
+};
+
+export type CreateContactTagErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CreateContactTagError = CreateContactTagErrors[keyof CreateContactTagErrors];
+
+export type CreateContactTagResponses = {
+    /**
+     * Created
+     */
+    201: TagDto;
+};
+
+export type CreateContactTagResponse = CreateContactTagResponses[keyof CreateContactTagResponses];
+
+export type ListContactsData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+    };
+    query?: {
+        /**
+         * Name, phone or email contains this (case-insensitive)
+         */
+        q?: string;
+        opt_in?: 'in' | 'out' | 'pending';
+        tag_id?: string;
+        /**
+         * Last message within 24h/7d/30d, or over 90 days ago
+         */
+        last_message?: '24h' | '7d' | '30d' | 'over_90d';
+        limit?: number;
+        /**
+         * next_cursor from the previous page
+         */
+        cursor?: string;
+    };
+    url: '/v1/workspaces/{workspaceId}/contacts';
+};
+
+export type ListContactsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListContactsError = ListContactsErrors[keyof ListContactsErrors];
+
+export type ListContactsResponses = {
+    /**
+     * OK
+     */
+    200: ContactsOutputBody;
+};
+
+export type ListContactsResponse = ListContactsResponses[keyof ListContactsResponses];
+
+export type CreateContactData = {
+    body: CreateContactInputBody;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/contacts';
+};
+
+export type CreateContactErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CreateContactError = CreateContactErrors[keyof CreateContactErrors];
+
+export type CreateContactResponses = {
+    /**
+     * Created
+     */
+    201: ContactDetailDto;
+};
+
+export type CreateContactResponse = CreateContactResponses[keyof CreateContactResponses];
+
+export type BulkContactsData = {
+    body: BulkInputBody;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/contacts/bulk';
+};
+
+export type BulkContactsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type BulkContactsError = BulkContactsErrors[keyof BulkContactsErrors];
+
+export type BulkContactsResponses = {
+    /**
+     * OK
+     */
+    200: BulkOutputBody;
+};
+
+export type BulkContactsResponse = BulkContactsResponses[keyof BulkContactsResponses];
+
+export type ExportContactsData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+    };
+    query?: {
+        /**
+         * Name, phone or email contains this (case-insensitive)
+         */
+        q?: string;
+        opt_in?: 'in' | 'out' | 'pending';
+        tag_id?: string;
+        /**
+         * Last message within 24h/7d/30d, or over 90 days ago
+         */
+        last_message?: '24h' | '7d' | '30d' | 'over_90d';
+    };
+    url: '/v1/workspaces/{workspaceId}/contacts/export';
+};
+
+export type ExportContactsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ExportContactsError = ExportContactsErrors[keyof ExportContactsErrors];
+
+export type ExportContactsResponses = {
+    /**
+     * CSV: name, phone, email, opt_in, tags, source, language, created_at, then one column per custom field
+     */
+    200: string;
+};
+
+export type ExportContactsResponse = ExportContactsResponses[keyof ExportContactsResponses];
+
+export type UploadContactImportData = {
+    body?: {
+        /**
+         * .csv or .xlsx, at most 10 MB and 50,000 rows
+         */
+        file: Blob | File;
+    };
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/contacts/imports';
+};
+
+export type UploadContactImportErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UploadContactImportError = UploadContactImportErrors[keyof UploadContactImportErrors];
+
+export type UploadContactImportResponses = {
+    /**
+     * Created
+     */
+    201: UploadOutputBody;
+};
+
+export type UploadContactImportResponse = UploadContactImportResponses[keyof UploadContactImportResponses];
+
+export type GetContactImportData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+        importId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/contacts/imports/{importId}';
+};
+
+export type GetContactImportErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetContactImportError = GetContactImportErrors[keyof GetContactImportErrors];
+
+export type GetContactImportResponses = {
+    /**
+     * OK
+     */
+    200: ImportDto;
+};
+
+export type GetContactImportResponse = GetContactImportResponses[keyof GetContactImportResponses];
+
+export type SetContactImportMappingData = {
+    body: MappingInputBody;
+    path: {
+        workspaceId: string;
+        importId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/contacts/imports/{importId}/mapping';
+};
+
+export type SetContactImportMappingErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SetContactImportMappingError = SetContactImportMappingErrors[keyof SetContactImportMappingErrors];
+
+export type SetContactImportMappingResponses = {
+    /**
+     * OK
+     */
+    200: ImportDto;
+};
+
+export type SetContactImportMappingResponse = SetContactImportMappingResponses[keyof SetContactImportMappingResponses];
+
+export type PreviewContactImportData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+        importId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/contacts/imports/{importId}/preview';
+};
+
+export type PreviewContactImportErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type PreviewContactImportError = PreviewContactImportErrors[keyof PreviewContactImportErrors];
+
+export type PreviewContactImportResponses = {
+    /**
+     * OK
+     */
+    200: PreviewOutputBody;
+};
+
+export type PreviewContactImportResponse = PreviewContactImportResponses[keyof PreviewContactImportResponses];
+
+export type DownloadContactImportSkippedData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+        importId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/contacts/imports/{importId}/skipped';
+};
+
+export type DownloadContactImportSkippedErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type DownloadContactImportSkippedError = DownloadContactImportSkippedErrors[keyof DownloadContactImportSkippedErrors];
+
+export type DownloadContactImportSkippedResponses = {
+    /**
+     * CSV: row, the file's columns, error
+     */
+    200: string;
+};
+
+export type DownloadContactImportSkippedResponse = DownloadContactImportSkippedResponses[keyof DownloadContactImportSkippedResponses];
+
+export type StartContactImportData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+        importId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/contacts/imports/{importId}/start';
+};
+
+export type StartContactImportErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type StartContactImportError = StartContactImportErrors[keyof StartContactImportErrors];
+
+export type StartContactImportResponses = {
+    /**
+     * Accepted
+     */
+    202: ImportDto;
+};
+
+export type StartContactImportResponse = StartContactImportResponses[keyof StartContactImportResponses];
+
+export type GetContactsSummaryData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/contacts/summary';
+};
+
+export type GetContactsSummaryErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetContactsSummaryError = GetContactsSummaryErrors[keyof GetContactsSummaryErrors];
+
+export type GetContactsSummaryResponses = {
+    /**
+     * OK
+     */
+    200: SummaryOutputBody;
+};
+
+export type GetContactsSummaryResponse = GetContactsSummaryResponses[keyof GetContactsSummaryResponses];
+
+export type DeleteContactData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+        contactId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/contacts/{contactId}';
+};
+
+export type DeleteContactErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type DeleteContactError = DeleteContactErrors[keyof DeleteContactErrors];
+
+export type DeleteContactResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteContactResponse = DeleteContactResponses[keyof DeleteContactResponses];
+
+export type GetContactData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+        contactId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/contacts/{contactId}';
+};
+
+export type GetContactErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetContactError = GetContactErrors[keyof GetContactErrors];
+
+export type GetContactResponses = {
+    /**
+     * OK
+     */
+    200: ContactDetailDto;
+};
+
+export type GetContactResponse = GetContactResponses[keyof GetContactResponses];
+
+export type UpdateContactData = {
+    body: UpdateContactInputBody;
+    path: {
+        workspaceId: string;
+        contactId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/contacts/{contactId}';
+};
+
+export type UpdateContactErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UpdateContactError = UpdateContactErrors[keyof UpdateContactErrors];
+
+export type UpdateContactResponses = {
+    /**
+     * OK
+     */
+    200: ContactDetailDto;
+};
+
+export type UpdateContactResponse = UpdateContactResponses[keyof UpdateContactResponses];
+
 export type ListInvitationsData = {
     body?: never;
     path: {
@@ -3162,6 +4042,241 @@ export type SetTeamMembersResponses = {
 };
 
 export type SetTeamMembersResponse = SetTeamMembersResponses[keyof SetTeamMembersResponses];
+
+export type ListTemplatesData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+    };
+    query?: {
+        status?: 'draft' | 'pending' | 'approved' | 'rejected' | 'paused' | 'disabled';
+        category?: 'marketing' | 'utility' | 'authentication';
+        /**
+         * Part of the name, case-insensitive
+         */
+        q?: string;
+        limit?: number;
+        cursor?: string;
+    };
+    url: '/v1/workspaces/{workspaceId}/templates';
+};
+
+export type ListTemplatesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListTemplatesError = ListTemplatesErrors[keyof ListTemplatesErrors];
+
+export type ListTemplatesResponses = {
+    /**
+     * OK
+     */
+    200: ListOutputBody1;
+};
+
+export type ListTemplatesResponse = ListTemplatesResponses[keyof ListTemplatesResponses];
+
+export type CreateTemplateData = {
+    body: CreateInputBody1;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/templates';
+};
+
+export type CreateTemplateErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CreateTemplateError = CreateTemplateErrors[keyof CreateTemplateErrors];
+
+export type CreateTemplateResponses = {
+    /**
+     * Created
+     */
+    201: TemplateDto;
+};
+
+export type CreateTemplateResponse = CreateTemplateResponses[keyof CreateTemplateResponses];
+
+export type SyncTemplatesData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/templates/sync';
+};
+
+export type SyncTemplatesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SyncTemplatesError = SyncTemplatesErrors[keyof SyncTemplatesErrors];
+
+export type SyncTemplatesResponses = {
+    /**
+     * OK
+     */
+    200: SyncOutputBody;
+};
+
+export type SyncTemplatesResponse = SyncTemplatesResponses[keyof SyncTemplatesResponses];
+
+export type DeleteTemplateData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+        templateId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/templates/{templateId}';
+};
+
+export type DeleteTemplateErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type DeleteTemplateError = DeleteTemplateErrors[keyof DeleteTemplateErrors];
+
+export type DeleteTemplateResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteTemplateResponse = DeleteTemplateResponses[keyof DeleteTemplateResponses];
+
+export type GetTemplateData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+        templateId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/templates/{templateId}';
+};
+
+export type GetTemplateErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetTemplateError = GetTemplateErrors[keyof GetTemplateErrors];
+
+export type GetTemplateResponses = {
+    /**
+     * OK
+     */
+    200: TemplateDto;
+};
+
+export type GetTemplateResponse = GetTemplateResponses[keyof GetTemplateResponses];
+
+export type UpdateTemplateData = {
+    body: UpdateInputBody;
+    path: {
+        workspaceId: string;
+        templateId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/templates/{templateId}';
+};
+
+export type UpdateTemplateErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UpdateTemplateError = UpdateTemplateErrors[keyof UpdateTemplateErrors];
+
+export type UpdateTemplateResponses = {
+    /**
+     * OK
+     */
+    200: TemplateDto;
+};
+
+export type UpdateTemplateResponse = UpdateTemplateResponses[keyof UpdateTemplateResponses];
+
+export type UploadTemplateHeaderSampleData = {
+    body?: {
+        /**
+         * JPG or PNG up to 5 MB, MP4 up to 16 MB, or PDF up to 100 MB; must match the header type
+         */
+        file: Blob | File;
+    };
+    path: {
+        workspaceId: string;
+        templateId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/templates/{templateId}/header-sample';
+};
+
+export type UploadTemplateHeaderSampleErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UploadTemplateHeaderSampleError = UploadTemplateHeaderSampleErrors[keyof UploadTemplateHeaderSampleErrors];
+
+export type UploadTemplateHeaderSampleResponses = {
+    /**
+     * OK
+     */
+    200: TemplateDto;
+};
+
+export type UploadTemplateHeaderSampleResponse = UploadTemplateHeaderSampleResponses[keyof UploadTemplateHeaderSampleResponses];
+
+export type SubmitTemplateData = {
+    body?: never;
+    path: {
+        workspaceId: string;
+        templateId: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspaceId}/templates/{templateId}/submit';
+};
+
+export type SubmitTemplateErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SubmitTemplateError = SubmitTemplateErrors[keyof SubmitTemplateErrors];
+
+export type SubmitTemplateResponses = {
+    /**
+     * OK
+     */
+    200: TemplateDto;
+};
+
+export type SubmitTemplateResponse = SubmitTemplateResponses[keyof SubmitTemplateResponses];
 
 export type ConnectWhatsappData = {
     body: ConnectInputBody;

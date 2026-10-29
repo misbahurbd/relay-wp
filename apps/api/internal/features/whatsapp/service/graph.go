@@ -40,6 +40,8 @@ type GraphError struct {
 	Subcode int    `json:"error_subcode"`
 	Type    string `json:"type"`
 	Message string `json:"message"`
+	// UserMessage is Meta's explanation for people, e.g. why a template was refused.
+	UserMessage string `json:"error_user_msg"`
 }
 
 func (e *GraphError) Error() string {
@@ -93,6 +95,11 @@ func (g *Graph) call(ctx context.Context, method, path, token string, query url.
 		return fmt.Errorf("graph %s %s: %w", method, path, err)
 	}
 	defer func() { _ = res.Body.Close() }()
+	return decodeGraph(res, path, out)
+}
+
+// decodeGraph reads a Graph answer into out, or returns Meta's error. The caller closes the body.
+func decodeGraph(res *http.Response, path string, out any) error {
 	raw, err := io.ReadAll(io.LimitReader(res.Body, 1<<20))
 	if err != nil {
 		return fmt.Errorf("graph read: %w", err)
