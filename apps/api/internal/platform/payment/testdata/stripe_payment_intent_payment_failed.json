@@ -1,0 +1,26 @@
+{
+  "id": "evt_pi_failed",
+  "object": "event",
+  "api_version": "2026-09-30.endive",
+  "created": 1761696000,
+  "type": "payment_intent.payment_failed",
+  "data": {
+    "object": {
+      "id": "pi_ltd_1",
+      "object": "payment_intent",
+      "amount": 49900,
+      "amount_received": 0,
+      "currency": "usd",
+      "customer": "cus_1",
+      "status": "requires_payment_method",
+      "last_payment_error": {
+        "type": "card_error",
+        "code": "card_declined",
+        "decline_code": "insufficient_funds"
+      },
+      "metadata": {
+        "relay_reference": "0199a0b2-7c3e-7d4a-9b1e-2f6a3c5d8e01"
+      }
+    }
+  }
+}

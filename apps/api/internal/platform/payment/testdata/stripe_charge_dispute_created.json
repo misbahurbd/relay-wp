@@ -1,0 +1,19 @@
+{
+  "id": "evt_dispute_created",
+  "object": "event",
+  "api_version": "2026-09-30.endive",
+  "created": 1761696000,
+  "type": "charge.dispute.created",
+  "data": {
+    "object": {
+      "id": "dp_1",
+      "object": "dispute",
+      "amount": 49900,
+      "currency": "usd",
+      "charge": "ch_1",
+      "payment_intent": "pi_ltd_1",
+      "reason": "fraudulent",
+      "status": "needs_response"
+    }
+  }
+}

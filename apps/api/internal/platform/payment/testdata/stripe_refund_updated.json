@@ -1,0 +1,18 @@
+{
+  "id": "evt_refund",
+  "object": "event",
+  "api_version": "2026-09-30.endive",
+  "created": 1761696000,
+  "type": "refund.updated",
+  "data": {
+    "object": {
+      "id": "re_1",
+      "object": "refund",
+      "amount": 1000,
+      "currency": "usd",
+      "charge": "ch_1",
+      "payment_intent": "pi_ltd_1",
+      "status": "succeeded"
+    }
+  }
+}

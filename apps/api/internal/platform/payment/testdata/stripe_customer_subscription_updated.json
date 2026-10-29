@@ -1,0 +1,39 @@
+{
+  "id": "evt_sub_updated",
+  "object": "event",
+  "api_version": "2026-09-30.endive",
+  "created": 1761696000,
+  "type": "customer.subscription.updated",
+  "data": {
+    "object": {
+      "id": "sub_1",
+      "object": "subscription",
+      "customer": "cus_1",
+      "status": "active",
+      "cancel_at_period_end": true,
+      "canceled_at": null,
+      "trial_end": null,
+      "metadata": {
+        "relay_reference": "0199a0b2-7c3e-7d4a-9b1e-2f6a3c5d8e01"
+      },
+      "items": {
+        "object": "list",
+        "data": [
+          {
+            "id": "si_1",
+            "object": "subscription_item",
+            "current_period_start": 1761696000,
+            "current_period_end": 1764374400,
+            "price": {
+              "id": "price_growth_month",
+              "object": "price"
+            }
+          }
+        ]
+      }
+    },
+    "previous_attributes": {
+      "cancel_at_period_end": false
+    }
+  }
+}
