@@ -150,3 +150,39 @@ The contract changes and open questions the tracks reported, as settled when the
 | Lost disputes                 | The grant the disputed invoice paid for (its subscription or order) is suspended. Support restores it once settled.                                                                                                                                                                                                    |
 | Refund over the invoice total | Kept (T5): logged at ERROR and not recorded, for a person to check.                                                                                                                                                                                                                                                    |
 | Provider-side price changes   | `subscription.updated` naming another of our provider prices moves the subscription to that price.                                                                                                                                                                                                                     |
+
+## 8. Staff admin tools (temporary)
+
+A stopgap so staff can build the catalog and fix a workspace's plan without SQL. The web page is
+`/admin` (tabs: plans and prices, discount codes, workspaces). The API admits a signed-in, verified
+account whose email is in `ADMIN_EMAILS`; anyone else gets 403 `staff_only`. Empty turns it off.
+Replace it with a real back office (roles, an audit log) before there are several staff.
+
+- **Catalog**: add a plan (a used code publishes its next version), prices, installment offers on
+  one-time prices, and provider links (the provider's price or product ID). Rows are never edited:
+  deactivate one and add its replacement. A price is on sale only once it has an active provider
+  link.
+- **Discount codes**: the same create, list and deactivate as `relay billing discounts`.
+- **Workspaces**: list with the current grant; grant a plan by hand (`source = manual`, a reason
+  is required, an end date is optional), end a manual grant or trial, or restore a suspended
+  grant. A plan from a subscription or lifetime deal is refused (`grant_from_payment`): cancel
+  that first, or billing would put it back on the next payment.
+
+| Method | Path                                                                                  |
+| ------ | ------------------------------------------------------------------------------------- |
+| GET    | `/v1/admin/billing/catalog`                                                           |
+| POST   | `/v1/admin/billing/plans`                                                             |
+| POST   | `/v1/admin/billing/prices`                                                            |
+| POST   | `/v1/admin/billing/installment-offers`                                                |
+| POST   | `/v1/admin/billing/provider-prices`                                                   |
+| POST   | `/v1/admin/billing/{plans,prices,installment-offers,provider-prices}/{id}/deactivate` |
+| GET    | `/v1/admin/billing/discounts`                                                         |
+| POST   | `/v1/admin/billing/discounts`                                                         |
+| POST   | `/v1/admin/billing/discounts/{code}/deactivate`                                       |
+| GET    | `/v1/admin/workspaces?search=`                                                        |
+| POST   | `/v1/admin/workspaces/grant-plan`                                                     |
+| POST   | `/v1/admin/workspaces/end-grant`                                                      |
+| POST   | `/v1/admin/workspaces/restore-grant`                                                  |
+
+Admin routes take the workspace in the body, never the URL or the `X-Workspace-ID` header: staff
+are not members.

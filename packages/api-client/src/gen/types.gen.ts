@@ -24,6 +24,127 @@ export type AccessDto = {
     team_ids: Array<string> | null;
 };
 
+export type AdminCatalogOutputBody = {
+    plans: Array<AdminPlanDto> | null;
+    /**
+     * Payment providers this server has enabled
+     */
+    providers: Array<string> | null;
+};
+
+export type AdminDiscountDto = {
+    allow_installments: boolean;
+    amount_off_minor: number | null;
+    applies_to: 'all' | 'recurring' | 'one_time';
+    code: string;
+    currency: string | null;
+    duration: 'once' | 'repeating' | 'forever';
+    duration_months: number | null;
+    expires_at: string | null;
+    id: string;
+    is_active: boolean;
+    kind: 'percent' | 'amount';
+    max_redemptions: number | null;
+    name: string;
+    per_workspace_limit: number;
+    percent_bps: number | null;
+    plan_id: string | null;
+    redeemed_count: number;
+    starts_at: string;
+};
+
+export type AdminDiscountsOutputBody = {
+    discounts: Array<AdminDiscountDto> | null;
+};
+
+export type AdminGrantDto = {
+    ends_at: string | null;
+    id: string;
+    plan_code: string;
+    plan_name: string;
+    source: 'subscription' | 'order' | 'trial' | 'manual';
+    status: 'active' | 'suspended';
+};
+
+export type AdminOfferDto = {
+    amounts_minor: Array<number> | null;
+    count: number;
+    grace_days: number;
+    id: string;
+    is_active: boolean;
+    max_missed: number;
+    provider_prices: Array<AdminProviderPriceDto> | null;
+    total_minor: number;
+};
+
+export type AdminPlanDto = {
+    code: string;
+    id: string;
+    is_active: boolean;
+    limits: LimitsDto;
+    name: string;
+    prices: Array<AdminPriceDto> | null;
+    sort_order: number;
+    trial_days: number;
+    trial_requires_card: boolean;
+    version: number;
+};
+
+export type AdminPriceDto = {
+    amount_minor: number;
+    billing_type: 'recurring' | 'one_time';
+    currency: string;
+    id: string;
+    installment_offers: Array<AdminOfferDto> | null;
+    interval: 'month' | 'year';
+    is_active: boolean;
+    provider_prices: Array<AdminProviderPriceDto> | null;
+};
+
+export type AdminProviderPriceDto = {
+    /**
+     * Installment offers only
+     */
+    collection: 'provider_schedule' | 'app_link' | 'provider_financed';
+    /**
+     * The provider's price or product ID
+     */
+    external_price_id: string | null;
+    id: string;
+    is_active: boolean;
+    provider: 'stripe' | 'creem' | 'paypal' | 'sslcommerz';
+};
+
+export type AdminWorkspaceDto = {
+    created_at: string;
+    /**
+     * Null on the free plan
+     */
+    grant: AdminGrantDto;
+    id: string;
+    name: string;
+    /**
+     * Empty when the creator's account is gone
+     */
+    owner_email: string;
+    /**
+     * The cached plan code; free with no grant
+     */
+    plan: string;
+    trial_ends_at: string | null;
+};
+
+export type AdminWorkspaceInputBody = {
+    workspace_id: string;
+};
+
+export type AdminWorkspacesOutputBody = {
+    /**
+     * Newest first, at most 200
+     */
+    workspaces: Array<AdminWorkspaceDto> | null;
+};
+
 export type AvailabilityInputBody = {
     availability: 'online' | 'away' | 'offline';
 };
@@ -167,6 +288,30 @@ export type CreateCheckoutInputBody = {
     return_url?: string;
 };
 
+export type CreateDiscountInputBody = {
+    allow_installments: boolean;
+    amount_off_minor?: number;
+    applies_to?: 'all' | 'recurring' | 'one_time';
+    code: string;
+    currency?: string;
+    duration?: 'once' | 'repeating' | 'forever';
+    duration_months?: number;
+    expires_at?: string;
+    kind: 'percent' | 'amount';
+    max_redemptions?: number;
+    name?: string;
+    per_workspace_limit?: number;
+    /**
+     * Basis points: 2000 is 20%
+     */
+    percent_bps?: number;
+    plan_id?: string;
+    /**
+     * Default: now
+     */
+    starts_at?: string;
+};
+
 export type CreateInputBody = {
     first_goal: 'offers' | 'support' | 'automate';
     /**
@@ -174,6 +319,64 @@ export type CreateInputBody = {
      */
     name: string;
     start_mode: 'setup' | 'sample';
+};
+
+export type CreateInstallmentOfferInputBody = {
+    count: number;
+    grace_days: number;
+    max_missed: number;
+    /**
+     * A one-time price
+     */
+    plan_price_id: string;
+    /**
+     * May be more than the one-time price
+     */
+    total_minor: number;
+};
+
+export type CreatePlanInputBody = {
+    /**
+     * A code already in use publishes its next version
+     */
+    code: string;
+    limits: LimitsDto;
+    name: string;
+    sort_order: number;
+    trial_days: number;
+    trial_requires_card: boolean;
+};
+
+export type CreatePriceInputBody = {
+    amount_minor: number;
+    billing_type: 'recurring' | 'one_time';
+    currency: string;
+    /**
+     * Recurring prices only
+     */
+    interval?: 'month' | 'year';
+    plan_id: string;
+};
+
+export type CreateProviderPriceInputBody = {
+    /**
+     * Required for an installment offer
+     */
+    collection?: 'provider_schedule' | 'app_link' | 'provider_financed';
+    /**
+     * The provider's price or product ID
+     */
+    external_price_id?: string;
+    /**
+     * Link one of the price's installment offers instead of the price
+     */
+    installment_offer_id?: string;
+    plan_price_id: string;
+    provider: 'stripe' | 'creem' | 'paypal' | 'sslcommerz';
+};
+
+export type CreatedOutputBody = {
+    id: string;
 };
 
 export type CurrentPlanDto = {
@@ -490,6 +693,16 @@ export type LoginInputBody = {
     client?: 'web' | 'mobile';
     email: string;
     password: string;
+};
+
+export type ManualGrantInputBody = {
+    /**
+     * Omit for no end
+     */
+    ends_at?: string;
+    plan_id: string;
+    reason: string;
+    workspace_id: string;
 };
 
 export type MeOutputBody = {
@@ -1353,6 +1566,421 @@ export type ReadyResponses = {
 };
 
 export type ReadyResponse = ReadyResponses[keyof ReadyResponses];
+
+export type AdminGetCatalogData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/admin/billing/catalog';
+};
+
+export type AdminGetCatalogErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AdminGetCatalogError = AdminGetCatalogErrors[keyof AdminGetCatalogErrors];
+
+export type AdminGetCatalogResponses = {
+    /**
+     * OK
+     */
+    200: AdminCatalogOutputBody;
+};
+
+export type AdminGetCatalogResponse = AdminGetCatalogResponses[keyof AdminGetCatalogResponses];
+
+export type AdminListDiscountsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/admin/billing/discounts';
+};
+
+export type AdminListDiscountsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AdminListDiscountsError = AdminListDiscountsErrors[keyof AdminListDiscountsErrors];
+
+export type AdminListDiscountsResponses = {
+    /**
+     * OK
+     */
+    200: AdminDiscountsOutputBody;
+};
+
+export type AdminListDiscountsResponse = AdminListDiscountsResponses[keyof AdminListDiscountsResponses];
+
+export type AdminCreateDiscountData = {
+    body: CreateDiscountInputBody;
+    path?: never;
+    query?: never;
+    url: '/v1/admin/billing/discounts';
+};
+
+export type AdminCreateDiscountErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AdminCreateDiscountError = AdminCreateDiscountErrors[keyof AdminCreateDiscountErrors];
+
+export type AdminCreateDiscountResponses = {
+    /**
+     * Created
+     */
+    201: AdminDiscountDto;
+};
+
+export type AdminCreateDiscountResponse = AdminCreateDiscountResponses[keyof AdminCreateDiscountResponses];
+
+export type AdminDeactivateDiscountData = {
+    body?: never;
+    path: {
+        code: string;
+    };
+    query?: never;
+    url: '/v1/admin/billing/discounts/{code}/deactivate';
+};
+
+export type AdminDeactivateDiscountErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AdminDeactivateDiscountError = AdminDeactivateDiscountErrors[keyof AdminDeactivateDiscountErrors];
+
+export type AdminDeactivateDiscountResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type AdminDeactivateDiscountResponse = AdminDeactivateDiscountResponses[keyof AdminDeactivateDiscountResponses];
+
+export type AdminCreateInstallmentOfferData = {
+    body: CreateInstallmentOfferInputBody;
+    path?: never;
+    query?: never;
+    url: '/v1/admin/billing/installment-offers';
+};
+
+export type AdminCreateInstallmentOfferErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AdminCreateInstallmentOfferError = AdminCreateInstallmentOfferErrors[keyof AdminCreateInstallmentOfferErrors];
+
+export type AdminCreateInstallmentOfferResponses = {
+    /**
+     * Created
+     */
+    201: CreatedOutputBody;
+};
+
+export type AdminCreateInstallmentOfferResponse = AdminCreateInstallmentOfferResponses[keyof AdminCreateInstallmentOfferResponses];
+
+export type AdminDeactivateInstallmentOfferData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/v1/admin/billing/installment-offers/{id}/deactivate';
+};
+
+export type AdminDeactivateInstallmentOfferErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AdminDeactivateInstallmentOfferError = AdminDeactivateInstallmentOfferErrors[keyof AdminDeactivateInstallmentOfferErrors];
+
+export type AdminDeactivateInstallmentOfferResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type AdminDeactivateInstallmentOfferResponse = AdminDeactivateInstallmentOfferResponses[keyof AdminDeactivateInstallmentOfferResponses];
+
+export type AdminCreatePlanData = {
+    body: CreatePlanInputBody;
+    path?: never;
+    query?: never;
+    url: '/v1/admin/billing/plans';
+};
+
+export type AdminCreatePlanErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AdminCreatePlanError = AdminCreatePlanErrors[keyof AdminCreatePlanErrors];
+
+export type AdminCreatePlanResponses = {
+    /**
+     * Created
+     */
+    201: CreatedOutputBody;
+};
+
+export type AdminCreatePlanResponse = AdminCreatePlanResponses[keyof AdminCreatePlanResponses];
+
+export type AdminDeactivatePlanData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/v1/admin/billing/plans/{id}/deactivate';
+};
+
+export type AdminDeactivatePlanErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AdminDeactivatePlanError = AdminDeactivatePlanErrors[keyof AdminDeactivatePlanErrors];
+
+export type AdminDeactivatePlanResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type AdminDeactivatePlanResponse = AdminDeactivatePlanResponses[keyof AdminDeactivatePlanResponses];
+
+export type AdminCreatePriceData = {
+    body: CreatePriceInputBody;
+    path?: never;
+    query?: never;
+    url: '/v1/admin/billing/prices';
+};
+
+export type AdminCreatePriceErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AdminCreatePriceError = AdminCreatePriceErrors[keyof AdminCreatePriceErrors];
+
+export type AdminCreatePriceResponses = {
+    /**
+     * Created
+     */
+    201: CreatedOutputBody;
+};
+
+export type AdminCreatePriceResponse = AdminCreatePriceResponses[keyof AdminCreatePriceResponses];
+
+export type AdminDeactivatePriceData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/v1/admin/billing/prices/{id}/deactivate';
+};
+
+export type AdminDeactivatePriceErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AdminDeactivatePriceError = AdminDeactivatePriceErrors[keyof AdminDeactivatePriceErrors];
+
+export type AdminDeactivatePriceResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type AdminDeactivatePriceResponse = AdminDeactivatePriceResponses[keyof AdminDeactivatePriceResponses];
+
+export type AdminCreateProviderPriceData = {
+    body: CreateProviderPriceInputBody;
+    path?: never;
+    query?: never;
+    url: '/v1/admin/billing/provider-prices';
+};
+
+export type AdminCreateProviderPriceErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AdminCreateProviderPriceError = AdminCreateProviderPriceErrors[keyof AdminCreateProviderPriceErrors];
+
+export type AdminCreateProviderPriceResponses = {
+    /**
+     * Created
+     */
+    201: CreatedOutputBody;
+};
+
+export type AdminCreateProviderPriceResponse = AdminCreateProviderPriceResponses[keyof AdminCreateProviderPriceResponses];
+
+export type AdminDeactivateProviderPriceData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/v1/admin/billing/provider-prices/{id}/deactivate';
+};
+
+export type AdminDeactivateProviderPriceErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AdminDeactivateProviderPriceError = AdminDeactivateProviderPriceErrors[keyof AdminDeactivateProviderPriceErrors];
+
+export type AdminDeactivateProviderPriceResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type AdminDeactivateProviderPriceResponse = AdminDeactivateProviderPriceResponses[keyof AdminDeactivateProviderPriceResponses];
+
+export type AdminListWorkspacesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Matches the workspace name or its creator's email
+         */
+        search?: string;
+    };
+    url: '/v1/admin/workspaces';
+};
+
+export type AdminListWorkspacesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AdminListWorkspacesError = AdminListWorkspacesErrors[keyof AdminListWorkspacesErrors];
+
+export type AdminListWorkspacesResponses = {
+    /**
+     * OK
+     */
+    200: AdminWorkspacesOutputBody;
+};
+
+export type AdminListWorkspacesResponse = AdminListWorkspacesResponses[keyof AdminListWorkspacesResponses];
+
+export type AdminEndGrantData = {
+    body: AdminWorkspaceInputBody;
+    path?: never;
+    query?: never;
+    url: '/v1/admin/workspaces/end-grant';
+};
+
+export type AdminEndGrantErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AdminEndGrantError = AdminEndGrantErrors[keyof AdminEndGrantErrors];
+
+export type AdminEndGrantResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type AdminEndGrantResponse = AdminEndGrantResponses[keyof AdminEndGrantResponses];
+
+export type AdminGrantPlanData = {
+    body: ManualGrantInputBody;
+    path?: never;
+    query?: never;
+    url: '/v1/admin/workspaces/grant-plan';
+};
+
+export type AdminGrantPlanErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AdminGrantPlanError = AdminGrantPlanErrors[keyof AdminGrantPlanErrors];
+
+export type AdminGrantPlanResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type AdminGrantPlanResponse = AdminGrantPlanResponses[keyof AdminGrantPlanResponses];
+
+export type AdminRestoreGrantData = {
+    body: AdminWorkspaceInputBody;
+    path?: never;
+    query?: never;
+    url: '/v1/admin/workspaces/restore-grant';
+};
+
+export type AdminRestoreGrantErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AdminRestoreGrantError = AdminRestoreGrantErrors[keyof AdminRestoreGrantErrors];
+
+export type AdminRestoreGrantResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type AdminRestoreGrantResponse = AdminRestoreGrantResponses[keyof AdminRestoreGrantResponses];
 
 export type ListAuthEventsData = {
     body?: never;

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -17,6 +18,8 @@ type Guards struct {
 	Member Middleware
 	// Can returns a middleware that requires every one of perms.
 	Can func(perms ...authctx.Permission) Middleware
+	// Staff admits Relay staff only, for the /v1/admin routes.
+	Staff Middleware
 }
 
 // Register adds the billing routes. Reads need billing.view; buying, changing
@@ -87,4 +90,53 @@ func Register(api huma.API, h *Handler, g Guards, security []map[string][]string
 	huma.Register(api, ws("get-billing-profile", http.MethodGet, "/profile", "Billing details", ok, view), h.profile)
 	huma.Register(api, ws("update-billing-profile", http.MethodPut, "/profile",
 		"Replace billing details; past invoices keep theirs", ok, pay), h.updateProfile)
+
+	registerAdmin(api, h, g, security)
+}
+
+// registerAdmin adds the staff admin routes: building the catalog, discount
+// codes, and moving workspaces between plans by hand. No workspace header: the
+// workspace a grant route acts on is in its body.
+func registerAdmin(api huma.API, h *Handler, g Guards, security []map[string][]string) {
+	tags := []string{"admin"}
+	op := func(id, method, path, summary string, status int) huma.Operation {
+		return huma.Operation{
+			OperationID: id, Method: method, Path: "/v1/admin" + path, Summary: summary,
+			Tags: tags, Security: security, DefaultStatus: status,
+			Middlewares: huma.Middlewares{g.Auth, g.Staff},
+		}
+	}
+	ok, created, none := http.StatusOK, http.StatusCreated, http.StatusNoContent
+
+	huma.Register(api, op("admin-get-catalog", http.MethodGet, "/billing/catalog",
+		"Every plan, price, installment offer and provider price, active or not", ok), h.adminCatalog)
+	huma.Register(api, op("admin-create-plan", http.MethodPost, "/billing/plans",
+		"Add a plan; a code in use publishes its next version", created), h.createPlan)
+	huma.Register(api, op("admin-create-price", http.MethodPost, "/billing/prices",
+		"Add a price to a plan", created), h.createPrice)
+	huma.Register(api, op("admin-create-installment-offer", http.MethodPost, "/billing/installment-offers",
+		"Split a one-time price into monthly payments", created), h.createInstallmentOffer)
+	huma.Register(api, op("admin-create-provider-price", http.MethodPost, "/billing/provider-prices",
+		"Link a price or installment offer to a payment provider's price", created), h.createProviderPrice)
+	for _, k := range catalogKinds {
+		huma.Register(api, op("admin-deactivate-"+k.name, http.MethodPost, "/billing/"+k.path+"/{id}/deactivate",
+			"Take a "+strings.ReplaceAll(k.name, "-", " ")+" off sale; what was bought keeps working", none),
+			h.deactivate(k.kind))
+	}
+
+	huma.Register(api, op("admin-list-discounts", http.MethodGet, "/billing/discounts",
+		"Every discount code, newest first", ok), h.adminDiscounts)
+	huma.Register(api, op("admin-create-discount", http.MethodPost, "/billing/discounts",
+		"Add a discount code", created), h.createDiscount)
+	huma.Register(api, op("admin-deactivate-discount", http.MethodPost, "/billing/discounts/{code}/deactivate",
+		"Stop a discount code from being used again", none), h.deactivateDiscount)
+
+	huma.Register(api, op("admin-list-workspaces", http.MethodGet, "/workspaces",
+		"Workspaces and the plan each is on, newest first", ok), h.adminWorkspaces)
+	huma.Register(api, op("admin-grant-plan", http.MethodPost, "/workspaces/grant-plan",
+		"Put a workspace on a plan by hand (not one paid through a subscription or lifetime deal)", none), h.grantPlan)
+	huma.Register(api, op("admin-end-grant", http.MethodPost, "/workspaces/end-grant",
+		"End a manual grant or trial; the workspace goes to the free plan", none), h.endGrant)
+	huma.Register(api, op("admin-restore-grant", http.MethodPost, "/workspaces/restore-grant",
+		"Reactivate a suspended plan", none), h.restoreGrant)
 }

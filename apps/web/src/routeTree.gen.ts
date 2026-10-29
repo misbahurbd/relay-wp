@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as InviteRouteImport } from './routes/invite'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as AppWorkspaceRouteImport } from './routes/_app/_workspace'
+import { Route as AppAdminRouteImport } from './routes/_app/admin'
 import { Route as AppWelcomeRouteImport } from './routes/_app/welcome'
 import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-password'
 import { Route as AuthLoginRouteImport } from './routes/_auth/login'
@@ -52,6 +53,11 @@ const PricingRoute = PricingRouteImport.update({
 } as any)
 const AppWorkspaceRoute = AppWorkspaceRouteImport.update({
   id: '/_workspace',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminRoute = AppAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => AppRoute,
 } as any)
 const AppWelcomeRoute = AppWelcomeRouteImport.update({
@@ -151,6 +157,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AppWorkspaceShellIndexRoute
   '/invite': typeof InviteRoute
   '/pricing': typeof PricingRoute
+  '/admin': typeof AppAdminRoute
   '/welcome': typeof AppWelcomeRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/login': typeof AuthLoginRoute
@@ -171,6 +178,7 @@ export interface FileRoutesByTo {
   '/': typeof AppWorkspaceShellIndexRoute
   '/invite': typeof InviteRoute
   '/pricing': typeof PricingRoute
+  '/admin': typeof AppAdminRoute
   '/welcome': typeof AppWelcomeRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/login': typeof AuthLoginRoute
@@ -194,6 +202,7 @@ export interface FileRoutesById {
   '/invite': typeof InviteRoute
   '/pricing': typeof PricingRoute
   '/_app/_workspace': typeof AppWorkspaceRouteWithChildren
+  '/_app/admin': typeof AppAdminRoute
   '/_app/welcome': typeof AppWelcomeRoute
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
   '/_auth/login': typeof AuthLoginRoute
@@ -218,6 +227,7 @@ export interface FileRouteTypes {
     | '/'
     | '/invite'
     | '/pricing'
+    | '/admin'
     | '/welcome'
     | '/forgot-password'
     | '/login'
@@ -238,6 +248,7 @@ export interface FileRouteTypes {
     | '/'
     | '/invite'
     | '/pricing'
+    | '/admin'
     | '/welcome'
     | '/forgot-password'
     | '/login'
@@ -260,6 +271,7 @@ export interface FileRouteTypes {
     | '/invite'
     | '/pricing'
     | '/_app/_workspace'
+    | '/_app/admin'
     | '/_app/welcome'
     | '/_auth/forgot-password'
     | '/_auth/login'
@@ -321,6 +333,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppWorkspaceRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin': {
+      id: '/_app/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AppAdminRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/welcome': {
@@ -489,11 +508,13 @@ const AppWorkspaceRouteWithChildren = AppWorkspaceRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppWorkspaceRoute: typeof AppWorkspaceRouteWithChildren
+  AppAdminRoute: typeof AppAdminRoute
   AppWelcomeRoute: typeof AppWelcomeRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppWorkspaceRoute: AppWorkspaceRouteWithChildren,
+  AppAdminRoute: AppAdminRoute,
   AppWelcomeRoute: AppWelcomeRoute,
 }
 

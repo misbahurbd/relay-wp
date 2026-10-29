@@ -74,6 +74,522 @@
         ],
         "type": "object"
       },
+      "AdminCatalogOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "plans": {
+            "items": {
+              "$ref": "#/components/schemas/AdminPlanDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "providers": {
+            "description": "Payment providers this server has enabled",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "plans",
+          "providers"
+        ],
+        "type": "object"
+      },
+      "AdminDiscountDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "allow_installments": {
+            "type": "boolean"
+          },
+          "amount_off_minor": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "applies_to": {
+            "enum": [
+              "all",
+              "recurring",
+              "one_time"
+            ],
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "currency": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "duration": {
+            "enum": [
+              "once",
+              "repeating",
+              "forever"
+            ],
+            "type": "string"
+          },
+          "duration_months": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "percent",
+              "amount"
+            ],
+            "type": "string"
+          },
+          "max_redemptions": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "per_workspace_limit": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "percent_bps": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "plan_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "redeemed_count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "kind",
+          "percent_bps",
+          "amount_off_minor",
+          "currency",
+          "duration",
+          "duration_months",
+          "applies_to",
+          "plan_id",
+          "allow_installments",
+          "max_redemptions",
+          "per_workspace_limit",
+          "redeemed_count",
+          "starts_at",
+          "expires_at",
+          "is_active"
+        ],
+        "type": "object"
+      },
+      "AdminDiscountsOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "discounts": {
+            "items": {
+              "$ref": "#/components/schemas/AdminDiscountDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "discounts"
+        ],
+        "type": "object"
+      },
+      "AdminGrantDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "ends_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "plan_code": {
+            "type": "string"
+          },
+          "plan_name": {
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "subscription",
+              "order",
+              "trial",
+              "manual"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "suspended"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "plan_code",
+          "plan_name",
+          "source",
+          "status",
+          "ends_at"
+        ],
+        "type": "object"
+      },
+      "AdminOfferDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "amounts_minor": {
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "grace_days": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "max_missed": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "provider_prices": {
+            "items": {
+              "$ref": "#/components/schemas/AdminProviderPriceDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "total_minor": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "count",
+          "total_minor",
+          "amounts_minor",
+          "grace_days",
+          "max_missed",
+          "is_active",
+          "provider_prices"
+        ],
+        "type": "object"
+      },
+      "AdminPlanDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/LimitsDTO"
+          },
+          "name": {
+            "type": "string"
+          },
+          "prices": {
+            "items": {
+              "$ref": "#/components/schemas/AdminPriceDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "sort_order": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "trial_days": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "trial_requires_card": {
+            "type": "boolean"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "version",
+          "name",
+          "trial_days",
+          "trial_requires_card",
+          "limits",
+          "is_active",
+          "sort_order",
+          "prices"
+        ],
+        "type": "object"
+      },
+      "AdminPriceDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_minor": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "billing_type": {
+            "enum": [
+              "recurring",
+              "one_time"
+            ],
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "installment_offers": {
+            "items": {
+              "$ref": "#/components/schemas/AdminOfferDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "interval": {
+            "enum": [
+              "month",
+              "year"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "provider_prices": {
+            "items": {
+              "$ref": "#/components/schemas/AdminProviderPriceDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "billing_type",
+          "interval",
+          "currency",
+          "amount_minor",
+          "is_active",
+          "provider_prices",
+          "installment_offers"
+        ],
+        "type": "object"
+      },
+      "AdminProviderPriceDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "collection": {
+            "description": "Installment offers only",
+            "enum": [
+              "provider_schedule",
+              "app_link",
+              "provider_financed"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "external_price_id": {
+            "description": "The provider's price or product ID",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "provider": {
+            "enum": [
+              "stripe",
+              "creem",
+              "paypal",
+              "sslcommerz"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "provider",
+          "external_price_id",
+          "collection",
+          "is_active"
+        ],
+        "type": "object"
+      },
+      "AdminWorkspaceDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "grant": {
+            "$ref": "#/components/schemas/AdminGrantDTO",
+            "description": "Null on the free plan"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "owner_email": {
+            "description": "Empty when the creator's account is gone",
+            "type": "string"
+          },
+          "plan": {
+            "description": "The cached plan code; free with no grant",
+            "type": "string"
+          },
+          "trial_ends_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "owner_email",
+          "plan",
+          "trial_ends_at",
+          "created_at",
+          "grant"
+        ],
+        "type": "object"
+      },
+      "AdminWorkspaceInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "workspace_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace_id"
+        ],
+        "type": "object"
+      },
+      "AdminWorkspacesOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "workspaces": {
+            "description": "Newest first, at most 200",
+            "items": {
+              "$ref": "#/components/schemas/AdminWorkspaceDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "workspaces"
+        ],
+        "type": "object"
+      },
       "AvailabilityInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -577,6 +1093,103 @@
         ],
         "type": "object"
       },
+      "CreateDiscountInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "allow_installments": {
+            "type": "boolean"
+          },
+          "amount_off_minor": {
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "applies_to": {
+            "default": "all",
+            "enum": [
+              "all",
+              "recurring",
+              "one_time"
+            ],
+            "type": "string"
+          },
+          "code": {
+            "examples": [
+              "LAUNCH20"
+            ],
+            "maxLength": 40,
+            "minLength": 3,
+            "type": "string"
+          },
+          "currency": {
+            "maxLength": 3,
+            "minLength": 3,
+            "type": "string"
+          },
+          "duration": {
+            "default": "once",
+            "enum": [
+              "once",
+              "repeating",
+              "forever"
+            ],
+            "type": "string"
+          },
+          "duration_months": {
+            "format": "int64",
+            "maximum": 36,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "percent",
+              "amount"
+            ],
+            "type": "string"
+          },
+          "max_redemptions": {
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 80,
+            "type": "string"
+          },
+          "per_workspace_limit": {
+            "default": 1,
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "percent_bps": {
+            "description": "Basis points: 2000 is 20%",
+            "format": "int64",
+            "maximum": 10000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "plan_id": {
+            "type": "string"
+          },
+          "starts_at": {
+            "description": "Default: now",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "kind",
+          "allow_installments"
+        ],
+        "type": "object"
+      },
       "CreateInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -606,6 +1219,196 @@
           "name",
           "first_goal",
           "start_mode"
+        ],
+        "type": "object"
+      },
+      "CreateInstallmentOfferInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "format": "int64",
+            "maximum": 24,
+            "minimum": 2,
+            "type": "integer"
+          },
+          "grace_days": {
+            "default": 7,
+            "format": "int64",
+            "maximum": 60,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "max_missed": {
+            "default": 2,
+            "format": "int64",
+            "maximum": 24,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "plan_price_id": {
+            "description": "A one-time price",
+            "type": "string"
+          },
+          "total_minor": {
+            "description": "May be more than the one-time price",
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "plan_price_id",
+          "count",
+          "total_minor",
+          "grace_days",
+          "max_missed"
+        ],
+        "type": "object"
+      },
+      "CreatePlanInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "description": "A code already in use publishes its next version",
+            "examples": [
+              "growth"
+            ],
+            "maxLength": 41,
+            "minLength": 2,
+            "type": "string"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/LimitsDTO"
+          },
+          "name": {
+            "examples": [
+              "Growth"
+            ],
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "sort_order": {
+            "format": "int64",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "trial_days": {
+            "format": "int64",
+            "maximum": 90,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "trial_requires_card": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "trial_days",
+          "trial_requires_card",
+          "limits",
+          "sort_order"
+        ],
+        "type": "object"
+      },
+      "CreatePriceInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_minor": {
+            "examples": [
+              2900
+            ],
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "billing_type": {
+            "enum": [
+              "recurring",
+              "one_time"
+            ],
+            "type": "string"
+          },
+          "currency": {
+            "examples": [
+              "USD"
+            ],
+            "maxLength": 3,
+            "minLength": 3,
+            "type": "string"
+          },
+          "interval": {
+            "description": "Recurring prices only",
+            "enum": [
+              "month",
+              "year"
+            ],
+            "type": "string"
+          },
+          "plan_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan_id",
+          "billing_type",
+          "currency",
+          "amount_minor"
+        ],
+        "type": "object"
+      },
+      "CreateProviderPriceInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "collection": {
+            "description": "Required for an installment offer",
+            "enum": [
+              "provider_schedule",
+              "app_link",
+              "provider_financed"
+            ],
+            "type": "string"
+          },
+          "external_price_id": {
+            "description": "The provider's price or product ID",
+            "maxLength": 200,
+            "type": "string"
+          },
+          "installment_offer_id": {
+            "description": "Link one of the price's installment offers instead of the price",
+            "type": "string"
+          },
+          "plan_price_id": {
+            "type": "string"
+          },
+          "provider": {
+            "enum": [
+              "stripe",
+              "creem",
+              "paypal",
+              "sslcommerz"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan_price_id",
+          "provider"
+        ],
+        "type": "object"
+      },
+      "CreatedOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
         ],
         "type": "object"
       },
@@ -1693,6 +2496,33 @@
         "required": [
           "email",
           "password"
+        ],
+        "type": "object"
+      },
+      "ManualGrantInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "ends_at": {
+            "description": "Omit for no end",
+            "format": "date-time",
+            "type": "string"
+          },
+          "plan_id": {
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          },
+          "workspace_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace_id",
+          "plan_id",
+          "reason"
         ],
         "type": "object"
       },
@@ -4533,6 +5363,717 @@
         "summary": "Readiness check",
         "tags": [
           "system"
+        ]
+      }
+    },
+    "/v1/admin/billing/catalog": {
+      "get": {
+        "operationId": "admin-get-catalog",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCatalogOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Every plan, price, installment offer and provider price, active or not",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/billing/discounts": {
+      "get": {
+        "operationId": "admin-list-discounts",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminDiscountsOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Every discount code, newest first",
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "operationId": "admin-create-discount",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDiscountInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminDiscountDTO"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Add a discount code",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/billing/discounts/{code}/deactivate": {
+      "post": {
+        "operationId": "admin-deactivate-discount",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "maxLength": 40,
+              "minLength": 3,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Stop a discount code from being used again",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/billing/installment-offers": {
+      "post": {
+        "operationId": "admin-create-installment-offer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInstallmentOfferInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedOutputBody"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Split a one-time price into monthly payments",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/billing/installment-offers/{id}/deactivate": {
+      "post": {
+        "operationId": "admin-deactivate-installment-offer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Take a installment offer off sale; what was bought keeps working",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/billing/plans": {
+      "post": {
+        "operationId": "admin-create-plan",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePlanInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedOutputBody"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Add a plan; a code in use publishes its next version",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/billing/plans/{id}/deactivate": {
+      "post": {
+        "operationId": "admin-deactivate-plan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Take a plan off sale; what was bought keeps working",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/billing/prices": {
+      "post": {
+        "operationId": "admin-create-price",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePriceInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedOutputBody"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Add a price to a plan",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/billing/prices/{id}/deactivate": {
+      "post": {
+        "operationId": "admin-deactivate-price",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Take a price off sale; what was bought keeps working",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/billing/provider-prices": {
+      "post": {
+        "operationId": "admin-create-provider-price",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProviderPriceInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedOutputBody"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Link a price or installment offer to a payment provider's price",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/billing/provider-prices/{id}/deactivate": {
+      "post": {
+        "operationId": "admin-deactivate-provider-price",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Take a provider price off sale; what was bought keeps working",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/workspaces": {
+      "get": {
+        "operationId": "admin-list-workspaces",
+        "parameters": [
+          {
+            "description": "Matches the workspace name or its creator's email",
+            "explode": false,
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "description": "Matches the workspace name or its creator's email",
+              "maxLength": 100,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminWorkspacesOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Workspaces and the plan each is on, newest first",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/workspaces/end-grant": {
+      "post": {
+        "operationId": "admin-end-grant",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminWorkspaceInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "End a manual grant or trial; the workspace goes to the free plan",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/workspaces/grant-plan": {
+      "post": {
+        "operationId": "admin-grant-plan",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualGrantInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Put a workspace on a plan by hand (not one paid through a subscription or lifetime deal)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/workspaces/restore-grant": {
+      "post": {
+        "operationId": "admin-restore-grant",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminWorkspaceInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Reactivate a suspended plan",
+        "tags": [
+          "admin"
         ]
       }
     },

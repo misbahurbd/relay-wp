@@ -21,6 +21,15 @@ type Querier interface {
 	// Runs in the same transaction as the paid invoice. The CHECK on orders
 	// rejects paying more than the total.
 	AddOrderPayment(ctx context.Context, arg AddOrderPaymentParams) (AddOrderPaymentRow, error)
+	AdminListInstallmentOffers(ctx context.Context) ([]AdminListInstallmentOffersRow, error)
+	AdminListPlanPrices(ctx context.Context) ([]AdminListPlanPricesRow, error)
+	// Staff admin tools only (/v1/admin): the whole catalog, active or not, and
+	// every workspace's plan. Never called from a workspace's own requests.
+	AdminListPlans(ctx context.Context) ([]AdminListPlansRow, error)
+	AdminListProviderPrices(ctx context.Context) ([]AdminListProviderPricesRow, error)
+	// Newest first. search matches the workspace name or the creator's email.
+	AdminListWorkspaces(ctx context.Context, search string) ([]AdminListWorkspacesRow, error)
+	AdminWorkspaceExists(ctx context.Context, workspaceID uuid.UUID) (bool, error)
 	BumpAccessVersions(ctx context.Context, arg BumpAccessVersionsParams) error
 	BumpReminderCount(ctx context.Context, workspaceID uuid.UUID) error
 	// An upgraded or refunded order: what is still open will never be collected.
@@ -313,6 +322,8 @@ type Querier interface {
 	MarkWorkspaceActivated(ctx context.Context, workspaceID uuid.UUID) (int64, error)
 	MoveRoleInvitations(ctx context.Context, arg MoveRoleInvitationsParams) error
 	MoveRoleMembers(ctx context.Context, arg MoveRoleMembersParams) ([]uuid.UUID, error)
+	// A plan is never edited once sold: a new one with a used code is its next version.
+	NextPlanVersion(ctx context.Context, code string) (int32, error)
 	// Nulls payloads older than the cutoff, a batch at a time.
 	PurgeEventPayloads(ctx context.Context, arg PurgeEventPayloadsParams) (int64, error)
 	RecordEmailCodeAttempt(ctx context.Context, id uuid.UUID) (int32, error)

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -237,6 +238,34 @@ type deletionGuard struct{ billing *billingservice.Service }
 func (g deletionGuard) DeletionCheck(ctx context.Context, workspaceID uuid.UUID) (workspacesservice.DeletionCheck, error) {
 	c, err := g.billing.DeletionCheck(ctx, workspaceID)
 	return workspacesservice.DeletionCheck{Allowed: c.Allowed, Reason: c.Reason}, err
+}
+
+// staff is the admin tools' guard: a verified account whose email is in
+// ADMIN_EMAILS. Nil (everyone refused) when the list is empty.
+func (a *App) staff() middleware.StaffChecker {
+	if a.profiles == nil || len(a.cfg.Admin.Emails) == 0 {
+		return nil
+	}
+	emails := make(map[string]bool, len(a.cfg.Admin.Emails))
+	for _, e := range a.cfg.Admin.Emails {
+		if e = strings.ToLower(strings.TrimSpace(e)); e != "" {
+			emails[e] = true
+		}
+	}
+	return staffList{profiles: a.profiles, emails: emails}
+}
+
+type staffList struct {
+	profiles *profilesservice.Service
+	emails   map[string]bool
+}
+
+func (s staffList) IsStaff(ctx context.Context, userID uuid.UUID) (bool, error) {
+	me, err := s.profiles.Me(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	return me.EmailVerified && s.emails[strings.ToLower(me.Email)], nil
 }
 
 // secretKey decodes a base64 32-byte key from config. Development gets a random

@@ -2,7 +2,7 @@
 
 import { type Client, type ClientMeta, type Options as Options2, type RequestResult, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { AcceptInvitationData, AcceptInvitationErrors, AcceptInvitationResponses, AddMemberOverrideData, AddMemberOverrideErrors, AddMemberOverrideResponses, CancelPendingSubscriptionChangeData, CancelPendingSubscriptionChangeErrors, CancelPendingSubscriptionChangeResponses, CancelSubscriptionData, CancelSubscriptionErrors, CancelSubscriptionResponses, ChangeMemberRoleData, ChangeMemberRoleErrors, ChangeMemberRoleResponses, ChangePasswordData, ChangePasswordErrors, ChangePasswordResponses, ChangeSubscriptionData, ChangeSubscriptionErrors, ChangeSubscriptionResponses, CompleteOnboardingData, CompleteOnboardingErrors, CompleteOnboardingResponses, CompleteTestCheckoutData, CompleteTestCheckoutErrors, CompleteTestCheckoutResponses, ConnectWhatsappData, ConnectWhatsappErrors, ConnectWhatsappResponses, CreateCheckoutSessionData, CreateCheckoutSessionErrors, CreateCheckoutSessionResponses, CreateInvitationsData, CreateInvitationsErrors, CreateInvitationsResponses, CreateRoleData, CreateRoleErrors, CreateRoleResponses, CreateTeamData, CreateTeamErrors, CreateTeamResponses, CreateWorkspaceData, CreateWorkspaceErrors, CreateWorkspaceResponses, DeleteRoleData, DeleteRoleErrors, DeleteRoleResponses, DeleteTeamData, DeleteTeamErrors, DeleteTeamResponses, FacebookDataDeletionData, FacebookDataDeletionErrors, FacebookDataDeletionResponses, ForgotPasswordData, ForgotPasswordErrors, ForgotPasswordResponses, GetAccessLogSummaryData, GetAccessLogSummaryErrors, GetAccessLogSummaryResponses, GetBillingOverviewData, GetBillingOverviewErrors, GetBillingOverviewResponses, GetBillingProfileData, GetBillingProfileErrors, GetBillingProfileResponses, GetCheckoutSessionData, GetCheckoutSessionErrors, GetCheckoutSessionResponses, GetCurrentOrderData, GetCurrentOrderErrors, GetCurrentOrderResponses, GetInvoiceData, GetInvoiceErrors, GetInvoiceResponses, GetMeData, GetMeErrors, GetMemberData, GetMemberErrors, GetMemberResponses, GetMeResponses, GetMyAccessData, GetMyAccessErrors, GetMyAccessResponses, GetOnboardingData, GetOnboardingErrors, GetOnboardingResponses, GetOrderData, GetOrderErrors, GetOrderResponses, GetSeatsData, GetSeatsErrors, GetSeatsResponses, GetSubscriptionData, GetSubscriptionErrors, GetSubscriptionResponses, GetTestMessageData, GetTestMessageErrors, GetTestMessageResponses, GetWhatsappNumberData, GetWhatsappNumberErrors, GetWhatsappNumberResponses, GetWorkspaceData, GetWorkspaceErrors, GetWorkspaceResponses, HealthData, HealthErrors, HealthResponses, InviteSignupData, InviteSignupErrors, InviteSignupResponses, LeaveWorkspaceData, LeaveWorkspaceErrors, LeaveWorkspaceResponses, ListAccessLogData, ListAccessLogErrors, ListAccessLogResponses, ListAuthEventsData, ListAuthEventsErrors, ListAuthEventsResponses, ListBillingPlansData, ListBillingPlansErrors, ListBillingPlansResponses, ListIdentitiesData, ListIdentitiesErrors, ListIdentitiesResponses, ListInvitationsData, ListInvitationsErrors, ListInvitationsResponses, ListInvoicesData, ListInvoicesErrors, ListInvoicesResponses, ListMembersData, ListMembersErrors, ListMembersResponses, ListOauthProvidersData, ListOauthProvidersErrors, ListOauthProvidersResponses, ListPermissionsData, ListPermissionsErrors, ListPermissionsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListTeamsData, ListTeamsErrors, ListTeamsResponses, ListWhatsappNumbersData, ListWhatsappNumbersErrors, ListWhatsappNumbersResponses, ListWorkspacesData, ListWorkspacesErrors, ListWorkspacesResponses, LoginData, LoginErrors, LoginResponses, LogoutAllData, LogoutAllErrors, LogoutAllResponses, LogoutData, LogoutErrors, LogoutResponses, OauthCallbackData, OauthCallbackErrors, OauthCallbackResponses, OauthCompleteData, OauthCompleteErrors, OauthCompleteResponses, OauthCompleteVerifyData, OauthCompleteVerifyErrors, OauthCompleteVerifyResponses, OauthLinkData, OauthLinkErrors, OauthLinkResponses, OauthStartData, OauthStartErrors, OauthStartResponses, OauthTokenData, OauthTokenErrors, OauthTokenResponses, PayInstallmentData, PayInstallmentErrors, PayInstallmentResponses, PaymentWebhookData, PaymentWebhookErrors, PaymentWebhookResponses, PreviewDiscountData, PreviewDiscountErrors, PreviewDiscountResponses, PreviewInvitationData, PreviewInvitationErrors, PreviewInvitationResponses, PreviewMemberRoleData, PreviewMemberRoleErrors, PreviewMemberRoleResponses, PreviewRoleData, PreviewRoleErrors, PreviewRoleResponses, PreviewSubscriptionChangeData, PreviewSubscriptionChangeErrors, PreviewSubscriptionChangeResponses, QuoteOrderData, QuoteOrderErrors, QuoteOrderResponses, ReadyData, ReadyErrors, ReadyResponses, RefreshTokenData, RefreshTokenErrors, RefreshTokenResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RequestInvitationRenewalData, RequestInvitationRenewalErrors, RequestInvitationRenewalResponses, ResendInvitationData, ResendInvitationErrors, ResendInvitationResponses, ResendVerificationData, ResendVerificationErrors, ResendVerificationResponses, ResetPasswordData, ResetPasswordErrors, ResetPasswordResponses, ResetRoleData, ResetRoleErrors, ResetRoleResponses, RestoreMemberData, RestoreMemberErrors, RestoreMemberResponses, ResumeOrderData, ResumeOrderErrors, ResumeOrderResponses, ResumeSubscriptionData, ResumeSubscriptionErrors, ResumeSubscriptionResponses, RevokeInvitationData, RevokeInvitationErrors, RevokeInvitationResponses, RevokeMemberOverrideData, RevokeMemberOverrideErrors, RevokeMemberOverrideResponses, RevokeSessionData, RevokeSessionErrors, RevokeSessionResponses, SaveBusinessData, SaveBusinessErrors, SaveBusinessResponses, SendTestMessageData, SendTestMessageErrors, SendTestMessageResponses, SetAvailabilityData, SetAvailabilityErrors, SetAvailabilityResponses, SetPasswordData, SetPasswordErrors, SetPasswordResponses, SetTeamMembersData, SetTeamMembersErrors, SetTeamMembersResponses, SignupData, SignupErrors, SignupResponses, SkipWhatsappData, SkipWhatsappErrors, SkipWhatsappResponses, SuspendMemberData, SuspendMemberErrors, SuspendMemberResponses, UnlinkIdentityData, UnlinkIdentityErrors, UnlinkIdentityResponses, UpdateBillingProfileData, UpdateBillingProfileErrors, UpdateBillingProfileResponses, UpdateMemberAccessData, UpdateMemberAccessErrors, UpdateMemberAccessResponses, UpdateOnboardingMemberData, UpdateOnboardingMemberErrors, UpdateOnboardingMemberResponses, UpdatePreferencesData, UpdatePreferencesErrors, UpdatePreferencesResponses, UpdateProfileData, UpdateProfileErrors, UpdateProfileResponses, UpdateRoleData, UpdateRoleErrors, UpdateRoleResponses, UpdateTeamData, UpdateTeamErrors, UpdateTeamResponses, VerifyEmailCodeData, VerifyEmailCodeErrors, VerifyEmailCodeResponses, VerifyEmailData, VerifyEmailErrors, VerifyEmailResponses, WhatsappSignupConfigData, WhatsappSignupConfigErrors, WhatsappSignupConfigResponses, WhatsappWebhookData, WhatsappWebhookErrors, WhatsappWebhookResponses, WhatsappWebhookVerifyData, WhatsappWebhookVerifyErrors, WhatsappWebhookVerifyResponses } from './types.gen';
+import type { AcceptInvitationData, AcceptInvitationErrors, AcceptInvitationResponses, AddMemberOverrideData, AddMemberOverrideErrors, AddMemberOverrideResponses, AdminCreateDiscountData, AdminCreateDiscountErrors, AdminCreateDiscountResponses, AdminCreateInstallmentOfferData, AdminCreateInstallmentOfferErrors, AdminCreateInstallmentOfferResponses, AdminCreatePlanData, AdminCreatePlanErrors, AdminCreatePlanResponses, AdminCreatePriceData, AdminCreatePriceErrors, AdminCreatePriceResponses, AdminCreateProviderPriceData, AdminCreateProviderPriceErrors, AdminCreateProviderPriceResponses, AdminDeactivateDiscountData, AdminDeactivateDiscountErrors, AdminDeactivateDiscountResponses, AdminDeactivateInstallmentOfferData, AdminDeactivateInstallmentOfferErrors, AdminDeactivateInstallmentOfferResponses, AdminDeactivatePlanData, AdminDeactivatePlanErrors, AdminDeactivatePlanResponses, AdminDeactivatePriceData, AdminDeactivatePriceErrors, AdminDeactivatePriceResponses, AdminDeactivateProviderPriceData, AdminDeactivateProviderPriceErrors, AdminDeactivateProviderPriceResponses, AdminEndGrantData, AdminEndGrantErrors, AdminEndGrantResponses, AdminGetCatalogData, AdminGetCatalogErrors, AdminGetCatalogResponses, AdminGrantPlanData, AdminGrantPlanErrors, AdminGrantPlanResponses, AdminListDiscountsData, AdminListDiscountsErrors, AdminListDiscountsResponses, AdminListWorkspacesData, AdminListWorkspacesErrors, AdminListWorkspacesResponses, AdminRestoreGrantData, AdminRestoreGrantErrors, AdminRestoreGrantResponses, CancelPendingSubscriptionChangeData, CancelPendingSubscriptionChangeErrors, CancelPendingSubscriptionChangeResponses, CancelSubscriptionData, CancelSubscriptionErrors, CancelSubscriptionResponses, ChangeMemberRoleData, ChangeMemberRoleErrors, ChangeMemberRoleResponses, ChangePasswordData, ChangePasswordErrors, ChangePasswordResponses, ChangeSubscriptionData, ChangeSubscriptionErrors, ChangeSubscriptionResponses, CompleteOnboardingData, CompleteOnboardingErrors, CompleteOnboardingResponses, CompleteTestCheckoutData, CompleteTestCheckoutErrors, CompleteTestCheckoutResponses, ConnectWhatsappData, ConnectWhatsappErrors, ConnectWhatsappResponses, CreateCheckoutSessionData, CreateCheckoutSessionErrors, CreateCheckoutSessionResponses, CreateInvitationsData, CreateInvitationsErrors, CreateInvitationsResponses, CreateRoleData, CreateRoleErrors, CreateRoleResponses, CreateTeamData, CreateTeamErrors, CreateTeamResponses, CreateWorkspaceData, CreateWorkspaceErrors, CreateWorkspaceResponses, DeleteRoleData, DeleteRoleErrors, DeleteRoleResponses, DeleteTeamData, DeleteTeamErrors, DeleteTeamResponses, FacebookDataDeletionData, FacebookDataDeletionErrors, FacebookDataDeletionResponses, ForgotPasswordData, ForgotPasswordErrors, ForgotPasswordResponses, GetAccessLogSummaryData, GetAccessLogSummaryErrors, GetAccessLogSummaryResponses, GetBillingOverviewData, GetBillingOverviewErrors, GetBillingOverviewResponses, GetBillingProfileData, GetBillingProfileErrors, GetBillingProfileResponses, GetCheckoutSessionData, GetCheckoutSessionErrors, GetCheckoutSessionResponses, GetCurrentOrderData, GetCurrentOrderErrors, GetCurrentOrderResponses, GetInvoiceData, GetInvoiceErrors, GetInvoiceResponses, GetMeData, GetMeErrors, GetMemberData, GetMemberErrors, GetMemberResponses, GetMeResponses, GetMyAccessData, GetMyAccessErrors, GetMyAccessResponses, GetOnboardingData, GetOnboardingErrors, GetOnboardingResponses, GetOrderData, GetOrderErrors, GetOrderResponses, GetSeatsData, GetSeatsErrors, GetSeatsResponses, GetSubscriptionData, GetSubscriptionErrors, GetSubscriptionResponses, GetTestMessageData, GetTestMessageErrors, GetTestMessageResponses, GetWhatsappNumberData, GetWhatsappNumberErrors, GetWhatsappNumberResponses, GetWorkspaceData, GetWorkspaceErrors, GetWorkspaceResponses, HealthData, HealthErrors, HealthResponses, InviteSignupData, InviteSignupErrors, InviteSignupResponses, LeaveWorkspaceData, LeaveWorkspaceErrors, LeaveWorkspaceResponses, ListAccessLogData, ListAccessLogErrors, ListAccessLogResponses, ListAuthEventsData, ListAuthEventsErrors, ListAuthEventsResponses, ListBillingPlansData, ListBillingPlansErrors, ListBillingPlansResponses, ListIdentitiesData, ListIdentitiesErrors, ListIdentitiesResponses, ListInvitationsData, ListInvitationsErrors, ListInvitationsResponses, ListInvoicesData, ListInvoicesErrors, ListInvoicesResponses, ListMembersData, ListMembersErrors, ListMembersResponses, ListOauthProvidersData, ListOauthProvidersErrors, ListOauthProvidersResponses, ListPermissionsData, ListPermissionsErrors, ListPermissionsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListTeamsData, ListTeamsErrors, ListTeamsResponses, ListWhatsappNumbersData, ListWhatsappNumbersErrors, ListWhatsappNumbersResponses, ListWorkspacesData, ListWorkspacesErrors, ListWorkspacesResponses, LoginData, LoginErrors, LoginResponses, LogoutAllData, LogoutAllErrors, LogoutAllResponses, LogoutData, LogoutErrors, LogoutResponses, OauthCallbackData, OauthCallbackErrors, OauthCallbackResponses, OauthCompleteData, OauthCompleteErrors, OauthCompleteResponses, OauthCompleteVerifyData, OauthCompleteVerifyErrors, OauthCompleteVerifyResponses, OauthLinkData, OauthLinkErrors, OauthLinkResponses, OauthStartData, OauthStartErrors, OauthStartResponses, OauthTokenData, OauthTokenErrors, OauthTokenResponses, PayInstallmentData, PayInstallmentErrors, PayInstallmentResponses, PaymentWebhookData, PaymentWebhookErrors, PaymentWebhookResponses, PreviewDiscountData, PreviewDiscountErrors, PreviewDiscountResponses, PreviewInvitationData, PreviewInvitationErrors, PreviewInvitationResponses, PreviewMemberRoleData, PreviewMemberRoleErrors, PreviewMemberRoleResponses, PreviewRoleData, PreviewRoleErrors, PreviewRoleResponses, PreviewSubscriptionChangeData, PreviewSubscriptionChangeErrors, PreviewSubscriptionChangeResponses, QuoteOrderData, QuoteOrderErrors, QuoteOrderResponses, ReadyData, ReadyErrors, ReadyResponses, RefreshTokenData, RefreshTokenErrors, RefreshTokenResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RequestInvitationRenewalData, RequestInvitationRenewalErrors, RequestInvitationRenewalResponses, ResendInvitationData, ResendInvitationErrors, ResendInvitationResponses, ResendVerificationData, ResendVerificationErrors, ResendVerificationResponses, ResetPasswordData, ResetPasswordErrors, ResetPasswordResponses, ResetRoleData, ResetRoleErrors, ResetRoleResponses, RestoreMemberData, RestoreMemberErrors, RestoreMemberResponses, ResumeOrderData, ResumeOrderErrors, ResumeOrderResponses, ResumeSubscriptionData, ResumeSubscriptionErrors, ResumeSubscriptionResponses, RevokeInvitationData, RevokeInvitationErrors, RevokeInvitationResponses, RevokeMemberOverrideData, RevokeMemberOverrideErrors, RevokeMemberOverrideResponses, RevokeSessionData, RevokeSessionErrors, RevokeSessionResponses, SaveBusinessData, SaveBusinessErrors, SaveBusinessResponses, SendTestMessageData, SendTestMessageErrors, SendTestMessageResponses, SetAvailabilityData, SetAvailabilityErrors, SetAvailabilityResponses, SetPasswordData, SetPasswordErrors, SetPasswordResponses, SetTeamMembersData, SetTeamMembersErrors, SetTeamMembersResponses, SignupData, SignupErrors, SignupResponses, SkipWhatsappData, SkipWhatsappErrors, SkipWhatsappResponses, SuspendMemberData, SuspendMemberErrors, SuspendMemberResponses, UnlinkIdentityData, UnlinkIdentityErrors, UnlinkIdentityResponses, UpdateBillingProfileData, UpdateBillingProfileErrors, UpdateBillingProfileResponses, UpdateMemberAccessData, UpdateMemberAccessErrors, UpdateMemberAccessResponses, UpdateOnboardingMemberData, UpdateOnboardingMemberErrors, UpdateOnboardingMemberResponses, UpdatePreferencesData, UpdatePreferencesErrors, UpdatePreferencesResponses, UpdateProfileData, UpdateProfileErrors, UpdateProfileResponses, UpdateRoleData, UpdateRoleErrors, UpdateRoleResponses, UpdateTeamData, UpdateTeamErrors, UpdateTeamResponses, VerifyEmailCodeData, VerifyEmailCodeErrors, VerifyEmailCodeResponses, VerifyEmailData, VerifyEmailErrors, VerifyEmailResponses, WhatsappSignupConfigData, WhatsappSignupConfigErrors, WhatsappSignupConfigResponses, WhatsappWebhookData, WhatsappWebhookErrors, WhatsappWebhookResponses, WhatsappWebhookVerifyData, WhatsappWebhookVerifyErrors, WhatsappWebhookVerifyResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -31,6 +31,246 @@ export const health = <ThrowOnError extends boolean = false>(options?: Options<H
  * Returns ok when the database answers; 503 otherwise.
  */
 export const ready = <ThrowOnError extends boolean = false>(options?: Options<ReadyData, ThrowOnError>): RequestResult<ReadyResponses, ReadyErrors, ThrowOnError> => (options?.client ?? client).get<ReadyResponses, ReadyErrors, ThrowOnError>({ url: '/readyz', ...options });
+
+/**
+ * Every plan, price, installment offer and provider price, active or not
+ */
+export const adminGetCatalog = <ThrowOnError extends boolean = false>(options?: Options<AdminGetCatalogData, ThrowOnError>): RequestResult<AdminGetCatalogResponses, AdminGetCatalogErrors, ThrowOnError> => (options?.client ?? client).get<AdminGetCatalogResponses, AdminGetCatalogErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/admin/billing/catalog',
+    ...options
+});
+
+/**
+ * Every discount code, newest first
+ */
+export const adminListDiscounts = <ThrowOnError extends boolean = false>(options?: Options<AdminListDiscountsData, ThrowOnError>): RequestResult<AdminListDiscountsResponses, AdminListDiscountsErrors, ThrowOnError> => (options?.client ?? client).get<AdminListDiscountsResponses, AdminListDiscountsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/admin/billing/discounts',
+    ...options
+});
+
+/**
+ * Add a discount code
+ */
+export const adminCreateDiscount = <ThrowOnError extends boolean = false>(options: Options<AdminCreateDiscountData, ThrowOnError>): RequestResult<AdminCreateDiscountResponses, AdminCreateDiscountErrors, ThrowOnError> => (options.client ?? client).post<AdminCreateDiscountResponses, AdminCreateDiscountErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/admin/billing/discounts',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Stop a discount code from being used again
+ */
+export const adminDeactivateDiscount = <ThrowOnError extends boolean = false>(options: Options<AdminDeactivateDiscountData, ThrowOnError>): RequestResult<AdminDeactivateDiscountResponses, AdminDeactivateDiscountErrors, ThrowOnError> => (options.client ?? client).post<AdminDeactivateDiscountResponses, AdminDeactivateDiscountErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/admin/billing/discounts/{code}/deactivate',
+    ...options
+});
+
+/**
+ * Split a one-time price into monthly payments
+ */
+export const adminCreateInstallmentOffer = <ThrowOnError extends boolean = false>(options: Options<AdminCreateInstallmentOfferData, ThrowOnError>): RequestResult<AdminCreateInstallmentOfferResponses, AdminCreateInstallmentOfferErrors, ThrowOnError> => (options.client ?? client).post<AdminCreateInstallmentOfferResponses, AdminCreateInstallmentOfferErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/admin/billing/installment-offers',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Take a installment offer off sale; what was bought keeps working
+ */
+export const adminDeactivateInstallmentOffer = <ThrowOnError extends boolean = false>(options: Options<AdminDeactivateInstallmentOfferData, ThrowOnError>): RequestResult<AdminDeactivateInstallmentOfferResponses, AdminDeactivateInstallmentOfferErrors, ThrowOnError> => (options.client ?? client).post<AdminDeactivateInstallmentOfferResponses, AdminDeactivateInstallmentOfferErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/admin/billing/installment-offers/{id}/deactivate',
+    ...options
+});
+
+/**
+ * Add a plan; a code in use publishes its next version
+ */
+export const adminCreatePlan = <ThrowOnError extends boolean = false>(options: Options<AdminCreatePlanData, ThrowOnError>): RequestResult<AdminCreatePlanResponses, AdminCreatePlanErrors, ThrowOnError> => (options.client ?? client).post<AdminCreatePlanResponses, AdminCreatePlanErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/admin/billing/plans',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Take a plan off sale; what was bought keeps working
+ */
+export const adminDeactivatePlan = <ThrowOnError extends boolean = false>(options: Options<AdminDeactivatePlanData, ThrowOnError>): RequestResult<AdminDeactivatePlanResponses, AdminDeactivatePlanErrors, ThrowOnError> => (options.client ?? client).post<AdminDeactivatePlanResponses, AdminDeactivatePlanErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/admin/billing/plans/{id}/deactivate',
+    ...options
+});
+
+/**
+ * Add a price to a plan
+ */
+export const adminCreatePrice = <ThrowOnError extends boolean = false>(options: Options<AdminCreatePriceData, ThrowOnError>): RequestResult<AdminCreatePriceResponses, AdminCreatePriceErrors, ThrowOnError> => (options.client ?? client).post<AdminCreatePriceResponses, AdminCreatePriceErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/admin/billing/prices',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Take a price off sale; what was bought keeps working
+ */
+export const adminDeactivatePrice = <ThrowOnError extends boolean = false>(options: Options<AdminDeactivatePriceData, ThrowOnError>): RequestResult<AdminDeactivatePriceResponses, AdminDeactivatePriceErrors, ThrowOnError> => (options.client ?? client).post<AdminDeactivatePriceResponses, AdminDeactivatePriceErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/admin/billing/prices/{id}/deactivate',
+    ...options
+});
+
+/**
+ * Link a price or installment offer to a payment provider's price
+ */
+export const adminCreateProviderPrice = <ThrowOnError extends boolean = false>(options: Options<AdminCreateProviderPriceData, ThrowOnError>): RequestResult<AdminCreateProviderPriceResponses, AdminCreateProviderPriceErrors, ThrowOnError> => (options.client ?? client).post<AdminCreateProviderPriceResponses, AdminCreateProviderPriceErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/admin/billing/provider-prices',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Take a provider price off sale; what was bought keeps working
+ */
+export const adminDeactivateProviderPrice = <ThrowOnError extends boolean = false>(options: Options<AdminDeactivateProviderPriceData, ThrowOnError>): RequestResult<AdminDeactivateProviderPriceResponses, AdminDeactivateProviderPriceErrors, ThrowOnError> => (options.client ?? client).post<AdminDeactivateProviderPriceResponses, AdminDeactivateProviderPriceErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/admin/billing/provider-prices/{id}/deactivate',
+    ...options
+});
+
+/**
+ * Workspaces and the plan each is on, newest first
+ */
+export const adminListWorkspaces = <ThrowOnError extends boolean = false>(options?: Options<AdminListWorkspacesData, ThrowOnError>): RequestResult<AdminListWorkspacesResponses, AdminListWorkspacesErrors, ThrowOnError> => (options?.client ?? client).get<AdminListWorkspacesResponses, AdminListWorkspacesErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/admin/workspaces',
+    ...options
+});
+
+/**
+ * End a manual grant or trial; the workspace goes to the free plan
+ */
+export const adminEndGrant = <ThrowOnError extends boolean = false>(options: Options<AdminEndGrantData, ThrowOnError>): RequestResult<AdminEndGrantResponses, AdminEndGrantErrors, ThrowOnError> => (options.client ?? client).post<AdminEndGrantResponses, AdminEndGrantErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/admin/workspaces/end-grant',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Put a workspace on a plan by hand (not one paid through a subscription or lifetime deal)
+ */
+export const adminGrantPlan = <ThrowOnError extends boolean = false>(options: Options<AdminGrantPlanData, ThrowOnError>): RequestResult<AdminGrantPlanResponses, AdminGrantPlanErrors, ThrowOnError> => (options.client ?? client).post<AdminGrantPlanResponses, AdminGrantPlanErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/admin/workspaces/grant-plan',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Reactivate a suspended plan
+ */
+export const adminRestoreGrant = <ThrowOnError extends boolean = false>(options: Options<AdminRestoreGrantData, ThrowOnError>): RequestResult<AdminRestoreGrantResponses, AdminRestoreGrantErrors, ThrowOnError> => (options.client ?? client).post<AdminRestoreGrantResponses, AdminRestoreGrantErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/admin/workspaces/restore-grant',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Recent security activity

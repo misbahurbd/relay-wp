@@ -49,6 +49,12 @@ func IsUnique(err error, name string) bool {
 	return errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == name
 }
 
+// IsDuplicate reports a violation of any unique constraint or index.
+func IsDuplicate(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
+}
+
 // IsCheck reports a CHECK violation, such as paying more than an order's total.
 func IsCheck(err error) bool {
 	var pgErr *pgconn.PgError

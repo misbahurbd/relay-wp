@@ -39,6 +39,7 @@ type env struct {
 	api     humatest.TestAPI
 	pool    *pgxpool.Pool
 	members map[[2]uuid.UUID]authctx.Access
+	staff   map[uuid.UUID]bool
 }
 
 // newEnv serves the billing routes. pool may be nil for tests that never
@@ -51,7 +52,7 @@ func newEnv(t *testing.T, pool *pgxpool.Pool) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e := &env{t: t, api: api, pool: pool, members: map[[2]uuid.UUID]authctx.Access{}}
+	e := &env{t: t, api: api, pool: pool, members: map[[2]uuid.UUID]authctx.Access{}, staff: map[uuid.UUID]bool{}}
 	svc := service.New(pool, payments, nil, service.Config{}, slog.Default())
 	handler.Register(api, handler.NewHandler(svc), handler.Guards{
 		Auth:   e.auth,
@@ -59,6 +60,7 @@ func newEnv(t *testing.T, pool *pgxpool.Pool) *env {
 		Can: func(perms ...authctx.Permission) handler.Middleware {
 			return middleware.RequirePermission(api, perms...)
 		},
+		Staff: middleware.RequireStaff(api, e),
 	}, nil)
 	return e
 }
@@ -93,6 +95,9 @@ func (e *env) ResolveAccess(_ context.Context, workspaceID, userID uuid.UUID) (a
 	a, ok := e.members[[2]uuid.UUID{workspaceID, userID}]
 	return a, false, ok, nil
 }
+
+// IsStaff implements middleware.StaffChecker from e.staff.
+func (e *env) IsStaff(_ context.Context, userID uuid.UUID) (bool, error) { return e.staff[userID], nil }
 
 // member is a user in a workspace with exactly perms (no owner bypass).
 type member struct {

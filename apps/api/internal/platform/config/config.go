@@ -26,6 +26,7 @@ type Config struct {
 	Storage  Storage
 	Auth     Auth
 	Trial    Trial
+	Admin    Admin
 	WhatsApp WhatsApp
 	Payment  Payment
 }
@@ -107,6 +108,12 @@ type Auth struct {
 	GoogleClientSecret string `env:"GOOGLE_CLIENT_SECRET"`
 	FacebookAppID      string `env:"FACEBOOK_APP_ID"`
 	FacebookAppSecret  string `env:"FACEBOOK_APP_SECRET"`
+}
+
+// Admin configures the staff-only admin tools (/v1/admin and the web /admin page).
+type Admin struct {
+	// Emails are the verified accounts allowed in; empty turns the admin tools off.
+	Emails []string `env:"ADMIN_EMAILS" envSeparator:","`
 }
 
 // Trial configures the free trial a new workspace starts with.
