@@ -2,7 +2,7 @@
 
 Status: **Wave 2 (merged and wired) built.** Every track is merged on `feat/billing-connect`, the workers, plan limits, trials and discounts CLI are wired in, and the contract changes the tracks asked for are settled (section 7). Follows the rules in [CLAUDE.md](../CLAUDE.md) and the architecture in [ARCHITECTURE.md](ARCHITECTURE.md). The payment provider registry is [ADR 0006](adr/0006-payment-gateway-registry.md).
 
-The schema is migration `00011_billing`, built from the load-tested draft v12 of the billing schema page.
+The schema is migration `00013_billing`, built from the load-tested draft v12 of the billing schema page.
 
 ---
 
@@ -143,7 +143,7 @@ The contract changes and open questions the tracks reported, as settled when the
 | Provider-run schedules        | `Gateway.CancelSchedule` stops one. Billing calls it when an order is upgraded or defaults, in the same transaction, so a failure retries. A `subscription.canceled` for a finished schedule matches no subscription and is ignored, so the lifetime grant stays.                                                      |
 | Creem                         | `CouponRequest.ExternalProductIDs` lists the provider's active recurring prices. Payment-mode checkouts send the price's provider product when it has one. `Capabilities.EmbeddableURL` (`embeddable_url` in the catalog) is true for Creem.                                                                           |
 | Trials                        | A new workspace trials the catalog plan `TRIAL_PLAN` (default `growth`) for its `trial_days`, as a trial grant. `TRIAL_DAYS` is gone. No such plan, or a card-required trial, means the workspace starts on free. A workspace gets one trial: a card trial is skipped once it has had a subscription or a trial grant. |
-| Free plan                     | No grant is free: 5 members and 1 WhatsApp number (`model.FreeLimits`).`workspaces.plan` defaults to `free` (migration `00012`), and workspaces without a grant were reset to it.                                                                                                                                      |
+| Free plan                     | No grant is free: 5 members and 1 WhatsApp number (`model.FreeLimits`).`workspaces.plan` defaults to `free` (migration `00014`), and workspaces without a grant were reset to it.                                                                                                                                      |
 | Seats                         | With billing wired in, the plan's member cap is the seat limit; `workspaces.seat_limit` is only the fallback without billing. A plan with no member cap reports `limit: -1` and the web shows no meter.                                                                                                                |
 | Testing checkouts             | `POST .../checkout-sessions/{sessionId}/test-complete` pays a checkout on the fake gateway through the signed-webhook path. It is 404 on any real provider; fake gateways are allowed only in development.                                                                                                             |
 | Abandoned orders              | Kept (T4): the daily pass cancels a pending order and its installments after 7 days.                                                                                                                                                                                                                                   |

@@ -122,6 +122,60 @@ type CheckoutSession struct {
 	UpdatedAt          time.Time
 }
 
+type Contact struct {
+	ID            uuid.UUID
+	WorkspaceID   uuid.UUID
+	Name          string
+	Phone         string
+	Email         *string
+	OptIn         string
+	OptInSource   *string
+	OptInAt       *time.Time
+	Source        string
+	Language      *string
+	Attributes    []byte
+	AssignedTo    *uuid.UUID
+	LastMessageAt *time.Time
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+type ContactImport struct {
+	ID           uuid.UUID
+	WorkspaceID  uuid.UUID
+	CreatedBy    *uuid.UUID
+	FileName     string
+	FileType     string
+	FileKey      string
+	RowCount     int32
+	Columns      []byte
+	Mapping      []byte
+	TagName      *string
+	Status       string
+	CreatedCount int32
+	UpdatedCount int32
+	SkippedCount int32
+	SkippedKey   *string
+	Error        *string
+	StartedAt    *time.Time
+	FinishedAt   *time.Time
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+type ContactTag struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	Name        string
+	CreatedAt   time.Time
+}
+
+type ContactTagLink struct {
+	WorkspaceID uuid.UUID
+	ContactID   uuid.UUID
+	TagID       uuid.UUID
+}
+
 type Discount struct {
 	ID                uuid.UUID
 	Code              string
@@ -300,6 +354,26 @@ type MemberPermissionOverride struct {
 	RevokedBy        *uuid.UUID
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
+}
+
+type MessageTemplate struct {
+	ID              uuid.UUID
+	WorkspaceID     uuid.UUID
+	AccountID       *uuid.UUID
+	Name            string
+	Language        string
+	Category        string
+	Status          string
+	MetaTemplateID  *string
+	RejectedReason  *string
+	Components      []byte
+	HeaderMediaKey  *string
+	HeaderMediaType *string
+	HeaderMediaSize *int64
+	SubmittedAt     *time.Time
+	CreatedBy       *uuid.UUID
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 type OauthFlow struct {

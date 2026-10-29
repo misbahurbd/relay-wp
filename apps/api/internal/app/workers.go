@@ -5,6 +5,7 @@ import (
 
 	authjobs "github.com/misbahurbd/relay-wp/apps/api/internal/features/auth/jobs"
 	billingjobs "github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/jobs"
+	contactsjobs "github.com/misbahurbd/relay-wp/apps/api/internal/features/contacts/jobs"
 	onboardingjobs "github.com/misbahurbd/relay-wp/apps/api/internal/features/onboarding/jobs"
 	teamjobs "github.com/misbahurbd/relay-wp/apps/api/internal/features/team/jobs"
 	whatsappjobs "github.com/misbahurbd/relay-wp/apps/api/internal/features/whatsapp/jobs"
@@ -32,6 +33,7 @@ func (a *App) addFeatureWorkers(w *river.Workers) {
 	river.AddWorker(w, billingjobs.NewExpireCheckoutsWorker(a.billing))
 	river.AddWorker(w, billingjobs.NewPurgeEventPayloadsWorker(a.billing))
 	river.AddWorker(w, billingjobs.NewPlanCacheDriftWorker(a.billing))
+	river.AddWorker(w, contactsjobs.NewImportWorker(a.contacts))
 	// Periodic jobs run on the leader only, so several workers don't repeat them.
 	a.queue.PeriodicJobs().Add(authjobs.CleanupPeriodicJob())
 	a.queue.PeriodicJobs().Add(teamjobs.MaintenancePeriodicJob())

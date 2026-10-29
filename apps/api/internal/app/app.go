@@ -24,9 +24,11 @@ import (
 	authhandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/auth/handler"
 	authservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/auth/service"
 	billingservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/service"
+	contactsservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/contacts/service"
 	onboardingservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/onboarding/service"
 	profilesservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/profiles/service"
 	teamservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/team/service"
+	templatesservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/templates/service"
 	whatsappservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/whatsapp/service"
 	workspacesservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/workspaces/service"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/config"
@@ -74,6 +76,8 @@ type App struct {
 	team       *teamservice.Service
 	access     *teamservice.Resolver
 	billing    *billingservice.Service
+	contacts   *contactsservice.Service
+	templates  *templatesservice.Service
 
 	// payments is the payment gateway registry; tests set it to fakes before New builds features.
 	payments *payment.Registry
@@ -137,10 +141,14 @@ func (a *App) buildFeatures() (err error) {
 		onboardingservice.Config{AppBaseURL: a.cfg.AppBaseURL})
 	a.team = teamservice.New(a.db, a.directory, a.accounts, a.queue, teamservice.Config{AppBaseURL: a.cfg.AppBaseURL})
 	a.access = teamservice.NewResolver(a.db)
+	a.contacts = contactsservice.New(a.db, a.storage, a.queue, a.access)
 	a.workspaces = workspacesservice.New(a.db, a.accounts, a.onboarding, a.team)
 	if err := a.buildWhatsApp(); err != nil {
 		return err
 	}
+	// Templates reach Meta through whatsapp, and hear its status webhooks (AD-9).
+	a.templates = templatesservice.New(a.db, metaTemplates{wa: a.whatsapp}, a.storage)
+	a.whatsapp.SetTemplateStatusSink(a.templates)
 	if err := a.buildBilling(); err != nil {
 		return err
 	}
