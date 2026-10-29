@@ -86,6 +86,12 @@ func (s *Service) Invite(ctx context.Context, actor authctx.Access, meta model.M
 	if err != nil {
 		return nil, err
 	}
+	planLimit := -1
+	if role.UsesSeat {
+		if planLimit, err = s.memberLimit(ctx, actor.WorkspaceID); err != nil {
+			return nil, err
+		}
+	}
 
 	err = database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
 		r := repository.NewRepository(tx)
@@ -99,6 +105,9 @@ func (s *Service) Invite(ctx context.Context, actor authctx.Access, meta model.M
 					Field:   "emails",
 					Message: fmt.Sprintf("%d seats needed, %d available", len(emails), seats.Available),
 				})
+			}
+			if err := overMemberLimit(planLimit, seats.Used+seats.Reserved, int64(len(emails))); err != nil {
+				return err
 			}
 		}
 		if n, err := r.CountWorkspaceNumbers(ctx, gen.CountWorkspaceNumbersParams{

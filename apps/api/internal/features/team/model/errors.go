@@ -29,6 +29,8 @@ var (
 
 	ErrNotEnoughSeats = apperr.Conflict("not_enough_seats",
 		"There aren't enough seats. Remove someone, invite them as Viewers, or add seats.")
+	ErrMemberLimit = apperr.Conflict("plan_member_limit",
+		"Your plan's member limit is reached. Upgrade your plan to add more people, or invite them as Viewers.")
 	ErrAlreadyMember = apperr.Conflict("already_member", "This person is already in the workspace")
 	ErrInvitePending = apperr.Conflict("invite_pending", "This person already has a pending invite")
 	ErrInviteExpired = apperr.Conflict("invite_expired", "This invite has expired. Ask for a new one.")
