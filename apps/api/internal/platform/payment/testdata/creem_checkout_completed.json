@@ -1,0 +1,83 @@
+{
+  "id": "evt_5WHHcZPv7VS0YUsberIuOz",
+  "eventType": "checkout.completed",
+  "created_at": 1728734327412,
+  "object": {
+    "id": "ch_4l0N34kxo16AhRKUHFUuXr",
+    "object": "checkout",
+    "request_id": "0192f7a4-7c1e-7b3a-9d2e-5f8a1c3b4d6e",
+    "order": {
+      "object": "order",
+      "id": "ord_4aDwWXjMLpes4Kj4XqNnUA",
+      "customer": "cust_1OcIK1GEuVvXZwD19tjq2z",
+      "product": "prod_d1AY2Sadk9YAvLI0pj97f",
+      "amount": 2900,
+      "currency": "USD",
+      "sub_total": 2900,
+      "discount_amount": 290,
+      "discount": "dis_2Xa0vK8GmJz1qPcR7tNbYe",
+      "tax_amount": 548,
+      "amount_due": 3158,
+      "amount_paid": 3158,
+      "status": "paid",
+      "type": "recurring",
+      "transaction": "tran_5yMaWzAl3jxuGJMCOrYWwk",
+      "created_at": "2024-10-12T11:58:33.097Z",
+      "updated_at": "2024-10-12T11:58:33.097Z",
+      "mode": "test"
+    },
+    "product": {
+      "id": "prod_d1AY2Sadk9YAvLI0pj97f",
+      "object": "product",
+      "name": "Growth, monthly",
+      "price": 2900,
+      "currency": "USD",
+      "billing_type": "recurring",
+      "billing_period": "every-month",
+      "status": "active",
+      "tax_mode": "exclusive",
+      "tax_category": "saas",
+      "mode": "test"
+    },
+    "units": 1,
+    "customer": {
+      "id": "cust_1OcIK1GEuVvXZwD19tjq2z",
+      "object": "customer",
+      "email": "owner@example.com",
+      "name": "Test Owner",
+      "country": "NL",
+      "mode": "test"
+    },
+    "subscription": {
+      "id": "sub_6pC2lNoI8ixy1kAoEqdhWl",
+      "object": "subscription",
+      "product": "prod_d1AY2Sadk9YAvLI0pj97f",
+      "customer": "cust_1OcIK1GEuVvXZwD19tjq2z",
+      "collection_method": "charge_automatically",
+      "status": "active",
+      "current_period_start_date": "2024-10-12T11:58:38.000Z",
+      "current_period_end_date": "2024-11-12T11:58:38.000Z",
+      "canceled_at": null,
+      "metadata": {
+        "relay_reference": "0192f7a4-7c1e-7b3a-9d2e-5f8a1c3b4d6e",
+        "workspace_id": "0192f7a4-0000-7000-8000-000000000001"
+      },
+      "mode": "test"
+    },
+    "custom_fields": [],
+    "status": "completed",
+    "metadata": {
+      "relay_reference": "0192f7a4-7c1e-7b3a-9d2e-5f8a1c3b4d6e",
+      "workspace_id": "0192f7a4-0000-7000-8000-000000000001"
+    },
+    "discount": {
+      "id": "dis_2Xa0vK8GmJz1qPcR7tNbYe",
+      "discountCode": "LAUNCH10",
+      "name": "Launch",
+      "type": "percentage",
+      "amount": 10,
+      "duration": "forever"
+    },
+    "mode": "test"
+  }
+}

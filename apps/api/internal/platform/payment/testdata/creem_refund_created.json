@@ -1,0 +1,58 @@
+{
+  "id": "evt_61eTsJHUgInFw2BQKhTiPV",
+  "eventType": "refund.created",
+  "created_at": 1728734351631,
+  "object": {
+    "id": "ref_3DB9NQFvk18TJwSqd0N6bd",
+    "object": "refund",
+    "status": "succeeded",
+    "refund_amount": 3158,
+    "refund_currency": "USD",
+    "reason": "requested_by_customer",
+    "transaction": {
+      "id": "tran_5yMaWzAl3jxuGJMCOrYWwk",
+      "object": "transaction",
+      "amount": 2610,
+      "amount_paid": 3158,
+      "currency": "USD",
+      "type": "invoice",
+      "tax_amount": 548,
+      "status": "refunded",
+      "refunded_amount": 3158,
+      "mode": "test"
+    },
+    "subscription": {
+      "id": "sub_6pC2lNoI8ixy1kAoEqdhWl",
+      "object": "subscription",
+      "status": "canceled",
+      "metadata": {
+        "relay_reference": "0192f7a4-7c1e-7b3a-9d2e-5f8a1c3b4d6e"
+      },
+      "mode": "test"
+    },
+    "checkout": {
+      "id": "ch_4l0N34kxo16AhRKUHFUuXr",
+      "object": "checkout",
+      "request_id": "0192f7a4-7c1e-7b3a-9d2e-5f8a1c3b4d6e",
+      "status": "completed",
+      "metadata": {
+        "relay_reference": "0192f7a4-7c1e-7b3a-9d2e-5f8a1c3b4d6e"
+      },
+      "mode": "test"
+    },
+    "order": {
+      "id": "ord_4aDwWXjMLpes4Kj4XqNnUA",
+      "amount": 2900,
+      "tax_amount": 548,
+      "amount_paid": 3158,
+      "mode": "test"
+    },
+    "customer": {
+      "id": "cust_1OcIK1GEuVvXZwD19tjq2z",
+      "object": "customer",
+      "mode": "test"
+    },
+    "created_at": 1728734351525,
+    "mode": "test"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "id": "evt_6mfLDL7P0NYwYQqCrICvDH",
+  "eventType": "dispute.created",
+  "created_at": 1750941264812,
+  "object": {
+    "id": "disp_6vSsOdTANP5PhOzuDlUuXE",
+    "object": "dispute",
+    "amount": 3158,
+    "currency": "USD",
+    "transaction": {
+      "id": "tran_5yMaWzAl3jxuGJMCOrYWwk",
+      "object": "transaction",
+      "amount": 2610,
+      "amount_paid": 3158,
+      "currency": "USD",
+      "type": "invoice",
+      "tax_amount": 548,
+      "status": "chargeback",
+      "mode": "test"
+    },
+    "subscription": {
+      "id": "sub_6pC2lNoI8ixy1kAoEqdhWl",
+      "object": "subscription",
+      "status": "active",
+      "metadata": {
+        "relay_reference": "0192f7a4-7c1e-7b3a-9d2e-5f8a1c3b4d6e"
+      },
+      "mode": "test"
+    },
+    "checkout": {
+      "id": "ch_4l0N34kxo16AhRKUHFUuXr",
+      "object": "checkout",
+      "status": "completed",
+      "metadata": {
+        "relay_reference": "0192f7a4-7c1e-7b3a-9d2e-5f8a1c3b4d6e"
+      },
+      "mode": "test"
+    },
+    "customer": {
+      "id": "cust_1OcIK1GEuVvXZwD19tjq2z",
+      "object": "customer",
+      "mode": "test"
+    },
+    "created_at": 1750941264728,
+    "mode": "test"
+  }
+}
