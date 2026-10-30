@@ -5,6 +5,7 @@ dotenv: [".env"]
 vars:
   API_DIR: apps/api
   WEB_DIR: apps/web
+  CRM_DIR: apps/crm
   COMPOSE: docker compose -f deploy/docker-compose.yml
 
 tasks:
@@ -85,12 +86,19 @@ tasks:
     cmds:
       - pnpm dev
 
+  dev:crm:
+    desc: Run the staff CRM dev server (port 3020; add it to CORS_ALLOWED_ORIGINS)
+    dir: "{{.CRM_DIR}}"
+    cmds:
+      - pnpm dev
+
   # --- Build ---
   build:
-    desc: Build API and web
+    desc: Build API, web and CRM
     cmds:
       - task: build:api
       - task: build:web
+      - task: build:crm
 
   build:api:
     dir: "{{.API_DIR}}"
@@ -99,6 +107,11 @@ tasks:
 
   build:web:
     dir: "{{.WEB_DIR}}"
+    cmds:
+      - pnpm build
+
+  build:crm:
+    dir: "{{.CRM_DIR}}"
     cmds:
       - pnpm build
 

@@ -52,10 +52,12 @@ export function ChangeRoleDialog({
   let seatNote = 'Seat usage doesn’t change. Extra permissions stay in place.'
   if (current && next && seats.data) {
     const used = seats.data.used + seats.data.reserved
+    const limit = seats.data.limit
+    // A negative limit: the plan has no member cap.
+    const of = (n: number) => (limit < 0 ? `${n} used` : `${n} of ${limit} used`)
     if (current.uses_seat && !next.uses_seat)
-      seatNote = `This frees 1 seat (${used - 1} of ${seats.data.limit} used). Extra permissions stay in place.`
-    else if (!current.uses_seat && next.uses_seat)
-      seatNote = `This uses 1 seat (${used + 1} of ${seats.data.limit} used).`
+      seatNote = `This frees 1 seat (${of(used - 1)}). Extra permissions stay in place.`
+    else if (!current.uses_seat && next.uses_seat) seatNote = `This uses 1 seat (${of(used + 1)}).`
   }
 
   return (

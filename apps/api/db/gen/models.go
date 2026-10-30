@@ -72,6 +72,56 @@ type AuthSession struct {
 	CreatedAt       time.Time
 }
 
+type BillingCustomer struct {
+	ID                 uuid.UUID
+	WorkspaceID        uuid.UUID
+	Provider           string
+	ExternalCustomerID *string
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+}
+
+type BillingProfile struct {
+	ID           uuid.UUID
+	WorkspaceID  uuid.UUID
+	LegalName    string
+	Email        string
+	Phone        *string
+	AddressLine1 *string
+	AddressLine2 *string
+	City         *string
+	State        *string
+	PostalCode   *string
+	Country      *string
+	TaxIDType    *string
+	TaxID        *string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+type CheckoutSession struct {
+	ID                 uuid.UUID
+	WorkspaceID        uuid.UUID
+	PlanPriceID        uuid.UUID
+	InstallmentOfferID *uuid.UUID
+	Purpose            string
+	SubscriptionID     *uuid.UUID
+	OrderID            *uuid.UUID
+	InstallmentID      *uuid.UUID
+	Provider           string
+	ExternalSessionID  *string
+	Status             string
+	AmountMinor        int64
+	Currency           string
+	IdempotencyKey     string
+	DiscountID         *uuid.UUID
+	DiscountMinor      int64
+	CreatedBy          *uuid.UUID
+	ExpiresAt          time.Time
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+}
+
 type Contact struct {
 	ID            uuid.UUID
 	WorkspaceID   uuid.UUID
@@ -126,6 +176,44 @@ type ContactTagLink struct {
 	TagID       uuid.UUID
 }
 
+type Discount struct {
+	ID                uuid.UUID
+	Code              string
+	Name              string
+	Kind              string
+	PercentBps        *int32
+	AmountOffMinor    *int64
+	Currency          *string
+	Duration          string
+	DurationMonths    *int32
+	AppliesTo         string
+	PlanID            *uuid.UUID
+	AllowInstallments bool
+	MaxRedemptions    *int32
+	PerWorkspaceLimit int32
+	RedeemedCount     int32
+	StartsAt          time.Time
+	ExpiresAt         *time.Time
+	IsActive          bool
+	CreatedBy         *uuid.UUID
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+type DiscountRedemption struct {
+	ID                uuid.UUID
+	DiscountID        uuid.UUID
+	WorkspaceID       uuid.UUID
+	CheckoutSessionID uuid.UUID
+	SubscriptionID    *uuid.UUID
+	OrderID           *uuid.UUID
+	Status            string
+	AmountMinor       int64
+	RedeemedAt        *time.Time
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
 type EmailCode struct {
 	ID        uuid.UUID
 	UserID    uuid.UUID
@@ -147,6 +235,34 @@ type EmailToken struct {
 	ExpiresAt time.Time
 	UsedAt    *time.Time
 	CreatedAt time.Time
+}
+
+type Installment struct {
+	ID             uuid.UUID
+	OrderID        uuid.UUID
+	WorkspaceID    uuid.UUID
+	Seq            int32
+	DueAt          time.Time
+	AmountMinor    int64
+	Status         string
+	PaidAt         *time.Time
+	ReminderSentAt *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+type InstallmentOffer struct {
+	ID          uuid.UUID
+	PlanPriceID uuid.UUID
+	PriceType   string
+	Count       int32
+	Interval    string
+	TotalMinor  int64
+	GraceDays   int32
+	MaxMissed   int32
+	IsActive    bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 type Invitation struct {
@@ -189,6 +305,32 @@ type InvitationTeam struct {
 	WorkspaceID  uuid.UUID
 	InvitationID uuid.UUID
 	TeamID       uuid.UUID
+}
+
+type Invoice struct {
+	ID                uuid.UUID
+	WorkspaceID       uuid.UUID
+	Number            *string
+	SubscriptionID    *uuid.UUID
+	OrderID           *uuid.UUID
+	InstallmentID     *uuid.UUID
+	CheckoutSessionID *uuid.UUID
+	Provider          string
+	ExternalPaymentID *string
+	Status            string
+	SubtotalMinor     int64
+	TaxMinor          int64
+	TotalMinor        int64
+	Currency          string
+	PeriodStart       *time.Time
+	PeriodEnd         *time.Time
+	BillTo            []byte
+	DiscountID        *uuid.UUID
+	DiscountMinor     int64
+	ReceiptUrl        *string
+	PaidAt            *time.Time
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }
 
 type MemberNumber struct {
@@ -268,6 +410,43 @@ type OnboardingMemberState struct {
 	UpdatedAt         time.Time
 }
 
+type Order struct {
+	ID                     uuid.UUID
+	WorkspaceID            uuid.UUID
+	PlanPriceID            uuid.UUID
+	InstallmentOfferID     *uuid.UUID
+	BillingCustomerID      uuid.UUID
+	Provider               string
+	ExternalRef            *string
+	Status                 string
+	TotalMinor             int64
+	DiscountID             *uuid.UUID
+	DiscountMinor          int64
+	CreditMinor            int64
+	PaidMinor              int64
+	Currency               string
+	PaidInFullAt           *time.Time
+	DefaultedAt            *time.Time
+	UpgradedFromOrderID    *uuid.UUID
+	ReplacedSubscriptionID *uuid.UUID
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
+}
+
+type PaymentEvent struct {
+	ID                uuid.UUID
+	Provider          string
+	ExternalEventID   string
+	EventType         string
+	WorkspaceID       *uuid.UUID
+	CheckoutSessionID *uuid.UUID
+	Payload           []byte
+	ReceivedAt        time.Time
+	ProcessedAt       *time.Time
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
 type Permission struct {
 	Key       string
 	Bit       int16
@@ -277,6 +456,73 @@ type Permission struct {
 	Position  int32
 }
 
+type Plan struct {
+	ID                uuid.UUID
+	Code              string
+	Version           int32
+	Name              string
+	TrialDays         int32
+	TrialRequiresCard bool
+	Limits            []byte
+	IsActive          bool
+	SortOrder         int32
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+type PlanGrant struct {
+	ID             uuid.UUID
+	WorkspaceID    uuid.UUID
+	PlanID         uuid.UUID
+	Source         string
+	SubscriptionID *uuid.UUID
+	OrderID        *uuid.UUID
+	Status         string
+	Limits         []byte
+	StartsAt       time.Time
+	EndsAt         *time.Time
+	SuspendedAt    *time.Time
+	CreatedBy      *uuid.UUID
+	Reason         *string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
+type PlanPrice struct {
+	ID          uuid.UUID
+	PlanID      uuid.UUID
+	BillingType string
+	Interval    *string
+	Currency    string
+	AmountMinor int64
+	IsActive    bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type ProviderDiscount struct {
+	ID                      uuid.UUID
+	DiscountID              uuid.UUID
+	Provider                string
+	ExternalCouponID        string
+	ExternalPromotionCodeID *string
+	IsActive                bool
+	CreatedAt               time.Time
+	UpdatedAt               time.Time
+}
+
+type ProviderPrice struct {
+	ID                 uuid.UUID
+	PlanPriceID        uuid.UUID
+	InstallmentOfferID *uuid.UUID
+	Provider           string
+	ExternalPriceID    *string
+	Collection         *string
+	IsActive           bool
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+}
+
 type RefreshToken struct {
 	ID        uuid.UUID
 	SessionID uuid.UUID
@@ -284,6 +530,19 @@ type RefreshToken struct {
 	ExpiresAt time.Time
 	UsedAt    *time.Time
 	CreatedAt time.Time
+}
+
+type Refund struct {
+	ID               uuid.UUID
+	InvoiceID        uuid.UUID
+	WorkspaceID      uuid.UUID
+	Provider         string
+	ExternalRefundID *string
+	AmountMinor      int64
+	Reason           *string
+	Status           string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 type Role struct {
@@ -306,6 +565,42 @@ type RolePermission struct {
 	WorkspaceID   uuid.UUID
 	RoleID        uuid.UUID
 	PermissionKey string
+}
+
+type Subscription struct {
+	ID                     uuid.UUID
+	WorkspaceID            uuid.UUID
+	PlanPriceID            uuid.UUID
+	BillingCustomerID      uuid.UUID
+	Provider               string
+	ExternalSubscriptionID *string
+	RenewalMode            string
+	Status                 string
+	ProviderStatus         *string
+	CurrentPeriodStart     *time.Time
+	CurrentPeriodEnd       *time.Time
+	GraceEndsAt            *time.Time
+	CancelAtPeriodEnd      bool
+	CanceledAt             *time.Time
+	PendingPlanPriceID     *uuid.UUID
+	PendingChangeAt        *time.Time
+	DiscountID             *uuid.UUID
+	DiscountEndsAt         *time.Time
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
+}
+
+type SubscriptionChange struct {
+	ID             uuid.UUID
+	SubscriptionID uuid.UUID
+	WorkspaceID    uuid.UUID
+	FromPriceID    uuid.UUID
+	ToPriceID      uuid.UUID
+	Kind           string
+	EffectiveAt    time.Time
+	ProrationMinor int64
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 type Team struct {
@@ -430,6 +725,7 @@ type Workspace struct {
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	SeatLimit   int32
+	DeletedAt   *time.Time
 }
 
 type WorkspaceMember struct {

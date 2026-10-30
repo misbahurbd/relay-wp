@@ -10,17 +10,20 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/sync/errgroup"
 
 	authhandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/auth/handler"
 	authservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/auth/service"
+	billingservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/service"
 	contactsservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/contacts/service"
 	onboardingservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/onboarding/service"
 	profilesservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/profiles/service"
@@ -34,6 +37,7 @@ import (
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/jwt"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/mailer"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/middleware"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/payment"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/queue"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/storage"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/shared/apperr"
@@ -71,8 +75,12 @@ type App struct {
 	whatsapp   *whatsappservice.Service
 	team       *teamservice.Service
 	access     *teamservice.Resolver
+	billing    *billingservice.Service
 	contacts   *contactsservice.Service
 	templates  *templatesservice.Service
+
+	// payments is the payment gateway registry; tests set it to fakes before New builds features.
+	payments *payment.Registry
 
 	// oauth overrides the provider config built from cfg; tests point it at a fake provider.
 	oauth *authservice.ProvidersConfig
@@ -134,13 +142,16 @@ func (a *App) buildFeatures() (err error) {
 	a.team = teamservice.New(a.db, a.directory, a.accounts, a.queue, teamservice.Config{AppBaseURL: a.cfg.AppBaseURL})
 	a.access = teamservice.NewResolver(a.db)
 	a.contacts = contactsservice.New(a.db, a.storage, a.queue, a.access)
-	a.workspaces = workspacesservice.New(a.db, a.accounts, a.onboarding, a.team, workspacesservice.Config{TrialDays: a.cfg.Trial.Days})
+	a.workspaces = workspacesservice.New(a.db, a.accounts, a.onboarding, a.team)
 	if err := a.buildWhatsApp(); err != nil {
 		return err
 	}
 	// Templates reach Meta through whatsapp, and hear its status webhooks (AD-9).
 	a.templates = templatesservice.New(a.db, metaTemplates{wa: a.whatsapp}, a.storage)
 	a.whatsapp.SetTemplateStatusSink(a.templates)
+	if err := a.buildBilling(); err != nil {
+		return err
+	}
 	if a.mode == ModeWorker {
 		return nil
 	}
@@ -204,6 +215,65 @@ func (a *App) buildWhatsApp() error {
 		GraphVersion: wa.GraphVersion, WebhookVerifyToken: wa.WebhookVerifyToken, TokenKey: tokenKey,
 	}, a.log)
 	return err
+}
+
+// buildBilling builds the payment gateways for PAYMENT_PROVIDERS and the billing service.
+func (a *App) buildBilling() error {
+	if a.payments == nil {
+		reg, err := payment.New(a.cfg.Payment, a.cfg.IsDevelopment())
+		if err != nil {
+			return err
+		}
+		a.payments = reg
+	}
+	if a.log != nil {
+		a.log.Info("payment providers", "enabled", a.payments.Providers())
+	}
+	a.billing = billingservice.New(a.db, a.payments, a.queue, billingservice.Config{
+		AppBaseURL: a.cfg.AppBaseURL, TrialPlan: a.cfg.Trial.Plan,
+	}, a.log)
+	a.team.SetPlanLimits(a.billing)
+	a.whatsapp.SetPlanLimits(a.billing)
+	a.workspaces.SetBilling(deletionGuard{a.billing})
+	a.workspaces.SetTrials(a.billing)
+	return nil
+}
+
+// deletionGuard gives the workspaces service billing's answer on whether a
+// workspace may be deleted, in the workspaces feature's own type.
+type deletionGuard struct{ billing *billingservice.Service }
+
+func (g deletionGuard) DeletionCheck(ctx context.Context, workspaceID uuid.UUID) (workspacesservice.DeletionCheck, error) {
+	c, err := g.billing.DeletionCheck(ctx, workspaceID)
+	return workspacesservice.DeletionCheck{Allowed: c.Allowed, Reason: c.Reason}, err
+}
+
+// staff is the admin tools' guard: a verified account whose email is in
+// ADMIN_EMAILS. Nil (everyone refused) when the list is empty.
+func (a *App) staff() middleware.StaffChecker {
+	if a.profiles == nil || len(a.cfg.Admin.Emails) == 0 {
+		return nil
+	}
+	emails := make(map[string]bool, len(a.cfg.Admin.Emails))
+	for _, e := range a.cfg.Admin.Emails {
+		if e = strings.ToLower(strings.TrimSpace(e)); e != "" {
+			emails[e] = true
+		}
+	}
+	return staffList{profiles: a.profiles, emails: emails}
+}
+
+type staffList struct {
+	profiles *profilesservice.Service
+	emails   map[string]bool
+}
+
+func (s staffList) IsStaff(ctx context.Context, userID uuid.UUID) (bool, error) {
+	me, err := s.profiles.Me(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	return me.EmailVerified && s.emails[strings.ToLower(me.Email)], nil
 }
 
 // secretKey decodes a base64 32-byte key from config. Development gets a random

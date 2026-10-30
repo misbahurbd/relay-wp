@@ -63,3 +63,14 @@ func TestWriteError(t *testing.T) {
 		t.Errorf("body = %s", rec.Body.String())
 	}
 }
+
+func TestNotImplementedKeepsItsCode(t *testing.T) {
+	b := newErrorBody(http.StatusInternalServerError, "", []error{apperr.NotImplemented("not_implemented", "Not built yet")})
+
+	if b.GetStatus() != http.StatusNotImplemented || b.Code != "not_implemented" || b.Message != "Not built yet" {
+		t.Errorf("got %d %q %q", b.GetStatus(), b.Code, b.Message)
+	}
+	if b := newErrorBody(http.StatusInternalServerError, "", []error{apperr.BadRequest("invalid_signature", "x")}); b.GetStatus() != http.StatusBadRequest {
+		t.Errorf("bad request status = %d", b.GetStatus())
+	}
+}

@@ -55,10 +55,10 @@ type PermissionsOutput struct {
 }
 
 type SeatsDTO struct {
-	Limit     int32 `json:"limit"`
+	Limit     int32 `json:"limit" doc:"The plan's member cap; -1 when it has none"`
 	Used      int64 `json:"used" doc:"Members whose role uses a seat"`
 	Reserved  int64 `json:"reserved" doc:"Pending invites whose role uses a seat"`
-	Available int64 `json:"available"`
+	Available int64 `json:"available" doc:"-1 when the plan has no member cap"`
 }
 
 type SeatsOutput struct {

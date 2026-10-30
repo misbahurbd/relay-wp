@@ -31,7 +31,7 @@ type WorkspaceDTO struct {
 	Country     *string    `json:"country" doc:"ISO 3166-1 alpha-2"`
 	TeamSize    *string    `json:"team_size" nullable:"true" enum:"just_me,2_5,6_20,20_plus"`
 	Goals       []string   `json:"goals" enum:"marketing,support,sales"`
-	Plan        string     `json:"plan" enum:"growth"`
+	Plan        string     `json:"plan" example:"growth" doc:"The current plan's code; free with no paid plan or trial"`
 	TrialEndsAt *time.Time `json:"trial_ends_at"`
 	ActivatedAt *time.Time `json:"activated_at"`
 }

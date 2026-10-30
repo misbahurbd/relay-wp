@@ -8,6 +8,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	authhandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/auth/handler"
+	billinghandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/handler"
 	contactshandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/contacts/handler"
 	onboardinghandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/onboarding/handler"
 	profileshandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/profiles/handler"
@@ -93,6 +94,9 @@ func (a *App) registerRoutes(api huma.API) {
 	onboardinghandler.Register(api, onboardinghandler.NewHandler(a.onboarding), requireAuth, member, owner, authhandler.Security)
 	whatsapphandler.Register(api, whatsapphandler.NewHandler(a.whatsapp), requireAuth, member, integrations, authhandler.Security)
 	teamhandler.Register(api, teamhandler.NewHandler(a.team), teamhandler.Guards{Auth: requireAuth, Member: member, Can: can}, authhandler.Security)
+	billinghandler.Register(api, billinghandler.NewHandler(a.billing), billinghandler.Guards{
+		Auth: requireAuth, Member: member, Can: can, Staff: middleware.RequireStaff(api, a.staff()),
+	}, authhandler.Security)
 	contactshandler.Register(api, contactshandler.NewHandler(a.contacts), contactshandler.Guards{Auth: requireAuth, Member: member, Can: can}, authhandler.Security)
 	templateshandler.Register(api, templateshandler.NewHandler(a.templates),
 		templateshandler.Guards{Auth: requireAuth, Member: member, Can: can}, authhandler.Security)

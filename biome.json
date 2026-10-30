@@ -11,7 +11,8 @@
       "!apps/api",
       "!**/routeTree.gen.ts",
       "!packages/api-client/src/gen",
-      "!apps/web/src/components/ui"
+      "!apps/web/src/components/ui",
+      "!apps/crm/src/components/ui"
     ]
   },
   "formatter": {
@@ -46,7 +47,12 @@
   },
   "overrides": [
     {
-      "includes": ["apps/web/src/routes/**", "apps/web/src/features/**"],
+      "includes": [
+        "apps/web/src/routes/**",
+        "apps/web/src/features/**",
+        "apps/crm/src/app.tsx",
+        "apps/crm/src/features/**"
+      ],
       "linter": {
         "rules": {
           "style": {

@@ -1,0 +1,12 @@
+{
+  "id": "evt_0aQ9zX8wV7uT6sR5qP4oN3",
+  "eventType": "credits.granted",
+  "created_at": 1750941264812,
+  "object": {
+    "id": "cctx_1bR2cS3dT4eU5fV6gW7hX8",
+    "object": "customer_credit_transaction",
+    "amount_minor_units": "1000",
+    "balance_after_minor_units": "1000",
+    "mode": "test"
+  }
+}

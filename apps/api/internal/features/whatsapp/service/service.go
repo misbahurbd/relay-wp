@@ -55,6 +55,7 @@ type Service struct {
 	graph    *Graph
 	queue    Enqueuer
 	notifier Notifier
+	plans    PlanLimits // nil: no plan number cap
 	// templates hears template status webhooks; nil until SetTemplateStatusSink.
 	templates TemplateStatusSink
 	box       *secretBox
@@ -108,6 +109,15 @@ func (s *Service) Connect(ctx context.Context, workspaceID, userID uuid.UUID, in
 		return model.Number{}, model.ErrInvalidInput.WithDetails(details...)
 	}
 
+	// Checked before the one-time code is spent, and again under the lock below.
+	limit, err := s.numberLimit(ctx, workspaceID)
+	if err != nil {
+		return model.Number{}, err
+	}
+	if err := checkNumberLimit(ctx, s.pool, workspaceID, in.PhoneNumberID, limit); err != nil {
+		return model.Number{}, err
+	}
+
 	token, err := s.graph.ExchangeCode(ctx, in.Code)
 	if err != nil {
 		return model.Number{}, graphErr(err, model.ErrCodeExchange)
@@ -140,6 +150,12 @@ func (s *Service) Connect(ctx context.Context, workspaceID, userID uuid.UUID, in
 	var numberID uuid.UUID
 	err = database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
 		r := repository.NewRepository(tx)
+		if limit >= 0 {
+			// Serialize the workspace's connects so two can't both pass the number cap.
+			if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))", "whatsapp_numbers:"+workspaceID.String()); err != nil {
+				return fmt.Errorf("lock numbers: %w", err)
+			}
+		}
 		if acc, err := r.GetWhatsAppAccountByWABA(ctx, in.WABAID); err == nil && acc.WorkspaceID != workspaceID {
 			return model.ErrAlreadyConnected
 		} else if err != nil && !repository.IsNoRows(err) {
@@ -149,6 +165,9 @@ func (s *Service) Connect(ctx context.Context, workspaceID, userID uuid.UUID, in
 			return model.ErrNumberInUse
 		} else if err != nil && !repository.IsNoRows(err) {
 			return fmt.Errorf("look up number: %w", err)
+		}
+		if err := checkNumberLimit(ctx, tx, workspaceID, in.PhoneNumberID, limit); err != nil {
+			return err
 		}
 
 		newAccountID, err := uuid.NewV7()

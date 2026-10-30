@@ -26,7 +26,9 @@ type Config struct {
 	Storage  Storage
 	Auth     Auth
 	Trial    Trial
+	Admin    Admin
 	WhatsApp WhatsApp
+	Payment  Payment
 }
 
 // Database holds both connection strings. See docs/ARCHITECTURE.md (resource budget).
@@ -108,9 +110,18 @@ type Auth struct {
 	FacebookAppSecret  string `env:"FACEBOOK_APP_SECRET"`
 }
 
+// Admin configures the staff-only admin tools (/v1/admin and the web /admin page).
+type Admin struct {
+	// Emails are the verified accounts allowed in; empty turns the admin tools off.
+	Emails []string `env:"ADMIN_EMAILS" envSeparator:","`
+}
+
 // Trial configures the free trial a new workspace starts with.
 type Trial struct {
-	Days int `env:"TRIAL_DAYS" envDefault:"14"`
+	// Plan is the code of the catalog plan a new workspace trials. Its
+	// trial_days set the length; 0, a card-required trial or no such plan
+	// means new workspaces start on the free plan.
+	Plan string `env:"TRIAL_PLAN" envDefault:"growth"`
 }
 
 // WhatsApp configures the Meta app used for Embedded Signup, the Cloud API and webhooks.
@@ -124,6 +135,22 @@ type WhatsApp struct {
 	WebhookVerifyToken string `env:"META_WEBHOOK_VERIFY_TOKEN"`
 	// TokenEncryptionKey is a base64 32-byte AES-256 key for stored Meta tokens and PINs.
 	TokenEncryptionKey string `env:"TOKEN_ENCRYPTION_KEY"`
+}
+
+// Payment configures payment providers (docs/adr/0006-payment-gateway-registry.md).
+// A listed provider with missing keys fails at startup; one not listed is never offered.
+type Payment struct {
+	// Providers are the enabled providers, e.g. "stripe,creem". In development,
+	// "stripe:fake" registers the in-memory fake under Stripe's name.
+	Providers []string `env:"PAYMENT_PROVIDERS" envSeparator:","`
+
+	StripeSecretKey string `env:"STRIPE_SECRET_KEY"`
+	// StripePublishableKey is safe for the browser (Stripe Elements).
+	StripePublishableKey string `env:"STRIPE_PUBLISHABLE_KEY"`
+	StripeWebhookSecret  string `env:"STRIPE_WEBHOOK_SECRET"`
+
+	CreemAPIKey        string `env:"CREEM_API_KEY"`
+	CreemWebhookSecret string `env:"CREEM_WEBHOOK_SECRET"`
 }
 
 // Storage configures object storage.

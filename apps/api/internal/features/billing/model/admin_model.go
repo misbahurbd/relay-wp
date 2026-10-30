@@ -1,0 +1,130 @@
+package model
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/payment"
+)
+
+// AdminCatalog is the whole catalog for staff, inactive rows included.
+type AdminCatalog struct {
+	Plans []AdminPlan
+	// Providers are the ones this server has enabled.
+	Providers []payment.Provider
+}
+
+// AdminPlan is one plan version with every price it has had.
+type AdminPlan struct {
+	ID                uuid.UUID
+	Code              string
+	Version           int
+	Name              string
+	TrialDays         int
+	TrialRequiresCard bool
+	Limits            Limits
+	IsActive          bool
+	SortOrder         int
+	Prices            []AdminPrice
+}
+
+// AdminPrice is a plan price with how each provider sells it.
+type AdminPrice struct {
+	ID             uuid.UUID
+	BillingType    string
+	Interval       string // empty for one-time prices
+	Currency       string
+	AmountMinor    int64
+	IsActive       bool
+	ProviderPrices []AdminProviderPrice
+	Offers         []AdminOffer
+}
+
+// AdminOffer is an installment offer on a one-time price.
+type AdminOffer struct {
+	ID             uuid.UUID
+	Count          int
+	TotalMinor     int64
+	GraceDays      int
+	MaxMissed      int
+	IsActive       bool
+	ProviderPrices []AdminProviderPrice
+}
+
+// AdminProviderPrice links a price, or one of its offers, to a provider's price or product.
+type AdminProviderPrice struct {
+	ID              uuid.UUID
+	Provider        string
+	ExternalPriceID *string
+	Collection      *string // only for installment offers
+	IsActive        bool
+}
+
+// NewPlan adds a plan. A code already in use publishes its next version.
+type NewPlan struct {
+	Code              string
+	Name              string
+	TrialDays         int
+	TrialRequiresCard bool
+	Limits            Limits
+	SortOrder         int
+}
+
+// NewPrice adds a price to a plan.
+type NewPrice struct {
+	PlanID      uuid.UUID
+	BillingType string
+	Interval    string // required for recurring prices
+	Currency    string
+	AmountMinor int64
+}
+
+// NewInstallmentOffer splits a one-time price into Count monthly payments.
+type NewInstallmentOffer struct {
+	PlanPriceID uuid.UUID
+	Count       int
+	TotalMinor  int64
+	GraceDays   int
+	MaxMissed   int
+}
+
+// NewProviderPrice says how a provider sells a price, or one of its installment offers.
+type NewProviderPrice struct {
+	PlanPriceID        uuid.UUID
+	InstallmentOfferID *uuid.UUID
+	Provider           string
+	ExternalPriceID    *string
+	Collection         *string // required with InstallmentOfferID, never without
+}
+
+// AdminWorkspace is a workspace and the plan it is on, for staff.
+type AdminWorkspace struct {
+	ID          uuid.UUID
+	Name        string
+	OwnerEmail  string
+	Plan        string
+	TrialEndsAt *time.Time
+	CreatedAt   time.Time
+	// Grant is nil on the free plan.
+	Grant *AdminGrant
+}
+
+// AdminGrant is a workspace's current grant.
+type AdminGrant struct {
+	ID       uuid.UUID
+	PlanCode string
+	PlanName string
+	Source   string
+	Status   string
+	EndsAt   *time.Time
+}
+
+// ManualGrantInput puts a workspace on a plan by hand.
+type ManualGrantInput struct {
+	WorkspaceID uuid.UUID
+	PlanID      uuid.UUID
+	EndsAt      *time.Time // nil: until staff ends it
+	Reason      string
+	CreatedBy   uuid.UUID
+}

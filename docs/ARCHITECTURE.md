@@ -8,7 +8,7 @@ This document describes how the project is structured and the rules that keep it
 
 | Area             | Decision                                                                      | Reason                                                           |
 | ---------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| Repo             | Monorepo (`apps/api`, `apps/web`, `packages/*`)                               | API and UI changes land in one PR                                |
+| Repo             | Monorepo (`apps/api`, `apps/web`, `apps/crm`, `packages/*`)                   | API and UI changes land in one PR                                |
 | Backend language | Go 1.27                                                                       | Low memory, high concurrency, single static binary               |
 | HTTP             | `chi` + `huma`                                                                | Standard `net/http`, no lock-in; OpenAPI generated from Go types |
 | Database         | Managed PostgreSQL                                                            | No DB to operate; API box stays small                            |
@@ -44,7 +44,8 @@ This document describes how the project is structured and the rules that keep it
 <repo>/
 ├── apps/
 │   ├── api/                 # Go backend
-│   └── web/                 # TanStack Start frontend
+│   ├── web/                 # TanStack Start frontend
+│   └── crm/                 # staff CRM: Vite SPA on /v1/admin (ADR 0007)
 ├── packages/
 │   └── api-client/          # TS client + types generated from OpenAPI
 ├── deploy/
@@ -90,6 +91,7 @@ apps/api/
 │   │   ├── onboarding/
 │   │   ├── whatsapp/
 │   │   ├── team/              # roles, members, teams, invitations, access log
+│   │   ├── billing/           # plans, checkout, subscriptions, lifetime deals, grants, payment webhooks
 │   │   └── <feature>/         # one Go package per layer
 │   │       ├── handler/       # routes.go + HTTP handlers: decode → service → encode
 │   │       ├── service/       # business rules (no HTTP, no SQL)
@@ -107,6 +109,7 @@ apps/api/
 │   │   ├── logger/            # slog setup
 │   │   ├── queue/             # River client
 │   │   ├── mailer/
+│   │   ├── payment/           # payment gateways (Stripe, Creem, fake), chosen by PAYMENT_PROVIDERS
 │   │   └── storage/           # S3
 │   │
 │   └── shared/
@@ -156,16 +159,17 @@ Imports only go down: `handler → service, dto, model`; `service → repository
 
 #### Use a real factory (pick an implementation by config or key)
 
-| Where                                      | Selected by                           | Implementations                                                                | Built                                             |
-| ------------------------------------------ | ------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------- |
-| `platform/mailer`                          | `MAILER_DRIVER`                       | smtp (Mailpit locally), resend/ses, log (tests)                                | Once at boot                                      |
-| `platform/storage`                         | `STORAGE_DRIVER`                      | s3 (RustFS locally), local disk, memory (tests)                                | Once at boot                                      |
-| `platform/queue`                           | `QUEUE_DRIVER` (not yet)              | river only today, so a plain `New`; becomes a factory when nats/redis is added | Once at boot                                      |
-| `platform/cache`                           | `CACHE_DRIVER`                        | in-memory LRU now; redis when running several instances                        | Once at boot                                      |
-| `platform/logger`                          | `LOG_FORMAT`, `LOG_LEVEL`             | JSON (prod), text (dev)                                                        | Once at boot                                      |
-| `platform/jwt`                             | `kid` in token header                 | current key, previous key (rotation)                                           | Once at boot; lookup is a map read                |
-| Outbound messaging / third-party providers | provider type stored on the workspace | one client per provider                                                        | **Per workspace, cached** (see below)             |
-| Webhook / job handlers                     | event type string                     | one handler per event type                                                     | Registry map filled at boot; lookup is a map read |
+| Where                                                                 | Selected by                             | Implementations                                                                | Built                                             |
+| --------------------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------- |
+| `platform/mailer`                                                     | `MAILER_DRIVER`                         | smtp (Mailpit locally), resend/ses, log (tests)                                | Once at boot                                      |
+| `platform/storage`                                                    | `STORAGE_DRIVER`                        | s3 (RustFS locally), local disk, memory (tests)                                | Once at boot                                      |
+| `platform/queue`                                                      | `QUEUE_DRIVER` (not yet)                | river only today, so a plain `New`; becomes a factory when nats/redis is added | Once at boot                                      |
+| `platform/cache`                                                      | `CACHE_DRIVER`                          | in-memory LRU now; redis when running several instances                        | Once at boot                                      |
+| `platform/logger`                                                     | `LOG_FORMAT`, `LOG_LEVEL`               | JSON (prod), text (dev)                                                        | Once at boot                                      |
+| `platform/jwt`                                                        | `kid` in token header                   | current key, previous key (rotation)                                           | Once at boot; lookup is a map read                |
+| Outbound messaging / third-party providers                            | provider type stored on the workspace   | one client per provider                                                        | **Per workspace, cached** (see below)             |
+| Webhook / job handlers                                                | event type string                       | one handler per event type                                                     | Registry map filled at boot; lookup is a map read |
+| `platform/payment` ([ADR 0006](adr/0006-payment-gateway-registry.md)) | `PAYMENT_PROVIDERS`, then provider name | stripe, creem (paypal, sslcommerz later), fake (tests and local dev)           | Once at boot; lookup is a map read                |
 
 Layout for each factory package:
 

@@ -4,6 +4,7 @@
 //	relay worker                 work background jobs
 //	relay all                    both, in one process (default)
 //	relay migrate up|down|status run database migrations
+//	relay billing discounts ...  manage discount codes
 //	relay openapi                print the OpenAPI spec to stdout
 //	relay keygen                 print a new JWT signing key for .env
 package main
@@ -90,7 +91,9 @@ func run(args []string) error {
 		}
 		defer pool.Close()
 		return database.Migrate(ctx, pool, args[1], os.Stdout)
+	case "billing":
+		return runBilling(ctx, cfg, log, args[1:], os.Stdout)
 	default:
-		return fmt.Errorf("unknown command %q (want api, worker, all, migrate, openapi, keygen)", cmd)
+		return fmt.Errorf("unknown command %q (want api, worker, all, migrate, billing, openapi, keygen)", cmd)
 	}
 }

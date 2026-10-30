@@ -32,7 +32,8 @@ type AccountReader interface {
 // Onboarding keeps setup progress. Implemented by features/onboarding and injected by internal/app.
 type Onboarding interface {
 	// Start creates the progress row (and schedules reminders) in the create-workspace transaction.
-	Start(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID, firstGoal string, sample bool, trialEndsAt time.Time) error
+	// trialEndsAt is nil when the workspace has no trial.
+	Start(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID, firstGoal string, sample bool, trialEndsAt *time.Time) error
 	// MarkBusinessDone records setup step 1 in the same transaction as the details.
 	MarkBusinessDone(ctx context.Context, db database.DBTX, workspaceID uuid.UUID) error
 	// Progress returns the current setup step and whether the dashboard has opened.
@@ -45,9 +46,11 @@ type Team interface {
 	Seed(ctx context.Context, tx pgx.Tx, workspaceID, ownerID uuid.UUID) error
 }
 
-// Config holds workspace settings from the environment.
-type Config struct {
-	TrialDays int
+// Trials starts a new workspace's free trial. Implemented by features/billing and injected by internal/app.
+type Trials interface {
+	// StartWorkspaceTrial starts the trial in the create-workspace transaction
+	// and returns when it ends; nil means the workspace starts with no trial.
+	StartWorkspaceTrial(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID) (*time.Time, error)
 }
 
 // Service manages workspaces and their members.
@@ -56,14 +59,18 @@ type Service struct {
 	accounts   AccountReader
 	onboarding Onboarding
 	team       Team
-	cfg        Config
+	billing    Billing // nil: deletion is never blocked by billing
+	trials     Trials  // nil: new workspaces start with no trial
 	now        func() time.Time
 }
 
+// SetTrials makes new workspaces start the trial billing gives them.
+func (s *Service) SetTrials(t Trials) { s.trials = t }
+
 // New builds the service.
-func New(pool *pgxpool.Pool, accounts AccountReader, onboarding Onboarding, team Team, cfg Config) *Service {
+func New(pool *pgxpool.Pool, accounts AccountReader, onboarding Onboarding, team Team) *Service {
 	return &Service{
-		pool: pool, accounts: accounts, onboarding: onboarding, team: team, cfg: cfg,
+		pool: pool, accounts: accounts, onboarding: onboarding, team: team,
 		now: func() time.Time { return time.Now().UTC() },
 	}
 }
@@ -119,7 +126,6 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, in model.CreateI
 		return model.Summary{}, fmt.Errorf("workspace id: %w", err)
 	}
 	now := s.now()
-	trialEnds := now.AddDate(0, 0, s.cfg.TrialDays)
 	err = database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
 		r := repository.NewRepository(tx)
 		// Serialize a user's creates so two tabs can't both pass the limit check.
@@ -133,11 +139,17 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, in model.CreateI
 		if owned > 0 {
 			return model.ErrLimitReached
 		}
-		if err := r.CreateWorkspace(ctx, gen.CreateWorkspaceParams{ID: id, Name: name, TrialEndsAt: &trialEnds, CreatedBy: &userID}); err != nil {
+		if err := r.CreateWorkspace(ctx, gen.CreateWorkspaceParams{ID: id, Name: name, CreatedBy: &userID}); err != nil {
 			return fmt.Errorf("create workspace: %w", err)
 		}
 		if err := s.team.Seed(ctx, tx, id, userID); err != nil {
 			return fmt.Errorf("seed team: %w", err)
+		}
+		var trialEnds *time.Time
+		if s.trials != nil {
+			if trialEnds, err = s.trials.StartWorkspaceTrial(ctx, tx, id); err != nil {
+				return fmt.Errorf("start trial: %w", err)
+			}
 		}
 		return s.onboarding.Start(ctx, tx, id, in.FirstGoal, in.StartMode == model.StartSample, trialEnds)
 	})

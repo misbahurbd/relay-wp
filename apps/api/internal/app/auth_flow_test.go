@@ -47,6 +47,11 @@ type authEnv struct {
 func newAuthEnv(t *testing.T) *authEnv {
 	t.Helper()
 	pool := dbtest.New(t)
+	// The plan new workspaces trial (TRIAL_PLAN): 14 days, no card, no caps.
+	if _, err := pool.Exec(t.Context(), `INSERT INTO plans (code, name, trial_days) VALUES ('growth', 'Growth', 14)
+		ON CONFLICT (code, version) DO NOTHING`); err != nil {
+		t.Fatal(err)
+	}
 	seed, _, err := jwt.GenerateKey()
 	if err != nil {
 		t.Fatal(err)
@@ -71,7 +76,7 @@ func newAuthEnv(t *testing.T) *authEnv {
 				APIBaseURL: testAPI, AllowedRedirects: []string{testAppRedirect}, ReauthMaxAge: 10 * time.Minute,
 				EmailCodeKey: base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{7}, 32)), TermsVersion: "test",
 			},
-			Trial:    config.Trial{Days: 14},
+			Trial:    config.Trial{Plan: "growth"},
 			WhatsApp: testWhatsAppConfig(),
 		},
 		log: slog.Default(), db: pool, queue: q, oauth: fake.config(), graphURL: graph.srv.URL,
@@ -96,6 +101,8 @@ type browser struct {
 	device  string // X-Device-Name, as the mobile app sends it
 	// workspace is sent as X-Workspace-ID when set.
 	workspace string
+	// idempotency is sent as Idempotency-Key when set.
+	idempotency string
 }
 
 func (e *authEnv) browser(ua string) *browser {
@@ -140,6 +147,9 @@ func (b *browser) do(method, path string, body any) resp {
 	}
 	if b.workspace != "" {
 		req.Header.Set("X-Workspace-ID", b.workspace)
+	}
+	if b.idempotency != "" {
+		req.Header.Set("Idempotency-Key", b.idempotency)
 	}
 	for _, c := range b.cookies {
 		if strings.HasPrefix(path, c.Path) {

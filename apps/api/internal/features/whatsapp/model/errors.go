@@ -10,6 +10,7 @@ var (
 	ErrMetaUnavailable  = apperr.Unavailable("whatsapp_unavailable", "Meta isn't answering right now. Try again in a minute.")
 	ErrAlreadyConnected = apperr.Conflict("whatsapp_already_connected", "This WhatsApp Business account is connected to another workspace.")
 	ErrNumberInUse      = apperr.Conflict("whatsapp_number_in_use", "This number is connected to another workspace.")
+	ErrNumberLimit      = apperr.Conflict("plan_number_limit", "Your plan's WhatsApp number limit is reached. Upgrade your plan to connect another number.")
 	ErrNumberNotFound   = apperr.NotFound("whatsapp_number_not_found", "WhatsApp number not found")
 	ErrMessageNotFound  = apperr.NotFound("test_message_not_found", "Message not found")
 	ErrNotConnected     = apperr.Conflict("whatsapp_not_connected", "Your number is still being set up.")

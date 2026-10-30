@@ -154,7 +154,7 @@ func (s *Service) ChangeMemberRole(ctx context.Context, actor authctx.Access, me
 			if err != nil {
 				return err
 			}
-			if seats.Available < 1 {
+			if seats.Limit >= 0 && seats.Available < 1 {
 				return model.ErrNotEnoughSeats
 			}
 		}

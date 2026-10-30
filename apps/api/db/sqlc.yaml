@@ -9,6 +9,7 @@ sql:
       - ../internal/features/onboarding/repository/
       - ../internal/features/whatsapp/repository/
       - ../internal/features/team/repository/
+      - ../internal/features/billing/repository/
       - ../internal/features/contacts/repository/
       - ../internal/features/templates/repository/
     gen:

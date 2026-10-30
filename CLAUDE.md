@@ -32,6 +32,8 @@ Never create a new top-level folder, a new folder under `apps/*/` or `internal/`
 | Frontend page / layout / loader / guard                                     | `apps/web/src/routes/`                                                                           |
 | Frontend domain code                                                        | `apps/web/src/features/<feature>/{api,components,hooks,schemas,server}/`, `types.ts`, `index.ts` |
 | shadcn primitives                                                           | `apps/web/src/components/ui/` (add with the shadcn CLI)                                          |
+| Staff CRM page or domain code ([ADR 0007](docs/adr/0007-staff-crm-app.md))  | `apps/crm/src/features/<feature>/`, same layout as web features; shell in `apps/crm/src/app.tsx` |
+| CRM shadcn primitives                                                       | `apps/crm/src/components/ui/` (copied from web; never imported across apps)                      |
 | App shell (sidebar, topbar)                                                 | `apps/web/src/components/layout/`                                                                |
 | Generic React hook used by 2+ features                                      | `apps/web/src/hooks/`                                                                            |
 | Client setup (API client, query client, env)                                | `apps/web/src/lib/`                                                                              |
@@ -82,6 +84,7 @@ features/<feature>/
 - A component moves to `components/` only when 2+ features use it.
 - Never hand-write API types or fetch calls; use `@relay/api-client`.
 - Each feature owns its query keys; mutations invalidate through them.
+- Staff-only tools live in `apps/crm`, never in `apps/web`, and call only `/v1/admin` routes (plus sign-in and `/v1/me`). `apps/web` and `apps/crm` never import each other.
 - **No workspace ID in page URLs or link params.** Pages under `routes/_app/_workspace/` read `context.workspaceId`; switch workspaces with `selectWorkspace(id)`. Workspace API calls pass `headers: inWorkspace(workspaceId)` (`#/lib/api`) per call, never as a client-wide default.
 
 ### Frontend feature layout ([ADR 0004](docs/adr/0004-web-feature-file-layout.md))
@@ -131,6 +134,7 @@ If any answer is no, write a plain constructor.
 | Webhook / job handler registry                                                                         | event type                                     | Map filled at startup                               |
 | Per-workspace external clients (e.g. messaging providers)                                              | provider + credentials stored on the workspace | Per workspace, **cached**                           |
 | `features/auth` OAuth provider registry ([ADR 0001](docs/adr/0001-oauth-provider-registry.md))         | `{provider}` path value; only configured ones  | Built once at startup                               |
+| `platform/payment` gateway registry ([ADR 0006](docs/adr/0006-payment-gateway-registry.md))            | `PAYMENT_PROVIDERS`, then the provider name    | Built once at startup                               |
 
 Adding a factory that is not in this table requires an ADR in `docs/adr/` **and** a new row here. Ask the user first.
 

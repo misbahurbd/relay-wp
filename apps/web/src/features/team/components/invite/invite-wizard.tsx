@@ -90,7 +90,8 @@ export function InviteWizard({ workspaceId }: { workspaceId: string }) {
   const adding = role?.uses_seat ? emails.length : 0
   const after = taken + adding
   const limit = seats.data.limit
-  const over = Math.max(0, after - limit)
+  // A negative limit: the plan has no member cap.
+  const over = limit < 0 ? 0 : Math.max(0, after - limit)
 
   function next() {
     setError(undefined)
@@ -574,10 +575,13 @@ function PeopleStep({
 
   const taken = seats.used + seats.reserved
   const after = taken + adding
-  const over = after - seats.limit
-  const tone = over > 0 ? 'red' : after === seats.limit ? 'amber' : 'green'
-  const title =
-    over > 0
+  // A negative limit: the plan has no member cap, so there is no meter.
+  const unlimited = seats.limit < 0
+  const over = unlimited ? 0 : after - seats.limit
+  const tone = over > 0 ? 'red' : !unlimited && after === seats.limit ? 'amber' : 'green'
+  const title = unlimited
+    ? 'No seat limit on your plan'
+    : over > 0
       ? `${over} over your seat limit`
       : after === seats.limit
         ? 'This fills your last seats'
@@ -687,11 +691,13 @@ function PeopleStep({
           >
             {title}
           </span>
-          <span className="text-[13px] text-muted-foreground">
-            {seats.limit} seats on your plan
-          </span>
+          {!unlimited && (
+            <span className="text-[13px] text-muted-foreground">
+              {seats.limit} seats on your plan
+            </span>
+          )}
         </div>
-        {cells <= 30 ? (
+        {unlimited ? null : cells <= 30 ? (
           <div
             aria-hidden="true"
             className="grid gap-1"
@@ -723,7 +729,8 @@ function PeopleStep({
           </div>
         )}
         <span className="text-[13px]">
-          {taken} used + {adding} new = {after} of {seats.limit} seats.
+          {taken} used + {adding} new = {after}
+          {unlimited ? ' seats.' : ` of ${seats.limit} seats.`}
         </span>
         <span className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">
           <InfoIcon className="size-4" aria-hidden="true" />
@@ -967,14 +974,14 @@ function Summary({
           <dd
             className={cn(
               'font-bold',
-              after > limit
+              limit >= 0 && after > limit
                 ? 'text-destructive'
                 : after === limit
                   ? 'text-warning'
                   : 'text-foreground',
             )}
           >
-            {after} of {limit}
+            {limit < 0 ? after : `${after} of ${limit}`}
           </dd>
         </div>
       </dl>

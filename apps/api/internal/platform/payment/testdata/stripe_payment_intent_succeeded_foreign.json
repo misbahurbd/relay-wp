@@ -1,0 +1,19 @@
+{
+  "id": "evt_pi_foreign",
+  "object": "event",
+  "api_version": "2026-09-30.endive",
+  "created": 1761696000,
+  "type": "payment_intent.succeeded",
+  "data": {
+    "object": {
+      "id": "pi_invoice_1",
+      "object": "payment_intent",
+      "amount": 2900,
+      "amount_received": 2900,
+      "currency": "usd",
+      "customer": "cus_1",
+      "status": "succeeded",
+      "metadata": {}
+    }
+  }
+}

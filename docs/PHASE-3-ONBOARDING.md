@@ -198,7 +198,7 @@ Index `(user_id, purpose) WHERE used_at IS NULL`. A new code invalidates the use
 | `team_size`                | text, nullable                   | CHECK                                     |
 | `goals`                    | text[], NOT NULL, default `{}`   | Subset of `marketing`, `support`, `sales` |
 | `plan`                     | text, NOT NULL, default `growth` | Billing takes this over in Phase 6        |
-| `trial_ends_at`            | timestamptz, nullable            | created + `TRIAL_DAYS`                    |
+| `trial_ends_at`            | timestamptz, nullable            | set by billing from the trial grant       |
 | `activated_at`             | timestamptz, nullable            | Section 5                                 |
 | `created_by`               | uuid, FK → users, SET NULL       |                                           |
 | `created_at`, `updated_at` | timestamptz                      |                                           |
@@ -438,16 +438,16 @@ CLAUDE.md's secrets rule gains: `email_codes.code_hash`, `whatsapp_accounts.acce
 
 ## 8. Configuration (new environment variables)
 
-| Variable                         | Example          | Notes                                                                    |
-| -------------------------------- | ---------------- | ------------------------------------------------------------------------ |
-| `EMAIL_CODE_KEY`                 | base64, 32 bytes | HMAC key for verification codes                                          |
-| `TERMS_VERSION`                  | `2026-10`        | Stored at sign-up                                                        |
-| `TRIAL_DAYS`                     | `14`             |                                                                          |
-| `META_APP_ID`, `META_APP_SECRET` |                  | The Meta app with WhatsApp; may be the Facebook Login app (question 11)  |
-| `META_ES_CONFIG_ID`              |                  | Embedded Signup configuration ID                                         |
-| `META_GRAPH_VERSION`             | `v24.0`          | Pinned                                                                   |
-| `META_WEBHOOK_VERIFY_TOKEN`      |                  | For the GET handshake                                                    |
-| `WHATSAPP_ENABLED`               | `false` locally  | Off: the WhatsApp routes return 404 and setup step 2 can only be skipped |
+| Variable                         | Example          | Notes                                                                        |
+| -------------------------------- | ---------------- | ---------------------------------------------------------------------------- |
+| `EMAIL_CODE_KEY`                 | base64, 32 bytes | HMAC key for verification codes                                              |
+| `TERMS_VERSION`                  | `2026-10`        | Stored at sign-up                                                            |
+| `TRIAL_PLAN`                     | `growth`         | Catalog plan new workspaces trial; its `trial_days` set the length (Phase 6) |
+| `META_APP_ID`, `META_APP_SECRET` |                  | The Meta app with WhatsApp; may be the Facebook Login app (question 11)      |
+| `META_ES_CONFIG_ID`              |                  | Embedded Signup configuration ID                                             |
+| `META_GRAPH_VERSION`             | `v24.0`          | Pinned                                                                       |
+| `META_WEBHOOK_VERIFY_TOKEN`      |                  | For the GET handshake                                                        |
+| `WHATSAPP_ENABLED`               | `false` locally  | Off: the WhatsApp routes return 404 and setup step 2 can only be skipped     |
 
 `TOKEN_ENCRYPTION_KEY` (Phase 2) also encrypts the WABA token and PIN.
 

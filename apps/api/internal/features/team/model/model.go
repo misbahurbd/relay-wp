@@ -73,7 +73,8 @@ type Permission struct {
 	Sensitive bool
 }
 
-// Seats is how many seats the plan has and how they're used.
+// Seats is how many seats the plan has and how they're used. Limit and
+// Available are -1 on a plan with no member cap.
 type Seats struct {
 	Limit     int32
 	Used      int64
