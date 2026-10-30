@@ -225,6 +225,22 @@ func (q *Queries) GetAccountToken(ctx context.Context, arg GetAccountTokenParams
 	return i, err
 }
 
+const getActiveAccountID = `-- name: GetActiveAccountID :one
+SELECT id
+FROM whatsapp_accounts
+WHERE workspace_id = $1 AND status = 'active'
+ORDER BY created_at DESC, id DESC
+LIMIT 1
+`
+
+// The workspace's WABA that template calls use (one active account per workspace today).
+func (q *Queries) GetActiveAccountID(ctx context.Context, workspaceID uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, getActiveAccountID, workspaceID)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getMemberState = `-- name: GetMemberState :one
 SELECT tour_seen_at, checklist_hidden_at
 FROM onboarding_member_state

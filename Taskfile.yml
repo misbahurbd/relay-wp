@@ -138,7 +138,7 @@ tasks:
     cmds:
       # sqlc errors when there are no queries; skip until the first feature adds one.
       - |
-        if ls internal/features/*/queries.sql >/dev/null 2>&1; then
+        if ls internal/features/*/repository/*.sql >/dev/null 2>&1; then
           sqlc generate -f db/sqlc.yaml
         else
           echo "gen:sqlc: no queries yet, skipping"

@@ -21,9 +21,11 @@ import (
 
 	authhandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/auth/handler"
 	authservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/auth/service"
+	contactsservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/contacts/service"
 	onboardingservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/onboarding/service"
 	profilesservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/profiles/service"
 	teamservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/team/service"
+	templatesservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/templates/service"
 	whatsappservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/whatsapp/service"
 	workspacesservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/workspaces/service"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/config"
@@ -69,6 +71,8 @@ type App struct {
 	whatsapp   *whatsappservice.Service
 	team       *teamservice.Service
 	access     *teamservice.Resolver
+	contacts   *contactsservice.Service
+	templates  *templatesservice.Service
 
 	// oauth overrides the provider config built from cfg; tests point it at a fake provider.
 	oauth *authservice.ProvidersConfig
@@ -129,10 +133,14 @@ func (a *App) buildFeatures() (err error) {
 		onboardingservice.Config{AppBaseURL: a.cfg.AppBaseURL})
 	a.team = teamservice.New(a.db, a.directory, a.accounts, a.queue, teamservice.Config{AppBaseURL: a.cfg.AppBaseURL})
 	a.access = teamservice.NewResolver(a.db)
+	a.contacts = contactsservice.New(a.db, a.storage, a.queue, a.access)
 	a.workspaces = workspacesservice.New(a.db, a.accounts, a.onboarding, a.team, workspacesservice.Config{TrialDays: a.cfg.Trial.Days})
 	if err := a.buildWhatsApp(); err != nil {
 		return err
 	}
+	// Templates reach Meta through whatsapp, and hear its status webhooks (AD-9).
+	a.templates = templatesservice.New(a.db, metaTemplates{wa: a.whatsapp}, a.storage)
+	a.whatsapp.SetTemplateStatusSink(a.templates)
 	if a.mode == ModeWorker {
 		return nil
 	}

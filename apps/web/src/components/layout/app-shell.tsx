@@ -49,15 +49,15 @@ type NavItem = {
   label: string
   icon: typeof InboxIcon
   /** Built sections link somewhere; the rest show "Soon". */
-  to?: '/' | '/team'
+  to?: '/' | '/contacts' | '/templates' | '/team'
 }
 
 const NAV: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboardIcon, to: '/' },
   { id: 'inbox', label: 'Inbox', icon: InboxIcon },
-  { id: 'contacts', label: 'Contacts', icon: ContactIcon },
+  { id: 'contacts', label: 'Contacts', icon: ContactIcon, to: '/contacts' },
   { id: 'broadcasts', label: 'Broadcasts', icon: MegaphoneIcon },
-  { id: 'templates', label: 'Templates', icon: FileTextIcon },
+  { id: 'templates', label: 'Templates', icon: FileTextIcon, to: '/templates' },
   { id: 'chatbots', label: 'Chatbots', icon: BotIcon },
   { id: 'automations', label: 'Automations', icon: WorkflowIcon },
   { id: 'integrations', label: 'Integrations', icon: PlugIcon },

@@ -74,6 +74,85 @@
         ],
         "type": "object"
       },
+      "AuthDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "autofill_text": {
+            "description": "The one-tap autofill button's text",
+            "type": "string"
+          },
+          "button_text": {
+            "description": "The copy code button's text",
+            "type": "string"
+          },
+          "code_expiry_minutes": {
+            "description": "Adds \"This code expires in N minutes.\" as the footer; 0 means none",
+            "format": "int64",
+            "type": "integer"
+          },
+          "otp_type": {
+            "description": "copy_code or one_tap; empty for other categories",
+            "type": "string"
+          },
+          "package_name": {
+            "description": "Android package name, for one-tap autofill",
+            "type": "string"
+          },
+          "security_recommendation": {
+            "description": "Adds \"For your security, do not share this code.\" to the body",
+            "type": "boolean"
+          },
+          "signature_hash": {
+            "description": "Android app signing key hash, for one-tap autofill",
+            "type": "string"
+          }
+        },
+        "required": [
+          "security_recommendation",
+          "code_expiry_minutes",
+          "otp_type",
+          "button_text",
+          "autofill_text",
+          "package_name",
+          "signature_hash"
+        ],
+        "type": "object"
+      },
+      "AuthInput": {
+        "additionalProperties": false,
+        "properties": {
+          "autofill_text": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "button_text": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "code_expiry_minutes": {
+            "description": "1 to 90; 0 or absent means no expiry footer",
+            "format": "int64",
+            "type": "integer"
+          },
+          "otp_type": {
+            "description": "copy_code (default) or one_tap",
+            "maxLength": 20,
+            "type": "string"
+          },
+          "package_name": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "security_recommendation": {
+            "type": "boolean"
+          },
+          "signature_hash": {
+            "maxLength": 100,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "AvailabilityInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -88,6 +167,102 @@
         },
         "required": [
           "availability"
+        ],
+        "type": "object"
+      },
+      "BodyDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "examples": {
+            "description": "One example per variable, in order",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "text": {
+            "description": "Message text with {{1}}..{{N}} variables, at most 1024 characters",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "examples"
+        ],
+        "type": "object"
+      },
+      "BodyInput": {
+        "additionalProperties": false,
+        "properties": {
+          "examples": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "text": {
+            "maxLength": 4096,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "BulkInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "description": "delete needs contacts.delete; the others contacts.edit",
+            "enum": [
+              "add_tag",
+              "remove_tag",
+              "assign",
+              "delete"
+            ],
+            "type": "string"
+          },
+          "contact_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "tag_id": {
+            "description": "For add_tag and remove_tag",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "For assign; omit to unassign",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "contact_ids"
+        ],
+        "type": "object"
+      },
+      "BulkOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "affected": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "affected"
         ],
         "type": "object"
       },
@@ -152,6 +327,51 @@
           "team_size",
           "goals"
         ],
+        "type": "object"
+      },
+      "ButtonDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "quick_reply",
+              "url",
+              "phone"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "description": "The https:// link or the E.164 phone number; empty for a quick reply",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "text",
+          "value"
+        ],
+        "type": "object"
+      },
+      "ButtonInput": {
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "type": {
+            "description": "quick_reply, url or phone",
+            "maxLength": 20,
+            "type": "string"
+          },
+          "value": {
+            "maxLength": 2000,
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "ChangeDTO": {
@@ -241,6 +461,100 @@
         ],
         "type": "object"
       },
+      "ColumnMappingDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "attribute_key": {
+            "description": "Custom field name for attribute; defaults to the column name",
+            "maxLength": 64,
+            "type": "string"
+          },
+          "field": {
+            "enum": [
+              "name",
+              "phone",
+              "email",
+              "tag",
+              "attribute",
+              "skip"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "description": "The file's column name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "field"
+        ],
+        "type": "object"
+      },
+      "ComponentsDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "auth": {
+            "$ref": "#/components/schemas/AuthDTO",
+            "description": "Authentication template options; Meta writes the body, footer and button from them"
+          },
+          "body": {
+            "$ref": "#/components/schemas/BodyDTO"
+          },
+          "buttons": {
+            "items": {
+              "$ref": "#/components/schemas/ButtonDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "footer": {
+            "$ref": "#/components/schemas/FooterDTO"
+          },
+          "header": {
+            "$ref": "#/components/schemas/HeaderDTO"
+          }
+        },
+        "required": [
+          "header",
+          "body",
+          "footer",
+          "buttons",
+          "auth"
+        ],
+        "type": "object"
+      },
+      "ComponentsInput": {
+        "additionalProperties": false,
+        "properties": {
+          "auth": {
+            "$ref": "#/components/schemas/AuthInput",
+            "description": "Only for authentication templates, whose header, body, footer and buttons are ignored"
+          },
+          "body": {
+            "$ref": "#/components/schemas/BodyInput"
+          },
+          "buttons": {
+            "items": {
+              "$ref": "#/components/schemas/ButtonInput"
+            },
+            "maxItems": 20,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "footer": {
+            "$ref": "#/components/schemas/FooterInput"
+          },
+          "header": {
+            "$ref": "#/components/schemas/HeaderInput"
+          }
+        },
+        "type": "object"
+      },
       "ConnectInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -277,6 +591,331 @@
         ],
         "type": "object"
       },
+      "ContactDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "assigned_to": {
+            "$ref": "#/components/schemas/PersonDTO"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_message_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "opt_in": {
+            "enum": [
+              "in",
+              "out",
+              "pending"
+            ],
+            "type": "string"
+          },
+          "phone": {
+            "description": "E.164, for example +447700900412",
+            "examples": [
+              "+447700900412"
+            ],
+            "type": "string"
+          },
+          "phone_display": {
+            "description": "International format for display",
+            "examples": [
+              "+44 7700 900412"
+            ],
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "manual",
+              "import",
+              "inbox",
+              "api"
+            ],
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/TagRefDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "phone",
+          "phone_display",
+          "email",
+          "opt_in",
+          "source",
+          "language",
+          "assigned_to",
+          "last_message_at",
+          "created_at",
+          "updated_at",
+          "tags"
+        ],
+        "type": "object"
+      },
+      "ContactDetailDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "assigned_to": {
+            "$ref": "#/components/schemas/PersonDTO"
+          },
+          "attributes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Custom fields; string values only",
+            "type": "object"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_message_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "opt_in": {
+            "enum": [
+              "in",
+              "out",
+              "pending"
+            ],
+            "type": "string"
+          },
+          "opt_in_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "opt_in_source": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phone": {
+            "description": "E.164, for example +447700900412",
+            "examples": [
+              "+447700900412"
+            ],
+            "type": "string"
+          },
+          "phone_display": {
+            "description": "International format for display",
+            "examples": [
+              "+44 7700 900412"
+            ],
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "manual",
+              "import",
+              "inbox",
+              "api"
+            ],
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/TagRefDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "opt_in_source",
+          "opt_in_at",
+          "attributes",
+          "id",
+          "name",
+          "phone",
+          "phone_display",
+          "email",
+          "opt_in",
+          "source",
+          "language",
+          "assigned_to",
+          "last_message_at",
+          "created_at",
+          "updated_at",
+          "tags"
+        ],
+        "type": "object"
+      },
+      "ContactsOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ContactDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "total": {
+            "description": "Contacts matching the filter",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor",
+          "total"
+        ],
+        "type": "object"
+      },
+      "CountsDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "all": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "approved": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "pending": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "rejected": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "all",
+          "approved",
+          "pending",
+          "rejected"
+        ],
+        "type": "object"
+      },
+      "CreateContactInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "attributes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "email": {
+            "type": "string"
+          },
+          "language": {
+            "maxLength": 35,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "opt_in": {
+            "description": "Defaults to pending",
+            "enum": [
+              "in",
+              "out",
+              "pending"
+            ],
+            "type": "string"
+          },
+          "phone": {
+            "description": "With country code; stored as E.164",
+            "type": "string"
+          },
+          "tag_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "phone"
+        ],
+        "type": "object"
+      },
       "CreateInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -306,6 +945,49 @@
           "name",
           "first_goal",
           "start_mode"
+        ],
+        "type": "object"
+      },
+      "CreateInputBody1": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "description": "marketing, utility or authentication",
+            "maxLength": 20,
+            "type": "string"
+          },
+          "components": {
+            "$ref": "#/components/schemas/ComponentsInput"
+          },
+          "language": {
+            "description": "en_US, en_GB, es, pt_BR, hi, bn or ar",
+            "maxLength": 15,
+            "type": "string"
+          },
+          "name": {
+            "description": "Lowercase letters, numbers and underscores",
+            "maxLength": 1024,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "language",
+          "category"
+        ],
+        "type": "object"
+      },
+      "CreateTagInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 50,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
         ],
         "type": "object"
       },
@@ -469,6 +1151,76 @@
         ],
         "type": "object"
       },
+      "FooterDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "type": "object"
+      },
+      "FooterInput": {
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "maxLength": 1000,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "HeaderDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "example": {
+            "description": "Example value for the text header's {{1}}",
+            "type": "string"
+          },
+          "text": {
+            "description": "Text header, at most 60 characters and one {{1}} variable",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "none",
+              "text",
+              "image",
+              "video",
+              "document"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "text",
+          "example"
+        ],
+        "type": "object"
+      },
+      "HeaderInput": {
+        "additionalProperties": false,
+        "properties": {
+          "example": {
+            "maxLength": 1000,
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 1000,
+            "type": "string"
+          },
+          "type": {
+            "description": "none, text, image, video or document",
+            "maxLength": 20,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "IdentitiesOutputBody": {
         "additionalProperties": false,
         "properties": {
@@ -518,6 +1270,101 @@
         "required": [
           "provider",
           "last_used_at",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "ImportColumnDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "guess": {
+            "enum": [
+              "name",
+              "phone",
+              "email",
+              "tag",
+              "attribute",
+              "skip"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "samples": {
+            "description": "Up to 3 values from the column",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "samples",
+          "guess"
+        ],
+        "type": "object"
+      },
+      "ImportDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "created": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "has_skipped_file": {
+            "description": "The skipped rows can be downloaded",
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "row_count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "skipped": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "uploaded",
+              "mapped",
+              "importing",
+              "done",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "updated": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "file_name",
+          "row_count",
+          "status",
+          "created",
+          "updated",
+          "skipped",
+          "has_skipped_file",
           "created_at"
         ],
         "type": "object"
@@ -775,6 +1622,36 @@
         ],
         "type": "object"
       },
+      "ListOutputBody1": {
+        "additionalProperties": false,
+        "properties": {
+          "counts": {
+            "$ref": "#/components/schemas/CountsDTO",
+            "description": "Status tab counts for the same category and search"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TemplateDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor",
+          "counts"
+        ],
+        "type": "object"
+      },
       "LogDTO": {
         "additionalProperties": false,
         "properties": {
@@ -972,6 +1849,33 @@
         "required": [
           "email",
           "password"
+        ],
+        "type": "object"
+      },
+      "MappingInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/ColumnMappingDTO"
+            },
+            "minItems": 1,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "opt_in_confirmed": {
+            "description": "Must be true: these contacts agreed to get messages",
+            "type": "boolean"
+          },
+          "tag_name": {
+            "description": "A tag for every imported contact",
+            "type": "string"
+          }
+        },
+        "required": [
+          "columns"
         ],
         "type": "object"
       },
@@ -1763,6 +2667,22 @@
         ],
         "type": "object"
       },
+      "PersonDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
       "PreferencesDTO": {
         "additionalProperties": false,
         "properties": {
@@ -1875,6 +2795,86 @@
           "permissions",
           "team_names",
           "number_labels"
+        ],
+        "type": "object"
+      },
+      "PreviewOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "invalid": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "ready": {
+            "description": "New contacts",
+            "format": "int64",
+            "type": "integer"
+          },
+          "rows_found": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "sample": {
+            "description": "The first 10 rows",
+            "items": {
+              "$ref": "#/components/schemas/PreviewRowDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "updates": {
+            "description": "Rows whose phone is already a contact",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows_found",
+          "ready",
+          "updates",
+          "invalid",
+          "sample"
+        ],
+        "type": "object"
+      },
+      "PreviewRowDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why the row is invalid",
+            "type": "string"
+          },
+          "row": {
+            "description": "1-based data row; the header isn't counted",
+            "format": "int64",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "new",
+              "update",
+              "invalid"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "row",
+          "name",
+          "phone",
+          "email",
+          "status"
         ],
         "type": "object"
       },
@@ -2136,6 +3136,30 @@
         },
         "required": [
           "roles"
+        ],
+        "type": "object"
+      },
+      "SampleDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "content_type": {
+            "enum": [
+              "image/jpeg",
+              "image/png",
+              "video/mp4",
+              "application/pdf"
+            ],
+            "type": "string"
+          },
+          "size": {
+            "description": "Bytes",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "content_type",
+          "size"
         ],
         "type": "object"
       },
@@ -2509,6 +3533,24 @@
         ],
         "type": "object"
       },
+      "SummaryOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "opted_in": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "total": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "opted_in"
+        ],
+        "type": "object"
+      },
       "SuspendInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -2517,6 +3559,57 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "SyncOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "synced": {
+            "description": "Templates pulled from Meta and saved",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "synced"
+        ],
+        "type": "object"
+      },
+      "TagDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "contact_count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "contact_count"
+        ],
+        "type": "object"
+      },
+      "TagRefDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
         "type": "object"
       },
       "TeamBody": {
@@ -2652,6 +3745,116 @@
         ],
         "type": "object"
       },
+      "TemplateDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "enum": [
+              "marketing",
+              "utility",
+              "authentication"
+            ],
+            "type": "string"
+          },
+          "components": {
+            "$ref": "#/components/schemas/ComponentsDTO"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "created_by": {
+            "description": "Null for templates synced from Meta",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "header_sample": {
+            "$ref": "#/components/schemas/SampleDTO",
+            "description": "The uploaded media header sample; absent until one is uploaded"
+          },
+          "id": {
+            "type": "string"
+          },
+          "language": {
+            "description": "Meta's language code; synced templates may use others",
+            "enum": [
+              "en_US",
+              "en_GB",
+              "es",
+              "pt_BR",
+              "hi",
+              "bn",
+              "ar"
+            ],
+            "type": "string"
+          },
+          "meta_template_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "rejected_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "pending",
+              "approved",
+              "rejected",
+              "paused",
+              "disabled"
+            ],
+            "type": "string"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "warnings": {
+            "description": "Problems Meta may reject the template for; they don't block saving",
+            "items": {
+              "$ref": "#/components/schemas/WarningDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "language",
+          "category",
+          "status",
+          "meta_template_id",
+          "rejected_reason",
+          "components",
+          "submitted_at",
+          "created_by",
+          "created_at",
+          "updated_at",
+          "warnings"
+        ],
+        "type": "object"
+      },
       "TestMessageOutputBody": {
         "additionalProperties": false,
         "properties": {
@@ -2736,6 +3939,75 @@
         ],
         "type": "object"
       },
+      "UpdateContactInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "attributes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Replaces every custom field; omit to keep",
+            "type": "object"
+          },
+          "email": {
+            "description": "\"\" clears it",
+            "type": "string"
+          },
+          "language": {
+            "description": "\"\" clears it",
+            "maxLength": 35,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "opt_in": {
+            "enum": [
+              "in",
+              "out",
+              "pending"
+            ],
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "tag_ids": {
+            "description": "Replaces the contact's tags; omit to keep",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "UpdateInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "maxLength": 20,
+            "type": "string"
+          },
+          "components": {
+            "$ref": "#/components/schemas/ComponentsInput",
+            "description": "Replaces all components"
+          },
+          "language": {
+            "maxLength": 15,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 1024,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "UpdatePreferencesInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -2768,6 +4040,37 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "UploadOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/ImportColumnDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "row_count": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "file_name",
+          "row_count",
+          "columns"
+        ],
         "type": "object"
       },
       "UserDTO": {
@@ -2846,6 +4149,30 @@
         },
         "required": [
           "token"
+        ],
+        "type": "object"
+      },
+      "WarningDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "enum": [
+              "short_link"
+            ],
+            "type": "string"
+          },
+          "field": {
+            "description": "Where the problem is, e.g. buttons[0].value",
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "field",
+          "message"
         ],
         "type": "object"
       },
@@ -5385,6 +6712,1073 @@
         ]
       }
     },
+    "/v1/workspace/contact-tags": {
+      "get": {
+        "operationId": "list-contact-tags",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TagDTO"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Contact tags with how many contacts carry each",
+        "tags": [
+          "contacts"
+        ]
+      },
+      "post": {
+        "operationId": "create-contact-tag",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTagInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagDTO"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Create a tag, or get the one with this name",
+        "tags": [
+          "contacts"
+        ]
+      }
+    },
+    "/v1/workspace/contacts": {
+      "get": {
+        "operationId": "list-contacts",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Name, phone or email contains this (case-insensitive)",
+            "explode": false,
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "description": "Name, phone or email contains this (case-insensitive)",
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "opt_in",
+            "schema": {
+              "enum": [
+                "in",
+                "out",
+                "pending"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "tag_id",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last message within 24h/7d/30d, or over 90 days ago",
+            "explode": false,
+            "in": "query",
+            "name": "last_message",
+            "schema": {
+              "description": "Last message within 24h/7d/30d, or over 90 days ago",
+              "enum": [
+                "24h",
+                "7d",
+                "30d",
+                "over_90d"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 25,
+              "format": "int32",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "next_cursor from the previous page",
+            "explode": false,
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "description": "next_cursor from the previous page",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactsOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Contacts, newest first, with the total for the filter",
+        "tags": [
+          "contacts"
+        ]
+      },
+      "post": {
+        "operationId": "create-contact",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateContactInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactDetailDTO"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Add a contact",
+        "tags": [
+          "contacts"
+        ]
+      }
+    },
+    "/v1/workspace/contacts/bulk": {
+      "post": {
+        "operationId": "bulk-contacts",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Tag, untag, assign or delete up to 500 contacts (delete needs contacts.delete, the rest contacts.edit)",
+        "tags": [
+          "contacts"
+        ]
+      }
+    },
+    "/v1/workspace/contacts/export": {
+      "get": {
+        "operationId": "export-contacts",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Name, phone or email contains this (case-insensitive)",
+            "explode": false,
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "description": "Name, phone or email contains this (case-insensitive)",
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "opt_in",
+            "schema": {
+              "enum": [
+                "in",
+                "out",
+                "pending"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "tag_id",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last message within 24h/7d/30d, or over 90 days ago",
+            "explode": false,
+            "in": "query",
+            "name": "last_message",
+            "schema": {
+              "description": "Last message within 24h/7d/30d, or over 90 days ago",
+              "enum": [
+                "24h",
+                "7d",
+                "30d",
+                "over_90d"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "CSV: name, phone, email, opt_in, tags, source, language, created_at, then one column per custom field"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Download the contacts matching the filter as CSV",
+        "tags": [
+          "contacts"
+        ]
+      }
+    },
+    "/v1/workspace/contacts/imports": {
+      "post": {
+        "operationId": "upload-contact-import",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "encoding": {
+                "file": {
+                  "contentType": "application/octet-stream"
+                }
+              },
+              "schema": {
+                "properties": {
+                  "file": {
+                    "contentEncoding": "binary",
+                    "contentMediaType": "application/octet-stream",
+                    "description": ".csv or .xlsx, at most 10 MB and 50,000 rows",
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadOutputBody"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Upload a .csv or .xlsx file to import",
+        "tags": [
+          "contacts"
+        ]
+      }
+    },
+    "/v1/workspace/contacts/imports/{importId}": {
+      "get": {
+        "operationId": "get-contact-import",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "importId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "An import's status and counts",
+        "tags": [
+          "contacts"
+        ]
+      }
+    },
+    "/v1/workspace/contacts/imports/{importId}/mapping": {
+      "put": {
+        "operationId": "set-contact-import-mapping",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "importId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MappingInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Say what each column becomes",
+        "tags": [
+          "contacts"
+        ]
+      }
+    },
+    "/v1/workspace/contacts/imports/{importId}/preview": {
+      "get": {
+        "operationId": "preview-contact-import",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "importId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "What the import would do, counted from the whole file",
+        "tags": [
+          "contacts"
+        ]
+      }
+    },
+    "/v1/workspace/contacts/imports/{importId}/skipped": {
+      "get": {
+        "operationId": "download-contact-import-skipped",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "importId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "CSV: row, the file's columns, error"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Download the rows the import skipped, with the reason",
+        "tags": [
+          "contacts"
+        ]
+      }
+    },
+    "/v1/workspace/contacts/imports/{importId}/start": {
+      "post": {
+        "operationId": "start-contact-import",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "importId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportDTO"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Start importing; poll the import for progress",
+        "tags": [
+          "contacts"
+        ]
+      }
+    },
+    "/v1/workspace/contacts/summary": {
+      "get": {
+        "operationId": "get-contacts-summary",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummaryOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "How many contacts there are and how many opted in",
+        "tags": [
+          "contacts"
+        ]
+      }
+    },
+    "/v1/workspace/contacts/{contactId}": {
+      "delete": {
+        "operationId": "delete-contact",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contactId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Delete a contact",
+        "tags": [
+          "contacts"
+        ]
+      },
+      "get": {
+        "operationId": "get-contact",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contactId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactDetailDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "One contact with its tags and custom fields",
+        "tags": [
+          "contacts"
+        ]
+      },
+      "patch": {
+        "operationId": "update-contact",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contactId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateContactInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactDetailDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Change a contact's fields",
+        "tags": [
+          "contacts"
+        ]
+      }
+    },
     "/v1/workspace/invitations": {
       "get": {
         "operationId": "list-invitations",
@@ -7546,6 +9940,548 @@
         "summary": "Replace a team's members",
         "tags": [
           "team"
+        ]
+      }
+    },
+    "/v1/workspace/templates": {
+      "get": {
+        "operationId": "list-templates",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "enum": [
+                "draft",
+                "pending",
+                "approved",
+                "rejected",
+                "paused",
+                "disabled"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "enum": [
+                "marketing",
+                "utility",
+                "authentication"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Part of the name, case-insensitive",
+            "explode": false,
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "description": "Part of the name, case-insensitive",
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 25,
+              "format": "int32",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "maxLength": 100,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListOutputBody1"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Message templates with status tab counts, newest first",
+        "tags": [
+          "templates"
+        ]
+      },
+      "post": {
+        "operationId": "create-template",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInputBody1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateDTO"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Save a new draft template",
+        "tags": [
+          "templates"
+        ]
+      }
+    },
+    "/v1/workspace/templates/sync": {
+      "post": {
+        "operationId": "sync-templates",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Pull every template from the WhatsApp Business account",
+        "tags": [
+          "templates"
+        ]
+      }
+    },
+    "/v1/workspace/templates/{templateId}": {
+      "delete": {
+        "operationId": "delete-template",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "templateId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Delete a template, from Meta too once submitted",
+        "tags": [
+          "templates"
+        ]
+      },
+      "get": {
+        "operationId": "get-template",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "templateId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "One message template",
+        "tags": [
+          "templates"
+        ]
+      },
+      "patch": {
+        "operationId": "update-template",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "templateId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Edit a draft, rejected or approved template",
+        "tags": [
+          "templates"
+        ]
+      }
+    },
+    "/v1/workspace/templates/{templateId}/header-sample": {
+      "post": {
+        "operationId": "upload-template-header-sample",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "templateId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "encoding": {
+                "file": {
+                  "contentType": "image/jpeg,image/png,video/mp4,application/pdf"
+                }
+              },
+              "schema": {
+                "properties": {
+                  "file": {
+                    "contentEncoding": "binary",
+                    "contentMediaType": "application/octet-stream",
+                    "description": "JPG or PNG up to 5 MB, MP4 up to 16 MB, or PDF up to 100 MB; must match the header type",
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Upload the example file for an image, video or document header",
+        "tags": [
+          "templates"
+        ]
+      }
+    },
+    "/v1/workspace/templates/{templateId}/submit": {
+      "post": {
+        "operationId": "submit-template",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "templateId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Send the template to Meta for review",
+        "tags": [
+          "templates"
         ]
       }
     },

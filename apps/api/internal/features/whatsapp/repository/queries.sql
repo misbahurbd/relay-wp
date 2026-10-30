@@ -3,6 +3,14 @@ SELECT id, workspace_id, status
 FROM whatsapp_accounts
 WHERE waba_id = @waba_id;
 
+-- name: GetActiveAccountID :one
+-- The workspace's WABA that template calls use (one active account per workspace today).
+SELECT id
+FROM whatsapp_accounts
+WHERE workspace_id = @workspace_id AND status = 'active'
+ORDER BY created_at DESC, id DESC
+LIMIT 1;
+
 -- name: UpsertWhatsAppAccount :one
 -- Reconnecting a WABA replaces its token. The caller has checked it belongs to this workspace.
 INSERT INTO whatsapp_accounts (id, workspace_id, waba_id, business_id, name, access_token, connected_by)
