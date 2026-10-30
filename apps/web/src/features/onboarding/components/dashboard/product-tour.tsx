@@ -29,6 +29,7 @@ const STEPS = [
 type Rect = { top: number; left: number; width: number; height: number }
 const CARD_WIDTH = 320
 const GAP = 12
+const RING_GAP = 2
 
 /** Short, skippable tour that points at real elements (data-tour="…"). Escape closes it. */
 export function ProductTour({ onClose }: { onClose: () => void }) {
@@ -74,12 +75,22 @@ export function ProductTour({ onClose }: { onClose: () => void }) {
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-overlay" aria-hidden="true" onClick={onClose} />
+      <div
+        className={cn('fixed inset-0 z-40', !rect && 'bg-[rgb(4_14_9/0.55)]')}
+        aria-hidden="true"
+        onClick={onClose}
+      />
       {rect && (
+        // The shadow is the dim, so the target and the gap around it stay clear.
         <div
           aria-hidden="true"
-          className="pointer-events-none fixed z-40 rounded-lg ring-4 ring-brand ring-offset-2 ring-offset-background transition-all"
-          style={{ top: rect.top, left: rect.left, width: rect.width, height: rect.height }}
+          className="pointer-events-none fixed z-40 rounded-[14px] shadow-[0_0_0_9999px_rgb(4_14_9/0.55)] outline-3 outline-brand transition-all"
+          style={{
+            top: rect.top - RING_GAP,
+            left: rect.left - RING_GAP,
+            width: rect.width + RING_GAP * 2,
+            height: rect.height + RING_GAP * 2,
+          }}
         />
       )}
       <div

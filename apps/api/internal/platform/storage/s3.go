@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -59,10 +60,19 @@ func (s *s3Storage) ensureBucket(ctx context.Context) error {
 }
 
 func (s *s3Storage) Put(ctx context.Context, key string, body io.Reader, size int64, contentType string) error {
+	// The SDK seeks the body to hash it and to retry, so a plain reader is read into memory first.
+	seekable, ok := body.(io.ReadSeeker)
+	if !ok {
+		b, err := io.ReadAll(body)
+		if err != nil {
+			return fmt.Errorf("storage: read %q: %w", key, err)
+		}
+		seekable = bytes.NewReader(b)
+	}
 	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:        aws.String(s.bucket),
 		Key:           aws.String(key),
-		Body:          body,
+		Body:          seekable,
 		ContentLength: aws.Int64(size),
 		ContentType:   aws.String(contentType),
 	})
