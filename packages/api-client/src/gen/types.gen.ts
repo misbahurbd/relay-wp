@@ -4,6 +4,33 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type ApiKeyDto = {
+    /**
+     * The no-code app it was made for: zapier, make or n8n
+     */
+    app: string | null;
+    created_at: string;
+    /**
+     * The key acts as this member
+     */
+    created_by: UserRefDto;
+    id: string;
+    /**
+     * End of the key
+     */
+    last4: string;
+    last_used_at: string | null;
+    name: string;
+    /**
+     * Start of the key
+     */
+    prefix: string;
+};
+
+export type ApiKeysOutputBody = {
+    keys: Array<ApiKeyDto> | null;
+};
+
 export type AcceptOutputBody = {
     workspace_id: string;
 };
@@ -175,6 +202,12 @@ export type AdminWorkspacesOutputBody = {
     workspaces: Array<AdminWorkspaceDto> | null;
 };
 
+export type AppKeysDto = {
+    active_keys: number;
+    app: 'zapier' | 'make' | 'n8n';
+    last_used_at: string | null;
+};
+
 export type AuthDto = {
     /**
      * The one-tap autofill button's text
@@ -220,6 +253,27 @@ export type AuthInput = {
     package_name?: string;
     security_recommendation?: boolean;
     signature_hash?: string;
+};
+
+export type AuthorizeOutputBody = {
+    /**
+     * Open this to ask the provider for access
+     */
+    url: string;
+};
+
+export type AuthorizeShopifyInputBody = {
+    /**
+     * your-store.myshopify.com, or just your-store
+     */
+    shop_domain: string;
+};
+
+export type AuthorizeWooInputBody = {
+    /**
+     * https://your-store.com
+     */
+    store_url: string;
 };
 
 export type AvailabilityInputBody = {
@@ -446,6 +500,39 @@ export type ConnectInputBody = {
     waba_id: string;
 };
 
+export type ConnectInputBody1 = {
+    /**
+     * Shopify: Admin API access token from a custom app
+     */
+    access_token?: string;
+    /**
+     * WooCommerce: REST API consumer key
+     */
+    consumer_key?: string;
+    /**
+     * WooCommerce: REST API consumer secret
+     */
+    consumer_secret?: string;
+    /**
+     * Shopify: your-store.myshopify.com
+     */
+    shop_domain?: string;
+    /**
+     * WooCommerce: https://your-store.com
+     */
+    store_url?: string;
+};
+
+export type ConnectionDto = {
+    account_label: string;
+    created_at: string;
+    last_checked_at: string | null;
+    last_error: string | null;
+    provider: 'shopify' | 'woocommerce' | 'google_sheets';
+    status: 'connected' | 'error' | 'disconnected';
+    updated_at: string;
+};
+
 export type ContactDto = {
     assigned_to: PersonDto;
     created_at: string;
@@ -512,6 +599,14 @@ export type CountsDto = {
     approved: number;
     pending: number;
     rejected: number;
+};
+
+export type CreateApiKeyInputBody = {
+    /**
+     * Tag the key with the no-code app it's for
+     */
+    app?: 'zapier' | 'make' | 'n8n';
+    name: string;
 };
 
 export type CreateCheckoutInputBody = {
@@ -670,6 +765,14 @@ export type CreateTagInputBody = {
     name: string;
 };
 
+export type CreatedEndpointOutputBody = {
+    endpoint: EndpointDto;
+    /**
+     * Signing secret for Relay-Signature
+     */
+    secret: string;
+};
+
 export type CreatedOutputBody = {
     id: string;
 };
@@ -697,6 +800,28 @@ export type DataDeletionOutputBody = {
     url: string;
 };
 
+export type DeliveriesOutputBody = {
+    deliveries: Array<DeliveryDto> | null;
+    next_cursor: string | null;
+};
+
+export type DeliveryDto = {
+    attempts: number;
+    created_at: string;
+    delivered_at: string | null;
+    error: string | null;
+    event_id: string;
+    event_type: string;
+    id: string;
+    /**
+     * The JSON body that was sent
+     */
+    payload: unknown;
+    response_ms: number | null;
+    response_status: number | null;
+    status: 'pending' | 'succeeded' | 'failed';
+};
+
 export type Detail = {
     field?: string;
     message: string;
@@ -721,6 +846,43 @@ export type DiscountPreviewOutputBody = {
 
 export type EmailInputBody = {
     email: string;
+};
+
+export type EndpointBody = {
+    description?: string;
+    enabled: boolean;
+    events: Array<string> | null;
+    url: string;
+};
+
+export type EndpointDto = {
+    consecutive_failures: number;
+    created_at: string;
+    description: string;
+    /**
+     * Why Relay turned it off
+     */
+    disabled_reason: string | null;
+    enabled: boolean;
+    events: Array<string> | null;
+    id: string;
+    last_delivery_at: string | null;
+    last_response_status: number | null;
+    /**
+     * succeeded, failed or pending
+     */
+    last_status: string | null;
+    updated_at: string;
+    url: string;
+    week_succeeded: number;
+    /**
+     * Finished deliveries in the last 7 days
+     */
+    week_total: number;
+};
+
+export type EndpointsOutputBody = {
+    endpoints: Array<EndpointDto> | null;
 };
 
 export type ErrorBody = {
@@ -887,6 +1049,28 @@ export type InstallmentOfferDto = {
     total_minor: number;
 };
 
+export type IntegrationsOverviewOutputBody = {
+    api_keys: KeysSummaryDto;
+    /**
+     * No-code apps with at least one active key
+     */
+    apps: Array<AppKeysDto> | null;
+    connections: Array<ConnectionDto> | null;
+    /**
+     * False: this server has no Google app, so Sheets can't connect
+     */
+    google_available: boolean;
+    /**
+     * True: Shopify connects in one click; false: with a custom app's access token
+     */
+    shopify_oauth: boolean;
+    webhooks: WebhooksSummaryDto;
+    /**
+     * True: WooCommerce connects in one click; false: with REST API keys
+     */
+    woocommerce_oauth: boolean;
+};
+
 export type InvitationDto = {
     created_at: string;
     email: string;
@@ -986,6 +1170,11 @@ export type InvoicesOutputBody = {
      * Null on the last page
      */
     next_cursor: string | null;
+};
+
+export type KeysSummaryDto = {
+    active: number;
+    last_used_at: string | null;
 };
 
 export type ListOutputBody = {
@@ -1174,6 +1363,14 @@ export type MembersOutputBody = {
 
 export type MessageOutputBody = {
     message: string;
+};
+
+export type NewApiKeyOutputBody = {
+    api_key: ApiKeyDto;
+    /**
+     * The full key. Shown only now; store it somewhere safe.
+     */
+    key: string;
 };
 
 export type NumberDto = {
@@ -1704,6 +1901,13 @@ export type SeatsDto = {
     used: number;
 };
 
+export type SecretOutputBody = {
+    /**
+     * Signing secret for Relay-Signature
+     */
+    secret: string;
+};
+
 export type SendTestInputBody = {
     /**
      * E.164, e.g. +8801712345678
@@ -2074,6 +2278,11 @@ export type UserDto = {
     id: string;
 };
 
+export type UserRefDto = {
+    id: string;
+    name: string;
+};
+
 export type VerifyCodeInputBody = {
     /**
      * web gets httpOnly cookies; mobile gets tokens in the body
@@ -2105,6 +2314,47 @@ export type WarningDto = {
      */
     field: string;
     message: string;
+};
+
+export type WebhookEventDto = {
+    description: string;
+    type: string;
+};
+
+export type WebhookEventsOutputBody = {
+    events: Array<WebhookEventDto> | null;
+};
+
+export type WebhooksSummaryDto = {
+    enabled: number;
+    endpoints: number;
+    last_delivery_at: string | null;
+    last_response_status: number | null;
+    /**
+     * succeeded, failed or pending
+     */
+    last_status: string | null;
+    week_succeeded: number;
+    week_total: number;
+};
+
+export type WooAuthorizeOutputBody = {
+    /**
+     * Open this to approve Relay in the store's admin
+     */
+    url: string;
+};
+
+export type WooCallbackInputBody = {
+    consumer_key: string;
+    consumer_secret: string;
+    key_id?: number;
+    key_permissions?: string;
+    /**
+     * The signed state Relay sent as user_id
+     */
+    user_id: string;
+    [key: string]: unknown;
 };
 
 export type WorkspaceDto = {
@@ -3548,6 +3798,88 @@ export type ListBillingResourcesResponses = {
 };
 
 export type ListBillingResourcesResponse = ListBillingResourcesResponses[keyof ListBillingResourcesResponses];
+
+export type GoogleSheetsCallbackData = {
+    body?: never;
+    path?: never;
+    query?: {
+        code?: string;
+        state?: string;
+        /**
+         * Set by Google when the person cancels or it fails
+         */
+        error?: string;
+    };
+    url: '/v1/integrations/google/callback';
+};
+
+export type GoogleSheetsCallbackErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GoogleSheetsCallbackError = GoogleSheetsCallbackErrors[keyof GoogleSheetsCallbackErrors];
+
+export type GoogleSheetsCallbackResponses = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GoogleSheetsCallbackResponse = GoogleSheetsCallbackResponses[keyof GoogleSheetsCallbackResponses];
+
+export type ShopifyCallbackData = {
+    body?: never;
+    path?: never;
+    query?: {
+        shop?: string;
+    };
+    url: '/v1/integrations/shopify/callback';
+};
+
+export type ShopifyCallbackErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ShopifyCallbackError = ShopifyCallbackErrors[keyof ShopifyCallbackErrors];
+
+export type ShopifyCallbackResponses = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ShopifyCallbackResponse = ShopifyCallbackResponses[keyof ShopifyCallbackResponses];
+
+export type WoocommerceCallbackData = {
+    body: WooCallbackInputBody;
+    path?: never;
+    query?: never;
+    url: '/v1/integrations/woocommerce/callback';
+};
+
+export type WoocommerceCallbackErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type WoocommerceCallbackError = WoocommerceCallbackErrors[keyof WoocommerceCallbackErrors];
+
+export type WoocommerceCallbackResponses = {
+    /**
+     * OK
+     */
+    200: unknown;
+};
 
 export type AcceptInvitationData = {
     body: TokenInputBody;
@@ -5189,6 +5521,686 @@ export type UpdateContactResponses = {
 };
 
 export type UpdateContactResponse = UpdateContactResponses[keyof UpdateContactResponses];
+
+export type GetIntegrationsData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/integrations';
+};
+
+export type GetIntegrationsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetIntegrationsError = GetIntegrationsErrors[keyof GetIntegrationsErrors];
+
+export type GetIntegrationsResponses = {
+    /**
+     * OK
+     */
+    200: IntegrationsOverviewOutputBody;
+};
+
+export type GetIntegrationsResponse = GetIntegrationsResponses[keyof GetIntegrationsResponses];
+
+export type ListApiKeysData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/integrations/api-keys';
+};
+
+export type ListApiKeysErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListApiKeysError = ListApiKeysErrors[keyof ListApiKeysErrors];
+
+export type ListApiKeysResponses = {
+    /**
+     * OK
+     */
+    200: ApiKeysOutputBody;
+};
+
+export type ListApiKeysResponse = ListApiKeysResponses[keyof ListApiKeysResponses];
+
+export type CreateApiKeyData = {
+    body: CreateApiKeyInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/integrations/api-keys';
+};
+
+export type CreateApiKeyErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CreateApiKeyError = CreateApiKeyErrors[keyof CreateApiKeyErrors];
+
+export type CreateApiKeyResponses = {
+    /**
+     * Created
+     */
+    201: NewApiKeyOutputBody;
+};
+
+export type CreateApiKeyResponse = CreateApiKeyResponses[keyof CreateApiKeyResponses];
+
+export type RevokeApiKeyData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        keyId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/integrations/api-keys/{keyId}';
+};
+
+export type RevokeApiKeyErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type RevokeApiKeyError = RevokeApiKeyErrors[keyof RevokeApiKeyErrors];
+
+export type RevokeApiKeyResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type RevokeApiKeyResponse = RevokeApiKeyResponses[keyof RevokeApiKeyResponses];
+
+export type RollApiKeyData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        keyId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/integrations/api-keys/{keyId}/roll';
+};
+
+export type RollApiKeyErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type RollApiKeyError = RollApiKeyErrors[keyof RollApiKeyErrors];
+
+export type RollApiKeyResponses = {
+    /**
+     * Created
+     */
+    201: NewApiKeyOutputBody;
+};
+
+export type RollApiKeyResponse = RollApiKeyResponses[keyof RollApiKeyResponses];
+
+export type AuthorizeGoogleSheetsData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/integrations/connections/google_sheets/authorize';
+};
+
+export type AuthorizeGoogleSheetsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AuthorizeGoogleSheetsError = AuthorizeGoogleSheetsErrors[keyof AuthorizeGoogleSheetsErrors];
+
+export type AuthorizeGoogleSheetsResponses = {
+    /**
+     * OK
+     */
+    200: AuthorizeOutputBody;
+};
+
+export type AuthorizeGoogleSheetsResponse = AuthorizeGoogleSheetsResponses[keyof AuthorizeGoogleSheetsResponses];
+
+export type AuthorizeShopifyData = {
+    body: AuthorizeShopifyInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/integrations/connections/shopify/authorize';
+};
+
+export type AuthorizeShopifyErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AuthorizeShopifyError = AuthorizeShopifyErrors[keyof AuthorizeShopifyErrors];
+
+export type AuthorizeShopifyResponses = {
+    /**
+     * OK
+     */
+    200: AuthorizeOutputBody;
+};
+
+export type AuthorizeShopifyResponse = AuthorizeShopifyResponses[keyof AuthorizeShopifyResponses];
+
+export type AuthorizeWoocommerceData = {
+    body: AuthorizeWooInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/integrations/connections/woocommerce/authorize';
+};
+
+export type AuthorizeWoocommerceErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AuthorizeWoocommerceError = AuthorizeWoocommerceErrors[keyof AuthorizeWoocommerceErrors];
+
+export type AuthorizeWoocommerceResponses = {
+    /**
+     * OK
+     */
+    200: WooAuthorizeOutputBody;
+};
+
+export type AuthorizeWoocommerceResponse = AuthorizeWoocommerceResponses[keyof AuthorizeWoocommerceResponses];
+
+export type DisconnectIntegrationData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        provider: 'shopify' | 'woocommerce' | 'google_sheets';
+    };
+    query?: never;
+    url: '/v1/workspace/integrations/connections/{provider}';
+};
+
+export type DisconnectIntegrationErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type DisconnectIntegrationError = DisconnectIntegrationErrors[keyof DisconnectIntegrationErrors];
+
+export type DisconnectIntegrationResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DisconnectIntegrationResponse = DisconnectIntegrationResponses[keyof DisconnectIntegrationResponses];
+
+export type ConnectIntegrationData = {
+    body: ConnectInputBody1;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        provider: 'shopify' | 'woocommerce';
+    };
+    query?: never;
+    url: '/v1/workspace/integrations/connections/{provider}';
+};
+
+export type ConnectIntegrationErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ConnectIntegrationError = ConnectIntegrationErrors[keyof ConnectIntegrationErrors];
+
+export type ConnectIntegrationResponses = {
+    /**
+     * OK
+     */
+    200: ConnectionDto;
+};
+
+export type ConnectIntegrationResponse = ConnectIntegrationResponses[keyof ConnectIntegrationResponses];
+
+export type TestIntegrationData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        provider: 'shopify' | 'woocommerce' | 'google_sheets';
+    };
+    query?: never;
+    url: '/v1/workspace/integrations/connections/{provider}/test';
+};
+
+export type TestIntegrationErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type TestIntegrationError = TestIntegrationErrors[keyof TestIntegrationErrors];
+
+export type TestIntegrationResponses = {
+    /**
+     * OK
+     */
+    200: ConnectionDto;
+};
+
+export type TestIntegrationResponse = TestIntegrationResponses[keyof TestIntegrationResponses];
+
+export type ListWebhookEventsData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/integrations/events';
+};
+
+export type ListWebhookEventsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListWebhookEventsError = ListWebhookEventsErrors[keyof ListWebhookEventsErrors];
+
+export type ListWebhookEventsResponses = {
+    /**
+     * OK
+     */
+    200: WebhookEventsOutputBody;
+};
+
+export type ListWebhookEventsResponse = ListWebhookEventsResponses[keyof ListWebhookEventsResponses];
+
+export type ListWebhooksData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/integrations/webhooks';
+};
+
+export type ListWebhooksErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListWebhooksError = ListWebhooksErrors[keyof ListWebhooksErrors];
+
+export type ListWebhooksResponses = {
+    /**
+     * OK
+     */
+    200: EndpointsOutputBody;
+};
+
+export type ListWebhooksResponse = ListWebhooksResponses[keyof ListWebhooksResponses];
+
+export type CreateWebhookData = {
+    body: EndpointBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/integrations/webhooks';
+};
+
+export type CreateWebhookErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CreateWebhookError = CreateWebhookErrors[keyof CreateWebhookErrors];
+
+export type CreateWebhookResponses = {
+    /**
+     * Created
+     */
+    201: CreatedEndpointOutputBody;
+};
+
+export type CreateWebhookResponse = CreateWebhookResponses[keyof CreateWebhookResponses];
+
+export type DeleteWebhookData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        endpointId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/integrations/webhooks/{endpointId}';
+};
+
+export type DeleteWebhookErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type DeleteWebhookError = DeleteWebhookErrors[keyof DeleteWebhookErrors];
+
+export type DeleteWebhookResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteWebhookResponse = DeleteWebhookResponses[keyof DeleteWebhookResponses];
+
+export type UpdateWebhookData = {
+    body: EndpointBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        endpointId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/integrations/webhooks/{endpointId}';
+};
+
+export type UpdateWebhookErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UpdateWebhookError = UpdateWebhookErrors[keyof UpdateWebhookErrors];
+
+export type UpdateWebhookResponses = {
+    /**
+     * OK
+     */
+    200: EndpointDto;
+};
+
+export type UpdateWebhookResponse = UpdateWebhookResponses[keyof UpdateWebhookResponses];
+
+export type ListWebhookDeliveriesData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        endpointId: string;
+    };
+    query?: {
+        /**
+         * next_cursor from the previous page
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/v1/workspace/integrations/webhooks/{endpointId}/deliveries';
+};
+
+export type ListWebhookDeliveriesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListWebhookDeliveriesError = ListWebhookDeliveriesErrors[keyof ListWebhookDeliveriesErrors];
+
+export type ListWebhookDeliveriesResponses = {
+    /**
+     * OK
+     */
+    200: DeliveriesOutputBody;
+};
+
+export type ListWebhookDeliveriesResponse = ListWebhookDeliveriesResponses[keyof ListWebhookDeliveriesResponses];
+
+export type RedeliverWebhookData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        endpointId: string;
+        deliveryId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/integrations/webhooks/{endpointId}/deliveries/{deliveryId}/redeliver';
+};
+
+export type RedeliverWebhookErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type RedeliverWebhookError = RedeliverWebhookErrors[keyof RedeliverWebhookErrors];
+
+export type RedeliverWebhookResponses = {
+    /**
+     * Accepted
+     */
+    202: unknown;
+};
+
+export type GetWebhookSecretData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        endpointId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/integrations/webhooks/{endpointId}/secret';
+};
+
+export type GetWebhookSecretErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetWebhookSecretError = GetWebhookSecretErrors[keyof GetWebhookSecretErrors];
+
+export type GetWebhookSecretResponses = {
+    /**
+     * OK
+     */
+    200: SecretOutputBody;
+};
+
+export type GetWebhookSecretResponse = GetWebhookSecretResponses[keyof GetWebhookSecretResponses];
+
+export type RotateWebhookSecretData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        endpointId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/integrations/webhooks/{endpointId}/secret/rotate';
+};
+
+export type RotateWebhookSecretErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type RotateWebhookSecretError = RotateWebhookSecretErrors[keyof RotateWebhookSecretErrors];
+
+export type RotateWebhookSecretResponses = {
+    /**
+     * OK
+     */
+    200: SecretOutputBody;
+};
+
+export type RotateWebhookSecretResponse = RotateWebhookSecretResponses[keyof RotateWebhookSecretResponses];
+
+export type SendWebhookTestData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        endpointId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/integrations/webhooks/{endpointId}/test';
+};
+
+export type SendWebhookTestErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SendWebhookTestError = SendWebhookTestErrors[keyof SendWebhookTestErrors];
+
+export type SendWebhookTestResponses = {
+    /**
+     * OK
+     */
+    200: DeliveryDto;
+};
+
+export type SendWebhookTestResponse = SendWebhookTestResponses[keyof SendWebhookTestResponses];
 
 export type ListInvitationsData = {
     body?: never;

@@ -3,8 +3,8 @@
 import { type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { acceptInvitation, addMemberOverride, adminCreateDiscount, adminCreateInstallmentOffer, adminCreatePlan, adminCreatePrice, adminCreateProviderPrice, adminDeactivateDiscount, adminDeactivateInstallmentOffer, adminDeactivatePlan, adminDeactivatePrice, adminDeactivateProviderPrice, adminEndGrant, adminGetCatalog, adminGrantPlan, adminListDiscounts, adminListWorkspaces, adminRestoreGrant, adminSetGrantOverrides, adminUpdatePlan, bulkContacts, cancelPendingSubscriptionChange, cancelSubscription, changeMemberRole, changePassword, changeSubscription, completeOnboarding, completeTestCheckout, connectWhatsapp, createCheckoutSession, createContact, createContactTag, createInvitations, createPortalSession, createRole, createTeam, createTemplate, createWorkspace, deleteContact, deleteRole, deleteTeam, deleteTemplate, downloadContactImportSkipped, exportContacts, facebookDataDeletion, forgotPassword, getAccessLogSummary, getBillingOverview, getBillingProfile, getCheckoutSession, getContact, getContactImport, getContactsSummary, getCurrentOrder, getInvoice, getMe, getMember, getMyAccess, getOnboarding, getOrder, getPaymentMethod, getSeats, getSubscription, getTemplate, getTestMessage, getWhatsappNumber, getWorkspace, health, inviteSignup, leaveWorkspace, listAccessLog, listAuthEvents, listBillingPlans, listBillingResources, listContacts, listContactTags, listIdentities, listInvitations, listInvoices, listMembers, listOauthProviders, listPermissions, listRoles, listSessions, listTeams, listTemplates, listWhatsappNumbers, listWorkspaces, login, logout, logoutAll, oauthCallback, oauthComplete, oauthCompleteVerify, oauthLink, oauthStart, oauthToken, type Options, payInstallment, paymentWebhook, previewContactImport, previewDiscount, previewInvitation, previewMemberRole, previewRole, previewSubscriptionChange, quoteOrder, ready, refreshToken, removeMember, requestInvitationRenewal, resendInvitation, resendVerification, resetPassword, resetRole, restoreMember, resumeOrder, resumeSubscription, revokeInvitation, revokeMemberOverride, revokeSession, saveBusiness, sendTestMessage, setAvailability, setContactImportMapping, setPassword, setTeamMembers, signup, skipWhatsapp, startContactImport, submitTemplate, suspendMember, syncTemplates, unlinkIdentity, updateBillingProfile, updateContact, updateMemberAccess, updateOnboardingMember, updatePreferences, updateProfile, updateRole, updateTeam, updateTemplate, uploadContactImport, uploadTemplateHeaderSample, verifyEmail, verifyEmailCode, whatsappSignupConfig, whatsappWebhook, whatsappWebhookVerify } from '../sdk.gen';
-import type { AcceptInvitationData, AcceptInvitationError, AcceptInvitationResponse, AddMemberOverrideData, AddMemberOverrideError, AddMemberOverrideResponse, AdminCreateDiscountData, AdminCreateDiscountError, AdminCreateDiscountResponse, AdminCreateInstallmentOfferData, AdminCreateInstallmentOfferError, AdminCreateInstallmentOfferResponse, AdminCreatePlanData, AdminCreatePlanError, AdminCreatePlanResponse, AdminCreatePriceData, AdminCreatePriceError, AdminCreatePriceResponse, AdminCreateProviderPriceData, AdminCreateProviderPriceError, AdminCreateProviderPriceResponse, AdminDeactivateDiscountData, AdminDeactivateDiscountError, AdminDeactivateDiscountResponse, AdminDeactivateInstallmentOfferData, AdminDeactivateInstallmentOfferError, AdminDeactivateInstallmentOfferResponse, AdminDeactivatePlanData, AdminDeactivatePlanError, AdminDeactivatePlanResponse, AdminDeactivatePriceData, AdminDeactivatePriceError, AdminDeactivatePriceResponse, AdminDeactivateProviderPriceData, AdminDeactivateProviderPriceError, AdminDeactivateProviderPriceResponse, AdminEndGrantData, AdminEndGrantError, AdminEndGrantResponse, AdminGetCatalogData, AdminGetCatalogError, AdminGetCatalogResponse, AdminGrantPlanData, AdminGrantPlanError, AdminGrantPlanResponse, AdminListDiscountsData, AdminListDiscountsError, AdminListDiscountsResponse, AdminListWorkspacesData, AdminListWorkspacesError, AdminListWorkspacesResponse, AdminRestoreGrantData, AdminRestoreGrantError, AdminRestoreGrantResponse, AdminSetGrantOverridesData, AdminSetGrantOverridesError, AdminSetGrantOverridesResponse, AdminUpdatePlanData, AdminUpdatePlanError, AdminUpdatePlanResponse, BulkContactsData, BulkContactsError, BulkContactsResponse, CancelPendingSubscriptionChangeData, CancelPendingSubscriptionChangeError, CancelPendingSubscriptionChangeResponse, CancelSubscriptionData, CancelSubscriptionError, CancelSubscriptionResponse, ChangeMemberRoleData, ChangeMemberRoleError, ChangeMemberRoleResponse, ChangePasswordData, ChangePasswordError, ChangePasswordResponse, ChangeSubscriptionData, ChangeSubscriptionError, ChangeSubscriptionResponse, CompleteOnboardingData, CompleteOnboardingError, CompleteOnboardingResponse, CompleteTestCheckoutData, CompleteTestCheckoutError, CompleteTestCheckoutResponse, ConnectWhatsappData, ConnectWhatsappError, ConnectWhatsappResponse, CreateCheckoutSessionData, CreateCheckoutSessionError, CreateCheckoutSessionResponse, CreateContactData, CreateContactError, CreateContactResponse, CreateContactTagData, CreateContactTagError, CreateContactTagResponse, CreateInvitationsData, CreateInvitationsError, CreateInvitationsResponse, CreatePortalSessionData, CreatePortalSessionError, CreatePortalSessionResponse, CreateRoleData, CreateRoleError, CreateRoleResponse, CreateTeamData, CreateTeamError, CreateTeamResponse, CreateTemplateData, CreateTemplateError, CreateTemplateResponse, CreateWorkspaceData, CreateWorkspaceError, CreateWorkspaceResponse, DeleteContactData, DeleteContactError, DeleteContactResponse, DeleteRoleData, DeleteRoleError, DeleteRoleResponse, DeleteTeamData, DeleteTeamError, DeleteTeamResponse, DeleteTemplateData, DeleteTemplateError, DeleteTemplateResponse, DownloadContactImportSkippedData, DownloadContactImportSkippedError, DownloadContactImportSkippedResponse, ExportContactsData, ExportContactsError, ExportContactsResponse, FacebookDataDeletionData, FacebookDataDeletionError, FacebookDataDeletionResponse, ForgotPasswordData, ForgotPasswordError, ForgotPasswordResponse, GetAccessLogSummaryData, GetAccessLogSummaryError, GetAccessLogSummaryResponse, GetBillingOverviewData, GetBillingOverviewError, GetBillingOverviewResponse, GetBillingProfileData, GetBillingProfileError, GetBillingProfileResponse, GetCheckoutSessionData, GetCheckoutSessionError, GetCheckoutSessionResponse, GetContactData, GetContactError, GetContactImportData, GetContactImportError, GetContactImportResponse, GetContactResponse, GetContactsSummaryData, GetContactsSummaryError, GetContactsSummaryResponse, GetCurrentOrderData, GetCurrentOrderError, GetCurrentOrderResponse, GetInvoiceData, GetInvoiceError, GetInvoiceResponse, GetMeData, GetMeError, GetMemberData, GetMemberError, GetMemberResponse, GetMeResponse, GetMyAccessData, GetMyAccessError, GetMyAccessResponse, GetOnboardingData, GetOnboardingError, GetOnboardingResponse, GetOrderData, GetOrderError, GetOrderResponse, GetPaymentMethodData, GetPaymentMethodError, GetPaymentMethodResponse, GetSeatsData, GetSeatsError, GetSeatsResponse, GetSubscriptionData, GetSubscriptionError, GetSubscriptionResponse, GetTemplateData, GetTemplateError, GetTemplateResponse, GetTestMessageData, GetTestMessageError, GetTestMessageResponse, GetWhatsappNumberData, GetWhatsappNumberError, GetWhatsappNumberResponse, GetWorkspaceData, GetWorkspaceError, GetWorkspaceResponse, HealthData, HealthError, HealthResponse, InviteSignupData, InviteSignupError, InviteSignupResponse, LeaveWorkspaceData, LeaveWorkspaceError, LeaveWorkspaceResponse, ListAccessLogData, ListAccessLogError, ListAccessLogResponse, ListAuthEventsData, ListAuthEventsError, ListAuthEventsResponse, ListBillingPlansData, ListBillingPlansError, ListBillingPlansResponse, ListBillingResourcesData, ListBillingResourcesError, ListBillingResourcesResponse, ListContactsData, ListContactsError, ListContactsResponse, ListContactTagsData, ListContactTagsError, ListContactTagsResponse, ListIdentitiesData, ListIdentitiesError, ListIdentitiesResponse, ListInvitationsData, ListInvitationsError, ListInvitationsResponse, ListInvoicesData, ListInvoicesError, ListInvoicesResponse, ListMembersData, ListMembersError, ListMembersResponse, ListOauthProvidersData, ListOauthProvidersError, ListOauthProvidersResponse, ListPermissionsData, ListPermissionsError, ListPermissionsResponse, ListRolesData, ListRolesError, ListRolesResponse, ListSessionsData, ListSessionsError, ListSessionsResponse, ListTeamsData, ListTeamsError, ListTeamsResponse, ListTemplatesData, ListTemplatesError, ListTemplatesResponse, ListWhatsappNumbersData, ListWhatsappNumbersError, ListWhatsappNumbersResponse, ListWorkspacesData, ListWorkspacesError, ListWorkspacesResponse, LoginData, LoginError, LoginResponse, LogoutAllData, LogoutAllError, LogoutAllResponse, LogoutData, LogoutError, LogoutResponse, OauthCallbackData, OauthCallbackError, OauthCallbackResponse, OauthCompleteData, OauthCompleteError, OauthCompleteResponse, OauthCompleteVerifyData, OauthCompleteVerifyError, OauthCompleteVerifyResponse, OauthLinkData, OauthLinkError, OauthLinkResponse, OauthStartData, OauthStartError, OauthStartResponse, OauthTokenData, OauthTokenError, OauthTokenResponse, PayInstallmentData, PayInstallmentError, PayInstallmentResponse, PaymentWebhookData, PaymentWebhookError, PreviewContactImportData, PreviewContactImportError, PreviewContactImportResponse, PreviewDiscountData, PreviewDiscountError, PreviewDiscountResponse, PreviewInvitationData, PreviewInvitationError, PreviewInvitationResponse, PreviewMemberRoleData, PreviewMemberRoleError, PreviewMemberRoleResponse, PreviewRoleData, PreviewRoleError, PreviewRoleResponse, PreviewSubscriptionChangeData, PreviewSubscriptionChangeError, PreviewSubscriptionChangeResponse, QuoteOrderData, QuoteOrderError, QuoteOrderResponse, ReadyData, ReadyError, ReadyResponse, RefreshTokenData, RefreshTokenError, RefreshTokenResponse, RemoveMemberData, RemoveMemberError, RemoveMemberResponse, RequestInvitationRenewalData, RequestInvitationRenewalError, RequestInvitationRenewalResponse, ResendInvitationData, ResendInvitationError, ResendInvitationResponse, ResendVerificationData, ResendVerificationError, ResendVerificationResponse, ResetPasswordData, ResetPasswordError, ResetPasswordResponse, ResetRoleData, ResetRoleError, ResetRoleResponse, RestoreMemberData, RestoreMemberError, RestoreMemberResponse, ResumeOrderData, ResumeOrderError, ResumeOrderResponse, ResumeSubscriptionData, ResumeSubscriptionError, ResumeSubscriptionResponse, RevokeInvitationData, RevokeInvitationError, RevokeInvitationResponse, RevokeMemberOverrideData, RevokeMemberOverrideError, RevokeMemberOverrideResponse, RevokeSessionData, RevokeSessionError, RevokeSessionResponse, SaveBusinessData, SaveBusinessError, SaveBusinessResponse, SendTestMessageData, SendTestMessageError, SendTestMessageResponse, SetAvailabilityData, SetAvailabilityError, SetAvailabilityResponse, SetContactImportMappingData, SetContactImportMappingError, SetContactImportMappingResponse, SetPasswordData, SetPasswordError, SetPasswordResponse, SetTeamMembersData, SetTeamMembersError, SetTeamMembersResponse, SignupData, SignupError, SignupResponse, SkipWhatsappData, SkipWhatsappError, SkipWhatsappResponse, StartContactImportData, StartContactImportError, StartContactImportResponse, SubmitTemplateData, SubmitTemplateError, SubmitTemplateResponse, SuspendMemberData, SuspendMemberError, SuspendMemberResponse, SyncTemplatesData, SyncTemplatesError, SyncTemplatesResponse, UnlinkIdentityData, UnlinkIdentityError, UnlinkIdentityResponse, UpdateBillingProfileData, UpdateBillingProfileError, UpdateBillingProfileResponse, UpdateContactData, UpdateContactError, UpdateContactResponse, UpdateMemberAccessData, UpdateMemberAccessError, UpdateMemberAccessResponse, UpdateOnboardingMemberData, UpdateOnboardingMemberError, UpdateOnboardingMemberResponse, UpdatePreferencesData, UpdatePreferencesError, UpdatePreferencesResponse, UpdateProfileData, UpdateProfileError, UpdateProfileResponse, UpdateRoleData, UpdateRoleError, UpdateRoleResponse, UpdateTeamData, UpdateTeamError, UpdateTeamResponse, UpdateTemplateData, UpdateTemplateError, UpdateTemplateResponse, UploadContactImportData, UploadContactImportError, UploadContactImportResponse, UploadTemplateHeaderSampleData, UploadTemplateHeaderSampleError, UploadTemplateHeaderSampleResponse, VerifyEmailCodeData, VerifyEmailCodeError, VerifyEmailCodeResponse, VerifyEmailData, VerifyEmailError, VerifyEmailResponse, WhatsappSignupConfigData, WhatsappSignupConfigError, WhatsappSignupConfigResponse, WhatsappWebhookData, WhatsappWebhookError, WhatsappWebhookVerifyData, WhatsappWebhookVerifyError, WhatsappWebhookVerifyResponse } from '../types.gen';
+import { acceptInvitation, addMemberOverride, adminCreateDiscount, adminCreateInstallmentOffer, adminCreatePlan, adminCreatePrice, adminCreateProviderPrice, adminDeactivateDiscount, adminDeactivateInstallmentOffer, adminDeactivatePlan, adminDeactivatePrice, adminDeactivateProviderPrice, adminEndGrant, adminGetCatalog, adminGrantPlan, adminListDiscounts, adminListWorkspaces, adminRestoreGrant, adminSetGrantOverrides, adminUpdatePlan, authorizeGoogleSheets, authorizeShopify, authorizeWoocommerce, bulkContacts, cancelPendingSubscriptionChange, cancelSubscription, changeMemberRole, changePassword, changeSubscription, completeOnboarding, completeTestCheckout, connectIntegration, connectWhatsapp, createApiKey, createCheckoutSession, createContact, createContactTag, createInvitations, createPortalSession, createRole, createTeam, createTemplate, createWebhook, createWorkspace, deleteContact, deleteRole, deleteTeam, deleteTemplate, deleteWebhook, disconnectIntegration, downloadContactImportSkipped, exportContacts, facebookDataDeletion, forgotPassword, getAccessLogSummary, getBillingOverview, getBillingProfile, getCheckoutSession, getContact, getContactImport, getContactsSummary, getCurrentOrder, getIntegrations, getInvoice, getMe, getMember, getMyAccess, getOnboarding, getOrder, getPaymentMethod, getSeats, getSubscription, getTemplate, getTestMessage, getWebhookSecret, getWhatsappNumber, getWorkspace, googleSheetsCallback, health, inviteSignup, leaveWorkspace, listAccessLog, listApiKeys, listAuthEvents, listBillingPlans, listBillingResources, listContacts, listContactTags, listIdentities, listInvitations, listInvoices, listMembers, listOauthProviders, listPermissions, listRoles, listSessions, listTeams, listTemplates, listWebhookDeliveries, listWebhookEvents, listWebhooks, listWhatsappNumbers, listWorkspaces, login, logout, logoutAll, oauthCallback, oauthComplete, oauthCompleteVerify, oauthLink, oauthStart, oauthToken, type Options, payInstallment, paymentWebhook, previewContactImport, previewDiscount, previewInvitation, previewMemberRole, previewRole, previewSubscriptionChange, quoteOrder, ready, redeliverWebhook, refreshToken, removeMember, requestInvitationRenewal, resendInvitation, resendVerification, resetPassword, resetRole, restoreMember, resumeOrder, resumeSubscription, revokeApiKey, revokeInvitation, revokeMemberOverride, revokeSession, rollApiKey, rotateWebhookSecret, saveBusiness, sendTestMessage, sendWebhookTest, setAvailability, setContactImportMapping, setPassword, setTeamMembers, shopifyCallback, signup, skipWhatsapp, startContactImport, submitTemplate, suspendMember, syncTemplates, testIntegration, unlinkIdentity, updateBillingProfile, updateContact, updateMemberAccess, updateOnboardingMember, updatePreferences, updateProfile, updateRole, updateTeam, updateTemplate, updateWebhook, uploadContactImport, uploadTemplateHeaderSample, verifyEmail, verifyEmailCode, whatsappSignupConfig, whatsappWebhook, whatsappWebhookVerify, woocommerceCallback } from '../sdk.gen';
+import type { AcceptInvitationData, AcceptInvitationError, AcceptInvitationResponse, AddMemberOverrideData, AddMemberOverrideError, AddMemberOverrideResponse, AdminCreateDiscountData, AdminCreateDiscountError, AdminCreateDiscountResponse, AdminCreateInstallmentOfferData, AdminCreateInstallmentOfferError, AdminCreateInstallmentOfferResponse, AdminCreatePlanData, AdminCreatePlanError, AdminCreatePlanResponse, AdminCreatePriceData, AdminCreatePriceError, AdminCreatePriceResponse, AdminCreateProviderPriceData, AdminCreateProviderPriceError, AdminCreateProviderPriceResponse, AdminDeactivateDiscountData, AdminDeactivateDiscountError, AdminDeactivateDiscountResponse, AdminDeactivateInstallmentOfferData, AdminDeactivateInstallmentOfferError, AdminDeactivateInstallmentOfferResponse, AdminDeactivatePlanData, AdminDeactivatePlanError, AdminDeactivatePlanResponse, AdminDeactivatePriceData, AdminDeactivatePriceError, AdminDeactivatePriceResponse, AdminDeactivateProviderPriceData, AdminDeactivateProviderPriceError, AdminDeactivateProviderPriceResponse, AdminEndGrantData, AdminEndGrantError, AdminEndGrantResponse, AdminGetCatalogData, AdminGetCatalogError, AdminGetCatalogResponse, AdminGrantPlanData, AdminGrantPlanError, AdminGrantPlanResponse, AdminListDiscountsData, AdminListDiscountsError, AdminListDiscountsResponse, AdminListWorkspacesData, AdminListWorkspacesError, AdminListWorkspacesResponse, AdminRestoreGrantData, AdminRestoreGrantError, AdminRestoreGrantResponse, AdminSetGrantOverridesData, AdminSetGrantOverridesError, AdminSetGrantOverridesResponse, AdminUpdatePlanData, AdminUpdatePlanError, AdminUpdatePlanResponse, AuthorizeGoogleSheetsData, AuthorizeGoogleSheetsError, AuthorizeGoogleSheetsResponse, AuthorizeShopifyData, AuthorizeShopifyError, AuthorizeShopifyResponse, AuthorizeWoocommerceData, AuthorizeWoocommerceError, AuthorizeWoocommerceResponse, BulkContactsData, BulkContactsError, BulkContactsResponse, CancelPendingSubscriptionChangeData, CancelPendingSubscriptionChangeError, CancelPendingSubscriptionChangeResponse, CancelSubscriptionData, CancelSubscriptionError, CancelSubscriptionResponse, ChangeMemberRoleData, ChangeMemberRoleError, ChangeMemberRoleResponse, ChangePasswordData, ChangePasswordError, ChangePasswordResponse, ChangeSubscriptionData, ChangeSubscriptionError, ChangeSubscriptionResponse, CompleteOnboardingData, CompleteOnboardingError, CompleteOnboardingResponse, CompleteTestCheckoutData, CompleteTestCheckoutError, CompleteTestCheckoutResponse, ConnectIntegrationData, ConnectIntegrationError, ConnectIntegrationResponse, ConnectWhatsappData, ConnectWhatsappError, ConnectWhatsappResponse, CreateApiKeyData, CreateApiKeyError, CreateApiKeyResponse, CreateCheckoutSessionData, CreateCheckoutSessionError, CreateCheckoutSessionResponse, CreateContactData, CreateContactError, CreateContactResponse, CreateContactTagData, CreateContactTagError, CreateContactTagResponse, CreateInvitationsData, CreateInvitationsError, CreateInvitationsResponse, CreatePortalSessionData, CreatePortalSessionError, CreatePortalSessionResponse, CreateRoleData, CreateRoleError, CreateRoleResponse, CreateTeamData, CreateTeamError, CreateTeamResponse, CreateTemplateData, CreateTemplateError, CreateTemplateResponse, CreateWebhookData, CreateWebhookError, CreateWebhookResponse, CreateWorkspaceData, CreateWorkspaceError, CreateWorkspaceResponse, DeleteContactData, DeleteContactError, DeleteContactResponse, DeleteRoleData, DeleteRoleError, DeleteRoleResponse, DeleteTeamData, DeleteTeamError, DeleteTeamResponse, DeleteTemplateData, DeleteTemplateError, DeleteTemplateResponse, DeleteWebhookData, DeleteWebhookError, DeleteWebhookResponse, DisconnectIntegrationData, DisconnectIntegrationError, DisconnectIntegrationResponse, DownloadContactImportSkippedData, DownloadContactImportSkippedError, DownloadContactImportSkippedResponse, ExportContactsData, ExportContactsError, ExportContactsResponse, FacebookDataDeletionData, FacebookDataDeletionError, FacebookDataDeletionResponse, ForgotPasswordData, ForgotPasswordError, ForgotPasswordResponse, GetAccessLogSummaryData, GetAccessLogSummaryError, GetAccessLogSummaryResponse, GetBillingOverviewData, GetBillingOverviewError, GetBillingOverviewResponse, GetBillingProfileData, GetBillingProfileError, GetBillingProfileResponse, GetCheckoutSessionData, GetCheckoutSessionError, GetCheckoutSessionResponse, GetContactData, GetContactError, GetContactImportData, GetContactImportError, GetContactImportResponse, GetContactResponse, GetContactsSummaryData, GetContactsSummaryError, GetContactsSummaryResponse, GetCurrentOrderData, GetCurrentOrderError, GetCurrentOrderResponse, GetIntegrationsData, GetIntegrationsError, GetIntegrationsResponse, GetInvoiceData, GetInvoiceError, GetInvoiceResponse, GetMeData, GetMeError, GetMemberData, GetMemberError, GetMemberResponse, GetMeResponse, GetMyAccessData, GetMyAccessError, GetMyAccessResponse, GetOnboardingData, GetOnboardingError, GetOnboardingResponse, GetOrderData, GetOrderError, GetOrderResponse, GetPaymentMethodData, GetPaymentMethodError, GetPaymentMethodResponse, GetSeatsData, GetSeatsError, GetSeatsResponse, GetSubscriptionData, GetSubscriptionError, GetSubscriptionResponse, GetTemplateData, GetTemplateError, GetTemplateResponse, GetTestMessageData, GetTestMessageError, GetTestMessageResponse, GetWebhookSecretData, GetWebhookSecretError, GetWebhookSecretResponse, GetWhatsappNumberData, GetWhatsappNumberError, GetWhatsappNumberResponse, GetWorkspaceData, GetWorkspaceError, GetWorkspaceResponse, GoogleSheetsCallbackData, GoogleSheetsCallbackError, GoogleSheetsCallbackResponse, HealthData, HealthError, HealthResponse, InviteSignupData, InviteSignupError, InviteSignupResponse, LeaveWorkspaceData, LeaveWorkspaceError, LeaveWorkspaceResponse, ListAccessLogData, ListAccessLogError, ListAccessLogResponse, ListApiKeysData, ListApiKeysError, ListApiKeysResponse, ListAuthEventsData, ListAuthEventsError, ListAuthEventsResponse, ListBillingPlansData, ListBillingPlansError, ListBillingPlansResponse, ListBillingResourcesData, ListBillingResourcesError, ListBillingResourcesResponse, ListContactsData, ListContactsError, ListContactsResponse, ListContactTagsData, ListContactTagsError, ListContactTagsResponse, ListIdentitiesData, ListIdentitiesError, ListIdentitiesResponse, ListInvitationsData, ListInvitationsError, ListInvitationsResponse, ListInvoicesData, ListInvoicesError, ListInvoicesResponse, ListMembersData, ListMembersError, ListMembersResponse, ListOauthProvidersData, ListOauthProvidersError, ListOauthProvidersResponse, ListPermissionsData, ListPermissionsError, ListPermissionsResponse, ListRolesData, ListRolesError, ListRolesResponse, ListSessionsData, ListSessionsError, ListSessionsResponse, ListTeamsData, ListTeamsError, ListTeamsResponse, ListTemplatesData, ListTemplatesError, ListTemplatesResponse, ListWebhookDeliveriesData, ListWebhookDeliveriesError, ListWebhookDeliveriesResponse, ListWebhookEventsData, ListWebhookEventsError, ListWebhookEventsResponse, ListWebhooksData, ListWebhooksError, ListWebhooksResponse, ListWhatsappNumbersData, ListWhatsappNumbersError, ListWhatsappNumbersResponse, ListWorkspacesData, ListWorkspacesError, ListWorkspacesResponse, LoginData, LoginError, LoginResponse, LogoutAllData, LogoutAllError, LogoutAllResponse, LogoutData, LogoutError, LogoutResponse, OauthCallbackData, OauthCallbackError, OauthCallbackResponse, OauthCompleteData, OauthCompleteError, OauthCompleteResponse, OauthCompleteVerifyData, OauthCompleteVerifyError, OauthCompleteVerifyResponse, OauthLinkData, OauthLinkError, OauthLinkResponse, OauthStartData, OauthStartError, OauthStartResponse, OauthTokenData, OauthTokenError, OauthTokenResponse, PayInstallmentData, PayInstallmentError, PayInstallmentResponse, PaymentWebhookData, PaymentWebhookError, PreviewContactImportData, PreviewContactImportError, PreviewContactImportResponse, PreviewDiscountData, PreviewDiscountError, PreviewDiscountResponse, PreviewInvitationData, PreviewInvitationError, PreviewInvitationResponse, PreviewMemberRoleData, PreviewMemberRoleError, PreviewMemberRoleResponse, PreviewRoleData, PreviewRoleError, PreviewRoleResponse, PreviewSubscriptionChangeData, PreviewSubscriptionChangeError, PreviewSubscriptionChangeResponse, QuoteOrderData, QuoteOrderError, QuoteOrderResponse, ReadyData, ReadyError, ReadyResponse, RedeliverWebhookData, RedeliverWebhookError, RefreshTokenData, RefreshTokenError, RefreshTokenResponse, RemoveMemberData, RemoveMemberError, RemoveMemberResponse, RequestInvitationRenewalData, RequestInvitationRenewalError, RequestInvitationRenewalResponse, ResendInvitationData, ResendInvitationError, ResendInvitationResponse, ResendVerificationData, ResendVerificationError, ResendVerificationResponse, ResetPasswordData, ResetPasswordError, ResetPasswordResponse, ResetRoleData, ResetRoleError, ResetRoleResponse, RestoreMemberData, RestoreMemberError, RestoreMemberResponse, ResumeOrderData, ResumeOrderError, ResumeOrderResponse, ResumeSubscriptionData, ResumeSubscriptionError, ResumeSubscriptionResponse, RevokeApiKeyData, RevokeApiKeyError, RevokeApiKeyResponse, RevokeInvitationData, RevokeInvitationError, RevokeInvitationResponse, RevokeMemberOverrideData, RevokeMemberOverrideError, RevokeMemberOverrideResponse, RevokeSessionData, RevokeSessionError, RevokeSessionResponse, RollApiKeyData, RollApiKeyError, RollApiKeyResponse, RotateWebhookSecretData, RotateWebhookSecretError, RotateWebhookSecretResponse, SaveBusinessData, SaveBusinessError, SaveBusinessResponse, SendTestMessageData, SendTestMessageError, SendTestMessageResponse, SendWebhookTestData, SendWebhookTestError, SendWebhookTestResponse, SetAvailabilityData, SetAvailabilityError, SetAvailabilityResponse, SetContactImportMappingData, SetContactImportMappingError, SetContactImportMappingResponse, SetPasswordData, SetPasswordError, SetPasswordResponse, SetTeamMembersData, SetTeamMembersError, SetTeamMembersResponse, ShopifyCallbackData, ShopifyCallbackError, ShopifyCallbackResponse, SignupData, SignupError, SignupResponse, SkipWhatsappData, SkipWhatsappError, SkipWhatsappResponse, StartContactImportData, StartContactImportError, StartContactImportResponse, SubmitTemplateData, SubmitTemplateError, SubmitTemplateResponse, SuspendMemberData, SuspendMemberError, SuspendMemberResponse, SyncTemplatesData, SyncTemplatesError, SyncTemplatesResponse, TestIntegrationData, TestIntegrationError, TestIntegrationResponse, UnlinkIdentityData, UnlinkIdentityError, UnlinkIdentityResponse, UpdateBillingProfileData, UpdateBillingProfileError, UpdateBillingProfileResponse, UpdateContactData, UpdateContactError, UpdateContactResponse, UpdateMemberAccessData, UpdateMemberAccessError, UpdateMemberAccessResponse, UpdateOnboardingMemberData, UpdateOnboardingMemberError, UpdateOnboardingMemberResponse, UpdatePreferencesData, UpdatePreferencesError, UpdatePreferencesResponse, UpdateProfileData, UpdateProfileError, UpdateProfileResponse, UpdateRoleData, UpdateRoleError, UpdateRoleResponse, UpdateTeamData, UpdateTeamError, UpdateTeamResponse, UpdateTemplateData, UpdateTemplateError, UpdateTemplateResponse, UpdateWebhookData, UpdateWebhookError, UpdateWebhookResponse, UploadContactImportData, UploadContactImportError, UploadContactImportResponse, UploadTemplateHeaderSampleData, UploadTemplateHeaderSampleError, UploadTemplateHeaderSampleResponse, VerifyEmailCodeData, VerifyEmailCodeError, VerifyEmailCodeResponse, VerifyEmailData, VerifyEmailError, VerifyEmailResponse, WhatsappSignupConfigData, WhatsappSignupConfigError, WhatsappSignupConfigResponse, WhatsappWebhookData, WhatsappWebhookError, WhatsappWebhookVerifyData, WhatsappWebhookVerifyError, WhatsappWebhookVerifyResponse, WoocommerceCallbackData, WoocommerceCallbackError } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -872,6 +872,59 @@ export const listBillingResourcesOptions = (options?: Options<ListBillingResourc
     },
     queryKey: listBillingResourcesQueryKey(options)
 });
+
+export const googleSheetsCallbackQueryKey = (options?: Options<GoogleSheetsCallbackData>) => createQueryKey('googleSheetsCallback', options);
+
+/**
+ * Google's redirect: saves the connection, then sends the person to Integrations
+ */
+export const googleSheetsCallbackOptions = (options?: Options<GoogleSheetsCallbackData>) => queryOptions<GoogleSheetsCallbackResponse, GoogleSheetsCallbackError, GoogleSheetsCallbackResponse, ReturnType<typeof googleSheetsCallbackQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await googleSheetsCallback({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: googleSheetsCallbackQueryKey(options)
+});
+
+export const shopifyCallbackQueryKey = (options?: Options<ShopifyCallbackData>) => createQueryKey('shopifyCallback', options);
+
+/**
+ * Shopify's redirect after install: saves the store, then sends the person to Integrations
+ */
+export const shopifyCallbackOptions = (options?: Options<ShopifyCallbackData>) => queryOptions<ShopifyCallbackResponse, ShopifyCallbackError, ShopifyCallbackResponse, ReturnType<typeof shopifyCallbackQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await shopifyCallback({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: shopifyCallbackQueryKey(options)
+});
+
+/**
+ * WooCommerce posts the REST keys the store owner approved (server to server)
+ */
+export const woocommerceCallbackMutation = (options?: Partial<Options<WoocommerceCallbackData>>): UseMutationOptions<unknown, WoocommerceCallbackError, Options<WoocommerceCallbackData>> => {
+    const mutationOptions: UseMutationOptions<unknown, WoocommerceCallbackError, Options<WoocommerceCallbackData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await woocommerceCallback({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
 
 /**
  * Join the workspace as the signed-in user
@@ -1890,6 +1943,399 @@ export const updateContactMutation = (options?: Partial<Options<UpdateContactDat
     const mutationOptions: UseMutationOptions<UpdateContactResponse, UpdateContactError, Options<UpdateContactData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await updateContact({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getIntegrationsQueryKey = (options: Options<GetIntegrationsData>) => createQueryKey('getIntegrations', options);
+
+/**
+ * What each Integrations card shows
+ */
+export const getIntegrationsOptions = (options: Options<GetIntegrationsData>) => queryOptions<GetIntegrationsResponse, GetIntegrationsError, GetIntegrationsResponse, ReturnType<typeof getIntegrationsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getIntegrations({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getIntegrationsQueryKey(options)
+});
+
+export const listApiKeysQueryKey = (options: Options<ListApiKeysData>) => createQueryKey('listApiKeys', options);
+
+/**
+ * Active API keys (never the keys themselves)
+ */
+export const listApiKeysOptions = (options: Options<ListApiKeysData>) => queryOptions<ListApiKeysResponse, ListApiKeysError, ListApiKeysResponse, ReturnType<typeof listApiKeysQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listApiKeys({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listApiKeysQueryKey(options)
+});
+
+/**
+ * Make an API key; the full key is in this response only
+ */
+export const createApiKeyMutation = (options?: Partial<Options<CreateApiKeyData>>): UseMutationOptions<CreateApiKeyResponse, CreateApiKeyError, Options<CreateApiKeyData>> => {
+    const mutationOptions: UseMutationOptions<CreateApiKeyResponse, CreateApiKeyError, Options<CreateApiKeyData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await createApiKey({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Revoke an API key
+ */
+export const revokeApiKeyMutation = (options?: Partial<Options<RevokeApiKeyData>>): UseMutationOptions<RevokeApiKeyResponse, RevokeApiKeyError, Options<RevokeApiKeyData>> => {
+    const mutationOptions: UseMutationOptions<RevokeApiKeyResponse, RevokeApiKeyError, Options<RevokeApiKeyData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await revokeApiKey({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Replace a key: a new one, and the old one stops working now
+ */
+export const rollApiKeyMutation = (options?: Partial<Options<RollApiKeyData>>): UseMutationOptions<RollApiKeyResponse, RollApiKeyError, Options<RollApiKeyData>> => {
+    const mutationOptions: UseMutationOptions<RollApiKeyResponse, RollApiKeyError, Options<RollApiKeyData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await rollApiKey({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Start connecting Google Sheets: returns Google's consent URL
+ */
+export const authorizeGoogleSheetsMutation = (options?: Partial<Options<AuthorizeGoogleSheetsData>>): UseMutationOptions<AuthorizeGoogleSheetsResponse, AuthorizeGoogleSheetsError, Options<AuthorizeGoogleSheetsData>> => {
+    const mutationOptions: UseMutationOptions<AuthorizeGoogleSheetsResponse, AuthorizeGoogleSheetsError, Options<AuthorizeGoogleSheetsData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await authorizeGoogleSheets({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Start connecting a Shopify store in one click: returns its install URL
+ */
+export const authorizeShopifyMutation = (options?: Partial<Options<AuthorizeShopifyData>>): UseMutationOptions<AuthorizeShopifyResponse, AuthorizeShopifyError, Options<AuthorizeShopifyData>> => {
+    const mutationOptions: UseMutationOptions<AuthorizeShopifyResponse, AuthorizeShopifyError, Options<AuthorizeShopifyData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await authorizeShopify({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Start connecting a WooCommerce store in one click: returns its approval URL
+ */
+export const authorizeWoocommerceMutation = (options?: Partial<Options<AuthorizeWoocommerceData>>): UseMutationOptions<AuthorizeWoocommerceResponse, AuthorizeWoocommerceError, Options<AuthorizeWoocommerceData>> => {
+    const mutationOptions: UseMutationOptions<AuthorizeWoocommerceResponse, AuthorizeWoocommerceError, Options<AuthorizeWoocommerceData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await authorizeWoocommerce({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Disconnect and forget the credentials
+ */
+export const disconnectIntegrationMutation = (options?: Partial<Options<DisconnectIntegrationData>>): UseMutationOptions<DisconnectIntegrationResponse, DisconnectIntegrationError, Options<DisconnectIntegrationData>> => {
+    const mutationOptions: UseMutationOptions<DisconnectIntegrationResponse, DisconnectIntegrationError, Options<DisconnectIntegrationData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await disconnectIntegration({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Connect a store; its credentials are checked first
+ */
+export const connectIntegrationMutation = (options?: Partial<Options<ConnectIntegrationData>>): UseMutationOptions<ConnectIntegrationResponse, ConnectIntegrationError, Options<ConnectIntegrationData>> => {
+    const mutationOptions: UseMutationOptions<ConnectIntegrationResponse, ConnectIntegrationError, Options<ConnectIntegrationData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await connectIntegration({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Check a connection again and record the result
+ */
+export const testIntegrationMutation = (options?: Partial<Options<TestIntegrationData>>): UseMutationOptions<TestIntegrationResponse, TestIntegrationError, Options<TestIntegrationData>> => {
+    const mutationOptions: UseMutationOptions<TestIntegrationResponse, TestIntegrationError, Options<TestIntegrationData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await testIntegration({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const listWebhookEventsQueryKey = (options: Options<ListWebhookEventsData>) => createQueryKey('listWebhookEvents', options);
+
+/**
+ * Events a webhook endpoint can subscribe to
+ */
+export const listWebhookEventsOptions = (options: Options<ListWebhookEventsData>) => queryOptions<ListWebhookEventsResponse, ListWebhookEventsError, ListWebhookEventsResponse, ReturnType<typeof listWebhookEventsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listWebhookEvents({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listWebhookEventsQueryKey(options)
+});
+
+export const listWebhooksQueryKey = (options: Options<ListWebhooksData>) => createQueryKey('listWebhooks', options);
+
+/**
+ * Webhook endpoints and their delivery health
+ */
+export const listWebhooksOptions = (options: Options<ListWebhooksData>) => queryOptions<ListWebhooksResponse, ListWebhooksError, ListWebhooksResponse, ReturnType<typeof listWebhooksQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listWebhooks({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listWebhooksQueryKey(options)
+});
+
+/**
+ * Add a webhook endpoint
+ */
+export const createWebhookMutation = (options?: Partial<Options<CreateWebhookData>>): UseMutationOptions<CreateWebhookResponse, CreateWebhookError, Options<CreateWebhookData>> => {
+    const mutationOptions: UseMutationOptions<CreateWebhookResponse, CreateWebhookError, Options<CreateWebhookData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await createWebhook({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Remove a webhook endpoint and its delivery log
+ */
+export const deleteWebhookMutation = (options?: Partial<Options<DeleteWebhookData>>): UseMutationOptions<DeleteWebhookResponse, DeleteWebhookError, Options<DeleteWebhookData>> => {
+    const mutationOptions: UseMutationOptions<DeleteWebhookResponse, DeleteWebhookError, Options<DeleteWebhookData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteWebhook({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Change a webhook endpoint
+ */
+export const updateWebhookMutation = (options?: Partial<Options<UpdateWebhookData>>): UseMutationOptions<UpdateWebhookResponse, UpdateWebhookError, Options<UpdateWebhookData>> => {
+    const mutationOptions: UseMutationOptions<UpdateWebhookResponse, UpdateWebhookError, Options<UpdateWebhookData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await updateWebhook({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const listWebhookDeliveriesQueryKey = (options: Options<ListWebhookDeliveriesData>) => createQueryKey('listWebhookDeliveries', options);
+
+/**
+ * The endpoint's delivery log, newest first (30 days)
+ */
+export const listWebhookDeliveriesOptions = (options: Options<ListWebhookDeliveriesData>) => queryOptions<ListWebhookDeliveriesResponse, ListWebhookDeliveriesError, ListWebhookDeliveriesResponse, ReturnType<typeof listWebhookDeliveriesQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listWebhookDeliveries({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listWebhookDeliveriesQueryKey(options)
+});
+
+export const listWebhookDeliveriesInfiniteQueryKey = (options: Options<ListWebhookDeliveriesData>): QueryKey<Options<ListWebhookDeliveriesData>> => createQueryKey('listWebhookDeliveries', options, true);
+
+/**
+ * The endpoint's delivery log, newest first (30 days)
+ */
+export const listWebhookDeliveriesInfiniteOptions = (options: Options<ListWebhookDeliveriesData>) => {
+    const opts = infiniteQueryOptions<ListWebhookDeliveriesResponse, ListWebhookDeliveriesError, InfiniteData<ListWebhookDeliveriesResponse>, QueryKey<Options<ListWebhookDeliveriesData>>, string | Pick<QueryKey<Options<ListWebhookDeliveriesData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+    // @ts-ignore
+    {
+        queryFn: async ({ pageParam, queryKey, signal }) => {
+            // @ts-ignore
+            const page: Pick<QueryKey<Options<ListWebhookDeliveriesData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
+                query: {
+                    cursor: pageParam
+                }
+            };
+            const params = createInfiniteParams(queryKey, page);
+            const { data } = await listWebhookDeliveries({
+                ...options,
+                ...params,
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: listWebhookDeliveriesInfiniteQueryKey(options)
+    });
+    return opts as Omit<typeof opts, 'initialData'>;
+};
+
+/**
+ * Send a finished delivery again
+ */
+export const redeliverWebhookMutation = (options?: Partial<Options<RedeliverWebhookData>>): UseMutationOptions<unknown, RedeliverWebhookError, Options<RedeliverWebhookData>> => {
+    const mutationOptions: UseMutationOptions<unknown, RedeliverWebhookError, Options<RedeliverWebhookData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await redeliverWebhook({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getWebhookSecretQueryKey = (options: Options<GetWebhookSecretData>) => createQueryKey('getWebhookSecret', options);
+
+/**
+ * The endpoint's signing secret
+ */
+export const getWebhookSecretOptions = (options: Options<GetWebhookSecretData>) => queryOptions<GetWebhookSecretResponse, GetWebhookSecretError, GetWebhookSecretResponse, ReturnType<typeof getWebhookSecretQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getWebhookSecret({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getWebhookSecretQueryKey(options)
+});
+
+/**
+ * Replace the signing secret
+ */
+export const rotateWebhookSecretMutation = (options?: Partial<Options<RotateWebhookSecretData>>): UseMutationOptions<RotateWebhookSecretResponse, RotateWebhookSecretError, Options<RotateWebhookSecretData>> => {
+    const mutationOptions: UseMutationOptions<RotateWebhookSecretResponse, RotateWebhookSecretError, Options<RotateWebhookSecretData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await rotateWebhookSecret({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Send a ping event now and return the result
+ */
+export const sendWebhookTestMutation = (options?: Partial<Options<SendWebhookTestData>>): UseMutationOptions<SendWebhookTestResponse, SendWebhookTestError, Options<SendWebhookTestData>> => {
+    const mutationOptions: UseMutationOptions<SendWebhookTestResponse, SendWebhookTestError, Options<SendWebhookTestData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await sendWebhookTest({
                 ...options,
                 ...fnOptions,
                 throwOnError: true

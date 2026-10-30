@@ -53,6 +53,7 @@ type Querier interface {
 	// Every custom-field key among the matching contacts, for the export's columns.
 	ContactAttributeKeys(ctx context.Context, arg ContactAttributeKeysParams) ([]string, error)
 	ContactSummary(ctx context.Context, workspaceID uuid.UUID) (ContactSummaryRow, error)
+	CountActiveAPIKeys(ctx context.Context, workspaceID uuid.UUID) (int64, error)
 	// How many of ids are tags of this workspace.
 	CountContactTagsIn(ctx context.Context, arg CountContactTagsInParams) (int64, error)
 	CountContacts(ctx context.Context, arg CountContactsParams) (int64, error)
@@ -73,11 +74,13 @@ type Querier interface {
 	CountTemplates(ctx context.Context, arg CountTemplatesParams) (CountTemplatesRow, error)
 	// Workspaces this user owns that haven't sent a real message yet.
 	CountTrialWorkspacesOwned(ctx context.Context, userID uuid.UUID) (int64, error)
+	CountWebhookEndpoints(ctx context.Context, workspaceID uuid.UUID) (int64, error)
 	CountWorkspaceContacts(ctx context.Context, workspaceID uuid.UUID) (int64, error)
 	CountWorkspaceNumbers(ctx context.Context, arg CountWorkspaceNumbersParams) (int64, error)
 	// ---------- Redemptions ----------
 	// Uses that still count against per_workspace_limit (reserved or redeemed).
 	CountWorkspaceRedemptions(ctx context.Context, arg CountWorkspaceRedemptionsParams) (int32, error)
+	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) error
 	// ---------- Checkout sessions ----------
 	// ON CONFLICT: a retried request with the same Idempotency-Key gets no row;
 	// the caller then reads the first one with GetCheckoutSessionByIdempotencyKey.
@@ -132,6 +135,9 @@ type Querier interface {
 	// Rules (CLAUDE.md): list columns explicitly, never SELECT *. password_hash and
 	// token hashes are selected only where they are needed.
 	CreateUser(ctx context.Context, arg CreateUserParams) error
+	// ---------- Webhook deliveries ----------
+	CreateWebhookDelivery(ctx context.Context, arg CreateWebhookDeliveryParams) error
+	CreateWebhookEndpoint(ctx context.Context, arg CreateWebhookEndpointParams) error
 	CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) error
 	DeactivateDiscount(ctx context.Context, discountID uuid.UUID) (int64, error)
 	DeactivateInstallmentOffer(ctx context.Context, installmentOfferID uuid.UUID) (int64, error)
@@ -155,13 +161,16 @@ type Querier interface {
 	DeleteOAuthFlow(ctx context.Context, id uuid.UUID) error
 	// auth_events is kept 180 days (00002_auth.sql).
 	DeleteOldAuthEvents(ctx context.Context) (int64, error)
+	DeleteOldDeliveries(ctx context.Context, before time.Time) (int64, error)
 	DeleteRole(ctx context.Context, arg DeleteRoleParams) (int64, error)
 	DeleteTeam(ctx context.Context, arg DeleteTeamParams) (int64, error)
 	DeleteTemplate(ctx context.Context, arg DeleteTemplateParams) error
 	// A password reset proves who owns the email: identities whose provider never
 	// vouched for that email (e.g. Facebook) can't keep access to the account.
 	DeleteUnverifiedIdentities(ctx context.Context, userID uuid.UUID) (int64, error)
+	DeleteWebhookEndpoint(ctx context.Context, arg DeleteWebhookEndpointParams) (int64, error)
 	DisconnectAccountNumbers(ctx context.Context, arg DisconnectAccountNumbersParams) error
+	DisconnectConnection(ctx context.Context, arg DisconnectConnectionParams) (int64, error)
 	DisconnectWhatsAppAccount(ctx context.Context, arg DisconnectWhatsAppAccountParams) error
 	EndGrant(ctx context.Context, arg EndGrantParams) (int64, error)
 	// Returns the workspace's customer row for provider, creating it on first use.
@@ -191,10 +200,14 @@ type Querier interface {
 	// Moves a pending session to completed, failed or expired; a finished one is left alone.
 	FinishCheckoutSession(ctx context.Context, arg FinishCheckoutSessionParams) (int64, error)
 	FinishContactImport(ctx context.Context, arg FinishContactImportParams) error
+	// The one lookup without a workspace: the key is how the workspace is found.
+	// RequireWorkspace then checks the creator's current access there.
+	GetAPIKeyByHash(ctx context.Context, tokenHash []byte) (GetAPIKeyByHashRow, error)
 	GetAccount(ctx context.Context, id uuid.UUID) (GetAccountRow, error)
 	GetAccountByEmail(ctx context.Context, email string) (GetAccountByEmailRow, error)
 	// The only query that reads access_token, and only for a Graph call.
 	GetAccountToken(ctx context.Context, arg GetAccountTokenParams) (GetAccountTokenRow, error)
+	GetActiveAPIKey(ctx context.Context, arg GetActiveAPIKeyParams) (GetActiveAPIKeyRow, error)
 	// The workspace's WABA that template calls use (one active account per workspace today).
 	GetActiveAccountID(ctx context.Context, workspaceID uuid.UUID) (uuid.UUID, error)
 	// The only query that reads code_hash. Locks the row so concurrent tries count correctly.
@@ -211,6 +224,7 @@ type Querier interface {
 	GetCardCustomer(ctx context.Context, workspaceID uuid.UUID) (GetCardCustomerRow, error)
 	GetCheckoutSession(ctx context.Context, arg GetCheckoutSessionParams) (GetCheckoutSessionRow, error)
 	GetCheckoutSessionByIdempotencyKey(ctx context.Context, arg GetCheckoutSessionByIdempotencyKeyParams) (GetCheckoutSessionByIdempotencyKeyRow, error)
+	GetConnectionCredentials(ctx context.Context, arg GetConnectionCredentialsParams) (GetConnectionCredentialsRow, error)
 	GetContact(ctx context.Context, arg GetContactParams) (GetContactRow, error)
 	GetContactImport(ctx context.Context, arg GetContactImportParams) (GetContactImportRow, error)
 	GetContactTag(ctx context.Context, arg GetContactTagParams) (GetContactTagRow, error)
@@ -218,6 +232,8 @@ type Querier interface {
 	// The workspace's one active or suspended grant. No row means the free plan.
 	// Limits are the plan's as they are now, plus the grant's overrides (ADR 0008).
 	GetCurrentGrant(ctx context.Context, workspaceID uuid.UUID) (GetCurrentGrantRow, error)
+	// The worker's view: the delivery, its endpoint's URL and secret, and whether it's on.
+	GetDeliveryForSend(ctx context.Context, arg GetDeliveryForSendParams) (GetDeliveryForSendRow, error)
 	GetDiscount(ctx context.Context, discountID uuid.UUID) (GetDiscountRow, error)
 	// ---------- Discounts (owned by Relay, not by a workspace) ----------
 	GetDiscountByCode(ctx context.Context, code string) (GetDiscountByCodeRow, error)
@@ -272,6 +288,8 @@ type Querier interface {
 	GetTestMessage(ctx context.Context, arg GetTestMessageParams) (GetTestMessageRow, error)
 	// The only query besides GetPasswordHash that reads password_hash.
 	GetUserForLogin(ctx context.Context, email string) (GetUserForLoginRow, error)
+	GetWebhookEndpoint(ctx context.Context, arg GetWebhookEndpointParams) (GetWebhookEndpointRow, error)
+	GetWebhookSecret(ctx context.Context, arg GetWebhookSecretParams) ([]byte, error)
 	GetWhatsAppAccountByWABA(ctx context.Context, wabaID string) (GetWhatsAppAccountByWABARow, error)
 	GetWhatsAppNumber(ctx context.Context, arg GetWhatsAppNumberParams) (GetWhatsAppNumberRow, error)
 	GetWorkspace(ctx context.Context, workspaceID uuid.UUID) (GetWorkspaceRow, error)
@@ -304,6 +322,8 @@ type Querier interface {
 	IsSessionActive(ctx context.Context, arg IsSessionActiveParams) (bool, error)
 	// Records the subscription or order a pending checkout created.
 	LinkCheckoutSession(ctx context.Context, arg LinkCheckoutSessionParams) (int64, error)
+	// ---------- API keys ----------
+	ListAPIKeys(ctx context.Context, workspaceID uuid.UUID) ([]ListAPIKeysRow, error)
 	// Newest first. Cursor: (created_at, id) of the last row of the previous page.
 	ListAccessLog(ctx context.Context, arg ListAccessLogParams) ([]ListAccessLogRow, error)
 	// ---------- Installment offers (one-time prices only) ----------
@@ -318,6 +338,8 @@ type Querier interface {
 	// Job only (all workspaces): subscriptions Relay renews itself (SSLCommerz).
 	ListAppRenewalsDue(ctx context.Context, arg ListAppRenewalsDueParams) ([]ListAppRenewalsDueRow, error)
 	ListAuthEvents(ctx context.Context, userID *uuid.UUID) ([]ListAuthEventsRow, error)
+	// ---------- Connections ----------
+	ListConnections(ctx context.Context, workspaceID uuid.UUID) ([]ListConnectionsRow, error)
 	// ---------- Tags ----------
 	ListContactTags(ctx context.Context, workspaceID uuid.UUID) ([]ListContactTagsRow, error)
 	// ---------- Contacts ----------
@@ -358,12 +380,17 @@ type Querier interface {
 	ListRoles(ctx context.Context, workspaceID uuid.UUID) ([]ListRolesRow, error)
 	// Job only (all workspaces): events still unprocessed long after they arrived.
 	ListStuckPaymentEvents(ctx context.Context, arg ListStuckPaymentEventsParams) ([]ListStuckPaymentEventsRow, error)
+	ListSubscribedEndpoints(ctx context.Context, arg ListSubscribedEndpointsParams) ([]uuid.UUID, error)
 	ListSubscriptionChanges(ctx context.Context, arg ListSubscriptionChangesParams) ([]ListSubscriptionChangesRow, error)
 	ListTagsOfContacts(ctx context.Context, arg ListTagsOfContactsParams) ([]ListTagsOfContactsRow, error)
 	// ---------- Teams ----------
 	ListTeams(ctx context.Context, workspaceID uuid.UUID) ([]ListTeamsRow, error)
 	// Newest first. Cursor: the id of the last row of the previous page (UUIDv7 sorts by time).
 	ListTemplates(ctx context.Context, arg ListTemplatesParams) ([]ListTemplatesRow, error)
+	// Cursor: (created_at, id) of the last row of the previous page.
+	ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]ListWebhookDeliveriesRow, error)
+	// ---------- Webhook endpoints ----------
+	ListWebhookEndpoints(ctx context.Context, workspaceID uuid.UUID) ([]ListWebhookEndpointsRow, error)
 	ListWhatsAppNumbers(ctx context.Context, workspaceID uuid.UUID) ([]ListWhatsAppNumbersRow, error)
 	// The support view of a workspace's webhook events, newest first.
 	ListWorkspacePaymentEvents(ctx context.Context, arg ListWorkspacePaymentEventsParams) ([]ListWorkspacePaymentEventsRow, error)
@@ -382,6 +409,8 @@ type Querier interface {
 	// Locks the workspace row so seat checks in concurrent invites and accepts run one at a time.
 	LockSeatLimit(ctx context.Context, workspaceID uuid.UUID) (int32, error)
 	LockSubscription(ctx context.Context, arg LockSubscriptionParams) (LockSubscriptionRow, error)
+	// One workspace's key and endpoint creations take turns, so the limits hold under concurrency.
+	LockWorkspaceIntegrations(ctx context.Context, workspaceID uuid.UUID) error
 	MarkBusinessDone(ctx context.Context, workspaceID uuid.UUID) error
 	MarkEmailVerified(ctx context.Context, id uuid.UUID) error
 	MarkInstallmentPaid(ctx context.Context, arg MarkInstallmentPaidParams) (int64, error)
@@ -402,7 +431,12 @@ type Querier interface {
 	// A released reservation's session was paid after all: hold the use again,
 	// unless the code has been used up since.
 	ReclaimDiscount(ctx context.Context, arg ReclaimDiscountParams) (int64, error)
+	RecordConnectionCheck(ctx context.Context, arg RecordConnectionCheckParams) error
+	RecordDeliveryAttempt(ctx context.Context, arg RecordDeliveryAttemptParams) error
 	RecordEmailCodeAttempt(ctx context.Context, id uuid.UUID) (int32, error)
+	// Turns the endpoint off once failures reach the limit.
+	RecordEndpointFailure(ctx context.Context, arg RecordEndpointFailureParams) (bool, error)
+	RecordEndpointSuccess(ctx context.Context, arg RecordEndpointSuccessParams) error
 	RecordOAuthFlowCodeAttempt(ctx context.Context, id uuid.UUID) (int32, error)
 	// Payment went through: the reservation becomes a redemption.
 	RedeemDiscount(ctx context.Context, arg RedeemDiscountParams) (int64, error)
@@ -421,9 +455,11 @@ type Querier interface {
 	ReserveDiscount(ctx context.Context, arg ReserveDiscountParams) (uuid.UUID, error)
 	// A (re)started job counts from zero.
 	ResetContactImportProgress(ctx context.Context, arg ResetContactImportProgressParams) error
+	ResetDeliveryForRetry(ctx context.Context, arg ResetDeliveryForRetryParams) (int64, error)
 	// ---------- Access (ADR 0002: one query per request) ----------
 	ResolveAccess(ctx context.Context, arg ResolveAccessParams) (ResolveAccessRow, error)
 	RestoreGrant(ctx context.Context, arg RestoreGrantParams) (int64, error)
+	RevokeAPIKey(ctx context.Context, arg RevokeAPIKeyParams) (int64, error)
 	// Clears an active override for the same permission before a new one is added.
 	RevokeActiveOverride(ctx context.Context, arg RevokeActiveOverrideParams) error
 	RevokeInvitation(ctx context.Context, arg RevokeInvitationParams) error
@@ -481,6 +517,7 @@ type Querier interface {
 	SetTermsAccepted(ctx context.Context, arg SetTermsAcceptedParams) error
 	SetTestMessageFailed(ctx context.Context, arg SetTestMessageFailedParams) error
 	SetTestMessageSent(ctx context.Context, arg SetTestMessageSentParams) error
+	SetWebhookSecret(ctx context.Context, arg SetWebhookSecretParams) (int64, error)
 	// workspaces.plan and trial_ends_at are a cache of the current grant (Q8):
 	// written only in the same transaction as the grant change.
 	SetWorkspacePlanCache(ctx context.Context, arg SetWorkspacePlanCacheParams) (int64, error)
@@ -492,6 +529,8 @@ type Querier interface {
 	// Copies the provider's view of a subscription.
 	SyncSubscription(ctx context.Context, arg SyncSubscriptionParams) (int64, error)
 	TeamMemberIDs(ctx context.Context, arg TeamMemberIDsParams) ([]uuid.UUID, error)
+	// At most one write a minute per key.
+	TouchAPIKey(ctx context.Context, arg TouchAPIKeyParams) error
 	// Refresh what the provider reports on every sign-in. Never touches the profile.
 	TouchIdentity(ctx context.Context, arg TouchIdentityParams) error
 	TouchLastLogin(ctx context.Context, id uuid.UUID) error
@@ -511,8 +550,11 @@ type Querier interface {
 	UpdateTemplate(ctx context.Context, arg UpdateTemplateParams) (int64, error)
 	// Statuses only move forward: a late "sent" never overwrites "delivered".
 	UpdateTestMessageStatus(ctx context.Context, arg UpdateTestMessageStatusParams) (UpdateTestMessageStatusRow, error)
+	// Turning an endpoint back on clears its failure streak.
+	UpdateWebhookEndpoint(ctx context.Context, arg UpdateWebhookEndpointParams) (int64, error)
 	UpdateWorkspaceBusiness(ctx context.Context, arg UpdateWorkspaceBusinessParams) error
 	UpsertBillingProfile(ctx context.Context, arg UpsertBillingProfileParams) (UpsertBillingProfileRow, error)
+	UpsertConnection(ctx context.Context, arg UpsertConnectionParams) error
 	// Returns the tag with this name (case-insensitive), creating it when there is none.
 	UpsertContactTag(ctx context.Context, arg UpsertContactTagParams) (UpsertContactTagRow, error)
 	// One import batch. A new contact is opted in from the import; an existing one keeps its values
@@ -526,6 +568,8 @@ type Querier interface {
 	UpsertWhatsAppAccount(ctx context.Context, arg UpsertWhatsAppAccountParams) (uuid.UUID, error)
 	UpsertWhatsAppNumber(ctx context.Context, arg UpsertWhatsAppNumberParams) (uuid.UUID, error)
 	UseEmailCode(ctx context.Context, id uuid.UUID) error
+	// Per endpoint that has finished deliveries: the latest one, and the last 7 days' success count.
+	WebhookEndpointStats(ctx context.Context, workspaceID uuid.UUID) ([]WebhookEndpointStatsRow, error)
 }
 
 var _ Querier = (*Queries)(nil)

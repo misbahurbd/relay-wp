@@ -43,6 +43,20 @@ type AccessLogEventsDefault struct {
 	UserAgent     string
 }
 
+type ApiKey struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	Name        string
+	App         *string
+	Prefix      string
+	Last4       string
+	TokenHash   []byte
+	CreatedBy   uuid.UUID
+	LastUsedAt  *time.Time
+	RevokedAt   *time.Time
+	CreatedAt   time.Time
+}
+
 type AuthEvent struct {
 	ID        uuid.UUID
 	UserID    *uuid.UUID
@@ -263,6 +277,21 @@ type InstallmentOffer struct {
 	IsActive    bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+}
+
+type IntegrationConnection struct {
+	ID            uuid.UUID
+	WorkspaceID   uuid.UUID
+	Provider      string
+	Status        string
+	AccountLabel  string
+	Config        []byte
+	Credentials   []byte
+	LastCheckedAt *time.Time
+	LastError     *string
+	ConnectedBy   *uuid.UUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 type Invitation struct {
@@ -679,6 +708,37 @@ type UserProfile struct {
 	AvatarUrl   *string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+}
+
+type WebhookDelivery struct {
+	ID             uuid.UUID
+	WorkspaceID    uuid.UUID
+	EndpointID     uuid.UUID
+	EventID        uuid.UUID
+	EventType      string
+	Payload        []byte
+	Status         string
+	Attempts       int32
+	ResponseStatus *int32
+	ResponseMs     *int32
+	Error          *string
+	CreatedAt      time.Time
+	DeliveredAt    *time.Time
+}
+
+type WebhookEndpoint struct {
+	ID                  uuid.UUID
+	WorkspaceID         uuid.UUID
+	Url                 string
+	Description         string
+	Events              []string
+	Enabled             bool
+	Secret              []byte
+	ConsecutiveFailures int32
+	DisabledReason      *string
+	CreatedBy           *uuid.UUID
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
 }
 
 type WhatsappAccount struct {

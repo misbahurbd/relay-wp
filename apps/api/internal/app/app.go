@@ -25,6 +25,7 @@ import (
 	authservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/auth/service"
 	billingservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/service"
 	contactsservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/contacts/service"
+	integrationsservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/integrations/service"
 	onboardingservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/onboarding/service"
 	profilesservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/profiles/service"
 	teamservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/team/service"
@@ -66,18 +67,19 @@ type App struct {
 	storage  storage.Storage
 	jwt      *jwt.Manager
 
-	auth       *authservice.Service
-	accounts   *authservice.Accounts
-	profiles   *profilesservice.Service
-	directory  *workspacesservice.Directory
-	workspaces *workspacesservice.Service
-	onboarding *onboardingservice.Service
-	whatsapp   *whatsappservice.Service
-	team       *teamservice.Service
-	access     *teamservice.Resolver
-	billing    *billingservice.Service
-	contacts   *contactsservice.Service
-	templates  *templatesservice.Service
+	auth         *authservice.Service
+	accounts     *authservice.Accounts
+	profiles     *profilesservice.Service
+	directory    *workspacesservice.Directory
+	workspaces   *workspacesservice.Service
+	onboarding   *onboardingservice.Service
+	whatsapp     *whatsappservice.Service
+	team         *teamservice.Service
+	access       *teamservice.Resolver
+	billing      *billingservice.Service
+	contacts     *contactsservice.Service
+	templates    *templatesservice.Service
+	integrations *integrationsservice.Service
 
 	// payments is the payment gateway registry; tests set it to fakes before New builds features.
 	payments *payment.Registry
@@ -86,6 +88,10 @@ type App struct {
 	oauth *authservice.ProvidersConfig
 	// graphURL overrides the Meta Graph API address; tests point it at a fake server.
 	graphURL string
+	// Tests point store and Google calls at fakes on localhost.
+	allowPrivateTargets bool
+	shopifyURL          string
+	googleURL           string
 }
 
 // New connects to every dependency. Any misconfiguration fails here, not on the first request.
@@ -150,6 +156,9 @@ func (a *App) buildFeatures() (err error) {
 	a.templates = templatesservice.New(a.db, metaTemplates{wa: a.whatsapp}, a.storage)
 	a.whatsapp.SetTemplateStatusSink(a.templates)
 	if err := a.buildBilling(); err != nil {
+		return err
+	}
+	if err := a.buildIntegrations(); err != nil {
 		return err
 	}
 	if a.mode == ModeWorker {
@@ -275,6 +284,57 @@ func (s staffList) IsStaff(ctx context.Context, userID uuid.UUID) (bool, error) 
 		return false, err
 	}
 	return me.EmailVerified && s.emails[strings.ToLower(me.Email)], nil
+}
+
+func (a *App) buildIntegrations() error {
+	// Store credentials and webhook secrets use the same key as Meta tokens.
+	key, err := a.secretKey("TOKEN_ENCRYPTION_KEY", a.cfg.WhatsApp.TokenEncryptionKey)
+	if err != nil {
+		return err
+	}
+	google := integrationsservice.GoogleConfig{
+		ClientID: a.cfg.Auth.GoogleClientID, ClientSecret: a.cfg.Auth.GoogleClientSecret,
+		RedirectURL: a.cfg.Auth.APIBaseURL + "/v1/integrations/google/callback",
+	}
+	if a.googleURL != "" {
+		google.AuthURL, google.TokenURL, google.UserInfoURL = a.googleURL+"/auth", a.googleURL+"/token", a.googleURL+"/userinfo"
+	}
+	a.integrations, err = integrationsservice.New(a.db, a.queue, integrationsservice.Config{
+		SecretKey:           key,
+		AllowPrivateTargets: a.cfg.IsDevelopment() || a.allowPrivateTargets,
+		AppBaseURL:          a.cfg.AppBaseURL,
+		APIBaseURL:          a.cfg.Auth.APIBaseURL,
+		ShopifyBaseURL:      a.shopifyURL,
+		Google:              google,
+		Shopify: integrationsservice.ShopifyConfig{
+			ClientID: a.cfg.Integrations.ShopifyClientID, ClientSecret: a.cfg.Integrations.ShopifyClientSecret,
+		},
+	}, a.log)
+	if err == nil && a.cfg.IsDevelopment() {
+		a.warnIntegrationSetup()
+	}
+	return err
+}
+
+// warnIntegrationSetup reminds a developer which one-click connections still need setup
+// (docs/PHASE-5-INTEGRATIONS.md); without it those apps fall back to pasted credentials.
+func (a *App) warnIntegrationSetup() {
+	if a.log == nil {
+		return
+	}
+	api := strings.TrimRight(a.cfg.Auth.APIBaseURL, "/")
+	if a.cfg.Integrations.ShopifyClientID == "" || a.cfg.Integrations.ShopifyClientSecret == "" {
+		a.log.Warn("integrations: Shopify one-click connect is off; create a Shopify Partner app and set SHOPIFY_CLIENT_ID and SHOPIFY_CLIENT_SECRET",
+			"redirect_url", api+"/v1/integrations/shopify/callback")
+	}
+	if !strings.HasPrefix(api, "https://") {
+		a.log.Warn("integrations: WooCommerce one-click connect is off; API_BASE_URL must be a public https address the store can reach",
+			"api_base_url", api)
+	}
+	if a.cfg.Auth.GoogleClientID == "" || a.cfg.Auth.GoogleClientSecret == "" {
+		a.log.Warn("integrations: Google Sheets can't connect; set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (the Google sign-in app)",
+			"redirect_url", api+"/v1/integrations/google/callback")
+	}
 }
 
 // secretKey decodes a base64 32-byte key from config. Development gets a random

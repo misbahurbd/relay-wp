@@ -80,7 +80,7 @@ func TestRequireAuthChecksSession(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, api := humatest.New(t)
-			api.UseMiddleware(RequireAuth(api, v, tt.sessions, nil))
+			api.UseMiddleware(RequireAuth(api, v, tt.sessions, nil, nil))
 			huma.Get(api, "/me", func(ctx context.Context, _ *struct{}) (*struct{}, error) {
 				if sid, _ := authctx.SessionID(ctx); sid != v.claims.SessionID {
 					t.Error("session id not in context")

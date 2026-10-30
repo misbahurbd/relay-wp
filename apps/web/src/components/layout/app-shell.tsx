@@ -49,7 +49,7 @@ type NavItem = {
   label: string
   icon: typeof InboxIcon
   /** Built sections link somewhere; the rest show "Soon". */
-  to?: '/' | '/contacts' | '/templates' | '/team' | '/billing'
+  to?: '/' | '/contacts' | '/templates' | '/integrations' | '/team' | '/billing'
 }
 
 const NAV: NavItem[] = [
@@ -60,7 +60,7 @@ const NAV: NavItem[] = [
   { id: 'templates', label: 'Templates', icon: FileTextIcon, to: '/templates' },
   { id: 'chatbots', label: 'Chatbots', icon: BotIcon },
   { id: 'automations', label: 'Automations', icon: WorkflowIcon },
-  { id: 'integrations', label: 'Integrations', icon: PlugIcon },
+  { id: 'integrations', label: 'Integrations', icon: PlugIcon, to: '/integrations' },
   { id: 'analytics', label: 'Analytics', icon: BarChart3Icon },
   { id: 'team', label: 'Team', icon: UsersIcon, to: '/team' },
   { id: 'settings', label: 'Settings', icon: SettingsIcon },

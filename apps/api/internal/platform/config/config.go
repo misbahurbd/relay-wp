@@ -19,16 +19,17 @@ type Config struct {
 	// AppBaseURL is the web app's address, used for links in emails.
 	AppBaseURL string `env:"APP_BASE_URL" envDefault:"http://localhost:3000"`
 
-	Database Database
-	HTTP     HTTP
-	Queue    Queue
-	Mailer   Mailer
-	Storage  Storage
-	Auth     Auth
-	Trial    Trial
-	Admin    Admin
-	WhatsApp WhatsApp
-	Payment  Payment
+	Database     Database
+	HTTP         HTTP
+	Queue        Queue
+	Mailer       Mailer
+	Storage      Storage
+	Auth         Auth
+	Trial        Trial
+	Admin        Admin
+	WhatsApp     WhatsApp
+	Payment      Payment
+	Integrations Integrations
 }
 
 // Database holds both connection strings. See docs/ARCHITECTURE.md (resource budget).
@@ -114,6 +115,14 @@ type Auth struct {
 type Admin struct {
 	// Emails are the verified accounts allowed in; empty turns the admin tools off.
 	Emails []string `env:"ADMIN_EMAILS" envSeparator:","`
+}
+
+// Integrations configures the apps a workspace connects to (docs/PHASE-5-INTEGRATIONS.md).
+type Integrations struct {
+	// Shopify app for one-click store connections. Without it, stores connect with
+	// an access token from a custom app instead.
+	ShopifyClientID     string `env:"SHOPIFY_CLIENT_ID"`
+	ShopifyClientSecret string `env:"SHOPIFY_CLIENT_SECRET"`
 }
 
 // Trial configures the free trial a new workspace starts with.

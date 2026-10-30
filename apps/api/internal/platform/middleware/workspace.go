@@ -38,7 +38,8 @@ var (
 )
 
 // RequireWorkspace is a huma middleware for routes under /v1/workspace. It runs
-// after RequireAuth and reads the workspace from WorkspaceHeader; a missing
+// after RequireAuth and reads the workspace from WorkspaceHeader (an API key's
+// request must name the key's workspace); a missing
 // header gets 422. A user who isn't a member gets 404, so workspace IDs can't be
 // probed; a suspended member gets 403. The member's access goes into the
 // context (authctx.AccessFrom).
@@ -54,6 +55,11 @@ func RequireWorkspace(api huma.API, r AccessResolver) func(huma.Context, func(hu
 		userID, signedIn := authctx.UserID(ctx.Context())
 		workspaceID, err := uuid.Parse(raw)
 		if !signedIn || err != nil {
+			_ = huma.WriteErr(api, ctx, http.StatusNotFound, "", errWorkspaceNotFound)
+			return
+		}
+		// An API key works only in the workspace it was made in.
+		if keyWorkspace, byKey := authctx.APIKeyWorkspace(ctx.Context()); byKey && keyWorkspace != workspaceID {
 			_ = huma.WriteErr(api, ctx, http.StatusNotFound, "", errWorkspaceNotFound)
 			return
 		}
