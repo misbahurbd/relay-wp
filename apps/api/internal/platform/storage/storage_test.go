@@ -50,7 +50,9 @@ func roundTrip(t *testing.T, st storage.Storage) {
 	ctx := context.Background()
 	const key, body = "tests/hello.txt", "hello"
 
-	if err := st.Put(ctx, key, strings.NewReader(body), int64(len(body)), "text/plain"); err != nil {
+	// Wrapped so it can't seek: callers pass readers like a bytes.Buffer.
+	plain := struct{ io.Reader }{strings.NewReader(body)}
+	if err := st.Put(ctx, key, plain, int64(len(body)), "text/plain"); err != nil {
 		t.Fatal(err)
 	}
 	rc, err := st.Get(ctx, key)
