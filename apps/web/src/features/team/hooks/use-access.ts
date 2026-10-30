@@ -17,20 +17,20 @@ export function useAccess(workspaceId: string) {
 }
 
 const ACCESS_VERSION = 'X-Access-Version'
-const WORKSPACE_PATH = /^\/v1\/workspaces\/([0-9a-f-]{36})\//
+const WORKSPACE_HEADER = 'X-Workspace-ID'
 
 /**
  * Refetches the member's access when the API says it changed (docs/PHASE-3-TEAM-ACCESS.md,
- * "Telling the web app"): a new X-Access-Version, or a 403 permission_denied.
+ * "Telling the web app"): a new X-Access-Version, or a 403 permission_denied. Only
+ * workspace-scoped calls carry the X-Workspace-ID header (ADR 0005), so it names the workspace.
  */
 export function useAccessVersionWatcher() {
   const queryClient = useQueryClient()
   useEffect(() => {
     const seen = new Map<string, string>()
-    const id = client.interceptors.response.use((response) => {
-      const match = WORKSPACE_PATH.exec(new URL(response.url).pathname)
-      if (!match) return response
-      const workspaceId = match[1]
+    const id = client.interceptors.response.use((response, request) => {
+      const workspaceId = request.headers.get(WORKSPACE_HEADER)
+      if (!workspaceId) return response
       const version = response.headers.get(ACCESS_VERSION)
       const previous = seen.get(workspaceId)
       if (version) seen.set(workspaceId, version)
