@@ -25,6 +25,7 @@ import (
 	authservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/auth/service"
 	billingservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/service"
 	contactsservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/contacts/service"
+	inboxservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/inbox/service"
 	integrationsservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/integrations/service"
 	onboardingservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/onboarding/service"
 	profilesservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/profiles/service"
@@ -40,6 +41,7 @@ import (
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/middleware"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/payment"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/queue"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/realtime"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/storage"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/shared/apperr"
 )
@@ -80,6 +82,9 @@ type App struct {
 	contacts     *contactsservice.Service
 	templates    *templatesservice.Service
 	integrations *integrationsservice.Service
+	inbox        *inboxservice.Service
+	// live fans inbox signals out to SSE streams; API processes only.
+	live *realtime.Hub
 
 	// payments is the payment gateway registry; tests set it to fakes before New builds features.
 	payments *payment.Registry
@@ -92,6 +97,8 @@ type App struct {
 	allowPrivateTargets bool
 	shopifyURL          string
 	googleURL           string
+	// inboxChannelsOverride replaces the inbox's channel registry; tests set fakes.
+	inboxChannelsOverride inboxservice.Channels
 }
 
 // New connects to every dependency. Any misconfiguration fails here, not on the first request.
@@ -161,6 +168,7 @@ func (a *App) buildFeatures() (err error) {
 	if err := a.buildIntegrations(); err != nil {
 		return err
 	}
+	a.buildInbox()
 	if a.mode == ModeWorker {
 		return nil
 	}
@@ -247,6 +255,24 @@ func (a *App) buildBilling() error {
 	a.workspaces.SetBilling(deletionGuard{a.billing})
 	a.workspaces.SetTrials(a.billing)
 	return nil
+}
+
+// buildInbox wires the inbox to whatsapp, contacts, templates, team and
+// integrations (docs/PHASE-7-INBOX.md AD-1), and gives an API process its
+// live-update hub (ADR 0009).
+func (a *App) buildInbox() {
+	a.inbox = inboxservice.New(a.db, a.queue, a.storage, inboxservice.Deps{
+		Contacts:  inboxContacts{contacts: a.contacts},
+		Channels:  a.inboxChannels(),
+		Templates: inboxTemplates{templates: a.templates},
+		Events:    a.integrations,
+		Members:   a.access,
+	}, a.log)
+	a.whatsapp.SetInboundSink(inboxSink{inbox: a.inbox})
+	if a.mode != ModeWorker && a.directDB != nil {
+		a.live = realtime.New(a.directDB, a.log, realtime.InboxChannel)
+		a.inbox.SetSubscriber(a.live)
+	}
 }
 
 // deletionGuard gives the workspaces service billing's answer on whether a
@@ -391,6 +417,10 @@ func (a *App) Run(ctx context.Context) error {
 			}
 			return nil
 		})
+	}
+
+	if a.live != nil {
+		g.Go(func() error { return a.live.Run(gctx) })
 	}
 
 	if a.mode != ModeWorker {

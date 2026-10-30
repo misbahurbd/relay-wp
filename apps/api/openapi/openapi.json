@@ -153,6 +153,31 @@
         ],
         "type": "object"
       },
+      "AddNoteInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "mentions": {
+            "description": "Members to notify; each must be able to see this chat",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "text": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "type": "object"
+      },
       "AdminCatalogOutputBody": {
         "additionalProperties": false,
         "properties": {
@@ -746,6 +771,19 @@
           "active_keys",
           "last_used_at"
         ],
+        "type": "object"
+      },
+      "AssignConversationInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "user_id": {
+            "description": "The member to assign; null or omitted unassigns",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
         "type": "object"
       },
       "AuthDTO": {
@@ -2445,6 +2483,30 @@
         ],
         "type": "object"
       },
+      "CreateQuickReplyInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "maxLength": 1024,
+            "type": "string"
+          },
+          "shortcut": {
+            "description": "1 to 32 of a-z, 0-9, - and _; a leading / is dropped",
+            "maxLength": 33,
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 80,
+            "type": "string"
+          }
+        },
+        "required": [
+          "shortcut",
+          "title",
+          "body"
+        ],
+        "type": "object"
+      },
       "CreateTagInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -3287,6 +3349,1205 @@
           "skipped",
           "has_skipped_file",
           "created_at"
+        ],
+        "type": "object"
+      },
+      "InboxCapabilitiesDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "max_text_length": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "media": {
+            "description": "File kinds an agent can send, with their limits",
+            "items": {
+              "$ref": "#/components/schemas/InboxMediaKindDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "reactions": {
+            "type": "boolean"
+          },
+          "read_receipts": {
+            "type": "boolean"
+          },
+          "templates": {
+            "description": "Approved templates can be sent",
+            "type": "boolean"
+          },
+          "window_hours": {
+            "description": "Hours after the customer's last message that free-form messages are allowed; 0 means no window",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "window_hours",
+          "templates",
+          "reactions",
+          "read_receipts",
+          "media",
+          "max_text_length"
+        ],
+        "type": "object"
+      },
+      "InboxChannelDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "handle": {
+            "description": "The account's handle (WhatsApp: the display phone); empty when the account is gone",
+            "type": "string"
+          },
+          "id": {
+            "description": "The channel's account: the WhatsApp number's id for whatsapp",
+            "type": "string"
+          },
+          "name": {
+            "description": "The account's name (WhatsApp: the number's verified name); empty when the account is gone",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "whatsapp",
+              "messenger",
+              "instagram"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "id",
+          "name",
+          "handle"
+        ],
+        "type": "object"
+      },
+      "InboxContactDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "description": "Empty when the customer has no profile name; show the phone",
+            "type": "string"
+          },
+          "phone": {
+            "description": "E.164",
+            "examples": [
+              "+447700900412"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "phone"
+        ],
+        "type": "object"
+      },
+      "InboxContentDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "contacts": {
+            "description": "The channel's contacts array, as the customer sent it"
+          },
+          "event": {
+            "$ref": "#/components/schemas/InboxEventDTO"
+          },
+          "interactive": {
+            "$ref": "#/components/schemas/InboxInteractiveDTO"
+          },
+          "location": {
+            "$ref": "#/components/schemas/InboxLocationDTO"
+          },
+          "media": {
+            "$ref": "#/components/schemas/InboxMediaDTO"
+          },
+          "referral": {
+            "$ref": "#/components/schemas/InboxReferralDTO"
+          },
+          "template": {
+            "$ref": "#/components/schemas/InboxTemplateContentDTO"
+          }
+        },
+        "type": "object"
+      },
+      "InboxConversationDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "assignee": {
+            "$ref": "#/components/schemas/InboxPersonDTO"
+          },
+          "channel": {
+            "$ref": "#/components/schemas/InboxChannelDTO",
+            "description": "The channel account the chat is on"
+          },
+          "contact": {
+            "$ref": "#/components/schemas/InboxContactDTO"
+          },
+          "id": {
+            "type": "string"
+          },
+          "last_message_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "last_message_direction": {
+            "enum": [
+              "in",
+              "out"
+            ],
+            "type": "string"
+          },
+          "last_message_preview": {
+            "description": "At most 120 characters",
+            "type": "string"
+          },
+          "snoozed_until": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "enum": [
+              "organic",
+              "ctwa_ad",
+              "template"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "pending",
+              "closed"
+            ],
+            "type": "string"
+          },
+          "team_id": {
+            "type": "string"
+          },
+          "unread_count": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "waiting_since": {
+            "description": "The customer's first unanswered message; null when answered",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "window_expires_at": {
+            "description": "Free-form replies are allowed until then; null before the customer has written, or on a channel without a window",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "contact",
+          "channel",
+          "status",
+          "source",
+          "team_id",
+          "assignee",
+          "last_message_at",
+          "last_message_preview",
+          "last_message_direction",
+          "window_expires_at",
+          "unread_count",
+          "waiting_since",
+          "snoozed_until"
+        ],
+        "type": "object"
+      },
+      "InboxConversationDetailDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "assignee": {
+            "$ref": "#/components/schemas/InboxPersonDTO"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/InboxCapabilitiesDTO",
+            "description": "What the channel allows: drives the window bar, template button, reactions and attachments"
+          },
+          "channel": {
+            "$ref": "#/components/schemas/InboxChannelDTO",
+            "description": "The channel account the chat is on"
+          },
+          "closed_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contact": {
+            "$ref": "#/components/schemas/InboxContactDTO"
+          },
+          "contact_opt_in": {
+            "enum": [
+              "in",
+              "out",
+              "pending"
+            ],
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "last_inbound_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_message_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "last_message_direction": {
+            "enum": [
+              "in",
+              "out"
+            ],
+            "type": "string"
+          },
+          "last_message_preview": {
+            "description": "At most 120 characters",
+            "type": "string"
+          },
+          "snoozed_until": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "enum": [
+              "organic",
+              "ctwa_ad",
+              "template"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "pending",
+              "closed"
+            ],
+            "type": "string"
+          },
+          "team_id": {
+            "type": "string"
+          },
+          "team_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "template_since_inbound": {
+            "description": "A template went out after the customer's last message",
+            "type": "boolean"
+          },
+          "unread_count": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "waiting_since": {
+            "description": "The customer's first unanswered message; null when answered",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "window_expires_at": {
+            "description": "Free-form replies are allowed until then; null before the customer has written, or on a channel without a window",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "window_open": {
+            "description": "Free-form replies are allowed now (always on a channel without a window)",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "contact_opt_in",
+          "team_name",
+          "capabilities",
+          "last_inbound_at",
+          "closed_at",
+          "created_at",
+          "window_open",
+          "template_since_inbound",
+          "id",
+          "contact",
+          "channel",
+          "status",
+          "source",
+          "team_id",
+          "assignee",
+          "last_message_at",
+          "last_message_preview",
+          "last_message_direction",
+          "window_expires_at",
+          "unread_count",
+          "waiting_since",
+          "snoozed_until"
+        ],
+        "type": "object"
+      },
+      "InboxConversationsOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "counts": {
+            "$ref": "#/components/schemas/InboxCountsDTO",
+            "description": "Tab counts in your scope; the search doesn't narrow them"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InboxConversationDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor",
+          "counts"
+        ],
+        "type": "object"
+      },
+      "InboxCountsDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "closed": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "mine": {
+            "description": "Open and pending chats assigned to you",
+            "format": "int64",
+            "type": "integer"
+          },
+          "open": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "pending": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "open",
+          "pending",
+          "closed",
+          "mine"
+        ],
+        "type": "object"
+      },
+      "InboxEventDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "assigned",
+              "unassigned",
+              "closed",
+              "reopened",
+              "snoozed",
+              "unsnoozed",
+              "template_pending",
+              "window_reopened"
+            ],
+            "type": "string"
+          },
+          "actor_id": {
+            "description": "Null for the system",
+            "type": "string"
+          },
+          "target_id": {
+            "description": "The member assigned or unassigned",
+            "type": "string"
+          },
+          "until": {
+            "description": "Snoozed until",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "action",
+          "actor_id",
+          "target_id",
+          "until"
+        ],
+        "type": "object"
+      },
+      "InboxInteractiveDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "description": "button_reply, list_reply or button (a template's quick reply)",
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "title",
+          "description"
+        ],
+        "type": "object"
+      },
+      "InboxLocationDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "latitude": {
+            "format": "double",
+            "type": "number"
+          },
+          "longitude": {
+            "format": "double",
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude",
+          "name",
+          "address"
+        ],
+        "type": "object"
+      },
+      "InboxMediaDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "filename": {
+            "type": "string"
+          },
+          "mime": {
+            "type": "string"
+          },
+          "ready": {
+            "description": "The file is stored; GET …/media streams it. False while it loads from the channel",
+            "type": "boolean"
+          },
+          "size": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ready",
+          "mime",
+          "size",
+          "filename"
+        ],
+        "type": "object"
+      },
+      "InboxMediaKindDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "image",
+              "video",
+              "audio",
+              "document"
+            ],
+            "type": "string"
+          },
+          "max_bytes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "mime_types": {
+            "description": "Accepted types; empty accepts any type the inbox can send",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "max_bytes",
+          "mime_types"
+        ],
+        "type": "object"
+      },
+      "InboxMentionDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "author": {
+            "$ref": "#/components/schemas/InboxPersonDTO"
+          },
+          "body": {
+            "description": "The note, at most 280 characters",
+            "type": "string"
+          },
+          "contact_name": {
+            "type": "string"
+          },
+          "contact_phone": {
+            "type": "string"
+          },
+          "conversation_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "message_id": {
+            "description": "The note",
+            "type": "string"
+          },
+          "seen_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "message_id",
+          "conversation_id",
+          "contact_name",
+          "contact_phone",
+          "body",
+          "author",
+          "seen_at",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "InboxMentionsOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "Your 50 newest mentions",
+            "items": {
+              "$ref": "#/components/schemas/InboxMentionDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "unseen": {
+            "description": "For the bell",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "unseen"
+        ],
+        "type": "object"
+      },
+      "InboxMentionsSeenOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "updated": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "updated"
+        ],
+        "type": "object"
+      },
+      "InboxMessageDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "author": {
+            "$ref": "#/components/schemas/InboxPersonDTO",
+            "description": "Who sent the message or wrote the note"
+          },
+          "body": {
+            "description": "Text, caption or the rendered template",
+            "type": "string"
+          },
+          "content": {
+            "$ref": "#/components/schemas/InboxContentDTO"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "direction": {
+            "enum": [
+              "in",
+              "out"
+            ],
+            "type": "string"
+          },
+          "error_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error_title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "description": "note: private, never sent; event: a system line such as \"Assigned to Ada\"",
+            "enum": [
+              "message",
+              "note",
+              "event"
+            ],
+            "type": "string"
+          },
+          "mentions": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "reactions": {
+            "$ref": "#/components/schemas/InboxReactionsDTO"
+          },
+          "reply_to": {
+            "$ref": "#/components/schemas/InboxReplyRefDTO"
+          },
+          "status": {
+            "description": "Outbound messages only",
+            "enum": [
+              "pending",
+              "sent",
+              "delivered",
+              "read",
+              "failed"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": {
+            "description": "The channel's type, for WhatsApp: text, image, video, audio, document, sticker, location, contacts, interactive, button, template, unsupported; event for events",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "direction",
+          "kind",
+          "type",
+          "body",
+          "content",
+          "reply_to",
+          "status",
+          "error_code",
+          "error_title",
+          "author",
+          "mentions",
+          "reactions",
+          "created_at",
+          "status_at"
+        ],
+        "type": "object"
+      },
+      "InboxMessagesOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "description": "Newest first, 50 per page",
+            "items": {
+              "$ref": "#/components/schemas/InboxMessageDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "next_before": {
+            "description": "Pass as before for older messages; null at the start of the chat",
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "next_before"
+        ],
+        "type": "object"
+      },
+      "InboxPersonDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "InboxQuickRepliesOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InboxQuickReplyDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "InboxQuickReplyDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "shortcut": {
+            "description": "Typed after / in the composer",
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "shortcut",
+          "title",
+          "body",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "InboxReactionsDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "in": {
+            "description": "The customer's emoji; empty for none",
+            "type": "string"
+          },
+          "out": {
+            "description": "Your emoji; empty for none",
+            "type": "string"
+          }
+        },
+        "required": [
+          "in",
+          "out"
+        ],
+        "type": "object"
+      },
+      "InboxReferralDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "headline": {
+            "type": "string"
+          },
+          "source_id": {
+            "type": "string"
+          },
+          "source_type": {
+            "type": "string"
+          },
+          "source_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_type",
+          "source_id",
+          "source_url",
+          "headline",
+          "body"
+        ],
+        "type": "object"
+      },
+      "InboxReplyRefDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "description": "At most 120 characters",
+            "type": "string"
+          },
+          "direction": {
+            "enum": [
+              "in",
+              "out"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "direction",
+          "type",
+          "body"
+        ],
+        "type": "object"
+      },
+      "InboxTemplateButtonDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "quick_reply",
+              "url",
+              "phone"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "text",
+          "value"
+        ],
+        "type": "object"
+      },
+      "InboxTemplateContentDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "header_type": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "params": {
+            "$ref": "#/components/schemas/InboxTemplateParamsDTO"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "language",
+          "category",
+          "header_type",
+          "params"
+        ],
+        "type": "object"
+      },
+      "InboxTemplateDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "body_variables": {
+            "description": "params.body needs this many values",
+            "format": "int64",
+            "type": "integer"
+          },
+          "buttons": {
+            "items": {
+              "$ref": "#/components/schemas/InboxTemplateButtonDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "category": {
+            "enum": [
+              "marketing",
+              "utility",
+              "authentication"
+            ],
+            "type": "string"
+          },
+          "footer": {
+            "type": "string"
+          },
+          "header_media": {
+            "description": "media_key is needed, a file of header_type",
+            "type": "boolean"
+          },
+          "header_text": {
+            "type": "string"
+          },
+          "header_type": {
+            "enum": [
+              "none",
+              "text",
+              "image",
+              "video",
+              "document"
+            ],
+            "type": "string"
+          },
+          "header_variable": {
+            "description": "params.header_text is needed",
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "url_buttons": {
+            "description": "Indexes of buttons whose link needs a value in params.url_buttons",
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "language",
+          "category",
+          "header_type",
+          "header_text",
+          "body",
+          "footer",
+          "buttons",
+          "body_variables",
+          "header_variable",
+          "header_media",
+          "url_buttons"
+        ],
+        "type": "object"
+      },
+      "InboxTemplateParamsDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "description": "Fills the body's {{1}}..{{N}} in order",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "header_text": {
+            "description": "Fills a text header's {{1}}",
+            "maxLength": 60,
+            "type": "string"
+          },
+          "url_buttons": {
+            "items": {
+              "$ref": "#/components/schemas/InboxURLButtonParamDTO"
+            },
+            "maxItems": 10,
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "InboxTemplatesOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InboxTemplateDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "InboxURLButtonParamDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "index": {
+            "description": "The button's position in the template",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "value": {
+            "description": "Fills the link's {{1}}",
+            "maxLength": 2000,
+            "type": "string"
+          }
+        },
+        "required": [
+          "index",
+          "value"
+        ],
+        "type": "object"
+      },
+      "InboxUploadOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "filename": {
+            "type": "string"
+          },
+          "key": {
+            "description": "Send as media_key",
+            "type": "string"
+          },
+          "kind": {
+            "description": "How the channel will show it",
+            "enum": [
+              "image",
+              "video",
+              "audio",
+              "document"
+            ],
+            "type": "string"
+          },
+          "mime": {
+            "type": "string"
+          },
+          "size": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "mime",
+          "size",
+          "filename",
+          "kind"
         ],
         "type": "object"
       },
@@ -4154,6 +5415,23 @@
         "required": [
           "columns"
         ],
+        "type": "object"
+      },
+      "MarkMentionsSeenInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "message_ids": {
+            "description": "Only these notes' mentions; omit for all",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
         "type": "object"
       },
       "MeOutputBody": {
@@ -5850,6 +7128,20 @@
         ],
         "type": "object"
       },
+      "ReactInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "emoji": {
+            "description": "One emoji; empty removes your reaction",
+            "maxLength": 32,
+            "type": "string"
+          }
+        },
+        "required": [
+          "emoji"
+        ],
+        "type": "object"
+      },
       "RefreshInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -6216,6 +7508,49 @@
         ],
         "type": "object"
       },
+      "SendMessageInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "caption": {
+            "maxLength": 1024,
+            "type": "string"
+          },
+          "media_key": {
+            "description": "key from POST /media: the file to send, or a template's media header",
+            "maxLength": 512,
+            "type": "string"
+          },
+          "params": {
+            "$ref": "#/components/schemas/InboxTemplateParamsDTO",
+            "description": "The template's variables"
+          },
+          "reply_to_id": {
+            "description": "Quote a message of this chat",
+            "type": "string"
+          },
+          "template_id": {
+            "description": "An approved template, from GET /templates",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "type": {
+            "description": "text and media need inbox.reply and the 24-hour window; template needs inbox.send_template",
+            "enum": [
+              "text",
+              "media",
+              "template"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
       "SendTestInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -6312,6 +7647,25 @@
         "required": [
           "sessions"
         ],
+        "type": "object"
+      },
+      "SetConversationStatusInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "snooze_until": {
+            "description": "Snooze: pending until then, at most 90 days ahead",
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "description": "Open or close; omit when snoozing",
+            "enum": [
+              "open",
+              "closed"
+            ],
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "SetPasswordInputBody": {
@@ -7334,6 +8688,24 @@
           "legal_name",
           "email"
         ],
+        "type": "object"
+      },
+      "UpdateQuickReplyInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "maxLength": 1024,
+            "type": "string"
+          },
+          "shortcut": {
+            "maxLength": 33,
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 80,
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "UploadOutputBody": {
@@ -13605,6 +14977,1251 @@
         "summary": "Change a contact's fields",
         "tags": [
           "contacts"
+        ]
+      }
+    },
+    "/v1/workspace/inbox/conversations": {
+      "get": {
+        "operationId": "list-inbox-conversations",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "tab",
+            "schema": {
+              "default": "open",
+              "enum": [
+                "open",
+                "pending",
+                "closed",
+                "mine"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Contact name, phone or last message contains this",
+            "explode": false,
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "description": "Contact name, phone or last message contains this",
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "description": "newest: last message first; waiting: waiting longest first",
+            "explode": false,
+            "in": "query",
+            "name": "sort",
+            "schema": {
+              "default": "newest",
+              "description": "newest: last message first; waiting: waiting longest first",
+              "enum": [
+                "newest",
+                "waiting"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "next_cursor from the previous page",
+            "explode": false,
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "description": "next_cursor from the previous page",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 25,
+              "format": "int32",
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxConversationsOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Your conversations for a tab, with the tab counts",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
+    "/v1/workspace/inbox/conversations/{conversationId}": {
+      "get": {
+        "operationId": "get-inbox-conversation",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "conversationId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxConversationDetailDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "One conversation with its channel, capabilities, window, assignee, team and contact",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
+    "/v1/workspace/inbox/conversations/{conversationId}/assign": {
+      "post": {
+        "operationId": "assign-inbox-conversation",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "conversationId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignConversationInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxConversationDetailDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Assign or unassign (inbox.close_reassign; anyone may take an unassigned chat)",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
+    "/v1/workspace/inbox/conversations/{conversationId}/messages": {
+      "get": {
+        "operationId": "list-inbox-messages",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "conversationId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "next_before from the previous page",
+            "explode": false,
+            "in": "query",
+            "name": "before",
+            "schema": {
+              "description": "next_before from the previous page",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxMessagesOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "A page of the thread, newest first",
+        "tags": [
+          "inbox"
+        ]
+      },
+      "post": {
+        "operationId": "send-inbox-message",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "conversationId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendMessageInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxMessageDTO"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Send text or a file (inbox.reply, open window) or a template (inbox.send_template, channels with templates); it goes out in the background",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
+    "/v1/workspace/inbox/conversations/{conversationId}/messages/{messageId}/media": {
+      "get": {
+        "operationId": "get-inbox-media",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "conversationId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "messageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "contentMediaType": "application/octet-stream",
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The file, with its Content-Type and Content-Disposition"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Stream a message's file",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
+    "/v1/workspace/inbox/conversations/{conversationId}/messages/{messageId}/reaction": {
+      "post": {
+        "operationId": "react-inbox-message",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "conversationId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "messageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReactInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "React to a message with an emoji, or remove your reaction (channels with reactions)",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
+    "/v1/workspace/inbox/conversations/{conversationId}/notes": {
+      "post": {
+        "operationId": "add-inbox-note",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "conversationId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddNoteInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxMessageDTO"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Write a private note and notify the members it mentions",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
+    "/v1/workspace/inbox/conversations/{conversationId}/read": {
+      "post": {
+        "operationId": "read-inbox-conversation",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "conversationId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Clear the unread count and send the customer a read receipt (channels with read receipts)",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
+    "/v1/workspace/inbox/conversations/{conversationId}/status": {
+      "post": {
+        "operationId": "set-inbox-conversation-status",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "conversationId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetConversationStatusInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxConversationDetailDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Open, close or snooze (inbox.close_reassign; you may close a chat assigned to you)",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
+    "/v1/workspace/inbox/events": {
+      "get": {
+        "description": "Each event is `event: \u003ckind\u003e` (message, status, conversation, note or mention) with `data: {\"ws\", \"kind\", \"conversation_id\", \"team_id\", \"assignee_id\", \"channel_type\", \"channel_id\", \"user_id\"}`. Only chats you can open are sent. A `: ping` comment comes every 20 s; the stream ends after 15 minutes or when the client falls behind, and EventSource reconnects.",
+        "operationId": "stream-inbox-events",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "An event stream"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Live updates as Server-Sent Events: signals to refetch, never content",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
+    "/v1/workspace/inbox/media": {
+      "post": {
+        "operationId": "upload-inbox-media",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "encoding": {
+                "file": {
+                  "contentType": "application/octet-stream"
+                }
+              },
+              "schema": {
+                "properties": {
+                  "file": {
+                    "contentEncoding": "binary",
+                    "contentMediaType": "application/octet-stream",
+                    "description": "Image (JPEG, PNG), video (MP4, 3GP), audio (AAC, AMR, MP3, M4A, OGG) or document (PDF, Office, TXT), within the largest limit of any channel (WhatsApp: 5, 16, 16 and 100 MB). The send checks the conversation's channel's limits",
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxUploadOutputBody"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Upload a file to send; returns its key",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
+    "/v1/workspace/inbox/mentions": {
+      "get": {
+        "operationId": "list-inbox-mentions",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxMentionsOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Notes that mention you, newest first",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
+    "/v1/workspace/inbox/mentions/seen": {
+      "post": {
+        "operationId": "mark-inbox-mentions-seen",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkMentionsSeenInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxMentionsSeenOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Mark your mentions seen",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
+    "/v1/workspace/inbox/quick-replies": {
+      "get": {
+        "operationId": "list-inbox-quick-replies",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxQuickRepliesOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Quick replies by shortcut",
+        "tags": [
+          "inbox"
+        ]
+      },
+      "post": {
+        "operationId": "create-inbox-quick-reply",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateQuickReplyInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxQuickReplyDTO"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Add a quick reply",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
+    "/v1/workspace/inbox/quick-replies/{quickReplyId}": {
+      "delete": {
+        "operationId": "delete-inbox-quick-reply",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "quickReplyId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Delete a quick reply",
+        "tags": [
+          "inbox"
+        ]
+      },
+      "patch": {
+        "operationId": "update-inbox-quick-reply",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "quickReplyId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateQuickReplyInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxQuickReplyDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Change a quick reply",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
+    "/v1/workspace/inbox/templates": {
+      "get": {
+        "operationId": "list-inbox-templates",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The channel to send on; 409 templates_unsupported when it has no templates",
+            "explode": false,
+            "in": "query",
+            "name": "channel_type",
+            "schema": {
+              "default": "whatsapp",
+              "description": "The channel to send on; 409 templates_unsupported when it has no templates",
+              "enum": [
+                "whatsapp",
+                "messenger",
+                "instagram"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxTemplatesOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Approved templates with the variables a send must fill (409 templates_unsupported for a channel without templates)",
+        "tags": [
+          "inbox"
         ]
       }
     },

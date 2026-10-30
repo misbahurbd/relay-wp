@@ -125,6 +125,44 @@ func (q *Queries) ContactAttributeKeys(ctx context.Context, arg ContactAttribute
 	return items, nil
 }
 
+const contactIDByIdentity = `-- name: ContactIDByIdentity :one
+SELECT ci.contact_id
+FROM contact_identities ci
+WHERE ci.workspace_id = $1 AND ci.channel_type = $2 AND ci.external_id = $3
+`
+
+type ContactIDByIdentityParams struct {
+	WorkspaceID uuid.UUID
+	ChannelType string
+	ExternalID  string
+}
+
+// The contact a channel's sender is (ADR 0010).
+func (q *Queries) ContactIDByIdentity(ctx context.Context, arg ContactIDByIdentityParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, contactIDByIdentity, arg.WorkspaceID, arg.ChannelType, arg.ExternalID)
+	var contact_id uuid.UUID
+	err := row.Scan(&contact_id)
+	return contact_id, err
+}
+
+const contactIDByPhone = `-- name: ContactIDByPhone :one
+SELECT c.id
+FROM contacts c
+WHERE c.workspace_id = $1 AND c.phone = $2
+`
+
+type ContactIDByPhoneParams struct {
+	WorkspaceID uuid.UUID
+	Phone       string
+}
+
+func (q *Queries) ContactIDByPhone(ctx context.Context, arg ContactIDByPhoneParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, contactIDByPhone, arg.WorkspaceID, arg.Phone)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const contactSummary = `-- name: ContactSummary :one
 SELECT count(c.id) AS total, count(c.id) FILTER (WHERE c.opt_in = 'in') AS opted_in
 FROM contacts c
@@ -433,6 +471,76 @@ func (q *Queries) GetContact(ctx context.Context, arg GetContactParams) (GetCont
 	return i, err
 }
 
+const insertContactIdentity = `-- name: InsertContactIdentity :exec
+INSERT INTO contact_identities (workspace_id, contact_id, channel_type, external_id, handle)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (workspace_id, channel_type, external_id) DO NOTHING
+`
+
+type InsertContactIdentityParams struct {
+	WorkspaceID uuid.UUID
+	ContactID   uuid.UUID
+	ChannelType string
+	ExternalID  string
+	Handle      string
+}
+
+// Links a sender to a contact. A concurrent link of the same sender wins; the
+// caller reads the identity back.
+func (q *Queries) InsertContactIdentity(ctx context.Context, arg InsertContactIdentityParams) error {
+	_, err := q.db.Exec(ctx, insertContactIdentity,
+		arg.WorkspaceID,
+		arg.ContactID,
+		arg.ChannelType,
+		arg.ExternalID,
+		arg.Handle,
+	)
+	return err
+}
+
+const insertInboxContact = `-- name: InsertInboxContact :many
+
+INSERT INTO contacts (id, workspace_id, name, phone, source)
+VALUES ($1, $2, $3, $4, 'inbox')
+ON CONFLICT (workspace_id, phone) DO NOTHING
+RETURNING id
+`
+
+type InsertInboxContactParams struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	Name        string
+	Phone       string
+}
+
+// ---------- Inbox (docs/PHASE-7-INBOX.md F1) ----------
+// A customer who wrote in. Nothing happens when the phone is already a contact,
+// so concurrent webhooks create it once; the row comes back only when inserted.
+func (q *Queries) InsertInboxContact(ctx context.Context, arg InsertInboxContactParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, insertInboxContact,
+		arg.ID,
+		arg.WorkspaceID,
+		arg.Name,
+		arg.Phone,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listContacts = `-- name: ListContacts :many
 
 SELECT c.id, c.name, c.phone, c.email, c.opt_in, c.source, c.language, c.assigned_to,
@@ -640,6 +748,23 @@ func (q *Queries) RemoveContactTagLinks(ctx context.Context, arg RemoveContactTa
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const setContactLastMessage = `-- name: SetContactLastMessage :exec
+UPDATE contacts
+SET last_message_at = GREATEST(last_message_at, $1::timestamptz)
+WHERE workspace_id = $2 AND id = $3
+`
+
+type SetContactLastMessageParams struct {
+	At          time.Time
+	WorkspaceID uuid.UUID
+	ID          uuid.UUID
+}
+
+func (q *Queries) SetContactLastMessage(ctx context.Context, arg SetContactLastMessageParams) error {
+	_, err := q.db.Exec(ctx, setContactLastMessage, arg.At, arg.WorkspaceID, arg.ID)
+	return err
 }
 
 const updateContact = `-- name: UpdateContact :exec

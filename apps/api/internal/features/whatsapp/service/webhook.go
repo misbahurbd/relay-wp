@@ -131,55 +131,6 @@ func (s *Service) accountByWABA(ctx context.Context, wabaID string) (account, bo
 	return account{ID: row.ID, WorkspaceID: row.WorkspaceID}, true, nil
 }
 
-// onMessages handles delivery statuses. Inbound messages belong to the Inbox
-// feature; until it exists they are only counted in the log.
-func (s *Service) onMessages(ctx context.Context, acc account, value json.RawMessage) error {
-	var v struct {
-		Statuses []struct {
-			ID     string `json:"id"`
-			Status string `json:"status"`
-			Errors []struct {
-				Code int `json:"code"`
-			} `json:"errors"`
-		} `json:"statuses"`
-		Messages []json.RawMessage `json:"messages"`
-	}
-	if err := json.Unmarshal(value, &v); err != nil {
-		return fmt.Errorf("decode messages: %w", err)
-	}
-	if len(v.Messages) > 0 && s.log != nil {
-		s.log.InfoContext(ctx, "whatsapp inbound messages", "workspace_id", acc.WorkspaceID, "count", len(v.Messages))
-	}
-	r := repository.NewRepository(s.pool)
-	for _, st := range v.Statuses {
-		switch st.Status {
-		case "sent", "delivered", "read", "failed":
-		default:
-			continue
-		}
-		var code *string
-		if st.Status == "failed" && len(st.Errors) > 0 {
-			c := fmt.Sprintf("meta_%d", st.Errors[0].Code)
-			code = &c
-		}
-		row, err := r.UpdateTestMessageStatus(ctx, gen.UpdateTestMessageStatusParams{
-			WorkspaceID: acc.WorkspaceID, Wamid: &st.ID, Status: st.Status, ErrorCode: code,
-		})
-		if repository.IsNoRows(err) {
-			continue // not a test message, or an older status
-		}
-		if err != nil {
-			return fmt.Errorf("update test message: %w", err)
-		}
-		if row.Status == "delivered" || row.Status == "read" {
-			if err := s.notifier.TestMessageDelivered(ctx, acc.WorkspaceID); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 func (s *Service) onNameUpdate(ctx context.Context, acc account, value json.RawMessage) error {
 	var v struct {
 		DisplayPhoneNumber string `json:"display_phone_number"`

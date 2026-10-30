@@ -163,3 +163,36 @@ SELECT pg_advisory_xact_lock(hashtextextended('contacts:' || sqlc.arg(workspace_
 
 -- name: CountWorkspaceContacts :one
 SELECT count(*) FROM contacts WHERE workspace_id = @workspace_id;
+
+-- ---------- Inbox (docs/PHASE-7-INBOX.md F1) ----------
+
+-- name: InsertInboxContact :many
+-- A customer who wrote in. Nothing happens when the phone is already a contact,
+-- so concurrent webhooks create it once; the row comes back only when inserted.
+INSERT INTO contacts (id, workspace_id, name, phone, source)
+VALUES (@id, @workspace_id, @name, @phone, 'inbox')
+ON CONFLICT (workspace_id, phone) DO NOTHING
+RETURNING id;
+
+-- name: ContactIDByPhone :one
+SELECT c.id
+FROM contacts c
+WHERE c.workspace_id = @workspace_id AND c.phone = @phone;
+
+-- name: SetContactLastMessage :exec
+UPDATE contacts
+SET last_message_at = GREATEST(last_message_at, @at::timestamptz)
+WHERE workspace_id = @workspace_id AND id = @id;
+
+-- name: ContactIDByIdentity :one
+-- The contact a channel's sender is (ADR 0010).
+SELECT ci.contact_id
+FROM contact_identities ci
+WHERE ci.workspace_id = @workspace_id AND ci.channel_type = @channel_type AND ci.external_id = @external_id;
+
+-- name: InsertContactIdentity :exec
+-- Links a sender to a contact. A concurrent link of the same sender wins; the
+-- caller reads the identity back.
+INSERT INTO contact_identities (workspace_id, contact_id, channel_type, external_id, handle)
+VALUES (@workspace_id, @contact_id, @channel_type, @external_id, @handle)
+ON CONFLICT (workspace_id, channel_type, external_id) DO NOTHING;

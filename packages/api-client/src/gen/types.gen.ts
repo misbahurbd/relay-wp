@@ -51,6 +51,14 @@ export type AccessDto = {
     team_ids: Array<string> | null;
 };
 
+export type AddNoteInputBody = {
+    /**
+     * Members to notify; each must be able to see this chat
+     */
+    mentions?: Array<string> | null;
+    text: string;
+};
+
 export type AdminCatalogOutputBody = {
     plans: Array<AdminPlanDto> | null;
     /**
@@ -206,6 +214,13 @@ export type AppKeysDto = {
     active_keys: number;
     app: 'zapier' | 'make' | 'n8n';
     last_used_at: string | null;
+};
+
+export type AssignConversationInputBody = {
+    /**
+     * The member to assign; null or omitted unassigns
+     */
+    user_id?: string | null;
 };
 
 export type AuthDto = {
@@ -761,6 +776,15 @@ export type CreateProviderPriceInputBody = {
     provider: 'stripe' | 'creem' | 'paypal' | 'sslcommerz';
 };
 
+export type CreateQuickReplyInputBody = {
+    body: string;
+    /**
+     * 1 to 32 of a-z, 0-9, - and _; a leading / is dropped
+     */
+    shortcut: string;
+    title: string;
+};
+
 export type CreateTagInputBody = {
     name: string;
 };
@@ -1018,6 +1042,421 @@ export type ImportDto = {
     updated: number;
 };
 
+export type InboxCapabilitiesDto = {
+    max_text_length: number;
+    /**
+     * File kinds an agent can send, with their limits
+     */
+    media: Array<InboxMediaKindDto> | null;
+    reactions: boolean;
+    read_receipts: boolean;
+    /**
+     * Approved templates can be sent
+     */
+    templates: boolean;
+    /**
+     * Hours after the customer's last message that free-form messages are allowed; 0 means no window
+     */
+    window_hours: number;
+};
+
+export type InboxChannelDto = {
+    /**
+     * The account's handle (WhatsApp: the display phone); empty when the account is gone
+     */
+    handle: string;
+    /**
+     * The channel's account: the WhatsApp number's id for whatsapp
+     */
+    id: string;
+    /**
+     * The account's name (WhatsApp: the number's verified name); empty when the account is gone
+     */
+    name: string;
+    type: 'whatsapp' | 'messenger' | 'instagram';
+};
+
+export type InboxContactDto = {
+    id: string;
+    /**
+     * Empty when the customer has no profile name; show the phone
+     */
+    name: string;
+    /**
+     * E.164
+     */
+    phone: string;
+};
+
+export type InboxContentDto = {
+    /**
+     * The channel's contacts array, as the customer sent it
+     */
+    contacts?: unknown;
+    event?: InboxEventDto;
+    interactive?: InboxInteractiveDto;
+    location?: InboxLocationDto;
+    media?: InboxMediaDto;
+    referral?: InboxReferralDto;
+    template?: InboxTemplateContentDto;
+};
+
+export type InboxConversationDto = {
+    assignee: InboxPersonDto;
+    /**
+     * The channel account the chat is on
+     */
+    channel: InboxChannelDto;
+    contact: InboxContactDto;
+    id: string;
+    last_message_at: string;
+    last_message_direction: 'in' | 'out';
+    /**
+     * At most 120 characters
+     */
+    last_message_preview: string;
+    snoozed_until: string | null;
+    source: 'organic' | 'ctwa_ad' | 'template';
+    status: 'open' | 'pending' | 'closed';
+    team_id: string;
+    unread_count: number;
+    /**
+     * The customer's first unanswered message; null when answered
+     */
+    waiting_since: string | null;
+    /**
+     * Free-form replies are allowed until then; null before the customer has written, or on a channel without a window
+     */
+    window_expires_at: string | null;
+};
+
+export type InboxConversationDetailDto = {
+    assignee: InboxPersonDto;
+    /**
+     * What the channel allows: drives the window bar, template button, reactions and attachments
+     */
+    capabilities: InboxCapabilitiesDto;
+    /**
+     * The channel account the chat is on
+     */
+    channel: InboxChannelDto;
+    closed_at: string | null;
+    contact: InboxContactDto;
+    contact_opt_in: 'in' | 'out' | 'pending';
+    created_at: string;
+    id: string;
+    last_inbound_at: string | null;
+    last_message_at: string;
+    last_message_direction: 'in' | 'out';
+    /**
+     * At most 120 characters
+     */
+    last_message_preview: string;
+    snoozed_until: string | null;
+    source: 'organic' | 'ctwa_ad' | 'template';
+    status: 'open' | 'pending' | 'closed';
+    team_id: string;
+    team_name: string | null;
+    /**
+     * A template went out after the customer's last message
+     */
+    template_since_inbound: boolean;
+    unread_count: number;
+    /**
+     * The customer's first unanswered message; null when answered
+     */
+    waiting_since: string | null;
+    /**
+     * Free-form replies are allowed until then; null before the customer has written, or on a channel without a window
+     */
+    window_expires_at: string | null;
+    /**
+     * Free-form replies are allowed now (always on a channel without a window)
+     */
+    window_open: boolean;
+};
+
+export type InboxConversationsOutputBody = {
+    /**
+     * Tab counts in your scope; the search doesn't narrow them
+     */
+    counts: InboxCountsDto;
+    items: Array<InboxConversationDto> | null;
+    next_cursor: string | null;
+};
+
+export type InboxCountsDto = {
+    closed: number;
+    /**
+     * Open and pending chats assigned to you
+     */
+    mine: number;
+    open: number;
+    pending: number;
+};
+
+export type InboxEventDto = {
+    action: 'assigned' | 'unassigned' | 'closed' | 'reopened' | 'snoozed' | 'unsnoozed' | 'template_pending' | 'window_reopened';
+    /**
+     * Null for the system
+     */
+    actor_id: string;
+    /**
+     * The member assigned or unassigned
+     */
+    target_id: string;
+    /**
+     * Snoozed until
+     */
+    until: string | null;
+};
+
+export type InboxInteractiveDto = {
+    description: string;
+    id: string;
+    /**
+     * button_reply, list_reply or button (a template's quick reply)
+     */
+    kind: string;
+    title: string;
+};
+
+export type InboxLocationDto = {
+    address: string;
+    latitude: number;
+    longitude: number;
+    name: string;
+};
+
+export type InboxMediaDto = {
+    filename: string;
+    mime: string;
+    /**
+     * The file is stored; GET …/media streams it. False while it loads from the channel
+     */
+    ready: boolean;
+    size: number;
+};
+
+export type InboxMediaKindDto = {
+    kind: 'image' | 'video' | 'audio' | 'document';
+    max_bytes: number;
+    /**
+     * Accepted types; empty accepts any type the inbox can send
+     */
+    mime_types: Array<string> | null;
+};
+
+export type InboxMentionDto = {
+    author: InboxPersonDto;
+    /**
+     * The note, at most 280 characters
+     */
+    body: string;
+    contact_name: string;
+    contact_phone: string;
+    conversation_id: string;
+    created_at: string;
+    /**
+     * The note
+     */
+    message_id: string;
+    seen_at: string | null;
+};
+
+export type InboxMentionsOutputBody = {
+    /**
+     * Your 50 newest mentions
+     */
+    items: Array<InboxMentionDto> | null;
+    /**
+     * For the bell
+     */
+    unseen: number;
+};
+
+export type InboxMentionsSeenOutputBody = {
+    updated: number;
+};
+
+export type InboxMessageDto = {
+    /**
+     * Who sent the message or wrote the note
+     */
+    author: InboxPersonDto;
+    /**
+     * Text, caption or the rendered template
+     */
+    body: string;
+    content: InboxContentDto;
+    created_at: string;
+    direction: 'in' | 'out';
+    error_code: string | null;
+    error_title: string | null;
+    id: string;
+    /**
+     * note: private, never sent; event: a system line such as "Assigned to Ada"
+     */
+    kind: 'message' | 'note' | 'event';
+    mentions: Array<string> | null;
+    reactions: InboxReactionsDto;
+    reply_to: InboxReplyRefDto;
+    /**
+     * Outbound messages only
+     */
+    status: 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
+    status_at: string | null;
+    /**
+     * The channel's type, for WhatsApp: text, image, video, audio, document, sticker, location, contacts, interactive, button, template, unsupported; event for events
+     */
+    type: string;
+};
+
+export type InboxMessagesOutputBody = {
+    /**
+     * Newest first, 50 per page
+     */
+    items: Array<InboxMessageDto> | null;
+    /**
+     * Pass as before for older messages; null at the start of the chat
+     */
+    next_before: string;
+};
+
+export type InboxPersonDto = {
+    id: string;
+    name: string;
+};
+
+export type InboxQuickRepliesOutputBody = {
+    items: Array<InboxQuickReplyDto> | null;
+};
+
+export type InboxQuickReplyDto = {
+    body: string;
+    created_at: string;
+    id: string;
+    /**
+     * Typed after / in the composer
+     */
+    shortcut: string;
+    title: string;
+    updated_at: string;
+};
+
+export type InboxReactionsDto = {
+    /**
+     * The customer's emoji; empty for none
+     */
+    in: string;
+    /**
+     * Your emoji; empty for none
+     */
+    out: string;
+};
+
+export type InboxReferralDto = {
+    body: string;
+    headline: string;
+    source_id: string;
+    source_type: string;
+    source_url: string;
+};
+
+export type InboxReplyRefDto = {
+    /**
+     * At most 120 characters
+     */
+    body: string;
+    direction: 'in' | 'out';
+    id: string;
+    type: string;
+};
+
+export type InboxTemplateButtonDto = {
+    text: string;
+    type: 'quick_reply' | 'url' | 'phone';
+    value: string;
+};
+
+export type InboxTemplateContentDto = {
+    category: string;
+    header_type: string;
+    id: string;
+    language: string;
+    name: string;
+    params: InboxTemplateParamsDto;
+};
+
+export type InboxTemplateDto = {
+    body: string;
+    /**
+     * params.body needs this many values
+     */
+    body_variables: number;
+    buttons: Array<InboxTemplateButtonDto> | null;
+    category: 'marketing' | 'utility' | 'authentication';
+    footer: string;
+    /**
+     * media_key is needed, a file of header_type
+     */
+    header_media: boolean;
+    header_text: string;
+    header_type: 'none' | 'text' | 'image' | 'video' | 'document';
+    /**
+     * params.header_text is needed
+     */
+    header_variable: boolean;
+    id: string;
+    language: string;
+    name: string;
+    /**
+     * Indexes of buttons whose link needs a value in params.url_buttons
+     */
+    url_buttons: Array<number> | null;
+};
+
+export type InboxTemplateParamsDto = {
+    /**
+     * Fills the body's {{1}}..{{N}} in order
+     */
+    body?: Array<string> | null;
+    /**
+     * Fills a text header's {{1}}
+     */
+    header_text?: string;
+    url_buttons?: Array<InboxUrlButtonParamDto> | null;
+};
+
+export type InboxTemplatesOutputBody = {
+    items: Array<InboxTemplateDto> | null;
+};
+
+export type InboxUrlButtonParamDto = {
+    /**
+     * The button's position in the template
+     */
+    index: number;
+    /**
+     * Fills the link's {{1}}
+     */
+    value: string;
+};
+
+export type InboxUploadOutputBody = {
+    filename: string;
+    /**
+     * Send as media_key
+     */
+    key: string;
+    /**
+     * How the channel will show it
+     */
+    kind: 'image' | 'video' | 'audio' | 'document';
+    mime: string;
+    size: number;
+};
+
 export type InstallmentDto = {
     amount_minor: number;
     due_at: string;
@@ -1267,6 +1706,13 @@ export type MappingInputBody = {
      * A tag for every imported contact
      */
     tag_name?: string;
+};
+
+export type MarkMentionsSeenInputBody = {
+    /**
+     * Only these notes' mentions; omit for all
+     */
+    message_ids?: Array<string> | null;
 };
 
 export type MeOutputBody = {
@@ -1777,6 +2223,13 @@ export type QuoteOrderInputBody = {
     plan_price_id: string;
 };
 
+export type ReactInputBody = {
+    /**
+     * One emoji; empty removes your reaction
+     */
+    emoji: string;
+};
+
 export type RefreshInputBody = {
     /**
      * Mobile: refresh token from the last sign-in or refresh
@@ -1908,6 +2361,31 @@ export type SecretOutputBody = {
     secret: string;
 };
 
+export type SendMessageInputBody = {
+    caption?: string;
+    /**
+     * key from POST /media: the file to send, or a template's media header
+     */
+    media_key?: string;
+    /**
+     * The template's variables
+     */
+    params?: InboxTemplateParamsDto;
+    /**
+     * Quote a message of this chat
+     */
+    reply_to_id?: string;
+    /**
+     * An approved template, from GET /templates
+     */
+    template_id?: string;
+    text?: string;
+    /**
+     * text and media need inbox.reply and the 24-hour window; template needs inbox.send_template
+     */
+    type: 'text' | 'media' | 'template';
+};
+
 export type SendTestInputBody = {
     /**
      * E.164, e.g. +8801712345678
@@ -1932,6 +2410,17 @@ export type SessionDto = {
 
 export type SessionsOutputBody = {
     sessions: Array<SessionDto> | null;
+};
+
+export type SetConversationStatusInputBody = {
+    /**
+     * Snooze: pending until then, at most 90 days ahead
+     */
+    snooze_until?: string;
+    /**
+     * Open or close; omit when snoozing
+     */
+    status?: 'open' | 'closed';
 };
 
 export type SetPasswordInputBody = {
@@ -2259,6 +2748,12 @@ export type UpdateProfileInputBody1 = {
      * e.g. eu_vat, bd_bin; set with tax_id
      */
     tax_id_type?: string;
+};
+
+export type UpdateQuickReplyInputBody = {
+    body?: string;
+    shortcut?: string;
+    title?: string;
 };
 
 export type UploadOutputBody = {
@@ -5521,6 +6016,649 @@ export type UpdateContactResponses = {
 };
 
 export type UpdateContactResponse = UpdateContactResponses[keyof UpdateContactResponses];
+
+export type ListInboxConversationsData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: {
+        tab?: 'open' | 'pending' | 'closed' | 'mine';
+        /**
+         * Contact name, phone or last message contains this
+         */
+        q?: string;
+        /**
+         * newest: last message first; waiting: waiting longest first
+         */
+        sort?: 'newest' | 'waiting';
+        /**
+         * next_cursor from the previous page
+         */
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/v1/workspace/inbox/conversations';
+};
+
+export type ListInboxConversationsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListInboxConversationsError = ListInboxConversationsErrors[keyof ListInboxConversationsErrors];
+
+export type ListInboxConversationsResponses = {
+    /**
+     * OK
+     */
+    200: InboxConversationsOutputBody;
+};
+
+export type ListInboxConversationsResponse = ListInboxConversationsResponses[keyof ListInboxConversationsResponses];
+
+export type GetInboxConversationData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        conversationId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/inbox/conversations/{conversationId}';
+};
+
+export type GetInboxConversationErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetInboxConversationError = GetInboxConversationErrors[keyof GetInboxConversationErrors];
+
+export type GetInboxConversationResponses = {
+    /**
+     * OK
+     */
+    200: InboxConversationDetailDto;
+};
+
+export type GetInboxConversationResponse = GetInboxConversationResponses[keyof GetInboxConversationResponses];
+
+export type AssignInboxConversationData = {
+    body: AssignConversationInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        conversationId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/inbox/conversations/{conversationId}/assign';
+};
+
+export type AssignInboxConversationErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AssignInboxConversationError = AssignInboxConversationErrors[keyof AssignInboxConversationErrors];
+
+export type AssignInboxConversationResponses = {
+    /**
+     * OK
+     */
+    200: InboxConversationDetailDto;
+};
+
+export type AssignInboxConversationResponse = AssignInboxConversationResponses[keyof AssignInboxConversationResponses];
+
+export type ListInboxMessagesData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        conversationId: string;
+    };
+    query?: {
+        /**
+         * next_before from the previous page
+         */
+        before?: string;
+    };
+    url: '/v1/workspace/inbox/conversations/{conversationId}/messages';
+};
+
+export type ListInboxMessagesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListInboxMessagesError = ListInboxMessagesErrors[keyof ListInboxMessagesErrors];
+
+export type ListInboxMessagesResponses = {
+    /**
+     * OK
+     */
+    200: InboxMessagesOutputBody;
+};
+
+export type ListInboxMessagesResponse = ListInboxMessagesResponses[keyof ListInboxMessagesResponses];
+
+export type SendInboxMessageData = {
+    body: SendMessageInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        conversationId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/inbox/conversations/{conversationId}/messages';
+};
+
+export type SendInboxMessageErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SendInboxMessageError = SendInboxMessageErrors[keyof SendInboxMessageErrors];
+
+export type SendInboxMessageResponses = {
+    /**
+     * Created
+     */
+    201: InboxMessageDto;
+};
+
+export type SendInboxMessageResponse = SendInboxMessageResponses[keyof SendInboxMessageResponses];
+
+export type GetInboxMediaData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        conversationId: string;
+        messageId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/inbox/conversations/{conversationId}/messages/{messageId}/media';
+};
+
+export type GetInboxMediaErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetInboxMediaError = GetInboxMediaErrors[keyof GetInboxMediaErrors];
+
+export type GetInboxMediaResponses = {
+    /**
+     * The file, with its Content-Type and Content-Disposition
+     */
+    200: Blob | File;
+};
+
+export type GetInboxMediaResponse = GetInboxMediaResponses[keyof GetInboxMediaResponses];
+
+export type ReactInboxMessageData = {
+    body: ReactInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        conversationId: string;
+        messageId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/inbox/conversations/{conversationId}/messages/{messageId}/reaction';
+};
+
+export type ReactInboxMessageErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ReactInboxMessageError = ReactInboxMessageErrors[keyof ReactInboxMessageErrors];
+
+export type ReactInboxMessageResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type ReactInboxMessageResponse = ReactInboxMessageResponses[keyof ReactInboxMessageResponses];
+
+export type AddInboxNoteData = {
+    body: AddNoteInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        conversationId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/inbox/conversations/{conversationId}/notes';
+};
+
+export type AddInboxNoteErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AddInboxNoteError = AddInboxNoteErrors[keyof AddInboxNoteErrors];
+
+export type AddInboxNoteResponses = {
+    /**
+     * Created
+     */
+    201: InboxMessageDto;
+};
+
+export type AddInboxNoteResponse = AddInboxNoteResponses[keyof AddInboxNoteResponses];
+
+export type ReadInboxConversationData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        conversationId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/inbox/conversations/{conversationId}/read';
+};
+
+export type ReadInboxConversationErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ReadInboxConversationError = ReadInboxConversationErrors[keyof ReadInboxConversationErrors];
+
+export type ReadInboxConversationResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type ReadInboxConversationResponse = ReadInboxConversationResponses[keyof ReadInboxConversationResponses];
+
+export type SetInboxConversationStatusData = {
+    body: SetConversationStatusInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        conversationId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/inbox/conversations/{conversationId}/status';
+};
+
+export type SetInboxConversationStatusErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SetInboxConversationStatusError = SetInboxConversationStatusErrors[keyof SetInboxConversationStatusErrors];
+
+export type SetInboxConversationStatusResponses = {
+    /**
+     * OK
+     */
+    200: InboxConversationDetailDto;
+};
+
+export type SetInboxConversationStatusResponse = SetInboxConversationStatusResponses[keyof SetInboxConversationStatusResponses];
+
+export type StreamInboxEventsData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/inbox/events';
+};
+
+export type StreamInboxEventsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type StreamInboxEventsError = StreamInboxEventsErrors[keyof StreamInboxEventsErrors];
+
+export type StreamInboxEventsResponses = {
+    /**
+     * An event stream
+     */
+    200: string;
+};
+
+export type StreamInboxEventsResponse = StreamInboxEventsResponses[keyof StreamInboxEventsResponses];
+
+export type UploadInboxMediaData = {
+    body?: {
+        /**
+         * Image (JPEG, PNG), video (MP4, 3GP), audio (AAC, AMR, MP3, M4A, OGG) or document (PDF, Office, TXT), within the largest limit of any channel (WhatsApp: 5, 16, 16 and 100 MB). The send checks the conversation's channel's limits
+         */
+        file: Blob | File;
+    };
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/inbox/media';
+};
+
+export type UploadInboxMediaErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UploadInboxMediaError = UploadInboxMediaErrors[keyof UploadInboxMediaErrors];
+
+export type UploadInboxMediaResponses = {
+    /**
+     * Created
+     */
+    201: InboxUploadOutputBody;
+};
+
+export type UploadInboxMediaResponse = UploadInboxMediaResponses[keyof UploadInboxMediaResponses];
+
+export type ListInboxMentionsData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/inbox/mentions';
+};
+
+export type ListInboxMentionsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListInboxMentionsError = ListInboxMentionsErrors[keyof ListInboxMentionsErrors];
+
+export type ListInboxMentionsResponses = {
+    /**
+     * OK
+     */
+    200: InboxMentionsOutputBody;
+};
+
+export type ListInboxMentionsResponse = ListInboxMentionsResponses[keyof ListInboxMentionsResponses];
+
+export type MarkInboxMentionsSeenData = {
+    body: MarkMentionsSeenInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/inbox/mentions/seen';
+};
+
+export type MarkInboxMentionsSeenErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type MarkInboxMentionsSeenError = MarkInboxMentionsSeenErrors[keyof MarkInboxMentionsSeenErrors];
+
+export type MarkInboxMentionsSeenResponses = {
+    /**
+     * OK
+     */
+    200: InboxMentionsSeenOutputBody;
+};
+
+export type MarkInboxMentionsSeenResponse = MarkInboxMentionsSeenResponses[keyof MarkInboxMentionsSeenResponses];
+
+export type ListInboxQuickRepliesData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/inbox/quick-replies';
+};
+
+export type ListInboxQuickRepliesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListInboxQuickRepliesError = ListInboxQuickRepliesErrors[keyof ListInboxQuickRepliesErrors];
+
+export type ListInboxQuickRepliesResponses = {
+    /**
+     * OK
+     */
+    200: InboxQuickRepliesOutputBody;
+};
+
+export type ListInboxQuickRepliesResponse = ListInboxQuickRepliesResponses[keyof ListInboxQuickRepliesResponses];
+
+export type CreateInboxQuickReplyData = {
+    body: CreateQuickReplyInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/inbox/quick-replies';
+};
+
+export type CreateInboxQuickReplyErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CreateInboxQuickReplyError = CreateInboxQuickReplyErrors[keyof CreateInboxQuickReplyErrors];
+
+export type CreateInboxQuickReplyResponses = {
+    /**
+     * Created
+     */
+    201: InboxQuickReplyDto;
+};
+
+export type CreateInboxQuickReplyResponse = CreateInboxQuickReplyResponses[keyof CreateInboxQuickReplyResponses];
+
+export type DeleteInboxQuickReplyData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        quickReplyId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/inbox/quick-replies/{quickReplyId}';
+};
+
+export type DeleteInboxQuickReplyErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type DeleteInboxQuickReplyError = DeleteInboxQuickReplyErrors[keyof DeleteInboxQuickReplyErrors];
+
+export type DeleteInboxQuickReplyResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteInboxQuickReplyResponse = DeleteInboxQuickReplyResponses[keyof DeleteInboxQuickReplyResponses];
+
+export type UpdateInboxQuickReplyData = {
+    body: UpdateQuickReplyInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        quickReplyId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/inbox/quick-replies/{quickReplyId}';
+};
+
+export type UpdateInboxQuickReplyErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UpdateInboxQuickReplyError = UpdateInboxQuickReplyErrors[keyof UpdateInboxQuickReplyErrors];
+
+export type UpdateInboxQuickReplyResponses = {
+    /**
+     * OK
+     */
+    200: InboxQuickReplyDto;
+};
+
+export type UpdateInboxQuickReplyResponse = UpdateInboxQuickReplyResponses[keyof UpdateInboxQuickReplyResponses];
+
+export type ListInboxTemplatesData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * The channel to send on; 409 templates_unsupported when it has no templates
+         */
+        channel_type?: 'whatsapp' | 'messenger' | 'instagram';
+    };
+    url: '/v1/workspace/inbox/templates';
+};
+
+export type ListInboxTemplatesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListInboxTemplatesError = ListInboxTemplatesErrors[keyof ListInboxTemplatesErrors];
+
+export type ListInboxTemplatesResponses = {
+    /**
+     * OK
+     */
+    200: InboxTemplatesOutputBody;
+};
+
+export type ListInboxTemplatesResponse = ListInboxTemplatesResponses[keyof ListInboxTemplatesResponses];
 
 export type GetIntegrationsData = {
     body?: never;

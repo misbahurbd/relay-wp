@@ -2,6 +2,7 @@ import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute, Outlet, useNavigate, useRouter } from '@tanstack/react-router'
 import { AppShell } from '#/components/layout/app-shell'
 import { useLogout } from '#/features/auth'
+import { useInboxEvents } from '#/features/inbox'
 import { useAccessVersionWatcher } from '#/features/team'
 import {
   selectWorkspace,
@@ -26,6 +27,8 @@ function ShellLayout() {
   const router = useRouter()
   const logout = useLogout()
   useAccessVersionWatcher()
+  // Live inbox updates and mention toasts on every page of the workspace (AD-8, AD-12).
+  useInboxEvents(workspaceId, me.user.id, (c) => navigate({ to: '/inbox', search: { c } }))
   const { data: workspace } = useSuspenseQuery(workspaceQueryOptions(me.user.id, workspaceId))
   const name =
     me.profile.display_name ??

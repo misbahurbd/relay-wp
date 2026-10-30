@@ -154,6 +154,15 @@ type Contact struct {
 	UpdatedAt     time.Time
 }
 
+type ContactIdentity struct {
+	WorkspaceID uuid.UUID
+	ContactID   uuid.UUID
+	ChannelType string
+	ExternalID  string
+	Handle      string
+	CreatedAt   time.Time
+}
+
 type ContactImport struct {
 	ID           uuid.UUID
 	WorkspaceID  uuid.UUID
@@ -188,6 +197,29 @@ type ContactTagLink struct {
 	WorkspaceID uuid.UUID
 	ContactID   uuid.UUID
 	TagID       uuid.UUID
+}
+
+type Conversation struct {
+	ID                   uuid.UUID
+	WorkspaceID          uuid.UUID
+	ContactID            uuid.UUID
+	ChannelType          string
+	ChannelID            uuid.UUID
+	Status               string
+	TeamID               *uuid.UUID
+	AssigneeID           *uuid.UUID
+	Source               string
+	LastMessageAt        time.Time
+	LastMessagePreview   string
+	LastMessageDirection string
+	LastInboundAt        *time.Time
+	WindowExpiresAt      *time.Time
+	UnreadCount          int32
+	WaitingSince         *time.Time
+	SnoozedUntil         *time.Time
+	ClosedAt             *time.Time
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
 }
 
 type Discount struct {
@@ -249,6 +281,15 @@ type EmailToken struct {
 	ExpiresAt time.Time
 	UsedAt    *time.Time
 	CreatedAt time.Time
+}
+
+type InboxMention struct {
+	WorkspaceID    uuid.UUID
+	MessageID      uuid.UUID
+	ConversationID uuid.UUID
+	UserID         uuid.UUID
+	SeenAt         *time.Time
+	CreatedAt      time.Time
 }
 
 type Installment struct {
@@ -394,6 +435,27 @@ type MemberPermissionOverride struct {
 	RevokedBy        *uuid.UUID
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
+}
+
+type Message struct {
+	ID             uuid.UUID
+	WorkspaceID    uuid.UUID
+	ConversationID uuid.UUID
+	Direction      string
+	Kind           string
+	Type           string
+	Body           string
+	Content        []byte
+	ExternalID     *string
+	ReplyToID      *uuid.UUID
+	Status         *string
+	ErrorCode      *string
+	ErrorTitle     *string
+	AuthorID       *uuid.UUID
+	Mentions       []uuid.UUID
+	Reactions      []byte
+	CreatedAt      time.Time
+	StatusAt       *time.Time
 }
 
 type MessageTemplate struct {
@@ -565,6 +627,17 @@ type ProviderPrice struct {
 	IsActive           bool
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
+}
+
+type QuickReply struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	Shortcut    string
+	Title       string
+	Body        string
+	CreatedBy   *uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 type RefreshToken struct {

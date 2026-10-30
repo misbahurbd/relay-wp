@@ -14,7 +14,11 @@ const NO_RETRY = ['/v1/auth/login', '/v1/auth/signup', '/v1/auth/token/refresh',
 const replays = new WeakMap<Request, Request>()
 let refreshing: Promise<boolean> | null = null
 
-function refreshSession() {
+/**
+ * Refreshes the session cookies; true when it worked. Shared with callers that use fetch directly
+ * (the inbox event stream), so every refresh goes through this one in-flight promise.
+ */
+export function refreshSession() {
   refreshing ??= refreshToken({ client })
     .then((r) => r.response?.ok ?? false)
     .catch(() => false)

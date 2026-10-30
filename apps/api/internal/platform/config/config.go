@@ -144,6 +144,9 @@ type WhatsApp struct {
 	WebhookVerifyToken string `env:"META_WEBHOOK_VERIFY_TOKEN"`
 	// TokenEncryptionKey is a base64 32-byte AES-256 key for stored Meta tokens and PINs.
 	TokenEncryptionKey string `env:"TOKEN_ENCRYPTION_KEY"`
+	// Fake (development only) gives the inbox a stand-in WhatsApp channel that accepts
+	// replies and plays back delivery ticks, for trying the inbox without a real number.
+	Fake bool `env:"WHATSAPP_FAKE" envDefault:"false"`
 }
 
 // Payment configures payment providers (docs/adr/0006-payment-gateway-registry.md).
