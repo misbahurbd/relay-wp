@@ -17,10 +17,16 @@ type AdminCatalog struct {
 
 // AdminPlan is one plan version with every price it has had.
 type AdminPlan struct {
-	ID                uuid.UUID
-	Code              string
-	Version           int
-	Name              string
+	ID      uuid.UUID
+	Code    string
+	Version int
+	Name    string
+	// Description is the pricing table's one line about the plan.
+	Description string
+	// Features are the pricing table's bullet points, in order.
+	Features []string
+	// Recommended marks the plan the pricing table points people to.
+	Recommended       bool
 	TrialDays         int
 	TrialRequiresCard bool
 	Limits            Limits
@@ -63,8 +69,14 @@ type AdminProviderPrice struct {
 
 // NewPlan adds a plan. A code already in use publishes its next version.
 type NewPlan struct {
-	Code              string
-	Name              string
+	Code string
+	Name string
+	// Description is the pricing table's one line about the plan.
+	Description string
+	// Features are the pricing table's bullet points, in order.
+	Features []string
+	// Recommended marks the plan the pricing table points people to.
+	Recommended       bool
 	TrialDays         int
 	TrialRequiresCard bool
 	Limits            Limits

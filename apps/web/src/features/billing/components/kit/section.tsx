@@ -6,7 +6,7 @@ export function Section({ className, ...props }: ComponentProps<'section'>) {
   return (
     <section
       className={cn(
-        'flex flex-col gap-4 rounded-xl border bg-card p-5 shadow-card sm:p-6',
+        'flex flex-col gap-4 rounded-xl border bg-card p-5 shadow-card sm:p-[22px]',
         className,
       )}
       {...props}
@@ -26,9 +26,9 @@ export function SectionHeader({
   action?: ReactNode
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex min-w-0 flex-col gap-0.5">
-        <h2 id={id} className="text-base font-extrabold tracking-tight">
+        <h2 id={id} className="text-[17px] font-bold">
           {title}
         </h2>
         {description && <p className="text-[13px] text-muted-foreground">{description}</p>}

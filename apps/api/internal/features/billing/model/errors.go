@@ -57,6 +57,7 @@ var (
 	ErrInvoiceNotFound = apperr.NotFound("invoice_not_found", "Invoice not found")
 	ErrInvalidCursor   = apperr.Validation("invalid_cursor", "The page cursor is invalid")
 	ErrPlanNotFound    = apperr.NotFound("plan_not_found", "Plan not found")
+	ErrNoCardCustomer  = apperr.NotFound("no_payment_customer", "There's no card on file yet. It's saved when you first pay.")
 
 	// Staff admin tools.
 	ErrWorkspaceNotFound = apperr.NotFound("workspace_not_found", "Workspace not found")

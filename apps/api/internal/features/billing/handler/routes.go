@@ -91,6 +91,11 @@ func Register(api huma.API, h *Handler, g Guards, security []map[string][]string
 	huma.Register(api, ws("update-billing-profile", http.MethodPut, "/profile",
 		"Replace billing details; past invoices keep theirs", ok, pay), h.updateProfile)
 
+	huma.Register(api, ws("get-payment-method", http.MethodGet, "/payment-method",
+		"The card the payment provider charges next, read from the provider", ok, view), h.paymentMethod)
+	huma.Register(api, ws("create-portal-session", http.MethodPost, "/portal-session",
+		"A link to the payment provider's page for changing cards", ok, pay), h.portalSession)
+
 	registerAdmin(api, h, g, security)
 }
 

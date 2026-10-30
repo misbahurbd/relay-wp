@@ -233,3 +233,23 @@ func TestNewBuildsOnlyConfiguredProviders(t *testing.T) {
 		t.Error("a nil registry has no gateways")
 	}
 }
+
+func TestFakePaymentMethodAndPortal(t *testing.T) {
+	f := payment.NewFake(payment.Stripe, "whsec")
+	ctx := context.Background()
+	pm, err := f.Card(ctx, payment.CardRequest{ExternalCustomerID: "fake_cus_1"})
+	if err != nil || pm == nil || *pm != payment.FakeCard {
+		t.Fatalf("card = %+v, %v", pm, err)
+	}
+	if _, err := f.Card(ctx, payment.CardRequest{}); !errors.Is(err, payment.ErrInvalidRequest) {
+		t.Fatalf("no customer: err = %v", err)
+	}
+	url, err := f.PortalURL(ctx, payment.PortalRequest{ExternalCustomerID: "fake_cus_1", ReturnURL: "http://app.test/billing"})
+	if err != nil || url != "http://app.test/billing" {
+		t.Fatalf("url = %q, %v", url, err)
+	}
+	f.FailNext(payment.ErrUnavailable)
+	if _, err := f.Card(ctx, payment.CardRequest{ExternalCustomerID: "fake_cus_1"}); !errors.Is(err, payment.ErrUnavailable) {
+		t.Fatalf("FailNext: err = %v", err)
+	}
+}

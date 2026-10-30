@@ -39,8 +39,10 @@ func (q *Queries) CreateInstallmentOffer(ctx context.Context, arg CreateInstallm
 }
 
 const createPlan = `-- name: CreatePlan :one
-INSERT INTO plans (code, version, name, trial_days, trial_requires_card, limits, sort_order)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO plans (code, version, name, description, features, recommended, trial_days, trial_requires_card,
+                   limits, sort_order)
+VALUES ($1, $2, $3, $4, COALESCE($5::text[], '{}'), $6, $7, $8,
+        $9, $10)
 RETURNING id
 `
 
@@ -48,6 +50,9 @@ type CreatePlanParams struct {
 	Code              string
 	Version           int32
 	Name              string
+	Description       string
+	Features          []string
+	Recommended       bool
 	TrialDays         int32
 	TrialRequiresCard bool
 	Limits            []byte
@@ -59,6 +64,9 @@ func (q *Queries) CreatePlan(ctx context.Context, arg CreatePlanParams) (uuid.UU
 		arg.Code,
 		arg.Version,
 		arg.Name,
+		arg.Description,
+		arg.Features,
+		arg.Recommended,
 		arg.TrialDays,
 		arg.TrialRequiresCard,
 		arg.Limits,
@@ -431,7 +439,7 @@ func (q *Queries) ListActivePlanPrices(ctx context.Context) ([]ListActivePlanPri
 
 const listActivePlans = `-- name: ListActivePlans :many
 
-SELECT id, code, version, name, trial_days, trial_requires_card, limits, sort_order
+SELECT id, code, version, name, description, features, recommended, trial_days, trial_requires_card, limits, sort_order
 FROM plans
 WHERE is_active
 ORDER BY sort_order, code, version DESC
@@ -442,6 +450,9 @@ type ListActivePlansRow struct {
 	Code              string
 	Version           int32
 	Name              string
+	Description       string
+	Features          []string
+	Recommended       bool
 	TrialDays         int32
 	TrialRequiresCard bool
 	Limits            []byte
@@ -463,6 +474,9 @@ func (q *Queries) ListActivePlans(ctx context.Context) ([]ListActivePlansRow, er
 			&i.Code,
 			&i.Version,
 			&i.Name,
+			&i.Description,
+			&i.Features,
+			&i.Recommended,
 			&i.TrialDays,
 			&i.TrialRequiresCard,
 			&i.Limits,

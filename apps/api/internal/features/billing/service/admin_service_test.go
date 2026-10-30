@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -176,4 +177,44 @@ func TestAdminGrantsAPlanByHand(t *testing.T) {
 func isInvalidInput(err error) bool {
 	e, ok := apperr.As(err)
 	return ok && e.Code == model.ErrInvalidInput.Code
+}
+
+func TestAdminPlanCarriesItsPricingTableDetails(t *testing.T) {
+	e := newT3Env(t)
+	code := "adm_" + uuid.NewString()[:8]
+	id, err := e.svc.CreatePlan(e.ctx, model.NewPlan{
+		Code: code, Name: "Detailed", Description: "  For growing teams.  ", Recommended: true,
+		Features: []string{" 10,000 contacts ", "", "API access"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cat, err := e.svc.AdminCatalog(e.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got *model.AdminPlan
+	for i := range cat.Plans {
+		if cat.Plans[i].ID == id {
+			got = &cat.Plans[i]
+		}
+	}
+	if got == nil || got.Description != "For growing teams." || !got.Recommended ||
+		len(got.Features) != 2 || got.Features[0] != "10,000 contacts" || got.Features[1] != "API access" {
+		t.Fatalf("plan = %+v", got)
+	}
+
+	tooMany := make([]string, 21)
+	for i := range tooMany {
+		tooMany[i] = "feature"
+	}
+	for name, in := range map[string]model.NewPlan{
+		"long description": {Code: code, Name: "X", Description: strings.Repeat("a", 201)},
+		"too many":         {Code: code, Name: "X", Features: tooMany},
+		"long feature":     {Code: code, Name: "X", Features: []string{strings.Repeat("a", 81)}},
+	} {
+		if _, err := e.svc.CreatePlan(e.ctx, in); !isInvalidInput(err) {
+			t.Errorf("%s: err = %v", name, err)
+		}
+	}
 }

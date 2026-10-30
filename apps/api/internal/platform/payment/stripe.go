@@ -507,6 +507,61 @@ func (g *stripeGateway) CreateCoupon(ctx context.Context, req CouponRequest) (Co
 	return Coupon{ExternalCouponID: c.ID}, nil
 }
 
+// Card reads the subscription's default card (subscriptions save the
+// card they were paid with), else the customer's invoice default.
+func (g *stripeGateway) Card(ctx context.Context, req CardRequest) (*Card, error) {
+	if req.ExternalCustomerID == "" {
+		return nil, fmt.Errorf("stripe: payment method needs a customer: %w", ErrInvalidRequest)
+	}
+	if req.ExternalSubscriptionID != "" {
+		sub, err := g.sc.V1Subscriptions.Retrieve(ctx, req.ExternalSubscriptionID, &stripe.SubscriptionRetrieveParams{
+			Expand: []*string{stripe.String("default_payment_method")},
+		})
+		if err != nil {
+			return nil, stripeError("retrieve subscription", err)
+		}
+		if pm := stripeCard(sub.DefaultPaymentMethod); pm != nil {
+			return pm, nil
+		}
+	}
+	c, err := g.sc.V1Customers.Retrieve(ctx, req.ExternalCustomerID, &stripe.CustomerRetrieveParams{
+		Expand: []*string{stripe.String("invoice_settings.default_payment_method")},
+	})
+	if err != nil {
+		return nil, stripeError("retrieve customer", err)
+	}
+	if c.InvoiceSettings == nil {
+		return nil, nil
+	}
+	return stripeCard(c.InvoiceSettings.DefaultPaymentMethod), nil
+}
+
+// PortalURL opens a Stripe Billing Portal session. Which actions the portal
+// offers is set in the Stripe dashboard (payment methods only; see
+// docs/PHASE-7-BILLING.md section 4).
+func (g *stripeGateway) PortalURL(ctx context.Context, req PortalRequest) (string, error) {
+	if req.ExternalCustomerID == "" {
+		return "", fmt.Errorf("stripe: portal needs a customer: %w", ErrInvalidRequest)
+	}
+	s, err := g.sc.V1BillingPortalSessions.Create(ctx, &stripe.BillingPortalSessionCreateParams{
+		Customer: stripe.String(req.ExternalCustomerID), ReturnURL: optString(req.ReturnURL),
+	})
+	if err != nil {
+		return "", stripeError("create portal session", err)
+	}
+	return s.URL, nil
+}
+
+// stripeCard returns pm's card, or nil when pm is unset, unexpanded or not a card.
+func stripeCard(pm *stripe.PaymentMethod) *Card {
+	if pm == nil || pm.Card == nil || pm.Card.Last4 == "" {
+		return nil
+	}
+	return &Card{
+		Brand: string(pm.Card.Brand), Last4: pm.Card.Last4, ExpMonth: int(pm.Card.ExpMonth), ExpYear: int(pm.Card.ExpYear),
+	}
+}
+
 func (g *stripeGateway) ParseWebhook(ctx context.Context, header http.Header, body []byte) (Event, error) {
 	if err := webhook.ValidatePayloadWithTolerance(body, header.Get(stripeSignatureHeader), g.webhookSecret,
 		webhook.DefaultTolerance); err != nil {

@@ -79,11 +79,23 @@ export type AdminOfferDto = {
 
 export type AdminPlanDto = {
     code: string;
+    /**
+     * One line about the plan; may be empty
+     */
+    description: string;
+    /**
+     * Bullet points for the pricing table, in order
+     */
+    features: Array<string> | null;
     id: string;
     is_active: boolean;
     limits: LimitsDto;
     name: string;
     prices: Array<AdminPriceDto> | null;
+    /**
+     * The plan the pricing table points people to
+     */
+    recommended: boolean;
     sort_order: number;
     trial_days: number;
     trial_requires_card: boolean;
@@ -284,6 +296,16 @@ export type CancelSubscriptionInputBody = {
      * True keeps access until the period ends; false cancels now
      */
     at_period_end: boolean;
+};
+
+export type CardDto = {
+    /**
+     * The card network, lower case
+     */
+    brand: string;
+    exp_month: number;
+    exp_year: number;
+    last4: string;
 };
 
 export type CatalogOutputBody = {
@@ -577,8 +599,17 @@ export type CreatePlanInputBody = {
      * A code already in use publishes its next version
      */
     code: string;
+    description?: string;
+    /**
+     * Bullet points for the pricing table, in order; each at most 80 characters
+     */
+    features?: Array<string> | null;
     limits: LimitsDto;
     name: string;
+    /**
+     * Mark this as the plan the pricing table points people to
+     */
+    recommended?: boolean;
     sort_order: number;
     trial_days: number;
     trial_requires_card: boolean;
@@ -1292,6 +1323,25 @@ export type OverviewOutputBody = {
     subscription?: SubscriptionDto;
 };
 
+export type PaymentMethodOutputBody = {
+    /**
+     * The provider has a portal for changing cards
+     */
+    can_manage: boolean;
+    /**
+     * Read from the provider each time; absent when there is none, or the provider shares no card details
+     */
+    card?: CardDto;
+    /**
+     * False when the provider never shares card details (Creem)
+     */
+    card_details: boolean;
+    /**
+     * Absent until something is bought
+     */
+    provider?: 'stripe' | 'creem' | 'paypal' | 'sslcommerz';
+};
+
 export type PermissionDto = {
     group: string;
     key: string;
@@ -1313,16 +1363,32 @@ export type PersonDto = {
 
 export type PlanDto = {
     code: string;
+    description: string;
+    /**
+     * Bullet points for the pricing table, in order
+     */
+    features: Array<string> | null;
     id: string;
     limits: LimitsDto;
     name: string;
     prices: Array<PriceDto> | null;
+    /**
+     * The plan the pricing table points people to
+     */
+    recommended: boolean;
     /**
      * 0: no trial
      */
     trial_days: number;
     trial_requires_card: boolean;
     version: number;
+};
+
+export type PortalSessionOutputBody = {
+    /**
+     * The provider's card management page; short-lived, open it at once
+     */
+    url: string;
 };
 
 export type PreferencesDto = {
@@ -4108,6 +4174,68 @@ export type ResumeOrderResponses = {
 };
 
 export type ResumeOrderResponse = ResumeOrderResponses[keyof ResumeOrderResponses];
+
+export type GetPaymentMethodData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/billing/payment-method';
+};
+
+export type GetPaymentMethodErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetPaymentMethodError = GetPaymentMethodErrors[keyof GetPaymentMethodErrors];
+
+export type GetPaymentMethodResponses = {
+    /**
+     * OK
+     */
+    200: PaymentMethodOutputBody;
+};
+
+export type GetPaymentMethodResponse = GetPaymentMethodResponses[keyof GetPaymentMethodResponses];
+
+export type CreatePortalSessionData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/billing/portal-session';
+};
+
+export type CreatePortalSessionErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CreatePortalSessionError = CreatePortalSessionErrors[keyof CreatePortalSessionErrors];
+
+export type CreatePortalSessionResponses = {
+    /**
+     * OK
+     */
+    200: PortalSessionOutputBody;
+};
+
+export type CreatePortalSessionResponse = CreatePortalSessionResponses[keyof CreatePortalSessionResponses];
 
 export type GetBillingProfileData = {
     body?: never;

@@ -1,19 +1,14 @@
 import { revalidateLogic, useForm } from '@tanstack/react-form'
-import { useQuery } from '@tanstack/react-query'
 import { useRef } from 'react'
 import { toast } from 'sonner'
 import { describedBy, FormField, fieldError, focusFirstInvalid } from '#/components/form'
 import { Alert, AlertDescription } from '#/components/ui/alert'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
-import { Skeleton } from '#/components/ui/skeleton'
 import { errorMessage, isApiError } from '#/lib/api'
 import { useUpdateProfile } from '../../api/billing.mutations'
-import { profileQueryOptions } from '../../api/billing.queries'
 import { type BillingProfileValues, billingProfileSchema } from '../../schemas/billing.schema'
 import type { BillingProfile, BillingProfileInput } from '../../types'
-import { Section, SectionHeader } from '../kit/section'
-import { ErrorState, NoPayPermission } from '../kit/states'
 
 type Key = keyof BillingProfileValues
 
@@ -92,60 +87,15 @@ function toInput(v: BillingProfileValues): BillingProfileInput {
   }
 }
 
-export function ProfileSection({ workspaceId, canPay }: { workspaceId: string; canPay: boolean }) {
-  const profile = useQuery(profileQueryOptions(workspaceId))
-  return (
-    <Section aria-labelledby="profile-heading">
-      <SectionHeader
-        id="profile-heading"
-        title="Billing details"
-        description="Who invoices are made out to."
-      />
-      {profile.isPending ? (
-        <div
-          className="flex flex-col gap-4"
-          role="status"
-          aria-busy="true"
-          aria-label="Loading billing details"
-        >
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-[72px] w-full" />
-          ))}
-        </div>
-      ) : profile.isError ? (
-        <ErrorState
-          title="Couldn’t load billing details"
-          error={profile.error}
-          onRetry={() => void profile.refetch()}
-        />
-      ) : (
-        <>
-          {profile.data === null && (
-            <p className="text-sm text-muted-foreground">
-              No billing details yet. Add them so your invoices show the right name and address.
-            </p>
-          )}
-          {!canPay && <NoPayPermission />}
-          <ProfileForm
-            key={profile.data?.updated_at ?? 'new'}
-            workspaceId={workspaceId}
-            initial={profile.data}
-            readOnly={!canPay}
-          />
-        </>
-      )}
-    </Section>
-  )
-}
-
-function ProfileForm({
+/** The billing details form. Past invoices keep the details they were issued with. */
+export function ProfileForm({
   workspaceId,
   initial,
-  readOnly,
+  onSaved,
 }: {
   workspaceId: string
   initial: BillingProfile | null
-  readOnly: boolean
+  onSaved?: () => void
 }) {
   const update = useUpdateProfile(workspaceId)
   const formRef = useRef<HTMLFormElement>(null)
@@ -157,7 +107,10 @@ function ProfileForm({
     onSubmit: ({ value }) =>
       update
         .mutateAsync(toInput(value))
-        .then(() => toast.success('Billing details saved'))
+        .then(() => {
+          toast.success('Billing details saved')
+          onSaved?.()
+        })
         .catch(() => undefined),
   })
   const details = isApiError(update.error) ? (update.error.details ?? []) : []
@@ -166,7 +119,7 @@ function ProfileForm({
     <form
       ref={formRef}
       noValidate
-      className="flex max-w-[560px] flex-col gap-4"
+      className="flex flex-col gap-4"
       onSubmit={(e) => {
         e.preventDefault()
         form.handleSubmit()
@@ -200,7 +153,6 @@ function ProfileForm({
                   autoComplete={f.autoComplete}
                   placeholder={f.placeholder}
                   value={field.state.value}
-                  readOnly={readOnly}
                   onChange={(e) => field.handleChange(e.target.value)}
                   onBlur={field.handleBlur}
                   aria-invalid={!!error}
@@ -211,15 +163,13 @@ function ProfileForm({
           }}
         </form.Field>
       ))}
-      {!readOnly && (
-        <form.Subscribe selector={(s) => s.isSubmitting}>
-          {(submitting) => (
-            <Button type="submit" size="lg" className="self-start" disabled={submitting}>
-              {submitting ? 'Saving…' : 'Save billing details'}
-            </Button>
-          )}
-        </form.Subscribe>
-      )}
+      <form.Subscribe selector={(s) => s.isSubmitting}>
+        {(submitting) => (
+          <Button type="submit" size="lg" className="self-start" disabled={submitting}>
+            {submitting ? 'Saving…' : 'Save billing details'}
+          </Button>
+        )}
+      </form.Subscribe>
     </form>
   )
 }

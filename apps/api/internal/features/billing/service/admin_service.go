@@ -78,13 +78,21 @@ func (s *Service) AdminCatalog(ctx context.Context) (model.AdminCatalog, error) 
 			return model.AdminCatalog{}, err
 		}
 		out.Plans = append(out.Plans, model.AdminPlan{
-			ID: p.ID, Code: p.Code, Version: int(p.Version), Name: p.Name, TrialDays: int(p.TrialDays),
+			ID: p.ID, Code: p.Code, Version: int(p.Version), Name: p.Name, Description: p.Description,
+			Features: p.Features, Recommended: p.Recommended, TrialDays: int(p.TrialDays),
 			TrialRequiresCard: p.TrialRequiresCard, Limits: limits, IsActive: p.IsActive, SortOrder: int(p.SortOrder),
 			Prices: planPrices[p.ID],
 		})
 	}
 	return out, nil
 }
+
+// Limits on what the pricing table shows about a plan (migration 00015).
+const (
+	maxPlanDescription = 200
+	maxPlanFeatures    = 20
+	maxPlanFeature     = 80
+)
 
 // CreatePlan adds a plan, or the next version of one whose code is already used.
 func (s *Service) CreatePlan(ctx context.Context, in model.NewPlan) (uuid.UUID, error) {
@@ -99,6 +107,25 @@ func (s *Service) CreatePlan(ctx context.Context, in model.NewPlan) (uuid.UUID, 
 	}
 	if name == "" {
 		bad("name", "A plan needs a name")
+	}
+	description := strings.TrimSpace(in.Description)
+	if len([]rune(description)) > maxPlanDescription {
+		bad("description", "Keep the description to 200 characters")
+	}
+	features := make([]string, 0, len(in.Features))
+	for _, f := range in.Features {
+		if f = strings.TrimSpace(f); f != "" {
+			features = append(features, f)
+		}
+	}
+	if len(features) > maxPlanFeatures {
+		bad("features", "List at most 20 features")
+	}
+	for _, f := range features {
+		if len([]rune(f)) > maxPlanFeature {
+			bad("features", "Keep each feature to 80 characters")
+			break
+		}
 	}
 	if in.TrialDays < 0 || in.TrialDays > 90 {
 		bad("trial_days", "A trial lasts 0 to 90 days")
@@ -121,7 +148,8 @@ func (s *Service) CreatePlan(ctx context.Context, in model.NewPlan) (uuid.UUID, 
 			return fmt.Errorf("next plan version: %w", err)
 		}
 		id, err = r.CreatePlan(ctx, gen.CreatePlanParams{
-			Code: code, Version: version, Name: name, TrialDays: int32(in.TrialDays), //nolint:gosec // range checked above
+			Code: code, Version: version, Name: name, Description: description, Features: features,
+			Recommended: in.Recommended, TrialDays: int32(in.TrialDays), //nolint:gosec // range checked above
 			TrialRequiresCard: in.TrialRequiresCard, Limits: limits, SortOrder: int32(in.SortOrder), //nolint:gosec // a small display order
 		})
 		return err

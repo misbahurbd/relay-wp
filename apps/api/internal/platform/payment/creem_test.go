@@ -592,3 +592,33 @@ func TestCreemWebhookRejectsBadSignatures(t *testing.T) {
 		t.Errorf("no id: err = %v, want ErrInvalidRequest", err)
 	}
 }
+
+func TestCreemPaymentMethodIsUnsupported(t *testing.T) {
+	g, api := newCreemWithAPI(t)
+	if _, err := g.Card(context.Background(), CardRequest{ExternalCustomerID: "cust_9"}); !errors.Is(err, ErrUnsupported) {
+		t.Fatalf("err = %v, want ErrUnsupported", err)
+	}
+	if api.count() != 0 {
+		t.Fatal("no call should reach Creem")
+	}
+}
+
+func TestCreemPortalURL(t *testing.T) {
+	g, api := newCreemWithAPI(t)
+	api.handle("POST /v1/customers/billing", http.StatusOK, `{"customer_portal_link":"https://creem.io/my-orders/login/x"}`)
+	url, err := g.PortalURL(context.Background(), PortalRequest{ExternalCustomerID: "cust_9", ReturnURL: "http://app.test/billing"})
+	if err != nil || url != "https://creem.io/my-orders/login/x" {
+		t.Fatalf("url = %q, %v", url, err)
+	}
+	if b := api.last().Body; b["customer_id"] != "cust_9" {
+		t.Errorf("body = %v", b)
+	}
+
+	api.handle("POST /v1/customers/billing", http.StatusOK, `{}`)
+	if _, err := g.PortalURL(context.Background(), PortalRequest{ExternalCustomerID: "cust_9"}); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("empty link: err = %v", err)
+	}
+	if _, err := g.PortalURL(context.Background(), PortalRequest{}); !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("no customer: err = %v", err)
+	}
+}

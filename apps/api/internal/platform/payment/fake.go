@@ -295,6 +295,36 @@ func (f *Fake) CreateCoupon(_ context.Context, req CouponRequest) (Coupon, error
 	return Coupon{ExternalCouponID: f.nextID("coupon")}, nil
 }
 
+// FakeCard is the card every fake customer has: Stripe's test Visa.
+var FakeCard = Card{Brand: "visa", Last4: "4242", ExpMonth: 12, ExpYear: 2030}
+
+// Card implements Gateway. Every customer has FakeCard.
+func (f *Fake) Card(_ context.Context, req CardRequest) (*Card, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.takeFailure(); err != nil {
+		return nil, err
+	}
+	if req.ExternalCustomerID == "" {
+		return nil, fmt.Errorf("fake: payment method needs a customer: %w", ErrInvalidRequest)
+	}
+	card := FakeCard
+	return &card, nil
+}
+
+// PortalURL implements Gateway. There is no portal: the link goes straight back.
+func (f *Fake) PortalURL(_ context.Context, req PortalRequest) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.takeFailure(); err != nil {
+		return "", err
+	}
+	if req.ExternalCustomerID == "" {
+		return "", fmt.Errorf("fake: portal needs a customer: %w", ErrInvalidRequest)
+	}
+	return req.ReturnURL, nil
+}
+
 // ParseWebhook implements Gateway. The body is an Event as JSON, signed by Webhook.
 func (f *Fake) ParseWebhook(_ context.Context, header http.Header, body []byte) (Event, error) {
 	f.mu.Lock()

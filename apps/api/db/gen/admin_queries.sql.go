@@ -102,7 +102,8 @@ func (q *Queries) AdminListPlanPrices(ctx context.Context) ([]AdminListPlanPrice
 
 const adminListPlans = `-- name: AdminListPlans :many
 
-SELECT id, code, version, name, trial_days, trial_requires_card, limits, is_active, sort_order
+SELECT id, code, version, name, description, features, recommended, trial_days, trial_requires_card, limits,
+       is_active, sort_order
 FROM plans
 ORDER BY sort_order, code, version DESC
 `
@@ -112,6 +113,9 @@ type AdminListPlansRow struct {
 	Code              string
 	Version           int32
 	Name              string
+	Description       string
+	Features          []string
+	Recommended       bool
 	TrialDays         int32
 	TrialRequiresCard bool
 	Limits            []byte
@@ -135,6 +139,9 @@ func (q *Queries) AdminListPlans(ctx context.Context) ([]AdminListPlansRow, erro
 			&i.Code,
 			&i.Version,
 			&i.Name,
+			&i.Description,
+			&i.Features,
+			&i.Recommended,
 			&i.TrialDays,
 			&i.TrialRequiresCard,
 			&i.Limits,

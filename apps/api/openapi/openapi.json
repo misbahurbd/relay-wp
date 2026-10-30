@@ -353,6 +353,20 @@
           "code": {
             "type": "string"
           },
+          "description": {
+            "description": "One line about the plan; may be empty",
+            "type": "string"
+          },
+          "features": {
+            "description": "Bullet points for the pricing table, in order",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -373,6 +387,10 @@
               "array",
               "null"
             ]
+          },
+          "recommended": {
+            "description": "The plan the pricing table points people to",
+            "type": "boolean"
           },
           "sort_order": {
             "format": "int64",
@@ -395,6 +413,9 @@
           "code",
           "version",
           "name",
+          "description",
+          "features",
+          "recommended",
           "trial_days",
           "trial_requires_card",
           "limits",
@@ -980,6 +1001,45 @@
         },
         "required": [
           "at_period_end"
+        ],
+        "type": "object"
+      },
+      "CardDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "brand": {
+            "description": "The card network, lower case",
+            "examples": [
+              "visa"
+            ],
+            "type": "string"
+          },
+          "exp_month": {
+            "examples": [
+              8
+            ],
+            "format": "int64",
+            "type": "integer"
+          },
+          "exp_year": {
+            "examples": [
+              2028
+            ],
+            "format": "int64",
+            "type": "integer"
+          },
+          "last4": {
+            "examples": [
+              "4242"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "brand",
+          "last4",
+          "exp_month",
+          "exp_year"
         ],
         "type": "object"
       },
@@ -1945,6 +2005,24 @@
             "minLength": 2,
             "type": "string"
           },
+          "description": {
+            "examples": [
+              "For growing teams running regular campaigns."
+            ],
+            "maxLength": 200,
+            "type": "string"
+          },
+          "features": {
+            "description": "Bullet points for the pricing table, in order; each at most 80 characters",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "limits": {
             "$ref": "#/components/schemas/LimitsDTO"
           },
@@ -1955,6 +2033,10 @@
             "maxLength": 80,
             "minLength": 1,
             "type": "string"
+          },
+          "recommended": {
+            "description": "Mark this as the plan the pricing table points people to",
+            "type": "boolean"
           },
           "sort_order": {
             "format": "int64",
@@ -4390,6 +4472,38 @@
         ],
         "type": "object"
       },
+      "PaymentMethodOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "can_manage": {
+            "description": "The provider has a portal for changing cards",
+            "type": "boolean"
+          },
+          "card": {
+            "$ref": "#/components/schemas/CardDTO",
+            "description": "Read from the provider each time; absent when there is none, or the provider shares no card details"
+          },
+          "card_details": {
+            "description": "False when the provider never shares card details (Creem)",
+            "type": "boolean"
+          },
+          "provider": {
+            "description": "Absent until something is bought",
+            "enum": [
+              "stripe",
+              "creem",
+              "paypal",
+              "sslcommerz"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "card_details",
+          "can_manage"
+        ],
+        "type": "object"
+      },
       "PermissionDTO": {
         "additionalProperties": false,
         "properties": {
@@ -4467,6 +4581,22 @@
             ],
             "type": "string"
           },
+          "description": {
+            "examples": [
+              "For growing teams running regular campaigns."
+            ],
+            "type": "string"
+          },
+          "features": {
+            "description": "Bullet points for the pricing table, in order",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -4488,6 +4618,10 @@
               "null"
             ]
           },
+          "recommended": {
+            "description": "The plan the pricing table points people to",
+            "type": "boolean"
+          },
           "trial_days": {
             "description": "0: no trial",
             "format": "int64",
@@ -4506,10 +4640,27 @@
           "code",
           "version",
           "name",
+          "description",
+          "features",
+          "recommended",
           "trial_days",
           "trial_requires_card",
           "limits",
           "prices"
+        ],
+        "type": "object"
+      },
+      "PortalSessionOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "url": {
+            "description": "The provider's card management page; short-lived, open it at once",
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
         ],
         "type": "object"
       },
@@ -10565,6 +10716,108 @@
           }
         ],
         "summary": "Start a checkout for a defaulted order's remaining balance",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/v1/workspace/billing/payment-method": {
+      "get": {
+        "operationId": "get-payment-method",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "The card the payment provider charges next, read from the provider",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/v1/workspace/billing/portal-session": {
+      "post": {
+        "operationId": "create-portal-session",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalSessionOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "A link to the payment provider's page for changing cards",
         "tags": [
           "billing"
         ]

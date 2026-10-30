@@ -2,7 +2,8 @@
 -- every workspace's plan. Never called from a workspace's own requests.
 
 -- name: AdminListPlans :many
-SELECT id, code, version, name, trial_days, trial_requires_card, limits, is_active, sort_order
+SELECT id, code, version, name, description, features, recommended, trial_days, trial_requires_card, limits,
+       is_active, sort_order
 FROM plans
 ORDER BY sort_order, code, version DESC;
 

@@ -43,6 +43,9 @@ type AdminPlanDTO struct {
 	Code              string          `json:"code"`
 	Version           int             `json:"version"`
 	Name              string          `json:"name"`
+	Description       string          `json:"description" doc:"One line about the plan; may be empty"`
+	Features          []string        `json:"features" doc:"Bullet points for the pricing table, in order"`
+	Recommended       bool            `json:"recommended" doc:"The plan the pricing table points people to"`
 	TrialDays         int             `json:"trial_days"`
 	TrialRequiresCard bool            `json:"trial_requires_card"`
 	Limits            LimitsDTO       `json:"limits"`
@@ -72,7 +75,8 @@ func ToAdminCatalogOutput(c model.AdminCatalog) *AdminCatalogOutput {
 	out.Body.Plans = make([]AdminPlanDTO, 0, len(c.Plans))
 	for _, p := range c.Plans {
 		plan := AdminPlanDTO{
-			ID: p.ID, Code: p.Code, Version: p.Version, Name: p.Name, TrialDays: p.TrialDays,
+			ID: p.ID, Code: p.Code, Version: p.Version, Name: p.Name, Description: p.Description,
+			Features: nonNil(p.Features), Recommended: p.Recommended, TrialDays: p.TrialDays,
 			TrialRequiresCard: p.TrialRequiresCard, Limits: ToLimitsDTO(p.Limits), IsActive: p.IsActive,
 			SortOrder: p.SortOrder, Prices: make([]AdminPriceDTO, 0, len(p.Prices)),
 		}
@@ -112,6 +116,9 @@ type CreatePlanInput struct {
 	Body struct {
 		Code              string    `json:"code" minLength:"2" maxLength:"41" example:"growth" doc:"A code already in use publishes its next version"`
 		Name              string    `json:"name" minLength:"1" maxLength:"80" example:"Growth"`
+		Description       string    `json:"description,omitempty" maxLength:"200" example:"For growing teams running regular campaigns."`
+		Features          []string  `json:"features,omitempty" maxItems:"20" doc:"Bullet points for the pricing table, in order; each at most 80 characters"`
+		Recommended       bool      `json:"recommended,omitempty" doc:"Mark this as the plan the pricing table points people to"`
 		TrialDays         int       `json:"trial_days" minimum:"0" maximum:"90"`
 		TrialRequiresCard bool      `json:"trial_requires_card"`
 		Limits            LimitsDTO `json:"limits"`
@@ -122,7 +129,8 @@ type CreatePlanInput struct {
 func (in *CreatePlanInput) ToModel() model.NewPlan {
 	b := in.Body
 	return model.NewPlan{
-		Code: b.Code, Name: b.Name, TrialDays: b.TrialDays, TrialRequiresCard: b.TrialRequiresCard,
+		Code: b.Code, Name: b.Name, Description: b.Description, Features: b.Features, Recommended: b.Recommended,
+		TrialDays: b.TrialDays, TrialRequiresCard: b.TrialRequiresCard,
 		Limits: model.Limits(b.Limits), SortOrder: b.SortOrder,
 	}
 }

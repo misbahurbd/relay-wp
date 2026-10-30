@@ -468,6 +468,9 @@ type Plan struct {
 	SortOrder         int32
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
+	Description       string
+	Features          []string
+	Recommended       bool
 }
 
 type PlanGrant struct {

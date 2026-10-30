@@ -21,6 +21,30 @@ export function formatMoney(minor: number, currency: string) {
   return f.format(minor / 10 ** digits)
 }
 
+/** "$79" for a whole amount, "$79.50" otherwise: how the pricing table shows a price. */
+export function formatPrice(minor: number, currency: string) {
+  const digits = formatter(currency).resolvedOptions().maximumFractionDigits ?? 2
+  if (minor % 10 ** digits !== 0) return formatMoney(minor, currency)
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 0,
+  }).format(minor / 10 ** digits)
+}
+
+/**
+ * "$0.0226" from 22600 micros (millionths of the currency unit): Meta's per-message rates go below
+ * a cent, so they keep up to four decimals.
+ */
+export function formatMicros(micros: number, currency: string) {
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  }).format(micros / 1_000_000)
+}
+
 /** "/mo", "/yr", or "one time". */
 export function perInterval(price: Price) {
   if (price.interval === 'month') return '/month'

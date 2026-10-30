@@ -60,6 +60,10 @@
   --panel: #0e5c30;
   --panel-foreground: #ffffff;
   --panel-muted: #cfebda;
+  /* The saved-card picture on the billing page. */
+  --card-face: #10301f;
+  --card-face-foreground: #eaf6ee;
+  --card-chip: #c9d7ce;
 
   /* WhatsApp chat previews */
   --chat: #eef2ee;
@@ -130,6 +134,9 @@
   --panel: #103a23;
   --panel-foreground: #e7eeea;
   --panel-muted: #a9cdb7;
+  --card-face: #10301f;
+  --card-face-foreground: #eaf6ee;
+  --card-chip: #c9d7ce;
 
   --chat: #0f1714;
   --bubble-in: #1a2520;
@@ -197,6 +204,9 @@
   --color-panel: var(--panel);
   --color-panel-foreground: var(--panel-foreground);
   --color-panel-muted: var(--panel-muted);
+  --color-card-face: var(--card-face);
+  --color-card-face-foreground: var(--card-face-foreground);
+  --color-card-chip: var(--card-chip);
   --color-chat: var(--chat);
   --color-bubble-in: var(--bubble-in);
   --color-bubble-out: var(--bubble-out);

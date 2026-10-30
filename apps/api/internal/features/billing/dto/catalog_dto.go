@@ -65,6 +65,9 @@ type PlanDTO struct {
 	Code              string     `json:"code" example:"growth"`
 	Version           int        `json:"version"`
 	Name              string     `json:"name" example:"Growth"`
+	Description       string     `json:"description" example:"For growing teams running regular campaigns."`
+	Features          []string   `json:"features" doc:"Bullet points for the pricing table, in order"`
+	Recommended       bool       `json:"recommended" doc:"The plan the pricing table points people to"`
 	TrialDays         int        `json:"trial_days" doc:"0: no trial"`
 	TrialRequiresCard bool       `json:"trial_requires_card"`
 	Limits            LimitsDTO  `json:"limits"`
@@ -94,7 +97,8 @@ func ToCatalogOutput(c model.Catalog) *CatalogOutput {
 	out.Body.Plans = make([]PlanDTO, 0, len(c.Plans))
 	for _, p := range c.Plans {
 		plan := PlanDTO{
-			ID: p.ID, Code: p.Code, Version: p.Version, Name: p.Name, TrialDays: p.TrialDays,
+			ID: p.ID, Code: p.Code, Version: p.Version, Name: p.Name, Description: p.Description,
+			Features: nonNil(p.Features), Recommended: p.Recommended, TrialDays: p.TrialDays,
 			TrialRequiresCard: p.TrialRequiresCard, Limits: ToLimitsDTO(p.Limits),
 			Prices: make([]PriceDTO, 0, len(p.Prices)),
 		}

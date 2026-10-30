@@ -239,6 +239,30 @@ func (g *creemGateway) CancelSchedule(context.Context, string) error {
 	return fmt.Errorf("creem: installment schedules: %w", ErrUnsupported)
 }
 
+// Card implements Gateway: Creem's API shares no card details.
+func (g *creemGateway) Card(context.Context, CardRequest) (*Card, error) {
+	return nil, fmt.Errorf("creem: card details: %w", ErrUnsupported)
+}
+
+// PortalURL asks Creem for a customer portal link (POST /v1/customers/billing).
+// Creem's portal takes no return URL.
+func (g *creemGateway) PortalURL(ctx context.Context, req PortalRequest) (string, error) {
+	if req.ExternalCustomerID == "" {
+		return "", fmt.Errorf("creem: portal needs a customer: %w", ErrInvalidRequest)
+	}
+	var out struct {
+		Link string `json:"customer_portal_link"`
+	}
+	in := map[string]string{"customer_id": req.ExternalCustomerID}
+	if err := g.do(ctx, http.MethodPost, "/v1/customers/billing", in, &out); err != nil {
+		return "", fmt.Errorf("creem: customer portal: %w", err)
+	}
+	if out.Link == "" {
+		return "", fmt.Errorf("creem: customer portal: no link in the response: %w", ErrUnavailable)
+	}
+	return out.Link, nil
+}
+
 // CreateCoupon mirrors a Relay discount as a Creem discount code. Creem needs
 // the products a code applies to: req.ExternalProductIDs, or else the store's
 // active recurring products, so the code never discounts a one-time checkout twice.

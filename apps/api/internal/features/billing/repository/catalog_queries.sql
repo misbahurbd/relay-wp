@@ -1,7 +1,7 @@
 -- ---------- Plans ----------
 
 -- name: ListActivePlans :many
-SELECT id, code, version, name, trial_days, trial_requires_card, limits, sort_order
+SELECT id, code, version, name, description, features, recommended, trial_days, trial_requires_card, limits, sort_order
 FROM plans
 WHERE is_active
 ORDER BY sort_order, code, version DESC;
@@ -12,8 +12,10 @@ FROM plans
 WHERE id = @plan_id;
 
 -- name: CreatePlan :one
-INSERT INTO plans (code, version, name, trial_days, trial_requires_card, limits, sort_order)
-VALUES (@code, @version, @name, @trial_days, @trial_requires_card, @limits, @sort_order)
+INSERT INTO plans (code, version, name, description, features, recommended, trial_days, trial_requires_card,
+                   limits, sort_order)
+VALUES (@code, @version, @name, @description, COALESCE(@features::text[], '{}'), @recommended, @trial_days, @trial_requires_card,
+        @limits, @sort_order)
 RETURNING id;
 
 -- name: DeactivatePlan :execrows

@@ -20,6 +20,14 @@ func providerNames(ps []payment.Provider) []string {
 	return out
 }
 
+// nonNil turns a nil list into an empty one, so the JSON is [] rather than null.
+func nonNil(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
+}
+
 // nonEmpty turns "" into nil for optional response fields.
 func nonEmpty(s string) *string {
 	if s == "" {

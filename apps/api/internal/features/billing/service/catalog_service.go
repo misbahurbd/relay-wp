@@ -69,7 +69,8 @@ func (s *Service) Catalog(ctx context.Context) (model.Catalog, error) {
 		}
 		byPlan[p.ID] = len(out.Plans)
 		out.Plans = append(out.Plans, model.Plan{
-			ID: p.ID, Code: p.Code, Version: int(p.Version), Name: p.Name, TrialDays: int(p.TrialDays),
+			ID: p.ID, Code: p.Code, Version: int(p.Version), Name: p.Name, Description: p.Description,
+			Features: p.Features, Recommended: p.Recommended, TrialDays: int(p.TrialDays),
 			TrialRequiresCard: p.TrialRequiresCard, Limits: limits, SortOrder: int(p.SortOrder),
 		})
 	}

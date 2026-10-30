@@ -4,8 +4,11 @@ import {
   getBillingProfile,
   getCheckoutSession,
   getInvoice,
+  getPaymentMethod,
+  getSeats,
   listBillingPlans,
   listInvoices,
+  listWhatsappNumbers,
   type OrderDto,
   type PriceDto,
   previewSubscriptionChange,
@@ -22,6 +25,7 @@ import type {
   Order,
   OrderQuote,
   Overview,
+  PaymentMethod,
   Price,
   Subscription,
 } from '../types'
@@ -44,7 +48,11 @@ export function toPrice(p: PriceDto): Price {
 
 function toCatalog(data: CatalogOutputBody): Catalog {
   return {
-    plans: list(data.plans).map((plan) => ({ ...plan, prices: list(plan.prices).map(toPrice) })),
+    plans: list(data.plans).map((plan) => ({
+      ...plan,
+      features: list(plan.features),
+      prices: list(plan.prices).map(toPrice),
+    })),
     providers: list(data.providers).map((p) => ({ ...p, currencies: list(p.currencies) })),
   }
 }
@@ -190,4 +198,51 @@ export const checkoutSessionQueryOptions = (workspaceId: string, sessionId: stri
       (query.state.data && SETTLED.includes(query.state.data.status))
         ? false
         : 2000,
+  })
+
+/** The card the payment provider charges next, read from the provider on each request. */
+export const paymentMethodQueryOptions = (workspaceId: string) =>
+  queryOptions({
+    queryKey: billingKeys.paymentMethod(workspaceId),
+    queryFn: async ({ signal }): Promise<PaymentMethod> => {
+      const { data } = await getPaymentMethod({
+        headers: inWorkspace(workspaceId),
+        signal,
+        throwOnError: true,
+      })
+      return {
+        provider: data.provider ?? null,
+        card: data.card ?? null,
+        card_details: data.card_details,
+        can_manage: data.can_manage,
+      }
+    },
+  })
+
+/** Seats used (members plus pending invites) against the plan's cap, for the usage meters. */
+export const seatsUsageQueryOptions = (workspaceId: string) =>
+  queryOptions({
+    queryKey: billingKeys.seats(workspaceId),
+    queryFn: async ({ signal }) => {
+      const { data } = await getSeats({
+        headers: inWorkspace(workspaceId),
+        signal,
+        throwOnError: true,
+      })
+      return { used: data.used + data.reserved, limit: data.limit }
+    },
+  })
+
+/** WhatsApp numbers that count toward the plan's cap: every number not disconnected. */
+export const numbersUsageQueryOptions = (workspaceId: string) =>
+  queryOptions({
+    queryKey: billingKeys.numbers(workspaceId),
+    queryFn: async ({ signal }) => {
+      const { data } = await listWhatsappNumbers({
+        headers: inWorkspace(workspaceId),
+        signal,
+        throwOnError: true,
+      })
+      return list(data.numbers).filter((n) => n.status !== 'disconnected').length
+    },
   })

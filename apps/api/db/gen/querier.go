@@ -196,6 +196,10 @@ type Querier interface {
 	GetBillingCustomer(ctx context.Context, arg GetBillingCustomerParams) (GetBillingCustomerRow, error)
 	// ---------- Billing profiles (personal data: never logged) ----------
 	GetBillingProfile(ctx context.Context, workspaceID uuid.UUID) (GetBillingProfileRow, error)
+	// The provider customer whose card pays next: the live subscription's, else
+	// the live lifetime deal's, else the newest one the provider knows. The card
+	// itself stays at the provider.
+	GetCardCustomer(ctx context.Context, workspaceID uuid.UUID) (GetCardCustomerRow, error)
 	GetCheckoutSession(ctx context.Context, arg GetCheckoutSessionParams) (GetCheckoutSessionRow, error)
 	GetCheckoutSessionByIdempotencyKey(ctx context.Context, arg GetCheckoutSessionByIdempotencyKeyParams) (GetCheckoutSessionByIdempotencyKeyRow, error)
 	GetContact(ctx context.Context, arg GetContactParams) (GetContactRow, error)
