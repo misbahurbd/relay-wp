@@ -107,3 +107,13 @@ var catalogKinds = []struct{ path, kind, name string }{
 	{"installment-offers", service.CatalogOffer, "installment-offer"},
 	{"provider-prices", service.CatalogProviderPrice, "provider-price"},
 }
+
+func (h *Handler) updatePlan(ctx context.Context, in *dto.UpdatePlanInput) (*struct{}, error) {
+	userID, _ := authctx.UserID(ctx)
+	return nil, h.svc.UpdatePlan(ctx, in.ToModel(userID))
+}
+
+func (h *Handler) setGrantOverrides(ctx context.Context, in *dto.GrantOverridesInput) (*struct{}, error) {
+	userID, _ := authctx.UserID(ctx)
+	return nil, h.svc.SetGrantOverrides(ctx, in.ToModel(userID))
+}

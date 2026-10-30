@@ -81,6 +81,56 @@ func (q *Queries) InsertPaymentEvent(ctx context.Context, arg InsertPaymentEvent
 	return id, err
 }
 
+const listStuckPaymentEvents = `-- name: ListStuckPaymentEvents :many
+SELECT id, provider, external_event_id, event_type, workspace_id, received_at
+FROM payment_events
+WHERE processed_at IS NULL AND received_at <= $1
+ORDER BY received_at
+LIMIT $2
+`
+
+type ListStuckPaymentEventsParams struct {
+	Before  time.Time
+	MaxRows int32
+}
+
+type ListStuckPaymentEventsRow struct {
+	ID              uuid.UUID
+	Provider        string
+	ExternalEventID string
+	EventType       string
+	WorkspaceID     *uuid.UUID
+	ReceivedAt      time.Time
+}
+
+// Job only (all workspaces): events still unprocessed long after they arrived.
+func (q *Queries) ListStuckPaymentEvents(ctx context.Context, arg ListStuckPaymentEventsParams) ([]ListStuckPaymentEventsRow, error) {
+	rows, err := q.db.Query(ctx, listStuckPaymentEvents, arg.Before, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListStuckPaymentEventsRow{}
+	for rows.Next() {
+		var i ListStuckPaymentEventsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Provider,
+			&i.ExternalEventID,
+			&i.EventType,
+			&i.WorkspaceID,
+			&i.ReceivedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listWorkspacePaymentEvents = `-- name: ListWorkspacePaymentEvents :many
 SELECT id, provider, external_event_id, event_type, checkout_session_id, received_at, processed_at
 FROM payment_events

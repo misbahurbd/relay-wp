@@ -174,3 +174,30 @@ func TestCompleteTestCheckoutGoesThroughTheWebhook(t *testing.T) {
 		t.Errorf("unknown session: %v", err)
 	}
 }
+
+// A retry of a checkout whose first try stopped before the provider's answer
+// was saved gets a payment form again, from the same provider checkout.
+func TestRetryResumesAHalfOpenCheckout(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	in := model.CheckoutInput{PlanPriceID: p.Monthly, IdempotencyKey: uuid.NewString()}
+	first, err := e.svc.CreateCheckout(e.ctx, e.ws, e.user, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// What a failed save after the provider call leaves behind.
+	e.exec(`UPDATE checkout_sessions SET external_session_id = NULL, subscription_id = NULL WHERE id = $1`, first.Session.ID)
+	e.exec(`DELETE FROM subscriptions WHERE id = $1`, *first.Session.SubscriptionID)
+
+	again, err := e.svc.CreateCheckout(e.ctx, e.ws, e.user, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.Session.ID != first.Session.ID {
+		t.Fatalf("retry opened session %s, want %s", again.Session.ID, first.Session.ID)
+	}
+	if again.ClientSecret == "" || again.Session.ExternalSessionID == nil ||
+		*again.Session.ExternalSessionID != *first.Session.ExternalSessionID {
+		t.Fatalf("retry = %+v, want the first provider checkout with its form", again)
+	}
+}

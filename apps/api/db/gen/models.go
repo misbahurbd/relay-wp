@@ -333,6 +333,17 @@ type Invoice struct {
 	UpdatedAt         time.Time
 }
 
+type LimitChange struct {
+	ID        uuid.UUID
+	PlanID    *uuid.UUID
+	GrantID   *uuid.UUID
+	ChangedBy *uuid.UUID
+	Before    []byte
+	After     []byte
+	Reason    string
+	CreatedAt time.Time
+}
+
 type MemberNumber struct {
 	WorkspaceID uuid.UUID
 	UserID      uuid.UUID
@@ -481,7 +492,6 @@ type PlanGrant struct {
 	SubscriptionID *uuid.UUID
 	OrderID        *uuid.UUID
 	Status         string
-	Limits         []byte
 	StartsAt       time.Time
 	EndsAt         *time.Time
 	SuspendedAt    *time.Time
@@ -489,6 +499,8 @@ type PlanGrant struct {
 	Reason         *string
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
+	SuspendReason  *string
+	Overrides      []byte
 }
 
 type PlanPrice struct {

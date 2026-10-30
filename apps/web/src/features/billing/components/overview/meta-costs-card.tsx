@@ -70,7 +70,7 @@ export function MetaCostsCard({
       {!costs.data ? (
         <Skeleton className="h-48" aria-label="Loading Meta message costs" />
       ) : (
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full min-w-[440px] text-sm">
             <caption className="sr-only">Meta message costs by category, this month</caption>
             <thead className="text-left text-xs text-muted-foreground">

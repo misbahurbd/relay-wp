@@ -1,5 +1,4 @@
 import { TriangleAlertIcon } from 'lucide-react'
-import { Alert, AlertDescription, AlertTitle } from '#/components/ui/alert'
 import { Button } from '#/components/ui/button'
 import type { Wallet, WalletOutlook } from '../../types'
 import { formatMoney } from '../kit/money'
@@ -18,20 +17,19 @@ export function LowBalanceAlert({
   if (!short || short.needed_minor <= wallet.balance_minor) return null
   const money = (minor: number) => formatMoney(minor, wallet.currency)
   return (
-    <Alert variant="warning" className="border-warning-bar">
-      <TriangleAlertIcon aria-hidden="true" />
-      <AlertTitle className="font-bold">
-        Wallet balance is low: {money(wallet.balance_minor)}
-      </AlertTitle>
-      <AlertDescription className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <p>
-          Your scheduled “{short.broadcast}” broadcast needs about {money(short.needed_minor)}. Top
-          up so it isn’t paused.
-        </p>
-        <Button type="button" size="sm" onClick={onTopUp}>
-          Top up wallet
-        </Button>
-      </AlertDescription>
-    </Alert>
+    <div
+      role="status"
+      className="flex flex-wrap items-center gap-x-3.5 gap-y-2.5 rounded-[14px] border border-warning-bar bg-warning-soft px-4 py-3 text-warning"
+    >
+      <TriangleAlertIcon className="size-[18px] flex-none" aria-hidden="true" />
+      <span className="font-bold">Wallet balance is low: {money(wallet.balance_minor)}</span>
+      <span className="flex-[1_1_260px] text-foreground">
+        Your scheduled “{short.broadcast}” broadcast needs about {money(short.needed_minor)}. Top up
+        so it isn’t paused.
+      </span>
+      <Button type="button" onClick={onTopUp} className="h-10 rounded-[10px] px-3.5 font-bold">
+        Top up wallet
+      </Button>
+    </div>
   )
 }

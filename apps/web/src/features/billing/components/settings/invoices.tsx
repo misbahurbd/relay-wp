@@ -62,7 +62,7 @@ export function Invoices({ workspaceId }: { workspaceId: string }) {
         </EmptyState>
       ) : (
         <>
-          <div className="-mx-5 overflow-x-auto px-5 sm:-mx-[22px] sm:px-[22px]">
+          <div className="relative -mx-5 overflow-x-auto px-5 sm:-mx-[22px] sm:px-[22px]">
             <table className="w-full min-w-[680px] text-sm">
               <caption className="sr-only">Invoices, newest first</caption>
               <thead className="text-left text-xs text-muted-foreground">

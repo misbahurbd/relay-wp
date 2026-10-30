@@ -1,5 +1,7 @@
 // Number formatting for the Spending page. Money stays in integer minor units until printed.
 
+import { formatMoney } from '../kit/money'
+
 const count = new Intl.NumberFormat()
 
 /** "18,240". */
@@ -41,4 +43,11 @@ export function formatShare(part: number, whole: number) {
 export function formatChange(permille: number) {
   const sign = permille > 0 ? '+' : permille < 0 ? '−' : ''
   return `${sign}${Math.abs(permille) / 10}%`
+}
+
+/** "$589" for a whole amount, "$493.70" otherwise: how the design prints projections. */
+export function formatRoughMoney(minor: number, currency: string) {
+  return minor % 10 ** minorDigits(currency) === 0
+    ? formatWholeMoney(minor, currency)
+    : formatMoney(minor, currency)
 }

@@ -42,7 +42,8 @@ func (s *Service) CreateCheckout(ctx context.Context, workspaceID, userID uuid.U
 		return c.PlanPriceID == in.PlanPriceID && equalIDs(c.InstallmentOfferID, in.InstallmentOfferID)
 	}
 	r := repository.NewRepository(s.pool)
-	if prev, ok, err := s.replayCheckout(ctx, r, workspaceID, key, same); err != nil || ok {
+	// A half-open session goes on to openCheckout, which asks the provider again.
+	if prev, ok, err := s.replayCheckout(ctx, r, workspaceID, key, same); err != nil || (ok && !halfOpen(prev.Session, s.now())) {
 		return prev, err
 	}
 
@@ -233,7 +234,8 @@ func (s *Service) StartPaymentCheckout(ctx context.Context, workspaceID, userID 
 		return equalIDs(c.OrderID, &in.OrderID) && equalIDs(c.InstallmentID, in.InstallmentID)
 	}
 	r := repository.NewRepository(s.pool)
-	if prev, ok, err := s.replayCheckout(ctx, r, workspaceID, key, same); err != nil || ok {
+	// A half-open session goes on to openCheckout, which asks the provider again.
+	if prev, ok, err := s.replayCheckout(ctx, r, workspaceID, key, same); err != nil || (ok && !halfOpen(prev.Session, s.now())) {
 		return prev, err
 	}
 	order, err := r.GetOrder(ctx, gen.GetOrderParams{WorkspaceID: workspaceID, OrderID: in.OrderID})
@@ -335,10 +337,22 @@ func (s *Service) openCheckout(ctx context.Context, workspaceID uuid.UUID, c che
 		return nil
 	})
 	if errors.Is(err, errCheckoutReplay) {
-		prev, _, err := s.replayCheckout(ctx, repository.NewRepository(s.pool), workspaceID, c.params.IdempotencyKey, c.matches)
-		return prev, err
-	}
-	if err != nil {
+		r := repository.NewRepository(s.pool)
+		prev, _, err := s.replayCheckout(ctx, r, workspaceID, c.params.IdempotencyKey, c.matches)
+		if err != nil || !halfOpen(prev.Session, s.now()) {
+			return prev, err
+		}
+		// The first try stopped after the provider was asked but before its answer
+		// was saved. Ask again under the same provider key: the provider returns the
+		// checkout it already made, so the customer gets a payment form again.
+		session = prev.Session
+		c.params.OrderID = session.OrderID
+		if customer, err = r.EnsureBillingCustomer(ctx, gen.EnsureBillingCustomerParams{
+			WorkspaceID: workspaceID, Provider: c.params.Provider,
+		}); err != nil {
+			return model.StartedCheckout{}, fmt.Errorf("ensure billing customer: %w", err)
+		}
+	} else if err != nil {
 		return model.StartedCheckout{}, err
 	}
 
@@ -382,7 +396,7 @@ func (s *Service) openCheckout(ctx context.Context, workspaceID uuid.UUID, c che
 		if err := setCustomerExternalID(ctx, r, workspaceID, customer.ID, started.ExternalCustomerID); err != nil {
 			return err
 		}
-		if started.ExternalSubscriptionID != "" && c.price != nil {
+		if started.ExternalSubscriptionID != "" && c.price != nil && session.SubscriptionID == nil {
 			id, err := r.CreateSubscription(ctx, gen.CreateSubscriptionParams{
 				WorkspaceID: workspaceID, PlanPriceID: c.price.ID, BillingCustomerID: customer.ID,
 				Provider: c.params.Provider, ExternalSubscriptionID: &started.ExternalSubscriptionID,
@@ -415,6 +429,12 @@ func (s *Service) openCheckout(ctx context.Context, workspaceID uuid.UUID, c che
 		Session: session, ClientSecret: started.ClientSecret, URL: started.URL,
 		PublishableKey: c.gateway.Capabilities().PublishableKey,
 	}, nil
+}
+
+// halfOpen says whether a replayed session never got the provider's checkout
+// saved: still pending and unexpired, with no provider session ID.
+func halfOpen(cs model.CheckoutSession, now time.Time) bool {
+	return cs.Status == model.CheckoutPending && cs.ExternalSessionID == nil && cs.ExpiresAt.After(now)
 }
 
 // replayCheckout returns the session stored under key, if any. A session for
@@ -846,6 +866,10 @@ func (s *Service) gatewayErr(op string, err error) error {
 		out = model.ErrPaymentProviderDown
 	case errors.Is(err, payment.ErrUnsupported):
 		out = model.ErrChangeNotSupported
+	case errors.Is(err, payment.ErrNotFound):
+		out = model.ErrPaymentProviderMissing
+	case errors.Is(err, payment.ErrInvalidRequest):
+		out = model.ErrPaymentProviderRefused
 	default:
 		return fmt.Errorf("%s: %w", op, err)
 	}

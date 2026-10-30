@@ -33,6 +33,26 @@ func (q *Queries) CancelSubscriptionNow(ctx context.Context, arg CancelSubscript
 	return result.RowsAffected(), nil
 }
 
+const countSubscriptionChanges = `-- name: CountSubscriptionChanges :one
+SELECT count(*)::int
+FROM subscription_changes
+WHERE workspace_id = $1 AND subscription_id = $2
+`
+
+type CountSubscriptionChangesParams struct {
+	WorkspaceID    uuid.UUID
+	SubscriptionID uuid.UUID
+}
+
+// How many changes the subscription has had: part of a plan change's
+// idempotency key, so a retried change reuses its key and a new one doesn't.
+func (q *Queries) CountSubscriptionChanges(ctx context.Context, arg CountSubscriptionChangesParams) (int32, error) {
+	row := q.db.QueryRow(ctx, countSubscriptionChanges, arg.WorkspaceID, arg.SubscriptionID)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createSubscription = `-- name: CreateSubscription :one
 
 INSERT INTO subscriptions (workspace_id, plan_price_id, billing_customer_id, provider, external_subscription_id,
@@ -399,6 +419,47 @@ func (q *Queries) ListDuePendingChanges(ctx context.Context, arg ListDuePendingC
 	items := []ListDuePendingChangesRow{}
 	for rows.Next() {
 		var i ListDuePendingChangesRow
+		if err := rows.Scan(&i.ID, &i.WorkspaceID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPastDueGraceEnded = `-- name: ListPastDueGraceEnded :many
+SELECT s.id, s.workspace_id
+FROM subscriptions s
+WHERE s.status = 'past_due' AND s.grace_ends_at <= $1
+  AND EXISTS (SELECT 1 FROM plan_grants g WHERE g.subscription_id = s.id AND g.status = 'active')
+ORDER BY s.grace_ends_at
+LIMIT $2
+`
+
+type ListPastDueGraceEndedParams struct {
+	Now     *time.Time
+	MaxRows int32
+}
+
+type ListPastDueGraceEndedRow struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+}
+
+// Job only (all workspaces): past-due subscriptions whose grace has run out
+// and whose plan is still active.
+func (q *Queries) ListPastDueGraceEnded(ctx context.Context, arg ListPastDueGraceEndedParams) ([]ListPastDueGraceEndedRow, error) {
+	rows, err := q.db.Query(ctx, listPastDueGraceEnded, arg.Now, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPastDueGraceEndedRow{}
+	for rows.Next() {
+		var i ListPastDueGraceEndedRow
 		if err := rows.Scan(&i.ID, &i.WorkspaceID); err != nil {
 			return nil, err
 		}

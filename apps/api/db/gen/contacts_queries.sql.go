@@ -182,6 +182,17 @@ func (q *Queries) CountContacts(ctx context.Context, arg CountContactsParams) (i
 	return count, err
 }
 
+const countWorkspaceContacts = `-- name: CountWorkspaceContacts :one
+SELECT count(*) FROM contacts WHERE workspace_id = $1
+`
+
+func (q *Queries) CountWorkspaceContacts(ctx context.Context, workspaceID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countWorkspaceContacts, workspaceID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createContact = `-- name: CreateContact :exec
 INSERT INTO contacts (id, workspace_id, name, phone, email, opt_in, opt_in_source, opt_in_at, source, language, attributes)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
@@ -600,6 +611,16 @@ func (q *Queries) LockContact(ctx context.Context, arg LockContactParams) (LockC
 		&i.Attributes,
 	)
 	return i, err
+}
+
+const lockContactCap = `-- name: LockContactCap :exec
+SELECT pg_advisory_xact_lock(hashtextextended('contacts:' || $1::uuid::text, 0))
+`
+
+// Serializes adding contacts in one workspace, so two adds can't both pass the plan's cap.
+func (q *Queries) LockContactCap(ctx context.Context, workspaceID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, lockContactCap, workspaceID)
+	return err
 }
 
 const removeContactTagLinks = `-- name: RemoveContactTagLinks :execrows

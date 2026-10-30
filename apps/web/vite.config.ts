@@ -6,6 +6,9 @@ import viteReact from '@vitejs/plugin-react'
 import { nitro } from 'nitro/vite'
 import { defineConfig } from 'vite'
 
+const https = process.env.WEB_HTTPS === 'true'
+const apiProxyTarget = process.env.API_PROXY_TARGET ?? 'http://localhost:8080'
+
 export default defineConfig({
   resolve: { tsconfigPaths: true },
   // strictPort: fail instead of silently moving to another port, which would break CORS and cookies.
@@ -13,7 +16,7 @@ export default defineConfig({
   plugins: [
     // WEB_HTTPS=true serves the dev server over HTTPS with a self-signed cert:
     // Meta's Embedded Signup (FB.login) refuses to open from http pages.
-    process.env.WEB_HTTPS === 'true' && basicSsl(),
+    https && basicSsl(),
     devtools(),
     nitro({
       routeRules: {
@@ -27,6 +30,9 @@ export default defineConfig({
             'Referrer-Policy': 'no-referrer',
           },
         },
+        // Over HTTPS, an http API is another site to the browser, so its SameSite cookies never
+        // come back. Proxy /v1 through this server instead and point VITE_API_URL at it.
+        ...(https && { '/v1/**': { proxy: `${apiProxyTarget}/v1/**` } }),
       },
     }),
     tailwindcss(),

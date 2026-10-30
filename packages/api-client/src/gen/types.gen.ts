@@ -60,6 +60,12 @@ export type AdminDiscountsOutputBody = {
 export type AdminGrantDto = {
     ends_at: string | null;
     id: string;
+    /**
+     * This workspace's own limits on top of the plan's; only the keys that differ
+     */
+    overrides: {
+        [key: string]: number;
+    };
     plan_code: string;
     plan_name: string;
     source: 'subscription' | 'order' | 'trial' | 'manual';
@@ -89,7 +95,9 @@ export type AdminPlanDto = {
     features: Array<string> | null;
     id: string;
     is_active: boolean;
-    limits: LimitsDto;
+    limits: {
+        [key: string]: number;
+    };
     name: string;
     prices: Array<AdminPriceDto> | null;
     /**
@@ -100,6 +108,10 @@ export type AdminPlanDto = {
     trial_days: number;
     trial_requires_card: boolean;
     version: number;
+    /**
+     * Workspaces whose limits come from this plan now; editing its limits reaches them all
+     */
+    workspaces: number;
 };
 
 export type AdminPriceDto = {
@@ -134,6 +146,12 @@ export type AdminWorkspaceDto = {
      */
     grant: AdminGrantDto;
     id: string;
+    /**
+     * What applies now, overrides included
+     */
+    limits: {
+        [key: string]: number;
+    };
     name: string;
     /**
      * Empty when the creator's account is gone
@@ -604,7 +622,12 @@ export type CreatePlanInputBody = {
      * Bullet points for the pricing table, in order; each at most 80 characters
      */
     features?: Array<string> | null;
-    limits: LimitsDto;
+    /**
+     * What the plan includes: a cap (-1 unlimited) per count or monthly resource, 1 per feature. A resource left out is not included.
+     */
+    limits: {
+        [key: string]: number;
+    };
     name: string;
     /**
      * Mark this as the plan the pricing table points people to
@@ -656,7 +679,9 @@ export type CurrentPlanDto = {
     /**
      * What applies right now
      */
-    limits: LimitsDto;
+    limits: {
+        [key: string]: number;
+    };
     /**
      * free with no grant, or while it is suspended
      */
@@ -754,6 +779,20 @@ export type GrantDto = {
      * A missed installment; free limits apply until it is paid
      */
     suspended_at: string | null;
+};
+
+export type GrantOverridesInputBody = {
+    /**
+     * Only the keys that differ from the plan (0 takes a resource away); {} clears them
+     */
+    overrides: {
+        [key: string]: number;
+    };
+    /**
+     * Kept with the change, for the record
+     */
+    reason: string;
+    workspace_id: string;
 };
 
 export type HeaderDto = {
@@ -947,17 +986,6 @@ export type InvoicesOutputBody = {
      * Null on the last page
      */
     next_cursor: string | null;
-};
-
-export type LimitsDto = {
-    /**
-     * Seat-using members; -1 is unlimited
-     */
-    members: number;
-    /**
-     * Connected WhatsApp numbers; -1 is unlimited
-     */
-    whatsapp_numbers: number;
 };
 
 export type ListOutputBody = {
@@ -1369,7 +1397,9 @@ export type PlanDto = {
      */
     features: Array<string> | null;
     id: string;
-    limits: LimitsDto;
+    limits: {
+        [key: string]: number;
+    };
     name: string;
     prices: Array<PriceDto> | null;
     /**
@@ -1567,6 +1597,34 @@ export type RemoveInputBody = {
 export type ResetPasswordInputBody = {
     new_password: string;
     token: string;
+};
+
+export type ResourceDto = {
+    /**
+     * A feature checks it; until then it only shows on the pricing table
+     */
+    enforced: boolean;
+    key: string;
+    /**
+     * count: how many at once; monthly: how many per calendar month (UTC); access: a feature, in or out
+     */
+    kind: 'count' | 'monthly' | 'access';
+    label: string;
+    /**
+     * Every plan includes it
+     */
+    required: boolean;
+    /**
+     * One of it; empty for a feature
+     */
+    unit: string;
+};
+
+export type ResourcesOutputBody = {
+    /**
+     * What plans can include, in display order: limits first, then features
+     */
+    resources: Array<ResourceDto> | null;
 };
 
 export type RoleBody = {
@@ -1930,6 +1988,32 @@ export type UpdateInputBody = {
     name?: string;
 };
 
+export type UpdatePlanInputBody = {
+    description?: string;
+    /**
+     * Bullet points for the pricing table, in order; each at most 80 characters
+     */
+    features?: Array<string> | null;
+    /**
+     * What the plan includes: a cap (-1 unlimited) per count or monthly resource, 1 per feature. A resource left out is not included.
+     */
+    limits: {
+        [key: string]: number;
+    };
+    name: string;
+    /**
+     * Required when the limits change; kept with the change
+     */
+    reason?: string;
+    /**
+     * Mark this as the plan the pricing table points people to
+     */
+    recommended?: boolean;
+    sort_order: number;
+    trial_days: number;
+    trial_requires_card: boolean;
+};
+
 export type UpdatePreferencesInputBody = {
     locale?: string;
     timezone?: string;
@@ -2275,6 +2359,33 @@ export type AdminCreatePlanResponses = {
 
 export type AdminCreatePlanResponse = AdminCreatePlanResponses[keyof AdminCreatePlanResponses];
 
+export type AdminUpdatePlanData = {
+    body: UpdatePlanInputBody;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/v1/admin/billing/plans/{id}';
+};
+
+export type AdminUpdatePlanErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AdminUpdatePlanError = AdminUpdatePlanErrors[keyof AdminUpdatePlanErrors];
+
+export type AdminUpdatePlanResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type AdminUpdatePlanResponse = AdminUpdatePlanResponses[keyof AdminUpdatePlanResponses];
+
 export type AdminDeactivatePlanData = {
     body?: never;
     path: {
@@ -2460,6 +2571,31 @@ export type AdminEndGrantResponses = {
 };
 
 export type AdminEndGrantResponse = AdminEndGrantResponses[keyof AdminEndGrantResponses];
+
+export type AdminSetGrantOverridesData = {
+    body: GrantOverridesInputBody;
+    path?: never;
+    query?: never;
+    url: '/v1/admin/workspaces/grant-overrides';
+};
+
+export type AdminSetGrantOverridesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AdminSetGrantOverridesError = AdminSetGrantOverridesErrors[keyof AdminSetGrantOverridesErrors];
+
+export type AdminSetGrantOverridesResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type AdminSetGrantOverridesResponse = AdminSetGrantOverridesResponses[keyof AdminSetGrantOverridesResponses];
 
 export type AdminGrantPlanData = {
     body: ManualGrantInputBody;
@@ -3387,6 +3523,31 @@ export type ListBillingPlansResponses = {
 };
 
 export type ListBillingPlansResponse = ListBillingPlansResponses[keyof ListBillingPlansResponses];
+
+export type ListBillingResourcesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/billing/resources';
+};
+
+export type ListBillingResourcesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListBillingResourcesError = ListBillingResourcesErrors[keyof ListBillingResourcesErrors];
+
+export type ListBillingResourcesResponses = {
+    /**
+     * OK
+     */
+    200: ResourcesOutputBody;
+};
+
+export type ListBillingResourcesResponse = ListBillingResourcesResponses[keyof ListBillingResourcesResponses];
 
 export type AcceptInvitationData = {
     body: TokenInputBody;

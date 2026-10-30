@@ -1,8 +1,6 @@
 package model
 
 import (
-	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -24,39 +22,13 @@ const (
 	GrantEnded     = "ended"
 )
 
-// Unlimited is a limit with no cap.
-const Unlimited = -1
-
-// Limits are what a plan allows, from plans.limits (copied onto each grant).
-// A key missing from the JSON means Unlimited.
-type Limits struct {
-	Members         int `json:"members"`
-	WhatsAppNumbers int `json:"whatsapp_numbers"`
-}
-
-// FreeLimits apply with no current grant, or while it is suspended: the five
-// seats a workspace had before billing, and one WhatsApp number.
-var FreeLimits = Limits{Members: 5, WhatsAppNumbers: 1}
-
-// ParseLimits decodes plans.limits or plan_grants.limits.
-func ParseLimits(raw []byte) (Limits, error) {
-	var in struct {
-		Members         *int `json:"members"`
-		WhatsAppNumbers *int `json:"whatsapp_numbers"`
-	}
-	if len(raw) > 0 {
-		if err := json.Unmarshal(raw, &in); err != nil {
-			return Limits{}, fmt.Errorf("parse plan limits: %w", err)
-		}
-	}
-	or := func(p *int) int {
-		if p == nil {
-			return Unlimited
-		}
-		return *p
-	}
-	return Limits{Members: or(in.Members), WhatsAppNumbers: or(in.WhatsAppNumbers)}, nil
-}
+// Why a grant is suspended (plan_grants.suspend_reason). Each is lifted only by
+// its own cure: a renewal, a paid installment, or support.
+const (
+	SuspendPastDue      = "past_due"
+	SuspendInstallments = "installments"
+	SuspendDispute      = "dispute"
+)
 
 // Grant is what a workspace can use: one active or suspended grant at most.
 type Grant struct {
@@ -68,10 +40,13 @@ type Grant struct {
 	SubscriptionID *uuid.UUID
 	OrderID        *uuid.UUID
 	Status         string // GrantActive or GrantSuspended (GrantEnded once replaced)
-	Limits         Limits
-	StartsAt       time.Time
-	EndsAt         *time.Time // nil: lifetime
-	SuspendedAt    *time.Time
+	// PlanLimits are the plan's limits as they are now; Overrides are this grant's own (ADR 0008).
+	PlanLimits    Limits
+	Overrides     Limits
+	StartsAt      time.Time
+	EndsAt        *time.Time // nil: lifetime
+	SuspendedAt   *time.Time
+	SuspendReason string // Suspend…; empty unless suspended
 }
 
 // GrantInput gives a workspace a new grant. The current one ends in the same transaction.
@@ -80,12 +55,10 @@ type GrantInput struct {
 	Source         string
 	SubscriptionID *uuid.UUID
 	OrderID        *uuid.UUID
-	// Limits nil copies the plan's.
-	Limits    *Limits
-	StartsAt  time.Time
-	EndsAt    *time.Time // required for trials
-	CreatedBy *uuid.UUID
-	Reason    *string // required for manual grants
+	StartsAt       time.Time
+	EndsAt         *time.Time // required for trials
+	CreatedBy      *uuid.UUID
+	Reason         *string // required for manual grants
 }
 
 // CurrentPlan is the plan a workspace is on right now.
@@ -95,7 +68,7 @@ type CurrentPlan struct {
 	PlanName string
 	// Grant is nil on the free plan.
 	Grant *Grant
-	// Limits apply now: FreeLimits while suspended.
+	// Limits apply now: the free plan's while suspended, every resource filled in.
 	Limits Limits
 }
 

@@ -20,6 +20,9 @@ const (
 	SourceAPI    = "api"
 )
 
+// PlanResourceContacts is the billing resource that caps a workspace's contacts (ADR 0008).
+const PlanResourceContacts = "contacts"
+
 // OptIns are the allowed opt-in states.
 var OptIns = []string{OptInIn, OptInOut, OptInPending}
 

@@ -60,3 +60,21 @@ WHERE workspace_id = @workspace_id AND provider = @provider AND external_refund_
 SELECT COALESCE(sum(amount_minor), 0)::bigint
 FROM refunds
 WHERE workspace_id = @workspace_id AND invoice_id = @invoice_id AND status <> 'failed';
+
+-- name: GetOrderRefundTotals :one
+-- What a lifetime deal has been paid across its invoices, and how much of it
+-- has been refunded. A refunded duplicate payment counts on both sides.
+SELECT COALESCE((SELECT sum(i.total_minor) FROM invoices i
+                 WHERE i.workspace_id = @workspace_id AND i.order_id = @order_id
+                   AND i.status IN ('paid', 'partially_refunded', 'refunded')), 0)::bigint AS paid_minor,
+       COALESCE((SELECT sum(r.amount_minor) FROM refunds r JOIN invoices i ON i.id = r.invoice_id
+                 WHERE i.workspace_id = @workspace_id AND i.order_id = @order_id
+                   AND r.status = 'succeeded'), 0)::bigint AS refunded_minor;
+
+-- name: GetLatestSubscriptionInvoiceID :one
+-- The subscription's newest invoice: refunding it in full ends the subscription.
+SELECT id
+FROM invoices
+WHERE workspace_id = @workspace_id AND subscription_id = @subscription_id
+ORDER BY created_at DESC, id DESC
+LIMIT 1;

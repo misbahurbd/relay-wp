@@ -32,7 +32,8 @@ WHERE code = @code;
 -- Newest first. search matches the workspace name or the creator's email.
 SELECT w.id, w.name, w.plan, w.trial_ends_at, w.created_at, COALESCE(u.email, '')::text AS owner_email,
        g.id AS grant_id, g.source AS grant_source, g.status AS grant_status, g.ends_at AS grant_ends_at,
-       p.code AS grant_plan_code, p.name AS grant_plan_name
+       g.overrides AS grant_overrides, p.code AS grant_plan_code, p.name AS grant_plan_name,
+       p.limits AS grant_plan_limits
 FROM workspaces w
 LEFT JOIN users u ON u.id = w.created_by
 LEFT JOIN plan_grants g ON g.workspace_id = w.id AND g.status IN ('active', 'suspended')
@@ -44,3 +45,21 @@ LIMIT 200;
 
 -- name: AdminWorkspaceExists :one
 SELECT EXISTS (SELECT 1 FROM workspaces WHERE id = @workspace_id AND deleted_at IS NULL);
+
+-- name: AdminCountPlanWorkspaces :many
+-- Workspaces whose limits come from each plan right now: an active grant on it.
+SELECT plan_id, count(*)::int AS workspaces
+FROM plan_grants
+WHERE status = 'active'
+GROUP BY plan_id;
+
+-- name: AdminCountFreeWorkspaces :one
+-- Workspaces on the free plan's limits: no grant, or a suspended one.
+SELECT count(*)::int
+FROM workspaces w
+WHERE w.deleted_at IS NULL
+  AND NOT EXISTS (SELECT 1 FROM plan_grants g WHERE g.workspace_id = w.id AND g.status = 'active');
+
+-- name: InsertLimitChange :exec
+INSERT INTO limit_changes (plan_id, grant_id, changed_by, before, after, reason)
+VALUES (sqlc.narg('plan_id'), sqlc.narg('grant_id'), @changed_by, @before, @after, @reason);

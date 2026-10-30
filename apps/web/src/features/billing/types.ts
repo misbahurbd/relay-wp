@@ -6,7 +6,6 @@ import type {
   DiscountPreviewOutputBody,
   InstallmentDto,
   InvoiceDto,
-  LimitsDto,
   OfferProviderDto,
   OrderDto,
   ProfileOutputBody,
@@ -21,7 +20,8 @@ import type {
 
 export type ProviderName = ProviderDto['name']
 export type Provider = ProviderDto & { currencies: string[] }
-export type Limits = LimitsDto
+// Every resource key (GET /v1/billing/resources) to its cap; -1 is unlimited.
+export type Limits = CurrentPlanDto['limits']
 
 export type InstallmentOffer = {
   id: string

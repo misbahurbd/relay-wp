@@ -210,7 +210,7 @@ func (e *t3Env) grant(ws uuid.UUID) *model.Grant {
 
 func TestGrantChangesKeepThePlanCache(t *testing.T) {
 	e := newT3Env(t)
-	p := e.plan(t3PlanOpts{Monthly: 1000, Limits: `{"members": 12}`})
+	p := e.plan(t3PlanOpts{Monthly: 1000, Limits: `{"members": 12, "whatsapp_numbers": -1}`})
 	reason := "support gift"
 
 	var g model.Grant
@@ -220,17 +220,22 @@ func TestGrantChangesKeepThePlanCache(t *testing.T) {
 		return err
 	})
 	e.wantCache(e.ws, p.Code)
-	if n, _ := e.svc.MemberLimit(e.ctx, e.ws); n != 12 {
+	if n, _ := e.svc.Limit(e.ctx, e.ws, "members"); n != 12 {
 		t.Errorf("member limit = %d, want 12", n)
 	}
-	if n, _ := e.svc.NumberLimit(e.ctx, e.ws); n != model.Unlimited {
+	if n, _ := e.svc.Limit(e.ctx, e.ws, "whatsapp_numbers"); n != model.Unlimited {
 		t.Errorf("number limit = %d, want unlimited", n)
 	}
 
-	e.inTx(func(tx pgx.Tx) error { return e.svc.SuspendGrant(e.ctx, tx, e.ws, g.ID) })
+	e.inTx(func(tx pgx.Tx) error { return e.svc.SuspendGrant(e.ctx, tx, e.ws, g.ID, model.SuspendPastDue) })
 	e.wantCache(e.ws, model.FreePlan)
-	if n, _ := e.svc.MemberLimit(e.ctx, e.ws); n != model.FreeLimits.Members {
-		t.Errorf("suspended member limit = %d, want free %d", n, model.FreeLimits.Members)
+	raw, err := repository.NewRepository(e.pool).GetFreePlanLimits(e.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	free, _ := model.ParseLimits(raw)
+	if n, _ := e.svc.Limit(e.ctx, e.ws, "members"); n != free.Of("members") {
+		t.Errorf("suspended member limit = %d, want free %d", n, free.Of("members"))
 	}
 
 	e.inTx(func(tx pgx.Tx) error { return e.svc.RestoreGrant(e.ctx, tx, e.ws, g.ID) })
@@ -279,7 +284,7 @@ func TestRolledBackGrantChangeLeavesPlanCache(t *testing.T) {
 	})
 	g := e.grant(e.ws)
 	_ = database.WithTx(e.ctx, e.pool, func(tx pgx.Tx) error {
-		if err := e.svc.SuspendGrant(e.ctx, tx, e.ws, g.ID); err != nil {
+		if err := e.svc.SuspendGrant(e.ctx, tx, e.ws, g.ID, model.SuspendPastDue); err != nil {
 			return err
 		}
 		return boom
@@ -309,7 +314,7 @@ func TestCardlessTrialStartsAndExpires(t *testing.T) {
 	}
 
 	e.tick(24*time.Hour + time.Second)
-	n, err := e.svc.ExpireTrials(e.ctx)
+	n, err := e.svc.ExpireGrants(e.ctx)
 	if err != nil || n < 1 {
 		t.Fatalf("ExpireTrials = %d, %v", n, err)
 	}
@@ -369,4 +374,25 @@ func TestDeletionCheck(t *testing.T) {
 	if d, err := e.svc.DeletionCheck(e.ctx, e.ws); err != nil || d.Allowed || d.Reason != model.DeleteBlockedSubscription {
 		t.Fatalf("subscribed workspace: %+v, %v", d, err)
 	}
+}
+
+func TestManualGrantWithAnEndExpires(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	ends := e.clock.Add(time.Hour)
+	if err := e.svc.GrantPlanManually(e.ctx, model.ManualGrantInput{
+		WorkspaceID: e.ws, PlanID: p.ID, EndsAt: &ends, Reason: "partner pilot", CreatedBy: e.user,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	e.wantCache(e.ws, p.Code)
+
+	if n, err := e.svc.ExpireGrants(e.ctx); err != nil || n != 0 {
+		t.Fatalf("before the end: ExpireGrants = %d, %v", n, err)
+	}
+	e.tick(2 * time.Hour)
+	if _, err := e.svc.ExpireGrants(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	e.wantCache(e.ws, model.FreePlan)
 }

@@ -492,7 +492,7 @@ func New(cfg config.Payment, dev bool) (*Registry, error) {
 			if !dev {
 				return nil, fmt.Errorf("PAYMENT_PROVIDERS: %q is only allowed in development", entry)
 			}
-			gateways = append(gateways, NewFake(p, DevFakeWebhookSecret))
+			gateways = append(gateways, NewDevFake(p))
 			continue
 		}
 		var (

@@ -9,7 +9,3 @@ export function toMinor(major: string) {
   if (major.trim() === '' || !Number.isFinite(n)) return Number.NaN
   return Math.round(n * 100)
 }
-
-export function limitText(n: number) {
-  return n < 0 ? 'Unlimited' : String(n)
-}

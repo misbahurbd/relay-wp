@@ -1,12 +1,21 @@
 import { Button } from '#/components/ui/button'
 import { useDeactivateCatalogRow } from '../../api/admin.api'
-import type { CatalogRowKind, InstallmentOffer, Plan, Price, ProviderPrice } from '../../types'
+import type {
+  CatalogRowKind,
+  InstallmentOffer,
+  Plan,
+  Price,
+  ProviderPrice,
+  Resource,
+} from '../../types'
 import { ActiveBadge } from '../kit/active-badge'
 import { DeactivateButton } from '../kit/deactivate-button'
-import { formatMoney, limitText } from '../kit/money'
+import { FREE_PLAN, limitsSummary } from '../kit/limits'
+import { formatMoney } from '../kit/money'
 
 export type PlanAction =
   | { kind: 'version'; plan: Plan }
+  | { kind: 'edit'; plan: Plan }
   | { kind: 'price'; plan: Plan }
   | { kind: 'offer'; price: Price }
   | { kind: 'provider'; price: Price; offer?: InstallmentOffer }
@@ -21,15 +30,19 @@ function useDeactivate() {
 
 export function PlanCard({
   plan,
+  resources,
   showInactive,
   onAction,
 }: {
   plan: Plan
+  resources: Resource[]
   showInactive: boolean
   onAction: (a: PlanAction) => void
 }) {
   const d = useDeactivate()
   const prices = plan.prices.filter((p) => showInactive || p.is_active)
+  const free = plan.code === FREE_PLAN
+  const reach = plan.workspaces === 1 ? '1 workspace' : `${plan.workspaces} workspaces`
   return (
     <section className="flex flex-col gap-4 rounded-xl border bg-card p-5 shadow-card">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -42,24 +55,36 @@ export function PlanCard({
             <ActiveBadge active={plan.is_active} />
           </div>
           <p className="text-[13px] text-muted-foreground">
-            {limitText(plan.limits.members)} members · {limitText(plan.limits.whatsapp_numbers)}{' '}
-            WhatsApp numbers ·{' '}
-            {plan.trial_days > 0
-              ? `${plan.trial_days}-day trial${plan.trial_requires_card ? ' (card)' : ''}`
-              : 'no trial'}{' '}
-            · sort {plan.sort_order}
+            {limitsSummary(resources, plan.limits)}
+          </p>
+          <p className="text-[13px] text-muted-foreground">
+            {reach} ·{' '}
+            {free
+              ? 'what a workspace with no paid plan gets'
+              : `${
+                  plan.trial_days > 0
+                    ? `${plan.trial_days}-day trial${plan.trial_requires_card ? ' (card)' : ''}`
+                    : 'no trial'
+                } · sort ${plan.sort_order}`}
           </p>
         </div>
         <div className="flex flex-wrap gap-1">
           {plan.is_active && (
+            <Button size="sm" variant="outline" onClick={() => onAction({ kind: 'edit', plan })}>
+              Edit
+            </Button>
+          )}
+          {plan.is_active && !free && (
             <Button size="sm" variant="outline" onClick={() => onAction({ kind: 'price', plan })}>
               Add price
             </Button>
           )}
-          <Button size="sm" variant="ghost" onClick={() => onAction({ kind: 'version', plan })}>
-            New version
-          </Button>
-          {plan.is_active && (
+          {!free && (
+            <Button size="sm" variant="ghost" onClick={() => onAction({ kind: 'version', plan })}>
+              New version
+            </Button>
+          )}
+          {plan.is_active && !free && (
             <DeactivateButton
               what={`${plan.code} v${plan.version}`}
               run={d.run('plan', plan.id)}
@@ -69,7 +94,7 @@ export function PlanCard({
         </div>
       </div>
 
-      {prices.length === 0 ? (
+      {free ? null : prices.length === 0 ? (
         <p className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
           No prices yet. Nobody can buy this plan until it has a price linked to a provider.
         </p>

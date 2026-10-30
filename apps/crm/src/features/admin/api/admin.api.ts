@@ -15,15 +15,26 @@ import {
   adminListDiscounts,
   adminListWorkspaces,
   adminRestoreGrant,
+  adminSetGrantOverrides,
+  adminUpdatePlan,
   type CreateDiscountInputBody,
   type CreateInstallmentOfferInputBody,
   type CreatePlanInputBody,
   type CreatePriceInputBody,
   type CreateProviderPriceInputBody,
+  type GrantOverridesInputBody,
+  listBillingResources,
   type ManualGrantInputBody,
+  type UpdatePlanInputBody,
 } from '@relay/api-client'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { AdminCatalog, AdminDiscount, AdminWorkspace, CatalogRowKind } from '../types'
+import type {
+  AdminCatalog,
+  AdminDiscount,
+  AdminWorkspace,
+  CatalogRowKind,
+  Resource,
+} from '../types'
 
 /** Every admin query sits under ['admin'], so a change refreshes all of them. */
 export const adminKeys = {
@@ -31,6 +42,7 @@ export const adminKeys = {
   catalog: () => ['admin', 'catalog'] as const,
   discounts: () => ['admin', 'discounts'] as const,
   workspaces: (search: string) => ['admin', 'workspaces', search] as const,
+  resources: () => ['admin', 'resources'] as const,
 }
 
 const list = <T>(v: T[] | null | undefined): T[] => v ?? []
@@ -78,6 +90,18 @@ export function workspacesQueryOptions(search: string) {
       const { data } = await adminListWorkspaces({ query: { search }, throwOnError: true })
       return list(data.workspaces).map((w) => ({ ...w, grant: w.grant ?? null }))
     },
+  })
+}
+
+/** What plans can include. It changes only with a deploy. */
+export function resourcesQueryOptions() {
+  return queryOptions({
+    queryKey: adminKeys.resources(),
+    queryFn: async (): Promise<Resource[]> => {
+      const { data } = await listBillingResources({ throwOnError: true })
+      return list(data.resources)
+    },
+    staleTime: Number.POSITIVE_INFINITY,
   })
 }
 
@@ -138,4 +162,14 @@ export const useEndGrant = () =>
 export const useRestoreGrant = () =>
   useAdminMutation((workspaceId: string) =>
     adminRestoreGrant({ body: { workspace_id: workspaceId }, throwOnError: true }),
+  )
+
+export const useUpdatePlan = () =>
+  useAdminMutation(({ planId, ...body }: UpdatePlanInputBody & { planId: string }) =>
+    adminUpdatePlan({ path: { id: planId }, body, throwOnError: true }),
+  )
+
+export const useSetGrantOverrides = () =>
+  useAdminMutation((body: GrantOverridesInputBody) =>
+    adminSetGrantOverrides({ body, throwOnError: true }),
   )

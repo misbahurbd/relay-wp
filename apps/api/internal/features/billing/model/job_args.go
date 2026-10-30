@@ -25,7 +25,7 @@ type InstallmentsDueArgs struct{}
 // Kind is the job's stable name in the river_job table.
 func (InstallmentsDueArgs) Kind() string { return "billing_installments_due" }
 
-// ExpireTrialsArgs ends card-less trial grants that reached their end.
+// ExpireTrialsArgs ends card-less trials and staff grants that reached their end.
 type ExpireTrialsArgs struct{}
 
 // Kind is the job's stable name in the river_job table.
@@ -49,6 +49,18 @@ type PlanCacheDriftArgs struct{}
 // Kind is the job's stable name in the river_job table.
 func (PlanCacheDriftArgs) Kind() string { return "billing_plan_cache_drift" }
 
+// PastDueGraceArgs suspends the plans of past-due subscriptions whose grace ran out.
+type PastDueGraceArgs struct{}
+
+// Kind is the job's stable name in the river_job table.
+func (PastDueGraceArgs) Kind() string { return "billing_past_due_grace" }
+
+// StuckPaymentEventsArgs reports webhook events still unprocessed long after they arrived.
+type StuckPaymentEventsArgs struct{}
+
+// Kind is the job's stable name in the river_job table.
+func (StuckPaymentEventsArgs) Kind() string { return "billing_stuck_payment_events" }
+
 // Ensure every job's args satisfy River's interface.
 var (
 	_ river.JobArgs = ProcessPaymentEventArgs{}
@@ -57,4 +69,6 @@ var (
 	_ river.JobArgs = ExpireCheckoutsArgs{}
 	_ river.JobArgs = PurgeEventPayloadsArgs{}
 	_ river.JobArgs = PlanCacheDriftArgs{}
+	_ river.JobArgs = PastDueGraceArgs{}
+	_ river.JobArgs = StuckPaymentEventsArgs{}
 )

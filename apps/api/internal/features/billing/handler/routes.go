@@ -42,6 +42,10 @@ func Register(api huma.API, h *Handler, g Guards, security []map[string][]string
 		Summary: "The pricing catalog: plans, prices, installment offers and payment providers", Tags: tags,
 	}, h.listPlans)
 	huma.Register(api, huma.Operation{
+		OperationID: "list-billing-resources", Method: http.MethodGet, Path: "/v1/billing/resources",
+		Summary: "What plans can include, in display order (ADR 0008)", Tags: tags,
+	}, h.listResources)
+	huma.Register(api, huma.Operation{
 		OperationID: "payment-webhook", Method: http.MethodPost, Path: "/v1/webhooks/payments/{provider}",
 		Summary: "A payment provider's webhook (signed by the provider)", Tags: tags, DefaultStatus: ok,
 	}, h.receiveWebhook)
@@ -117,6 +121,8 @@ func registerAdmin(api huma.API, h *Handler, g Guards, security []map[string][]s
 		"Every plan, price, installment offer and provider price, active or not", ok), h.adminCatalog)
 	huma.Register(api, op("admin-create-plan", http.MethodPost, "/billing/plans",
 		"Add a plan; a code in use publishes its next version", created), h.createPlan)
+	huma.Register(api, op("admin-update-plan", http.MethodPut, "/billing/plans/{id}",
+		"Change a plan version in place (not its prices); new limits reach every workspace on it now", none), h.updatePlan)
 	huma.Register(api, op("admin-create-price", http.MethodPost, "/billing/prices",
 		"Add a price to a plan", created), h.createPrice)
 	huma.Register(api, op("admin-create-installment-offer", http.MethodPost, "/billing/installment-offers",
@@ -144,4 +150,6 @@ func registerAdmin(api huma.API, h *Handler, g Guards, security []map[string][]s
 		"End a manual grant or trial; the workspace goes to the free plan", none), h.endGrant)
 	huma.Register(api, op("admin-restore-grant", http.MethodPost, "/workspaces/restore-grant",
 		"Reactivate a suspended plan", none), h.restoreGrant)
+	huma.Register(api, op("admin-set-grant-overrides", http.MethodPut, "/workspaces/grant-overrides",
+		"Set a workspace's own limits on top of its plan's; {} clears them", none), h.setGrantOverrides)
 }

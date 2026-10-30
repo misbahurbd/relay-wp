@@ -1,28 +1,24 @@
 import { useId } from 'react'
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
-import {
-  type ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from '#/components/ui/chart'
+import { cn } from '#/lib/utils'
 import type { Spending } from '../../types'
 import { formatMoney } from '../kit/money'
-import { Section, SectionHeader } from '../kit/section'
+import { Section } from '../kit/section'
 import { formatWholeMoney } from './amounts'
-import { CATEGORY, CategoryLabel } from './category-label'
+import { CATEGORY } from './category-label'
 import { monthName, shortDay } from './dates'
 
 const PAID = ['marketing', 'utility', 'authentication'] as const
 
-const config = {
-  marketing: { label: CATEGORY.marketing.label, color: CATEGORY.marketing.color },
-  utility: { label: CATEGORY.utility.label, color: CATEGORY.utility.color },
-  authentication: { label: CATEGORY.authentication.label, color: CATEGORY.authentication.color },
-} satisfies ChartConfig
+/** Axis labels: every week (every third week for a weekly chart), then the last point. */
+function xLabels(dates: string[], daily: boolean) {
+  if (dates.length === 0) return []
+  const every = daily ? 7 : 3
+  const picked = [0, 1, 2, 3].map((i) => i * every).filter((i) => i < dates.length - 1)
+  return [...picked, dates.length - 1].map((i) => dates[i])
+}
 
-/** Meta charges per day (or week), stacked by category. */
-export function SpendChart({ spending: s }: { spending: Spending }) {
+/** Meta charges per day (or week), stacked by category: authentication on top, marketing at the base. */
+export function SpendChart({ spending: s, className }: { spending: Spending; className?: string }) {
   const id = useId()
   const money = (minor: number) => formatMoney(minor, s.currency)
   const daily = s.series.unit === 'day'
@@ -31,101 +27,86 @@ export function SpendChart({ spending: s }: { spending: Spending }) {
     string,
     number
   >
-  const data = s.series.points.map((p) => ({
-    date: p.date,
-    marketing: p.marketing_minor,
-    utility: p.utility_minor,
-    authentication: p.authentication_minor,
-  }))
+  // Round the tallest bar up to a whole step ($20 a day, $50 a week), as the design's axis does.
+  const step = daily ? 2000 : 5000
+  const tallest = Math.max(
+    0,
+    ...s.series.points.map((p) => p.marketing_minor + p.utility_minor + p.authentication_minor),
+  )
+  const top = Math.max(step, Math.ceil(tallest / step) * step)
+  const pct = (minor: number) => `${((minor / top) * 100).toFixed(2)}%`
   const summary = `Stacked bar chart of Meta spend per ${s.series.unit}: ${PAID.map(
     (k) => `${CATEGORY[k].label} ${money(totals[k] ?? 0)}`,
   ).join(', ')}. Marketing makes up most of the spend and peaks on broadcast days.`
 
   return (
-    <Section aria-labelledby={`${id}-title`}>
-      <SectionHeader
-        id={`${id}-title`}
-        title={title}
-        description={`${shortDay(s.from)} – ${shortDay(s.to)} · Meta charges by category`}
-        action={
-          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] font-semibold">
-            {PAID.map((k) => (
-              <li key={k}>
-                <CategoryLabel
-                  category={k}
-                  label={`${CATEGORY[k].label} ${money(totals[k] ?? 0)}`}
-                />
-              </li>
-            ))}
-          </ul>
-        }
-      />
-      <figure className="m-0 flex flex-col gap-2">
-        <ChartContainer
-          config={config}
-          role="img"
-          aria-label={summary}
-          className="aspect-auto h-[240px] w-full"
+    <Section aria-labelledby={`${id}-title`} className={cn('gap-3.5 sm:py-5', className)}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col gap-0.5">
+          <h2 id={`${id}-title`} className="text-[17px] font-bold">
+            {title}
+          </h2>
+          <span className="text-[13px] text-muted-foreground">
+            {shortDay(s.from)} – {shortDay(s.to)} · Meta charges by category
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-3.5 text-[13px] font-semibold">
+          {PAID.map((k) => (
+            <span key={k} className="flex items-center gap-1.5">
+              <span className={cn('size-3 rounded-[3px]', CATEGORY[k].bg)} />
+              {CATEGORY[k].label} {money(totals[k] ?? 0)}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="flex gap-2.5">
+        <div
+          aria-hidden="true"
+          className="-my-2 flex h-[220px] min-w-10 flex-col justify-between text-right text-xs text-muted-foreground"
         >
-          <BarChart
-            data={data}
-            margin={{ top: 8, right: 0, left: 0, bottom: 0 }}
-            // The figure is one labelled image; the numbers are in the category table below.
-            accessibilityLayer={false}
+          <span>{formatWholeMoney(top, s.currency)}</span>
+          <span>{formatWholeMoney(top / 2, s.currency)}</span>
+          <span>{formatWholeMoney(0, s.currency)}</span>
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <div
+            role="img"
+            aria-label={summary}
+            className="relative flex h-[220px] items-end gap-[3px] border-b"
           >
-            <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="date"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              minTickGap={24}
-              tickFormatter={(v: string) => shortDay(v)}
-            />
-            <YAxis
-              tickLine={false}
-              axisLine={false}
-              width={52}
-              tickFormatter={(v: number) => formatWholeMoney(v, s.currency)}
-            />
-            <ChartTooltip
-              cursor={false}
-              content={
-                <ChartTooltipContent
-                  labelFormatter={(v) =>
-                    daily ? shortDay(String(v)) : `Week of ${shortDay(String(v))}`
-                  }
-                  formatter={(value, name) => (
-                    <div className="flex w-full items-center justify-between gap-3">
-                      <CategoryLabel
-                        category={name as (typeof PAID)[number]}
-                        className="text-muted-foreground"
-                      />
-                      <span className="font-medium tabular-nums text-foreground">
-                        {money(Number(value))}
-                      </span>
-                    </div>
-                  )}
+            <div aria-hidden="true" className="absolute inset-x-0 top-0 border-t border-dashed" />
+            <div aria-hidden="true" className="absolute inset-x-0 top-1/2 border-t border-dashed" />
+            {s.series.points.map((p) => (
+              <div
+                key={p.date}
+                title={`${daily ? shortDay(p.date) : `Week of ${shortDay(p.date)}`}: ${money(
+                  p.marketing_minor + p.utility_minor + p.authentication_minor,
+                )}`}
+                className="relative flex h-full min-w-0 flex-1 flex-col justify-end"
+              >
+                <div
+                  className="rounded-t-[3px] bg-cat-authentication"
+                  style={{ height: pct(p.authentication_minor) }}
                 />
-              }
-            />
-            {PAID.map((k, i) => (
-              <Bar
-                key={k}
-                dataKey={k}
-                stackId="spend"
-                fill={`var(--color-${k})`}
-                radius={i === PAID.length - 1 ? [4, 4, 0, 0] : 0}
-                isAnimationActive={false}
-              />
+                <div className="bg-cat-utility" style={{ height: pct(p.utility_minor) }} />
+                <div className="bg-cat-marketing" style={{ height: pct(p.marketing_minor) }} />
+              </div>
             ))}
-          </BarChart>
-        </ChartContainer>
-        <figcaption className="text-xs text-muted-foreground">
-          Service conversations (customer-started replies) are free and not shown. Tall bars are
-          broadcast days.
-        </figcaption>
-      </figure>
+          </div>
+          <div aria-hidden="true" className="flex justify-between text-xs text-muted-foreground">
+            {xLabels(
+              s.series.points.map((p) => p.date),
+              daily,
+            ).map((d) => (
+              <span key={d}>{shortDay(d)}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+      <span className="text-xs text-muted-foreground">
+        Service conversations (customer-started replies) are free and not shown. Tall bars are
+        broadcast days.
+      </span>
     </Section>
   )
 }

@@ -1,11 +1,10 @@
-import { CreditCardIcon } from 'lucide-react'
-import { useId, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '#/components/ui/button'
-import { ToggleGroup, ToggleGroupItem } from '#/components/ui/toggle-group'
+import { Dialog, DialogContent, DialogTitle } from '#/components/ui/dialog'
+import { cn } from '#/lib/utils'
 import type { Wallet, WalletOutlook } from '../../types'
-import { Modal } from '../kit/modal'
 import { formatMoney } from '../kit/money'
-import { minorDigits, parseMajor } from './amounts'
+import { formatWholeMoney, minorDigits, parseMajor } from './amounts'
 
 const OTHER = 'other'
 
@@ -24,132 +23,123 @@ export function TopUpDialog({
   wallet: Wallet
   outlook: WalletOutlook
 }) {
-  const id = useId()
   const options = outlook.top_up_options_minor
   const [choice, setChoice] = useState(String(options[Math.min(1, options.length - 1)] ?? OTHER))
-  const [custom, setCustom] = useState('')
+  const [custom, setCustom] = useState('75')
   const money = (minor: number) => formatMoney(minor, wallet.currency)
 
   const amount =
     choice === OTHER ? (parseMajor(custom, wallet.currency) ?? 0) : Number.parseInt(choice, 10)
-  const tooSmall = amount < outlook.min_top_up_minor
   const { card } = outlook
+  const chips = [
+    ...options.map((o) => ({ value: String(o), label: formatWholeMoney(o, wallet.currency) })),
+    { value: OTHER, label: 'Other' },
+  ]
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title="Top up wallet"
-      description="Add money for Meta’s message charges."
-      footer={
-        <>
-          <Button type="button" variant="outline" onClick={onClose}>
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent
+        aria-describedby={undefined}
+        className="flex max-h-[calc(100dvh-32px)] flex-col gap-[18px] overflow-y-auto rounded-[18px] p-6 sm:max-w-[460px] [&>button:last-child]:top-6 [&>button:last-child]:right-6"
+      >
+        <DialogTitle className="text-[19px] font-extrabold">Top up wallet</DialogTitle>
+
+        <div className="flex flex-col gap-2">
+          <span className="text-[13px] font-bold">Amount</span>
+          <div className="grid grid-cols-4 gap-2">
+            {chips.map((c) => {
+              const on = c.value === choice
+              return (
+                <button
+                  key={c.value}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => setChoice(c.value)}
+                  className={cn(
+                    'h-[46px] rounded-[10px] border-2 text-[15px] font-extrabold',
+                    on ? 'border-brand bg-brand-soft' : 'border-border bg-card',
+                  )}
+                >
+                  {c.label}
+                </button>
+              )
+            })}
+          </div>
+          {choice === OTHER && (
+            <label className="flex flex-col gap-1.5 text-[13px] font-semibold">
+              Custom amount
+              <span className="flex h-11 items-center rounded-[10px] border bg-muted px-3 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
+                <span className="font-bold text-muted-foreground">$</span>
+                <input
+                  type="number"
+                  min={outlook.min_top_up_minor / 10 ** minorDigits(wallet.currency)}
+                  step={10}
+                  value={custom}
+                  onChange={(e) => setCustom(e.target.value)}
+                  className="min-w-0 flex-1 border-0 bg-transparent pl-1.5 text-base font-bold text-foreground outline-none"
+                />
+              </span>
+            </label>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <span className="text-[13px] font-bold">Pay with</span>
+          <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-brand bg-brand-soft px-3.5 py-3">
+            <input type="radio" name="card" defaultChecked className="size-[18px] accent-primary" />
+            <span
+              aria-hidden="true"
+              className="flex h-7 w-[42px] items-center justify-center rounded-md bg-foreground text-[10px] font-extrabold text-card"
+            >
+              CARD
+            </span>
+            <span className="flex flex-1 flex-col leading-[1.3]">
+              <span className="font-bold">Card ending {card.last4}</span>
+              <span className="text-xs text-muted-foreground">
+                Expires {String(card.exp_month).padStart(2, '0')}/{String(card.exp_year).slice(-2)}
+              </span>
+            </span>
+          </label>
+        </div>
+
+        <div className="flex flex-col gap-1.5 rounded-xl bg-muted px-3.5 py-3 text-[13px]">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Current balance</span>
+            <span className="font-semibold tabular-nums">{money(wallet.balance_minor)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Top up</span>
+            <span className="font-semibold tabular-nums">+{money(amount)}</span>
+          </div>
+          <div className="flex justify-between border-t pt-1.5">
+            <span className="font-bold">New balance</span>
+            <span className="font-extrabold tabular-nums">
+              {money(wallet.balance_minor + amount)}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap justify-end gap-2.5">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            className="h-11 rounded-xl px-4 font-bold"
+          >
             Cancel
           </Button>
-          <Button type="button" disabled aria-describedby={`${id}-soon`}>
-            Pay {money(tooSmall ? 0 : amount)}
-            <span className="text-xs font-semibold">Coming soon</span>
+          {/* Wallets aren't built yet, so paying stays off: this is a preview. */}
+          <Button
+            type="button"
+            disabled
+            title="Wallet top ups are coming soon"
+            className="h-11 rounded-xl px-[18px] font-bold"
+          >
+            Pay {money(amount)}
+            <span className="sr-only">(coming soon)</span>
           </Button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-2">
-        <span id={`${id}-amount-label`} className="text-[13px] font-semibold">
-          Amount
-        </span>
-        <ToggleGroup
-          type="single"
-          variant="outline"
-          value={choice}
-          onValueChange={(v) => v && setChoice(v)}
-          aria-labelledby={`${id}-amount-label`}
-          className="grid w-full grid-cols-2 sm:grid-cols-4"
-        >
-          {options.map((o) => (
-            <ToggleGroupItem key={o} value={String(o)} className="h-11 font-bold">
-              {money(o)}
-            </ToggleGroupItem>
-          ))}
-          <ToggleGroupItem value={OTHER} className="h-11 font-bold">
-            Other
-          </ToggleGroupItem>
-        </ToggleGroup>
-      </div>
-
-      {choice === OTHER && (
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor={`${id}-custom`} className="text-[13px] font-semibold">
-            Custom amount
-          </label>
-          <div className="flex h-11 items-center gap-1 rounded-lg border border-input bg-background px-3 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
-            <span aria-hidden="true" className="font-bold text-muted-foreground">
-              $
-            </span>
-            <input
-              id={`${id}-custom`}
-              type="number"
-              inputMode="decimal"
-              min={outlook.min_top_up_minor / 10 ** minorDigits(wallet.currency)}
-              step={10}
-              placeholder="75"
-              value={custom}
-              onChange={(e) => setCustom(e.target.value)}
-              aria-describedby={`${id}-min`}
-              aria-invalid={custom !== '' && tooSmall}
-              className="min-w-0 flex-1 bg-transparent font-bold tabular-nums outline-none"
-            />
-          </div>
-          <p
-            id={`${id}-min`}
-            className={
-              custom !== '' && tooSmall
-                ? 'text-xs font-semibold text-destructive'
-                : 'text-xs text-muted-foreground'
-            }
-          >
-            The smallest top up is {money(outlook.min_top_up_minor)}.
-          </p>
         </div>
-      )}
-
-      <div className="flex flex-col gap-2">
-        <span className="text-[13px] font-semibold">Pay with</span>
-        <div className="flex items-center gap-3 rounded-lg border p-3">
-          <span
-            aria-hidden="true"
-            className="flex h-8 w-11 items-center justify-center rounded-md bg-muted text-muted-foreground"
-          >
-            <CreditCardIcon className="size-5" />
-          </span>
-          <span className="flex flex-col leading-snug">
-            <span className="font-bold">
-              {card.brand} ending {card.last4}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              Expires {String(card.exp_month).padStart(2, '0')}/{String(card.exp_year).slice(-2)}
-            </span>
-          </span>
-        </div>
-      </div>
-
-      <dl className="flex flex-col gap-2 rounded-lg border p-4 text-sm">
-        <div className="flex justify-between gap-3">
-          <dt className="text-muted-foreground">Current balance</dt>
-          <dd className="tabular-nums">{money(wallet.balance_minor)}</dd>
-        </div>
-        <div className="flex justify-between gap-3">
-          <dt className="text-muted-foreground">Top up</dt>
-          <dd className="tabular-nums">+{money(tooSmall ? 0 : amount)}</dd>
-        </div>
-        <div className="flex justify-between gap-3 border-t pt-2 font-bold">
-          <dt>New balance</dt>
-          <dd className="tabular-nums">{money(wallet.balance_minor + (tooSmall ? 0 : amount))}</dd>
-        </div>
-      </dl>
-
-      <p id={`${id}-soon`} className="text-xs text-muted-foreground">
-        Wallet top ups are coming soon. This is a preview, so nothing is charged.
-      </p>
-    </Modal>
+      </DialogContent>
+    </Dialog>
   )
 }

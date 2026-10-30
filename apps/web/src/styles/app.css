@@ -81,6 +81,10 @@
   --chart-3: #c2620a;
   --chart-4: #6a3fc4;
   --chart-5: #56645c;
+  /* Meta message categories on the Spending page */
+  --cat-marketing: #0e7c3d;
+  --cat-utility: #5b93ee;
+  --cat-authentication: #f2bd5a;
 
   --sidebar: #ffffff;
   --sidebar-foreground: #56675e;
@@ -152,6 +156,9 @@
   --chart-3: #f2a65a;
   --chart-4: #c3a8f5;
   --chart-5: #a4b3ab;
+  --cat-marketing: #6fd99b;
+  --cat-utility: #3f6fc4;
+  --cat-authentication: #c8902a;
 
   --sidebar: #131c18;
   --sidebar-foreground: #9baca3;
@@ -219,6 +226,9 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-cat-marketing: var(--cat-marketing);
+  --color-cat-utility: var(--cat-utility);
+  --color-cat-authentication: var(--cat-authentication);
 
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);

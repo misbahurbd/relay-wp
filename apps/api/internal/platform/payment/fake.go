@@ -46,6 +46,19 @@ type Fake struct {
 	coupons       []CouponRequest
 	canceled      []string // canceled schedule IDs
 	failNext      error
+	// adopt makes Change and Cancel accept subscriptions the fake hasn't seen, which
+	// local development needs: the database outlives the fake's memory across restarts.
+	adopt bool
+	run   string // set by NewDevFake: keeps IDs unique across restarts
+}
+
+// NewDevFake builds the fake for local development ("stripe:fake"). Its IDs don't
+// repeat across restarts, and it takes over subscriptions a previous run created.
+func NewDevFake(provider Provider) *Fake {
+	f := NewFake(provider, DevFakeWebhookSecret)
+	f.run = strconv.FormatInt(time.Now().UnixNano(), 36)
+	f.adopt = true
+	return f
 }
 
 // FakeCheckout is a checkout the fake started, with the request that started it.
@@ -110,9 +123,22 @@ func (f *Fake) takeFailure() error {
 	return err
 }
 
+// subscription returns the subscription with external ID id. Call with f.mu held.
+func (f *Fake) subscription(id string) (Subscription, bool) {
+	s, ok := f.subscriptions[id]
+	if !ok && f.adopt && id != "" {
+		s = Subscription{ExternalID: id, Status: SubscriptionActive, ProviderStatus: string(SubscriptionActive)}
+		ok = true
+	}
+	return s, ok
+}
+
 // nextID returns a new fake provider ID such as "fake_cs_3". Call with f.mu held.
 func (f *Fake) nextID(kind string) string {
 	f.seq++
+	if f.run != "" {
+		return "fake_" + kind + "_" + f.run + "_" + strconv.Itoa(f.seq)
+	}
 	return "fake_" + kind + "_" + strconv.Itoa(f.seq)
 }
 
@@ -208,7 +234,7 @@ func (f *Fake) ChangeSubscription(_ context.Context, req ChangeRequest) (Subscri
 	if err := f.takeFailure(); err != nil {
 		return Subscription{}, err
 	}
-	s, ok := f.subscriptions[req.ExternalSubscriptionID]
+	s, ok := f.subscription(req.ExternalSubscriptionID)
 	if !ok || s.Status == SubscriptionCanceled {
 		return Subscription{}, fmt.Errorf("fake: subscription %q: %w", req.ExternalSubscriptionID, ErrNotFound)
 	}
@@ -224,7 +250,7 @@ func (f *Fake) CancelSubscription(_ context.Context, req CancelRequest) (Subscri
 	if err := f.takeFailure(); err != nil {
 		return Subscription{}, err
 	}
-	s, ok := f.subscriptions[req.ExternalSubscriptionID]
+	s, ok := f.subscription(req.ExternalSubscriptionID)
 	if !ok || s.Status == SubscriptionCanceled {
 		return Subscription{}, fmt.Errorf("fake: subscription %q: %w", req.ExternalSubscriptionID, ErrNotFound)
 	}

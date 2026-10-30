@@ -145,9 +145,10 @@ func (q *Queries) DeactivateInstallmentOffer(ctx context.Context, installmentOff
 }
 
 const deactivatePlan = `-- name: DeactivatePlan :execrows
-UPDATE plans SET is_active = false WHERE id = $1 AND is_active
+UPDATE plans SET is_active = false WHERE id = $1 AND is_active AND code <> 'free'
 `
 
+// The free plan stays: it is what a workspace with no grant uses.
 func (q *Queries) DeactivatePlan(ctx context.Context, planID uuid.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, deactivatePlan, planID)
 	if err != nil {
@@ -441,7 +442,7 @@ const listActivePlans = `-- name: ListActivePlans :many
 
 SELECT id, code, version, name, description, features, recommended, trial_days, trial_requires_card, limits, sort_order
 FROM plans
-WHERE is_active
+WHERE is_active AND code <> 'free'
 ORDER BY sort_order, code, version DESC
 `
 
@@ -563,4 +564,56 @@ func (q *Queries) ListRecurringExternalPriceIDs(ctx context.Context, provider st
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockPlanLimits = `-- name: LockPlanLimits :one
+SELECT code, limits FROM plans WHERE id = $1 FOR UPDATE
+`
+
+type LockPlanLimitsRow struct {
+	Code   string
+	Limits []byte
+}
+
+func (q *Queries) LockPlanLimits(ctx context.Context, planID uuid.UUID) (LockPlanLimitsRow, error) {
+	row := q.db.QueryRow(ctx, lockPlanLimits, planID)
+	var i LockPlanLimitsRow
+	err := row.Scan(&i.Code, &i.Limits)
+	return i, err
+}
+
+const updatePlan = `-- name: UpdatePlan :exec
+UPDATE plans
+SET name = $1, description = $2, features = COALESCE($3::text[], '{}'), recommended = $4,
+    trial_days = $5, trial_requires_card = $6, limits = $7, sort_order = $8,
+    updated_at = now()
+WHERE id = $9
+`
+
+type UpdatePlanParams struct {
+	Name              string
+	Description       string
+	Features          []string
+	Recommended       bool
+	TrialDays         int32
+	TrialRequiresCard bool
+	Limits            []byte
+	SortOrder         int32
+	PlanID            uuid.UUID
+}
+
+// Everything but the code, version and prices may change in place (ADR 0008).
+func (q *Queries) UpdatePlan(ctx context.Context, arg UpdatePlanParams) error {
+	_, err := q.db.Exec(ctx, updatePlan,
+		arg.Name,
+		arg.Description,
+		arg.Features,
+		arg.Recommended,
+		arg.TrialDays,
+		arg.TrialRequiresCard,
+		arg.Limits,
+		arg.SortOrder,
+		arg.PlanID,
+	)
+	return err
 }

@@ -27,7 +27,7 @@ type trackT3 struct {
 	subscriptionCredit   func(ctx context.Context, workspaceID uuid.UUID) (model.SubscriptionCredit, error)
 	cancelForLTD         func(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID) (model.SubscriptionCredit, error)
 	activateGrant        func(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID, in model.GrantInput) (model.Grant, error)
-	suspendGrant         func(ctx context.Context, tx pgx.Tx, workspaceID, grantID uuid.UUID) error
+	suspendGrant         func(ctx context.Context, tx pgx.Tx, workspaceID, grantID uuid.UUID, reason string) error
 	restoreGrant         func(ctx context.Context, tx pgx.Tx, workspaceID, grantID uuid.UUID) error
 	billTo               func(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID) (model.BillTo, error)
 	startPaymentCheckout func(ctx context.Context, workspaceID, userID uuid.UUID, in model.PaymentCheckoutInput) (model.StartedCheckout, error)
@@ -537,7 +537,8 @@ func (l lifetimeDeals) settle(ctx context.Context, tx pgx.Tx, r repository.Repos
 	if err != nil {
 		return fmt.Errorf("get order grant: %w", err)
 	}
-	if g.Status != model.GrantSuspended {
+	// A grant suspended for another reason, such as a lost dispute, stays suspended.
+	if g.Status != model.GrantSuspended || deref(g.SuspendReason) != model.SuspendInstallments {
 		return nil
 	}
 	return l.t3.restoreGrant(ctx, tx, o.WorkspaceID, g.ID)

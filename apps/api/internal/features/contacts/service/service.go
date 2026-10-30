@@ -34,6 +34,7 @@ type Service struct {
 	store   storage.Storage
 	queue   Enqueuer
 	members Members
+	plans   PlanLimits
 	now     func() time.Time
 }
 

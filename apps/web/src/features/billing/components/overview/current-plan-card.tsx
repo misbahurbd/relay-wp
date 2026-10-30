@@ -13,7 +13,7 @@ import {
 } from '../../api/billing.mutations'
 import { paymentMethodQueryOptions, plansQueryOptions } from '../../api/billing.queries'
 import { GRANT_SOURCE, SUBSCRIPTION_STATUS } from '../../schemas/billing.schema'
-import type { Overview, PaymentMethod, Subscription } from '../../types'
+import type { Overview, PaymentMethod, Price, Subscription } from '../../types'
 import { formatDate, formatMonth } from '../kit/format'
 import { formatMoney, formatPrice } from '../kit/money'
 import { Section } from '../kit/section'
@@ -48,6 +48,8 @@ export function CurrentPlanCard({
   const price = live ? sub.price : order?.price
   const planName = (priceId: string) =>
     plans.data?.plans.find((p) => p.prices.some((pr) => pr.id === priceId))?.name
+  const priceOf = (priceId: string) =>
+    plans.data?.plans.flatMap((p) => p.prices).find((pr) => pr.id === priceId)
   const error = resume.error ?? dropPending.error ?? portal.error
 
   return (
@@ -62,7 +64,9 @@ export function CurrentPlanCard({
           </h2>
           <p className="text-2xl font-extrabold tracking-[-0.02em]">{plan.plan_name}</p>
         </div>
-        {sub && live ? (
+        {sub && live && sub.cancel_at_period_end && sub.status !== 'past_due' ? (
+          <StatusBadge status={{ label: 'Ending', tone: 'warning' }} />
+        ) : sub && live ? (
           <StatusBadge status={SUBSCRIPTION_STATUS[sub.status]} />
         ) : suspended ? (
           <StatusBadge status={{ label: 'Suspended', tone: 'danger' }} />
@@ -92,7 +96,7 @@ export function CurrentPlanCard({
         )
       )}
 
-      <Facts overview={overview} card={card.data} />
+      <Facts overview={overview} card={card.data} priceOf={priceOf} />
 
       {suspended && (
         <Alert variant="warning">
@@ -212,7 +216,15 @@ export function CurrentPlanCard({
 }
 
 /** The dates and charge that apply to this plan, as label/value pairs. */
-function Facts({ overview, card }: { overview: Overview; card: PaymentMethod | undefined }) {
+function Facts({
+  overview,
+  card,
+  priceOf,
+}: {
+  overview: Overview
+  card: PaymentMethod | undefined
+  priceOf: (priceId: string) => Price | undefined
+}) {
   const { plan, subscription: sub } = overview
   const grant = plan.grant
   const live = !!sub && LIVE.includes(sub.status)
@@ -227,10 +239,12 @@ function Facts({ overview, card }: { overview: Overview; card: PaymentMethod | u
           : 'Renews on',
       value: formatDate(sub.current_period_end),
     })
-    if (!sub.cancel_at_period_end && sub.price) {
+    // A scheduled change takes effect at renewal, so the next charge is the new price.
+    const next = sub.pending_plan_price_id ? priceOf(sub.pending_plan_price_id) : sub.price
+    if (!sub.cancel_at_period_end && next) {
       facts.push({
         label: 'Next charge',
-        value: `${formatMoney(sub.price.amount_minor, sub.price.currency)} to ${chargeTo(card)}`,
+        value: `${formatMoney(next.amount_minor, next.currency)} to ${chargeTo(card)}`,
       })
     }
   } else if (sub?.status === 'canceled' && sub.canceled_at) {
