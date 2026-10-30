@@ -28,6 +28,7 @@ import { Route as AppWorkspaceShellBillingCheckoutRouteImport } from './routes/_
 import { Route as AppWorkspaceShellBillingPlansRouteImport } from './routes/_app/_workspace/_shell/billing/plans'
 import { Route as AppWorkspaceShellBillingSpendingRouteImport } from './routes/_app/_workspace/_shell/billing/spending'
 import { Route as AppWorkspaceShellContactsIndexRouteImport } from './routes/_app/_workspace/_shell/contacts/index'
+import { Route as AppWorkspaceShellInboxIndexRouteImport } from './routes/_app/_workspace/_shell/inbox/index'
 import { Route as AppWorkspaceShellIntegrationsIndexRouteImport } from './routes/_app/_workspace/_shell/integrations/index'
 import { Route as AppWorkspaceShellTeamIndexRouteImport } from './routes/_app/_workspace/_shell/team/index'
 import { Route as AppWorkspaceShellTeamInviteRouteImport } from './routes/_app/_workspace/_shell/team/invite'
@@ -134,6 +135,12 @@ const AppWorkspaceShellContactsIndexRoute =
     path: '/contacts/',
     getParentRoute: () => AppWorkspaceShellRoute,
   } as any)
+const AppWorkspaceShellInboxIndexRoute =
+  AppWorkspaceShellInboxIndexRouteImport.update({
+    id: '/inbox/',
+    path: '/inbox/',
+    getParentRoute: () => AppWorkspaceShellRoute,
+  } as any)
 const AppWorkspaceShellIntegrationsIndexRoute =
   AppWorkspaceShellIntegrationsIndexRouteImport.update({
     id: '/integrations/',
@@ -210,6 +217,7 @@ export interface FileRoutesByFullPath {
   '/templates/new': typeof AppWorkspaceShellTemplatesNewRoute
   '/billing/': typeof AppWorkspaceShellBillingIndexRoute
   '/contacts/': typeof AppWorkspaceShellContactsIndexRoute
+  '/inbox/': typeof AppWorkspaceShellInboxIndexRoute
   '/integrations/': typeof AppWorkspaceShellIntegrationsIndexRoute
   '/team/': typeof AppWorkspaceShellTeamIndexRoute
   '/templates/': typeof AppWorkspaceShellTemplatesIndexRoute
@@ -236,6 +244,7 @@ export interface FileRoutesByTo {
   '/templates/new': typeof AppWorkspaceShellTemplatesNewRoute
   '/billing': typeof AppWorkspaceShellBillingIndexRoute
   '/contacts': typeof AppWorkspaceShellContactsIndexRoute
+  '/inbox': typeof AppWorkspaceShellInboxIndexRoute
   '/integrations': typeof AppWorkspaceShellIntegrationsIndexRoute
   '/team': typeof AppWorkspaceShellTeamIndexRoute
   '/templates': typeof AppWorkspaceShellTemplatesIndexRoute
@@ -267,6 +276,7 @@ export interface FileRoutesById {
   '/_app/_workspace/_shell/templates/new': typeof AppWorkspaceShellTemplatesNewRoute
   '/_app/_workspace/_shell/billing/': typeof AppWorkspaceShellBillingIndexRoute
   '/_app/_workspace/_shell/contacts/': typeof AppWorkspaceShellContactsIndexRoute
+  '/_app/_workspace/_shell/inbox/': typeof AppWorkspaceShellInboxIndexRoute
   '/_app/_workspace/_shell/integrations/': typeof AppWorkspaceShellIntegrationsIndexRoute
   '/_app/_workspace/_shell/team/': typeof AppWorkspaceShellTeamIndexRoute
   '/_app/_workspace/_shell/templates/': typeof AppWorkspaceShellTemplatesIndexRoute
@@ -295,6 +305,7 @@ export interface FileRouteTypes {
     | '/templates/new'
     | '/billing/'
     | '/contacts/'
+    | '/inbox/'
     | '/integrations/'
     | '/team/'
     | '/templates/'
@@ -321,6 +332,7 @@ export interface FileRouteTypes {
     | '/templates/new'
     | '/billing'
     | '/contacts'
+    | '/inbox'
     | '/integrations'
     | '/team'
     | '/templates'
@@ -351,6 +363,7 @@ export interface FileRouteTypes {
     | '/_app/_workspace/_shell/templates/new'
     | '/_app/_workspace/_shell/billing/'
     | '/_app/_workspace/_shell/contacts/'
+    | '/_app/_workspace/_shell/inbox/'
     | '/_app/_workspace/_shell/integrations/'
     | '/_app/_workspace/_shell/team/'
     | '/_app/_workspace/_shell/templates/'
@@ -499,6 +512,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspaceShellContactsIndexRouteImport
       parentRoute: typeof AppWorkspaceShellRoute
     }
+    '/_app/_workspace/_shell/inbox/': {
+      id: '/_app/_workspace/_shell/inbox/'
+      path: '/inbox'
+      fullPath: '/inbox/'
+      preLoaderRoute: typeof AppWorkspaceShellInboxIndexRouteImport
+      parentRoute: typeof AppWorkspaceShellRoute
+    }
     '/_app/_workspace/_shell/integrations/': {
       id: '/_app/_workspace/_shell/integrations/'
       path: '/integrations'
@@ -577,6 +597,7 @@ interface AppWorkspaceShellRouteChildren {
   AppWorkspaceShellTemplatesNewRoute: typeof AppWorkspaceShellTemplatesNewRoute
   AppWorkspaceShellBillingIndexRoute: typeof AppWorkspaceShellBillingIndexRoute
   AppWorkspaceShellContactsIndexRoute: typeof AppWorkspaceShellContactsIndexRoute
+  AppWorkspaceShellInboxIndexRoute: typeof AppWorkspaceShellInboxIndexRoute
   AppWorkspaceShellIntegrationsIndexRoute: typeof AppWorkspaceShellIntegrationsIndexRoute
   AppWorkspaceShellTeamIndexRoute: typeof AppWorkspaceShellTeamIndexRoute
   AppWorkspaceShellTemplatesIndexRoute: typeof AppWorkspaceShellTemplatesIndexRoute
@@ -596,6 +617,7 @@ const AppWorkspaceShellRouteChildren: AppWorkspaceShellRouteChildren = {
   AppWorkspaceShellTemplatesNewRoute: AppWorkspaceShellTemplatesNewRoute,
   AppWorkspaceShellBillingIndexRoute: AppWorkspaceShellBillingIndexRoute,
   AppWorkspaceShellContactsIndexRoute: AppWorkspaceShellContactsIndexRoute,
+  AppWorkspaceShellInboxIndexRoute: AppWorkspaceShellInboxIndexRoute,
   AppWorkspaceShellIntegrationsIndexRoute:
     AppWorkspaceShellIntegrationsIndexRoute,
   AppWorkspaceShellTeamIndexRoute: AppWorkspaceShellTeamIndexRoute,

@@ -7,8 +7,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '#/components/ui/select'
+import { useDebouncedValue } from '#/hooks/use-debounced-value'
 import { cn } from '#/lib/utils'
-import { useDebouncedValue } from '../../hooks/use-debounced-value'
 import { LAST_MESSAGE_LABEL, LAST_MESSAGES, OPT_IN_FILTERS } from '../../schemas/contacts.schema'
 import type { ContactFilter, LastMessage, OptIn, Tag } from '../../types'
 

@@ -10,6 +10,7 @@ import (
 	authhandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/auth/handler"
 	billinghandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/handler"
 	contactshandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/contacts/handler"
+	inboxhandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/inbox/handler"
 	integrationshandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/integrations/handler"
 	onboardinghandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/onboarding/handler"
 	profileshandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/profiles/handler"
@@ -105,6 +106,8 @@ func (a *App) registerRoutes(api huma.API) {
 	contactshandler.Register(api, contactshandler.NewHandler(a.contacts), contactshandler.Guards{Auth: requireAuth, Member: member, Can: can}, authhandler.Security)
 	templateshandler.Register(api, templateshandler.NewHandler(a.templates),
 		templateshandler.Guards{Auth: requireAuth, Member: member, Can: can}, authhandler.Security)
+	inboxhandler.Register(api, inboxhandler.NewHandler(a.inbox),
+		inboxhandler.Guards{Auth: requireAuth, Member: member, Can: can}, authhandler.Security)
 	integrationshandler.Register(api, integrationshandler.NewHandler(a.integrations, integrationshandler.CookieConfig{
 		Domain: a.cfg.Auth.CookieDomain, Secure: a.cfg.Auth.CookieSecure,
 	}), integrationshandler.Guards{
@@ -135,5 +138,6 @@ func routeLimits() []middleware.RouteLimit {
 		{Method: http.MethodPost, Path: "/v1/invitations/request-renewal", Requests: 5, Window: time.Hour},
 		{Method: http.MethodGet, Path: "/v1/integrations/shopify/callback", Requests: 30, Window: time.Minute},
 		{Method: http.MethodPost, Path: "/v1/integrations/woocommerce/callback", Requests: 30, Window: time.Minute},
+		{Method: http.MethodPost, Path: inboxhandler.MediaPath, Requests: 60, Window: time.Minute},
 	}
 }

@@ -15,6 +15,10 @@ var (
 	ErrUserNotMember   = apperr.Validation("user_not_member", "That person isn't a member of this workspace")
 	ErrContactExists   = apperr.Conflict("contact_exists", "A contact with this phone number already exists")
 	ErrContactLimit    = apperr.Conflict("plan_contact_limit", "Your plan's contact limit is reached. Upgrade your plan to add more contacts.")
+	// ErrIdentityNeedsPhone: a sender without a contact can't be added yet without a phone
+	// (phone-less contacts arrive with the second channel, ADR 0010).
+	ErrIdentityNeedsPhone = apperr.Validation("identity_needs_phone", "This sender has no phone number, so no contact can be created")
+	ErrInvalidIdentity    = apperr.Validation("invalid_identity", "The sender's channel or ID is missing")
 
 	// ErrPermissionDenied matches middleware.RequirePermission's error, for checks that depend on the request.
 	ErrPermissionDenied = apperr.Forbidden("permission_denied", "Your role in this workspace can't do that")

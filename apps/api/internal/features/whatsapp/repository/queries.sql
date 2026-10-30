@@ -42,6 +42,12 @@ SELECT workspace_id
 FROM whatsapp_numbers
 WHERE phone_number_id = @phone_number_id;
 
+-- name: GetAccountNumberID :one
+-- Routes a messages webhook: Meta's phone_number_id to our number, within the WABA's workspace.
+SELECT id
+FROM whatsapp_numbers
+WHERE workspace_id = @workspace_id AND account_id = @account_id AND phone_number_id = @phone_number_id;
+
 -- name: UpsertWhatsAppNumber :one
 INSERT INTO whatsapp_numbers (id, workspace_id, account_id, phone_number_id, display_phone_number,
                               number_type, verified_name, name_status, quality_rating, messaging_limit,

@@ -1,5 +1,6 @@
 export { contactsKeys } from './api/contacts.keys'
 export { contactsListQueryOptions, contactsSummaryQueryOptions } from './api/contacts.queries'
 export { ContactsPage } from './components/list/contacts-page'
+export { ContactDetails } from './components/panel/contact-panel'
 export { type ContactsSearch, contactsSearchSchema } from './schemas/contacts.schema'
 export type { Contact, ContactFilter } from './types'

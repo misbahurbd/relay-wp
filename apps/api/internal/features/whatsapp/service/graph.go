@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/misbahurbd/relay-wp/apps/api/internal/features/whatsapp/model"
 )
 
 // GraphBaseURL is Meta's Graph API host.
@@ -42,6 +44,10 @@ type GraphError struct {
 	Message string `json:"message"`
 	// UserMessage is Meta's explanation for people, e.g. why a template was refused.
 	UserMessage string `json:"error_user_msg"`
+	// ErrorData.Details is the Cloud API's explanation of a refused message.
+	ErrorData struct {
+		Details string `json:"details"`
+	} `json:"error_data"`
 }
 
 func (e *GraphError) Error() string {
@@ -67,10 +73,7 @@ func (g *Graph) call(ctx context.Context, method, path, token string, query url.
 		query = url.Values{}
 	}
 	if token != "" {
-		// appsecret_proof ties the call to our app, so a leaked token alone is less useful.
-		mac := hmac.New(sha256.New, []byte(g.appSecret))
-		mac.Write([]byte(token))
-		query.Set("appsecret_proof", hex.EncodeToString(mac.Sum(nil)))
+		query.Set("appsecret_proof", g.proof(token))
 	}
 	var reader io.Reader
 	if body != nil {
@@ -92,10 +95,28 @@ func (g *Graph) call(ctx context.Context, method, path, token string, query url.
 	}
 	res, err := g.http.Do(req)
 	if err != nil {
-		return fmt.Errorf("graph %s %s: %w", method, path, err)
+		return fmt.Errorf("graph %s %s: %w", method, path, stripURL(err))
 	}
 	defer func() { _ = res.Body.Close() }()
 	return decodeGraph(res, path, out)
+}
+
+// proof is the appsecret_proof for token: it ties the call to our app, so a
+// leaked token alone is less useful.
+func (g *Graph) proof(token string) string {
+	mac := hmac.New(sha256.New, []byte(g.appSecret))
+	mac.Write([]byte(token))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// stripURL drops the request URL from a transport error: it carries the
+// appsecret_proof, or a short-lived media URL, and must not reach the logs.
+func stripURL(err error) error {
+	var ue *url.Error
+	if errors.As(err, &ue) {
+		return ue.Err
+	}
+	return err
 }
 
 // decodeGraph reads a Graph answer into out, or returns Meta's error. The caller closes the body.
@@ -189,26 +210,10 @@ func (g *Graph) CountTemplates(ctx context.Context, token, wabaID string) (int, 
 	return len(out.Data), err
 }
 
-// SendTemplate sends a template message and returns its WhatsApp message ID (wamid).
+// SendTemplate sends a parameterless template message (the test message) and
+// returns its WhatsApp message ID (wamid).
 func (g *Graph) SendTemplate(ctx context.Context, token, phoneNumberID, to, name, lang string) (string, error) {
-	body := map[string]any{
-		"messaging_product": "whatsapp",
-		"to":                to,
-		"type":              "template",
-		"template":          map[string]any{"name": name, "language": map[string]string{"code": lang}},
-	}
-	var out struct {
-		Messages []struct {
-			ID string `json:"id"`
-		} `json:"messages"`
-	}
-	if err := g.call(ctx, http.MethodPost, "/"+url.PathEscape(phoneNumberID)+"/messages", token, nil, body, &out); err != nil {
-		return "", err
-	}
-	if len(out.Messages) == 0 || out.Messages[0].ID == "" {
-		return "", errors.New("graph: no message id in send response")
-	}
-	return out.Messages[0].ID, nil
+	return g.SendTemplateMessage(ctx, token, phoneNumberID, to, model.OutboundTemplate{Name: name, Language: lang})
 }
 
 // nameStatus maps Meta's display-name review states onto ours.

@@ -201,6 +201,26 @@ func (q *Queries) DisconnectWhatsAppAccount(ctx context.Context, arg DisconnectW
 	return err
 }
 
+const getAccountNumberID = `-- name: GetAccountNumberID :one
+SELECT id
+FROM whatsapp_numbers
+WHERE workspace_id = $1 AND account_id = $2 AND phone_number_id = $3
+`
+
+type GetAccountNumberIDParams struct {
+	WorkspaceID   uuid.UUID
+	AccountID     uuid.UUID
+	PhoneNumberID string
+}
+
+// Routes a messages webhook: Meta's phone_number_id to our number, within the WABA's workspace.
+func (q *Queries) GetAccountNumberID(ctx context.Context, arg GetAccountNumberIDParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, getAccountNumberID, arg.WorkspaceID, arg.AccountID, arg.PhoneNumberID)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getAccountToken = `-- name: GetAccountToken :one
 SELECT waba_id, access_token
 FROM whatsapp_accounts

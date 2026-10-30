@@ -13,6 +13,7 @@ sql:
       - ../internal/features/contacts/repository/
       - ../internal/features/templates/repository/
       - ../internal/features/integrations/repository/
+      - ../internal/features/inbox/repository/
     gen:
       go:
         package: gen

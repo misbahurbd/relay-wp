@@ -21,4 +21,8 @@ var (
 	ErrWebhookSignature = apperr.Unauthorized("invalid_signature", "Webhook signature doesn't match")
 	ErrNoAccount        = apperr.Conflict("whatsapp_not_connected", "Connect a WhatsApp number first.")
 	ErrTemplateRefused  = apperr.Validation("meta_template_refused", "Meta refused this template")
+	// ErrMediaTooLarge is a media file over WhatsApp's 100 MB limit.
+	ErrMediaTooLarge = apperr.Validation("media_too_large", "This file is larger than 100 MB.")
+	// ErrNumberNotConnected is a send from a number that is still being set up, failed or disconnected.
+	ErrNumberNotConnected = apperr.Conflict("whatsapp_number_not_connected", "This WhatsApp number isn't connected.")
 )

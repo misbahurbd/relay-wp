@@ -93,7 +93,9 @@ func run(args []string) error {
 		return database.Migrate(ctx, pool, args[1], os.Stdout)
 	case "billing":
 		return runBilling(ctx, cfg, log, args[1:], os.Stdout)
+	case "dev":
+		return runDev(ctx, cfg, log, args[1:], os.Stdout)
 	default:
-		return fmt.Errorf("unknown command %q (want api, worker, all, migrate, billing, openapi, keygen)", cmd)
+		return fmt.Errorf("unknown command %q (want api, worker, all, migrate, billing, dev, openapi, keygen)", cmd)
 	}
 }

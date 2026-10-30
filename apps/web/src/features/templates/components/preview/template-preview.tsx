@@ -7,13 +7,13 @@ import {
   SendHorizontalIcon,
   VideoIcon,
 } from 'lucide-react'
-import { cn } from '#/lib/utils'
+import { WhatsAppText } from '#/components/whatsapp-text'
 import type { LocalSample } from '../../hooks/use-template-editor'
 import { authMessage, isMediaHeader, SAMPLE_CODE, sampleKind } from '../../schemas/templates.schema'
 import type { HeaderSample, TemplateFormValues } from '../../types'
 import { BUTTON_ICON } from '../kit/button-icon'
 import { formatClock } from '../kit/format'
-import { fillVariables, formatSegments } from './preview-text'
+import { fillVariables } from './preview-text'
 
 const MEDIA_ICON = { image: ImageIcon, video: VideoIcon, document: FileTextIcon }
 
@@ -30,19 +30,7 @@ function initials(name: string) {
 
 /** WhatsApp-styled text: variables replaced by their samples, *bold* / _italic_ / ~strike~. */
 function Rich({ text, samples }: { text: string; samples: string[] }) {
-  return (
-    <>
-      {formatSegments(fillVariables(text, samples)).map((s, i) => (
-        <span
-          // biome-ignore lint/suspicious/noArrayIndexKey: segments have no identity of their own
-          key={i}
-          className={cn(s.bold && 'font-bold', s.italic && 'italic', s.strike && 'line-through')}
-        >
-          {s.text}
-        </span>
-      ))}
-    </>
-  )
+  return <WhatsAppText text={fillVariables(text, samples)} />
 }
 
 /** The phone on the right of the form: exactly what the customer will see. */

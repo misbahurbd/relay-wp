@@ -35,7 +35,6 @@ export function ContactPanel({
   canDelete: boolean
   onClose: () => void
 }) {
-  const query = useQuery(contactQueryOptions(workspaceId, contactId))
   const headingRef = useRef<HTMLHeadingElement>(null)
 
   // Move focus to the panel when it opens or shows another contact; on small screens it sits below the table.
@@ -63,27 +62,59 @@ export function ContactPanel({
           <XIcon aria-hidden="true" />
         </Button>
       </div>
-      {query.isPending ? (
-        <PanelSkeleton />
-      ) : query.isError ? (
-        <Alert variant="danger">
-          <AlertDescription>
-            {errorMessage(query.error, 'We couldn’t load this contact.')}{' '}
-            <button type="button" className="font-bold underline" onClick={() => query.refetch()}>
-              Try again
-            </button>
-          </AlertDescription>
-        </Alert>
-      ) : (
-        <PanelBody
-          workspaceId={workspaceId}
-          contact={query.data}
-          canEdit={canEdit}
-          canDelete={canDelete}
-          onDeleted={onClose}
-        />
-      )}
+      <ContactDetails
+        workspaceId={workspaceId}
+        contactId={contactId}
+        canEdit={canEdit}
+        canDelete={canDelete}
+        onDeleted={onClose}
+      />
     </aside>
+  )
+}
+
+/**
+ * A contact's summary, tags and details, loaded by ID. The contacts panel wraps it; other
+ * features (the inbox's customer panel) embed it with `summary={false}` when they show the
+ * name and phone themselves.
+ */
+export function ContactDetails({
+  workspaceId,
+  contactId,
+  canEdit,
+  canDelete = false,
+  summary = true,
+  onDeleted = () => {},
+}: {
+  workspaceId: string
+  contactId: string
+  canEdit: boolean
+  canDelete?: boolean
+  summary?: boolean
+  onDeleted?: () => void
+}) {
+  const query = useQuery(contactQueryOptions(workspaceId, contactId))
+  if (query.isPending) return <PanelSkeleton />
+  if (query.isError)
+    return (
+      <Alert variant="danger">
+        <AlertDescription>
+          {errorMessage(query.error, 'We couldn’t load this contact.')}{' '}
+          <button type="button" className="font-bold underline" onClick={() => query.refetch()}>
+            Try again
+          </button>
+        </AlertDescription>
+      </Alert>
+    )
+  return (
+    <PanelBody
+      workspaceId={workspaceId}
+      contact={query.data}
+      canEdit={canEdit}
+      canDelete={canDelete}
+      summary={summary}
+      onDeleted={onDeleted}
+    />
   )
 }
 
@@ -92,12 +123,14 @@ function PanelBody({
   contact,
   canEdit,
   canDelete,
+  summary,
   onDeleted,
 }: {
   workspaceId: string
   contact: ContactDetail
   canEdit: boolean
   canDelete: boolean
+  summary: boolean
   onDeleted: () => void
 }) {
   const [editing, setEditing] = useState(false)
@@ -134,14 +167,16 @@ function PanelBody({
 
   return (
     <>
-      <div className="flex flex-col items-center gap-2 text-center">
-        <ContactAvatar name={contact.name} seed={contact.id} size="lg" />
-        <div className="flex flex-col leading-tight">
-          <span className="text-[17px] font-extrabold break-words">{contact.name}</span>
-          <span className="text-muted-foreground tabular-nums">{contact.phone_display}</span>
+      {summary && (
+        <div className="flex flex-col items-center gap-2 text-center">
+          <ContactAvatar name={contact.name} seed={contact.id} size="lg" />
+          <div className="flex flex-col leading-tight">
+            <span className="text-[17px] font-extrabold break-words">{contact.name}</span>
+            <span className="text-muted-foreground tabular-nums">{contact.phone_display}</span>
+          </div>
+          <OptInPill value={contact.opt_in} />
         </div>
-        <OptInPill value={contact.opt_in} />
-      </div>
+      )}
 
       {(canEdit || canDelete) && (
         <div className="flex gap-2">

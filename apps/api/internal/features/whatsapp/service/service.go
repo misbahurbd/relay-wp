@@ -58,6 +58,7 @@ type Service struct {
 	plans    PlanLimits // nil: no plan number cap
 	// templates hears template status webhooks; nil until SetTemplateStatusSink.
 	templates TemplateStatusSink
+	inbound   InboundSink
 	box       *secretBox
 	cfg       Config
 	log       *slog.Logger
