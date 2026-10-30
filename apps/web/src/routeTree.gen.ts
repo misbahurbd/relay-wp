@@ -28,6 +28,7 @@ import { Route as AppWorkspaceShellBillingCheckoutRouteImport } from './routes/_
 import { Route as AppWorkspaceShellBillingPlansRouteImport } from './routes/_app/_workspace/_shell/billing/plans'
 import { Route as AppWorkspaceShellBillingSpendingRouteImport } from './routes/_app/_workspace/_shell/billing/spending'
 import { Route as AppWorkspaceShellContactsIndexRouteImport } from './routes/_app/_workspace/_shell/contacts/index'
+import { Route as AppWorkspaceShellIntegrationsIndexRouteImport } from './routes/_app/_workspace/_shell/integrations/index'
 import { Route as AppWorkspaceShellTeamIndexRouteImport } from './routes/_app/_workspace/_shell/team/index'
 import { Route as AppWorkspaceShellTeamInviteRouteImport } from './routes/_app/_workspace/_shell/team/invite'
 import { Route as AppWorkspaceShellTeamLogRouteImport } from './routes/_app/_workspace/_shell/team/log'
@@ -133,6 +134,12 @@ const AppWorkspaceShellContactsIndexRoute =
     path: '/contacts/',
     getParentRoute: () => AppWorkspaceShellRoute,
   } as any)
+const AppWorkspaceShellIntegrationsIndexRoute =
+  AppWorkspaceShellIntegrationsIndexRouteImport.update({
+    id: '/integrations/',
+    path: '/integrations/',
+    getParentRoute: () => AppWorkspaceShellRoute,
+  } as any)
 const AppWorkspaceShellTeamIndexRoute =
   AppWorkspaceShellTeamIndexRouteImport.update({
     id: '/team/',
@@ -203,6 +210,7 @@ export interface FileRoutesByFullPath {
   '/templates/new': typeof AppWorkspaceShellTemplatesNewRoute
   '/billing/': typeof AppWorkspaceShellBillingIndexRoute
   '/contacts/': typeof AppWorkspaceShellContactsIndexRoute
+  '/integrations/': typeof AppWorkspaceShellIntegrationsIndexRoute
   '/team/': typeof AppWorkspaceShellTeamIndexRoute
   '/templates/': typeof AppWorkspaceShellTemplatesIndexRoute
   '/team/members/$userId': typeof AppWorkspaceShellTeamMembersUserIdRoute
@@ -228,6 +236,7 @@ export interface FileRoutesByTo {
   '/templates/new': typeof AppWorkspaceShellTemplatesNewRoute
   '/billing': typeof AppWorkspaceShellBillingIndexRoute
   '/contacts': typeof AppWorkspaceShellContactsIndexRoute
+  '/integrations': typeof AppWorkspaceShellIntegrationsIndexRoute
   '/team': typeof AppWorkspaceShellTeamIndexRoute
   '/templates': typeof AppWorkspaceShellTemplatesIndexRoute
   '/team/members/$userId': typeof AppWorkspaceShellTeamMembersUserIdRoute
@@ -258,6 +267,7 @@ export interface FileRoutesById {
   '/_app/_workspace/_shell/templates/new': typeof AppWorkspaceShellTemplatesNewRoute
   '/_app/_workspace/_shell/billing/': typeof AppWorkspaceShellBillingIndexRoute
   '/_app/_workspace/_shell/contacts/': typeof AppWorkspaceShellContactsIndexRoute
+  '/_app/_workspace/_shell/integrations/': typeof AppWorkspaceShellIntegrationsIndexRoute
   '/_app/_workspace/_shell/team/': typeof AppWorkspaceShellTeamIndexRoute
   '/_app/_workspace/_shell/templates/': typeof AppWorkspaceShellTemplatesIndexRoute
   '/_app/_workspace/_shell/team/members/$userId': typeof AppWorkspaceShellTeamMembersUserIdRoute
@@ -285,6 +295,7 @@ export interface FileRouteTypes {
     | '/templates/new'
     | '/billing/'
     | '/contacts/'
+    | '/integrations/'
     | '/team/'
     | '/templates/'
     | '/team/members/$userId'
@@ -310,6 +321,7 @@ export interface FileRouteTypes {
     | '/templates/new'
     | '/billing'
     | '/contacts'
+    | '/integrations'
     | '/team'
     | '/templates'
     | '/team/members/$userId'
@@ -339,6 +351,7 @@ export interface FileRouteTypes {
     | '/_app/_workspace/_shell/templates/new'
     | '/_app/_workspace/_shell/billing/'
     | '/_app/_workspace/_shell/contacts/'
+    | '/_app/_workspace/_shell/integrations/'
     | '/_app/_workspace/_shell/team/'
     | '/_app/_workspace/_shell/templates/'
     | '/_app/_workspace/_shell/team/members/$userId'
@@ -486,6 +499,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspaceShellContactsIndexRouteImport
       parentRoute: typeof AppWorkspaceShellRoute
     }
+    '/_app/_workspace/_shell/integrations/': {
+      id: '/_app/_workspace/_shell/integrations/'
+      path: '/integrations'
+      fullPath: '/integrations/'
+      preLoaderRoute: typeof AppWorkspaceShellIntegrationsIndexRouteImport
+      parentRoute: typeof AppWorkspaceShellRoute
+    }
     '/_app/_workspace/_shell/team/': {
       id: '/_app/_workspace/_shell/team/'
       path: '/team'
@@ -557,6 +577,7 @@ interface AppWorkspaceShellRouteChildren {
   AppWorkspaceShellTemplatesNewRoute: typeof AppWorkspaceShellTemplatesNewRoute
   AppWorkspaceShellBillingIndexRoute: typeof AppWorkspaceShellBillingIndexRoute
   AppWorkspaceShellContactsIndexRoute: typeof AppWorkspaceShellContactsIndexRoute
+  AppWorkspaceShellIntegrationsIndexRoute: typeof AppWorkspaceShellIntegrationsIndexRoute
   AppWorkspaceShellTeamIndexRoute: typeof AppWorkspaceShellTeamIndexRoute
   AppWorkspaceShellTemplatesIndexRoute: typeof AppWorkspaceShellTemplatesIndexRoute
   AppWorkspaceShellTeamMembersUserIdRoute: typeof AppWorkspaceShellTeamMembersUserIdRoute
@@ -575,6 +596,8 @@ const AppWorkspaceShellRouteChildren: AppWorkspaceShellRouteChildren = {
   AppWorkspaceShellTemplatesNewRoute: AppWorkspaceShellTemplatesNewRoute,
   AppWorkspaceShellBillingIndexRoute: AppWorkspaceShellBillingIndexRoute,
   AppWorkspaceShellContactsIndexRoute: AppWorkspaceShellContactsIndexRoute,
+  AppWorkspaceShellIntegrationsIndexRoute:
+    AppWorkspaceShellIntegrationsIndexRoute,
   AppWorkspaceShellTeamIndexRoute: AppWorkspaceShellTeamIndexRoute,
   AppWorkspaceShellTemplatesIndexRoute: AppWorkspaceShellTemplatesIndexRoute,
   AppWorkspaceShellTeamMembersUserIdRoute:
@@ -637,12 +660,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
