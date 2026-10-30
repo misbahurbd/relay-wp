@@ -27,6 +27,14 @@ UPDATE payment_events
 SET processed_at = @now
 WHERE id = @payment_event_id AND processed_at IS NULL;
 
+-- name: ListStuckPaymentEvents :many
+-- Job only (all workspaces): events still unprocessed long after they arrived.
+SELECT id, provider, external_event_id, event_type, workspace_id, received_at
+FROM payment_events
+WHERE processed_at IS NULL AND received_at <= @before
+ORDER BY received_at
+LIMIT @max_rows;
+
 -- name: ListWorkspacePaymentEvents :many
 -- The support view of a workspace's webhook events, newest first.
 SELECT id, provider, external_event_id, event_type, checkout_session_id, received_at, processed_at

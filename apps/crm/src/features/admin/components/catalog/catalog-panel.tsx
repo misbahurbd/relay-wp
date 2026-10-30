@@ -3,12 +3,12 @@ import { PlusIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '#/components/ui/button'
 import { Skeleton } from '#/components/ui/skeleton'
-import { catalogQueryOptions } from '../../api/admin.api'
+import { catalogQueryOptions, resourcesQueryOptions } from '../../api/admin.api'
 import { CheckField } from '../kit/check-field'
 import { LoadError } from '../kit/load-error'
 import { OfferDialog } from './offer-dialog'
 import { type PlanAction, PlanCard } from './plan-card'
-import { PlanDialog } from './plan-dialog'
+import { PlanSheet } from './plan-sheet'
 import { PriceDialog } from './price-dialog'
 import { ProviderPriceDialog } from './provider-price-dialog'
 
@@ -16,12 +16,16 @@ type Open = PlanAction | { kind: 'plan' } | null
 
 export function CatalogPanel() {
   const catalog = useQuery(catalogQueryOptions())
+  const resources = useQuery(resourcesQueryOptions())
   const [open, setOpen] = useState<Open>(null)
   const [showInactive, setShowInactive] = useState(false)
   const close = () => setOpen(null)
 
-  if (catalog.isPending) return <Skeleton className="h-[240px] rounded-xl" />
+  if (catalog.isPending || resources.isPending) return <Skeleton className="h-[240px] rounded-xl" />
   if (catalog.isError) return <LoadError error={catalog.error} onRetry={() => catalog.refetch()} />
+  if (resources.isError) {
+    return <LoadError error={resources.error} onRetry={() => resources.refetch()} />
+  }
   const { plans, providers } = catalog.data
   const shown = plans.filter((p) => showInactive || p.is_active)
 
@@ -53,12 +57,33 @@ export function CatalogPanel() {
         </p>
       ) : (
         shown.map((plan) => (
-          <PlanCard key={plan.id} plan={plan} showInactive={showInactive} onAction={setOpen} />
+          <PlanCard
+            key={plan.id}
+            plan={plan}
+            resources={resources.data}
+            showInactive={showInactive}
+            onAction={setOpen}
+          />
         ))
       )}
 
-      {open?.kind === 'plan' && <PlanDialog onClose={close} />}
-      {open?.kind === 'version' && <PlanDialog from={open.plan} onClose={close} />}
+      {open?.kind === 'plan' && (
+        <PlanSheet mode={{ kind: 'create' }} resources={resources.data} onClose={close} />
+      )}
+      {open?.kind === 'version' && (
+        <PlanSheet
+          mode={{ kind: 'version', from: open.plan }}
+          resources={resources.data}
+          onClose={close}
+        />
+      )}
+      {open?.kind === 'edit' && (
+        <PlanSheet
+          mode={{ kind: 'edit', plan: open.plan }}
+          resources={resources.data}
+          onClose={close}
+        />
+      )}
       {open?.kind === 'price' && <PriceDialog plan={open.plan} onClose={close} />}
       {open?.kind === 'offer' && <OfferDialog price={open.price} onClose={close} />}
       {open?.kind === 'provider' && (

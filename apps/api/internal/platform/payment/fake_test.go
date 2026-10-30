@@ -233,3 +233,60 @@ func TestNewBuildsOnlyConfiguredProviders(t *testing.T) {
 		t.Error("a nil registry has no gateways")
 	}
 }
+
+func TestFakePaymentMethodAndPortal(t *testing.T) {
+	f := payment.NewFake(payment.Stripe, "whsec")
+	ctx := context.Background()
+	pm, err := f.Card(ctx, payment.CardRequest{ExternalCustomerID: "fake_cus_1"})
+	if err != nil || pm == nil || *pm != payment.FakeCard {
+		t.Fatalf("card = %+v, %v", pm, err)
+	}
+	if _, err := f.Card(ctx, payment.CardRequest{}); !errors.Is(err, payment.ErrInvalidRequest) {
+		t.Fatalf("no customer: err = %v", err)
+	}
+	url, err := f.PortalURL(ctx, payment.PortalRequest{ExternalCustomerID: "fake_cus_1", ReturnURL: "http://app.test/billing"})
+	if err != nil || url != "http://app.test/billing" {
+		t.Fatalf("url = %q, %v", url, err)
+	}
+	f.FailNext(payment.ErrUnavailable)
+	if _, err := f.Card(ctx, payment.CardRequest{ExternalCustomerID: "fake_cus_1"}); !errors.Is(err, payment.ErrUnavailable) {
+		t.Fatalf("FailNext: err = %v", err)
+	}
+}
+
+// A restarted dev server keeps its database but not the fake's memory: new IDs
+// must not collide with stored ones, and stored subscriptions must still work.
+func TestDevFakeSurvivesARestart(t *testing.T) {
+	ctx := context.Background()
+	before := payment.NewDevFake(payment.Stripe)
+	c, err := before.CreateCheckout(ctx, subscriptionCheckout())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	after := payment.NewDevFake(payment.Stripe)
+	c2, err := after.CreateCheckout(ctx, subscriptionCheckout())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c2.ExternalSessionID == c.ExternalSessionID {
+		t.Fatalf("restarted fake reused session ID %q", c.ExternalSessionID)
+	}
+	if _, err := after.ChangeSubscription(ctx, payment.ChangeRequest{
+		ExternalSubscriptionID: c.ExternalSubscriptionID, ExternalPriceID: "price_pro_month",
+	}); err != nil {
+		t.Fatalf("change a subscription from before the restart: %v", err)
+	}
+	if _, err := after.CancelSubscription(ctx, payment.CancelRequest{
+		ExternalSubscriptionID: c.ExternalSubscriptionID, Mode: payment.CancelAtPeriodEnd,
+	}); err != nil {
+		t.Fatalf("cancel a subscription from before the restart: %v", err)
+	}
+
+	// The test fake stays strict.
+	if _, err := newFake(t).ChangeSubscription(ctx, payment.ChangeRequest{
+		ExternalSubscriptionID: "sub_unknown", ExternalPriceID: "price_pro_month",
+	}); !errors.Is(err, payment.ErrNotFound) {
+		t.Fatalf("strict fake: err = %v, want ErrNotFound", err)
+	}
+}

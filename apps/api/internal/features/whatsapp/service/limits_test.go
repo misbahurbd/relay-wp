@@ -16,7 +16,7 @@ type fakePlans struct {
 	err   error
 }
 
-func (f fakePlans) NumberLimit(context.Context, uuid.UUID) (int, error) { return f.limit, f.err }
+func (f fakePlans) Limit(context.Context, uuid.UUID, string) (int, error) { return f.limit, f.err }
 
 func TestNumberLimit(t *testing.T) {
 	ctx := context.Background()

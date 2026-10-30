@@ -48,7 +48,8 @@ func newAuthEnv(t *testing.T) *authEnv {
 	t.Helper()
 	pool := dbtest.New(t)
 	// The plan new workspaces trial (TRIAL_PLAN): 14 days, no card, no caps.
-	if _, err := pool.Exec(t.Context(), `INSERT INTO plans (code, name, trial_days) VALUES ('growth', 'Growth', 14)
+	if _, err := pool.Exec(t.Context(), `INSERT INTO plans (code, name, trial_days, limits)
+		VALUES ('growth', 'Growth', 14, '{"members": -1, "whatsapp_numbers": -1, "contacts": -1}')
 		ON CONFLICT (code, version) DO NOTHING`); err != nil {
 		t.Fatal(err)
 	}

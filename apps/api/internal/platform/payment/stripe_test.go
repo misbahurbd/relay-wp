@@ -755,3 +755,60 @@ func TestStripeWebhookRejectsSignedGarbage(t *testing.T) {
 		t.Fatalf("err = %v, want ErrInvalidRequest", err)
 	}
 }
+
+func TestStripePaymentMethodPrefersTheSubscriptionsCard(t *testing.T) {
+	g, api := newTestStripe(t)
+	api.on("GET /v1/subscriptions/sub_1", `{"id":"sub_1","object":"subscription","default_payment_method":`+
+		`{"id":"pm_1","object":"payment_method","type":"card","card":{"brand":"mastercard","last4":"4444","exp_month":3,"exp_year":2029}}}`)
+	pm, err := g.Card(context.Background(), CardRequest{ExternalCustomerID: "cus_1", ExternalSubscriptionID: "sub_1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pm == nil || *pm != (Card{Brand: "mastercard", Last4: "4444", ExpMonth: 3, ExpYear: 2029}) {
+		t.Fatalf("card = %+v", pm)
+	}
+	if got := api.call(t, "GET /v1/subscriptions/sub_1").Form.Get("expand[0]"); got != "default_payment_method" {
+		t.Errorf("expand = %q", got)
+	}
+	if api.callCount() != 1 {
+		t.Errorf("calls = %v, want only the subscription", api.routesCalled())
+	}
+}
+
+func TestStripePaymentMethodFallsBackToTheCustomer(t *testing.T) {
+	g, api := newTestStripe(t)
+	api.on("GET /v1/subscriptions/sub_1", `{"id":"sub_1","object":"subscription","default_payment_method":null}`)
+	api.on("GET /v1/customers/cus_1", `{"id":"cus_1","object":"customer","invoice_settings":{"default_payment_method":`+
+		`{"id":"pm_2","object":"payment_method","type":"card","card":{"brand":"visa","last4":"4242","exp_month":8,"exp_year":2028}}}}`)
+	api.on("GET /v1/customers/cus_2", `{"id":"cus_2","object":"customer","invoice_settings":{"default_payment_method":null}}`)
+	ctx := context.Background()
+
+	pm, err := g.Card(ctx, CardRequest{ExternalCustomerID: "cus_1", ExternalSubscriptionID: "sub_1"})
+	if err != nil || pm == nil || pm.Last4 != "4242" || pm.Brand != "visa" || pm.ExpYear != 2028 {
+		t.Fatalf("card = %+v, %v", pm, err)
+	}
+	if pm, err := g.Card(ctx, CardRequest{ExternalCustomerID: "cus_2"}); err != nil || pm != nil {
+		t.Fatalf("no card: %+v, %v", pm, err)
+	}
+	if _, err := g.Card(ctx, CardRequest{}); !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("no customer: err = %v", err)
+	}
+	if _, err := g.Card(ctx, CardRequest{ExternalCustomerID: "cus_gone"}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("unknown customer: err = %v", err)
+	}
+}
+
+func TestStripePortalURL(t *testing.T) {
+	g, api := newTestStripe(t)
+	api.on("POST /v1/billing_portal/sessions", `{"id":"bps_1","object":"billing_portal.session","url":"https://billing.stripe.com/p/session/x"}`)
+	url, err := g.PortalURL(context.Background(), PortalRequest{ExternalCustomerID: "cus_1", ReturnURL: "http://app.test/billing"})
+	if err != nil || url != "https://billing.stripe.com/p/session/x" {
+		t.Fatalf("url = %q, %v", url, err)
+	}
+	c := api.call(t, "POST /v1/billing_portal/sessions")
+	wantField(t, c, "customer", "cus_1")
+	wantField(t, c, "return_url", "http://app.test/billing")
+	if _, err := g.PortalURL(context.Background(), PortalRequest{}); !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("no customer: err = %v", err)
+	}
+}

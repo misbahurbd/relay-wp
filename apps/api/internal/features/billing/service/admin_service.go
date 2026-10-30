@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"regexp"
 	"strings"
 
@@ -20,7 +21,8 @@ import (
 
 // The staff admin tools (/v1/admin): build the catalog and move workspaces
 // between plans by hand. Catalog rows are never edited: deactivate one and
-// add its replacement, so what a customer bought stays as it was.
+// add its replacement, so what a customer bought stays as it was. A plan's
+// limits are the exception (ADR 0008): they are live, and every edit is audited.
 
 var planCode = regexp.MustCompile(`^[a-z][a-z0-9_]{1,40}$`)
 
@@ -71,45 +73,60 @@ func (s *Service) AdminCatalog(ctx context.Context) (model.AdminCatalog, error) 
 		})
 	}
 
+	counts, err := r.AdminCountPlanWorkspaces(ctx)
+	if err != nil {
+		return model.AdminCatalog{}, fmt.Errorf("count plan workspaces: %w", err)
+	}
+	onPlan := make(map[uuid.UUID]int, len(counts))
+	for _, c := range counts {
+		onPlan[c.PlanID] = int(c.Workspaces)
+	}
+	onFree, err := r.AdminCountFreeWorkspaces(ctx)
+	if err != nil {
+		return model.AdminCatalog{}, fmt.Errorf("count free workspaces: %w", err)
+	}
+
 	out := model.AdminCatalog{Plans: make([]model.AdminPlan, 0, len(plans)), Providers: s.payments.Providers()}
 	for _, p := range plans {
 		limits, err := model.ParseLimits(p.Limits)
 		if err != nil {
 			return model.AdminCatalog{}, err
 		}
+		workspaces := onPlan[p.ID]
+		if p.Code == model.FreePlan {
+			workspaces = int(onFree)
+		}
 		out.Plans = append(out.Plans, model.AdminPlan{
-			ID: p.ID, Code: p.Code, Version: int(p.Version), Name: p.Name, TrialDays: int(p.TrialDays),
+			ID: p.ID, Code: p.Code, Version: int(p.Version), Name: p.Name, Description: p.Description,
+			Features: p.Features, Recommended: p.Recommended, TrialDays: int(p.TrialDays),
 			TrialRequiresCard: p.TrialRequiresCard, Limits: limits, IsActive: p.IsActive, SortOrder: int(p.SortOrder),
-			Prices: planPrices[p.ID],
+			Prices: planPrices[p.ID], Workspaces: workspaces,
 		})
 	}
 	return out, nil
 }
 
+// Limits on what the pricing table shows about a plan (migration 00015).
+const (
+	maxPlanDescription = 200
+	maxPlanFeatures    = 20
+	maxPlanFeature     = 80
+)
+
 // CreatePlan adds a plan, or the next version of one whose code is already used.
 func (s *Service) CreatePlan(ctx context.Context, in model.NewPlan) (uuid.UUID, error) {
-	var details []apperr.Detail
-	bad := func(field, msg string) { details = append(details, apperr.Detail{Field: field, Message: msg}) }
-	code, name := strings.ToLower(strings.TrimSpace(in.Code)), strings.TrimSpace(in.Name)
+	d, details := checkPlanDetails(in.PlanDetails, false)
+	code := strings.ToLower(strings.TrimSpace(in.Code))
 	if !planCode.MatchString(code) {
-		bad("code", "Use 2 to 41 lowercase letters, digits or _, starting with a letter")
+		details = append(details, apperr.Detail{Field: "code", Message: "Use 2 to 41 lowercase letters, digits or _, starting with a letter"})
 	}
 	if code == model.FreePlan {
-		bad("code", "free is the plan with no grant; it can't be in the catalog")
-	}
-	if name == "" {
-		bad("name", "A plan needs a name")
-	}
-	if in.TrialDays < 0 || in.TrialDays > 90 {
-		bad("trial_days", "A trial lasts 0 to 90 days")
-	}
-	if in.Limits.Members < model.Unlimited || in.Limits.WhatsAppNumbers < model.Unlimited {
-		bad("limits", "A limit is -1 (unlimited) or more")
+		details = append(details, apperr.Detail{Field: "code", Message: "free is the plan with no grant; edit it instead"})
 	}
 	if len(details) > 0 {
 		return uuid.Nil, model.ErrInvalidInput.WithDetails(details...)
 	}
-	limits, err := json.Marshal(in.Limits)
+	limits, err := json.Marshal(d.Limits)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("encode limits: %w", err)
 	}
@@ -121,12 +138,101 @@ func (s *Service) CreatePlan(ctx context.Context, in model.NewPlan) (uuid.UUID, 
 			return fmt.Errorf("next plan version: %w", err)
 		}
 		id, err = r.CreatePlan(ctx, gen.CreatePlanParams{
-			Code: code, Version: version, Name: name, TrialDays: int32(in.TrialDays), //nolint:gosec // range checked above
-			TrialRequiresCard: in.TrialRequiresCard, Limits: limits, SortOrder: int32(in.SortOrder), //nolint:gosec // a small display order
+			Code: code, Version: version, Name: d.Name, Description: d.Description, Features: d.Features,
+			Recommended: d.Recommended, TrialDays: int32(d.TrialDays), //nolint:gosec // range checked above
+			TrialRequiresCard: d.TrialRequiresCard, Limits: limits, SortOrder: int32(d.SortOrder), //nolint:gosec // a small display order
 		})
 		return err
 	})
 	return id, catalogErr("create plan", err)
+}
+
+// UpdatePlan changes a plan version in place: everything but its code, version
+// and prices. Its limits reach every workspace on it at once; a change to them
+// needs a reason and is audited (ADR 0008).
+func (s *Service) UpdatePlan(ctx context.Context, in model.PlanEdit) error {
+	reason := strings.TrimSpace(in.Reason)
+	return database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+		r := repository.NewRepository(tx)
+		plan, err := r.LockPlanLimits(ctx, in.PlanID)
+		if repository.IsNoRows(err) {
+			return model.ErrPlanNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("lock plan: %w", err)
+		}
+		d, details := checkPlanDetails(in.PlanDetails, plan.Code == model.FreePlan)
+		before, err := model.ParseLimits(plan.Limits)
+		if err != nil {
+			return fmt.Errorf("plan %s: %w", in.PlanID, err)
+		}
+		limitsChanged := !maps.Equal(before, d.Limits)
+		if limitsChanged && reason == "" {
+			details = append(details, apperr.Detail{Field: "reason", Message: "Say why the limits change, for the record"})
+		}
+		if len(details) > 0 {
+			return model.ErrInvalidInput.WithDetails(details...)
+		}
+		after, err := json.Marshal(d.Limits)
+		if err != nil {
+			return fmt.Errorf("encode limits: %w", err)
+		}
+		if err := r.UpdatePlan(ctx, gen.UpdatePlanParams{
+			PlanID: in.PlanID, Name: d.Name, Description: d.Description, Features: d.Features,
+			Recommended: d.Recommended, TrialDays: int32(d.TrialDays), //nolint:gosec // range checked above
+			TrialRequiresCard: d.TrialRequiresCard, Limits: after, SortOrder: int32(d.SortOrder), //nolint:gosec // a small display order
+		}); err != nil {
+			return fmt.Errorf("update plan: %w", err)
+		}
+		if !limitsChanged {
+			return nil
+		}
+		return r.InsertLimitChange(ctx, gen.InsertLimitChangeParams{
+			PlanID: &in.PlanID, ChangedBy: &in.ChangedBy, Before: plan.Limits, After: after, Reason: reason,
+		})
+	})
+}
+
+// checkPlanDetails trims what staff entered and lists what is wrong with it.
+// The free plan is never on the pricing table and has no trial.
+func checkPlanDetails(d model.PlanDetails, free bool) (model.PlanDetails, []apperr.Detail) {
+	var details []apperr.Detail
+	bad := func(field, msg string) { details = append(details, apperr.Detail{Field: field, Message: msg}) }
+	d.Name = strings.TrimSpace(d.Name)
+	if d.Name == "" {
+		bad("name", "A plan needs a name")
+	}
+	d.Description = strings.TrimSpace(d.Description)
+	if len([]rune(d.Description)) > maxPlanDescription {
+		bad("description", "Keep the description to 200 characters")
+	}
+	features := make([]string, 0, len(d.Features))
+	for _, f := range d.Features {
+		if f = strings.TrimSpace(f); f != "" {
+			features = append(features, f)
+		}
+	}
+	d.Features = features
+	if len(features) > maxPlanFeatures {
+		bad("features", "List at most 20 features")
+	}
+	for _, f := range features {
+		if len([]rune(f)) > maxPlanFeature {
+			bad("features", "Keep each feature to 80 characters")
+			break
+		}
+	}
+	if d.TrialDays < 0 || d.TrialDays > 90 {
+		bad("trial_days", "A trial lasts 0 to 90 days")
+	}
+	if free && (d.TrialDays > 0 || d.TrialRequiresCard || d.Recommended) {
+		bad("trial_days", "The free plan has no trial and isn't on the pricing table")
+	}
+	if d.Limits == nil {
+		d.Limits = model.Limits{}
+	}
+	details = append(details, d.Limits.Check("limits")...)
+	return d, details
 }
 
 // CreatePrice adds a price to a plan.
@@ -159,7 +265,18 @@ func (s *Service) CreatePrice(ctx context.Context, in model.NewPrice) (uuid.UUID
 	if len(details) > 0 {
 		return uuid.Nil, model.ErrInvalidInput.WithDetails(details...)
 	}
-	id, err := repository.NewRepository(s.pool).CreatePlanPrice(ctx, params)
+	r := repository.NewRepository(s.pool)
+	plan, err := r.GetPlan(ctx, in.PlanID)
+	if repository.IsNoRows(err) {
+		return uuid.Nil, model.ErrPlanNotFound
+	}
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("get plan: %w", err)
+	}
+	if plan.Code == model.FreePlan {
+		return uuid.Nil, model.ErrInvalidInput.WithDetails(apperr.Detail{Field: "plan_id", Message: "The free plan can't be sold"})
+	}
+	id, err := r.CreatePlanPrice(ctx, params)
 	if repository.IsForeignKey(err) {
 		return uuid.Nil, model.ErrPlanNotFound
 	}
@@ -295,19 +412,36 @@ func catalogErr(op string, err error) error {
 
 // AdminWorkspaces lists workspaces, newest first, with the plan each is on.
 func (s *Service) AdminWorkspaces(ctx context.Context, search string) ([]model.AdminWorkspace, error) {
-	rows, err := repository.NewRepository(s.pool).AdminListWorkspaces(ctx, strings.TrimSpace(search))
+	r := repository.NewRepository(s.pool)
+	rows, err := r.AdminListWorkspaces(ctx, strings.TrimSpace(search))
 	if err != nil {
 		return nil, fmt.Errorf("list workspaces: %w", err)
+	}
+	free, err := freeLimits(ctx, r)
+	if err != nil {
+		return nil, err
 	}
 	out := make([]model.AdminWorkspace, 0, len(rows))
 	for _, w := range rows {
 		ws := model.AdminWorkspace{
 			ID: w.ID, Name: w.Name, OwnerEmail: w.OwnerEmail, Plan: w.Plan, TrialEndsAt: w.TrialEndsAt, CreatedAt: w.CreatedAt,
+			Limits: free,
 		}
 		if w.GrantID != nil {
+			planLimits, err := model.ParseLimits(w.GrantPlanLimits)
+			if err != nil {
+				return nil, fmt.Errorf("grant %s plan: %w", *w.GrantID, err)
+			}
+			overrides, err := model.ParseLimits(w.GrantOverrides)
+			if err != nil {
+				return nil, fmt.Errorf("grant %s overrides: %w", *w.GrantID, err)
+			}
 			ws.Grant = &model.AdminGrant{
 				ID: *w.GrantID, PlanCode: deref(w.GrantPlanCode), PlanName: deref(w.GrantPlanName),
-				Source: deref(w.GrantSource), Status: deref(w.GrantStatus), EndsAt: w.GrantEndsAt,
+				Source: deref(w.GrantSource), Status: deref(w.GrantStatus), EndsAt: w.GrantEndsAt, Overrides: overrides,
+			}
+			if ws.Grant.Status == model.GrantActive {
+				ws.Limits = planLimits.With(overrides)
 			}
 		}
 		out = append(out, ws)
@@ -374,6 +508,44 @@ func (s *Service) RestoreGrantManually(ctx context.Context, workspaceID uuid.UUI
 			return model.ErrGrantNotSuspended
 		}
 		return s.RestoreGrant(ctx, tx, workspaceID, g.ID)
+	})
+}
+
+// SetGrantOverrides replaces a workspace's own limits on top of its plan's.
+// They live on the current grant, so a plan change starts without them.
+func (s *Service) SetGrantOverrides(ctx context.Context, in model.GrantOverridesEdit) error {
+	reason := strings.TrimSpace(in.Reason)
+	details := in.Overrides.CheckOverrides("overrides")
+	if reason == "" {
+		details = append(details, apperr.Detail{Field: "reason", Message: "Say why, for the record"})
+	}
+	if len(details) > 0 {
+		return model.ErrInvalidInput.WithDetails(details...)
+	}
+	after, err := json.Marshal(in.Overrides)
+	if err != nil {
+		return fmt.Errorf("encode overrides: %w", err)
+	}
+	return database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+		r := repository.NewRepository(tx)
+		if ok, err := r.AdminWorkspaceExists(ctx, in.WorkspaceID); err != nil {
+			return fmt.Errorf("workspace exists: %w", err)
+		} else if !ok {
+			return model.ErrWorkspaceNotFound
+		}
+		g, err := r.LockCurrentGrant(ctx, in.WorkspaceID)
+		if repository.IsNoRows(err) {
+			return model.ErrNoGrant
+		}
+		if err != nil {
+			return fmt.Errorf("lock current grant: %w", err)
+		}
+		if _, err := r.SetGrantOverrides(ctx, gen.SetGrantOverridesParams{GrantID: g.ID, Overrides: after}); err != nil {
+			return fmt.Errorf("set grant overrides: %w", err)
+		}
+		return r.InsertLimitChange(ctx, gen.InsertLimitChangeParams{
+			GrantID: &g.ID, ChangedBy: &in.ChangedBy, Before: g.Overrides, After: after, Reason: reason,
+		})
 	})
 }
 

@@ -1,20 +1,23 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { ExternalLinkIcon, ReceiptIcon } from 'lucide-react'
+import { DownloadIcon, ExternalLinkIcon, ReceiptIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '#/components/ui/button'
 import { Separator } from '#/components/ui/separator'
 import { Skeleton } from '#/components/ui/skeleton'
 import { invoiceQueryOptions, invoicesQueryOptions } from '../../api/billing.queries'
+import { useBillingPreview } from '../../hooks/use-billing-preview'
 import { INVOICE_STATUS, PROVIDER_LABEL } from '../../schemas/billing.schema'
 import type { Invoice } from '../../types'
 import { formatDate } from '../kit/format'
 import { Modal } from '../kit/modal'
 import { formatMoney } from '../kit/money'
+import { PreviewBadge } from '../kit/preview-badge'
 import { Section, SectionHeader } from '../kit/section'
 import { EmptyState, ErrorState } from '../kit/states'
 import { StatusBadge } from '../kit/status-badge'
 
 export function Invoices({ workspaceId }: { workspaceId: string }) {
+  const preview = useBillingPreview()
   const invoices = useInfiniteQuery(invoicesQueryOptions(workspaceId))
   const [open, setOpen] = useState<string>()
   const rows = invoices.data?.pages.flatMap((p) => p.invoices) ?? []
@@ -23,8 +26,18 @@ export function Invoices({ workspaceId }: { workspaceId: string }) {
     <Section aria-labelledby="invoices-heading">
       <SectionHeader
         id="invoices-heading"
-        title="Invoices"
-        description="Every payment, newest first."
+        title="Invoice history"
+        action={
+          preview && (
+            <span className="inline-flex items-center gap-2">
+              <PreviewBadge />
+              <Button variant="outline" size="sm" disabled>
+                Download all
+                <span className="sr-only">(coming soon)</span>
+              </Button>
+            </span>
+          )
+        }
       />
       {invoices.isPending ? (
         <div
@@ -49,30 +62,73 @@ export function Invoices({ workspaceId }: { workspaceId: string }) {
         </EmptyState>
       ) : (
         <>
-          <ul className="flex flex-col divide-y rounded-lg border">
-            {rows.map((inv) => (
-              <li key={inv.id}>
-                <button
-                  type="button"
-                  onClick={() => setOpen(inv.id)}
-                  className="flex w-full flex-wrap items-center justify-between gap-3 px-3.5 py-3 text-left hover:bg-muted"
-                >
-                  <span className="flex min-w-0 flex-col gap-0.5">
-                    <span className="text-sm font-bold">
-                      {inv.number ?? 'Invoice'} · {formatDate(inv.paid_at ?? inv.created_at)}
-                    </span>
-                    <span className="text-[13px] text-muted-foreground">{period(inv)}</span>
-                  </span>
-                  <span className="flex items-center gap-3">
-                    <span className="text-sm font-bold tabular-nums">
+          <div className="relative -mx-5 overflow-x-auto px-5 sm:-mx-[22px] sm:px-[22px]">
+            <table className="w-full min-w-[680px] text-sm">
+              <caption className="sr-only">Invoices, newest first</caption>
+              <thead className="text-left text-xs text-muted-foreground">
+                <tr>
+                  <th scope="col" className="py-2 pr-2 font-semibold">
+                    Date
+                  </th>
+                  <th scope="col" className="px-2 py-2 font-semibold">
+                    Invoice
+                  </th>
+                  <th scope="col" className="px-2 py-2 font-semibold">
+                    Description
+                  </th>
+                  <th scope="col" className="px-2 py-2 text-right font-semibold">
+                    Amount
+                  </th>
+                  <th scope="col" className="px-2 py-2 font-semibold">
+                    Status
+                  </th>
+                  <th scope="col" className="py-2 pl-2 text-right font-semibold">
+                    <span className="sr-only">Receipt</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((inv) => (
+                  <tr key={inv.id} className="border-t hover:bg-muted/50">
+                    <td className="py-2.5 pr-2 whitespace-nowrap">
+                      {formatDate(inv.paid_at ?? inv.created_at)}
+                    </td>
+                    <td className="px-2 py-2.5 whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => setOpen(inv.id)}
+                        className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                      >
+                        {inv.number ?? 'View invoice'}
+                      </button>
+                    </td>
+                    <td className="px-2 py-2.5 font-semibold">{period(inv)}</td>
+                    <td className="px-2 py-2.5 text-right font-bold tabular-nums">
                       {formatMoney(inv.total_minor, inv.currency)}
-                    </span>
-                    <StatusBadge status={INVOICE_STATUS[inv.status]} />
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+                    </td>
+                    <td className="px-2 py-2.5">
+                      <StatusBadge status={INVOICE_STATUS[inv.status]} />
+                    </td>
+                    <td className="py-1.5 pl-2 text-right">
+                      {inv.receipt_url ? (
+                        <Button asChild variant="ghost" size="icon">
+                          <a href={inv.receipt_url} target="_blank" rel="noreferrer noopener">
+                            <DownloadIcon aria-hidden="true" />
+                            <span className="sr-only">
+                              Receipt for {inv.number ?? formatDate(inv.created_at)} (opens in a new
+                              tab)
+                            </span>
+                          </a>
+                        </Button>
+                      ) : (
+                        <span className="sr-only">No receipt</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           {invoices.hasNextPage && (
             <Button
               variant="outline"
@@ -105,7 +161,9 @@ export function Invoices({ workspaceId }: { workspaceId: string }) {
 
 function period(inv: Invoice) {
   if (inv.period_start && inv.period_end) {
-    return `${formatDate(inv.period_start)} – ${formatDate(inv.period_end)}`
+    const short = (iso: string) =>
+      new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+    return `Plan · ${short(inv.period_start)} – ${short(inv.period_end)}`
   }
   return inv.installment_id
     ? 'Lifetime deal installment'

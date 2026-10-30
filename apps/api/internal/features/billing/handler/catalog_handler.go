@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/dto"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/model"
 )
 
 // listPlans: GET /v1/billing/plans: the public catalog (svc.Catalog).
@@ -13,4 +14,9 @@ func (h *Handler) listPlans(ctx context.Context, _ *struct{}) (*dto.CatalogOutpu
 		return nil, err
 	}
 	return dto.ToCatalogOutput(c), nil
+}
+
+// listResources: GET /v1/billing/resources: the resource catalog plans limit.
+func (h *Handler) listResources(context.Context, *struct{}) (*dto.ResourcesOutput, error) {
+	return dto.ToResourcesOutput(model.Resources), nil
 }

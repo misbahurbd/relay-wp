@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -383,7 +384,96 @@ func (s *Service) onRefund(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID
 			return err
 		}
 	}
-	return s.syncRefundedStatus(ctx, repo, workspaceID, inv)
+	status, err := s.syncRefundedStatus(ctx, repo, workspaceID, inv)
+	if err != nil {
+		return err
+	}
+	// A refund may be reported pending first; the plan ends once one succeeds.
+	// endRefundedPlan is a no-op the second time.
+	if r.Status == payment.RefundSucceeded && status == model.InvoiceRefunded {
+		return s.endRefundedPlan(ctx, tx, workspaceID, inv)
+	}
+	return nil
+}
+
+// endRefundedPlan takes back what refunds paid back in full: a lifetime deal
+// whose payments are all refunded ends (with its installment schedule), and a
+// live subscription whose latest invoice is refunded is canceled now. Either
+// way the workspace moves to the free plan. A refunded duplicate payment or an
+// older invoice leaves the plan alone.
+func (s *Service) endRefundedPlan(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID, inv gen.FindInvoiceByExternalPaymentIDRow) error {
+	repo := repository.NewRepository(tx)
+	if inv.OrderID != nil {
+		o, err := lockOrder(ctx, repo, workspaceID, *inv.OrderID)
+		if err != nil {
+			return err
+		}
+		if !slices.Contains(model.LiveOrderStatuses, o.Status) {
+			return nil
+		}
+		totals, err := repo.GetOrderRefundTotals(ctx, gen.GetOrderRefundTotalsParams{WorkspaceID: workspaceID, OrderID: &o.ID})
+		if err != nil {
+			return fmt.Errorf("order refund totals: %w", err)
+		}
+		if totals.PaidMinor <= 0 || totals.RefundedMinor < totals.PaidMinor {
+			return nil
+		}
+		if err := s.ltd().stopSchedule(ctx, o); err != nil {
+			return err
+		}
+		if err := setOrderStatus(ctx, repo, o, model.OrderRefunded, s.now()); err != nil {
+			return err
+		}
+		g, err := repo.GetOrderGrant(ctx, gen.GetOrderGrantParams{WorkspaceID: workspaceID, OrderID: &o.ID})
+		if repository.IsNoRows(err) || (err == nil && g.Status == model.GrantEnded) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("get order grant: %w", err)
+		}
+		s.log.InfoContext(ctx, "billing: lifetime deal refunded; plan ended", "workspace_id", workspaceID, "order_id", o.ID)
+		return s.EndGrant(ctx, tx, workspaceID, g.ID)
+	}
+	if inv.SubscriptionID == nil {
+		return nil
+	}
+	latest, err := repo.GetLatestSubscriptionInvoiceID(ctx, gen.GetLatestSubscriptionInvoiceIDParams{
+		WorkspaceID: workspaceID, SubscriptionID: inv.SubscriptionID,
+	})
+	if err != nil {
+		return fmt.Errorf("latest subscription invoice: %w", err)
+	}
+	if latest != inv.ID {
+		return nil
+	}
+	locked, err := repo.LockSubscription(ctx, gen.LockSubscriptionParams{WorkspaceID: workspaceID, SubscriptionID: *inv.SubscriptionID})
+	if err != nil {
+		return fmt.Errorf("lock subscription: %w", err)
+	}
+	sub := toSubscription(gen.GetSubscriptionRow(locked))
+	if sub.Status == model.SubscriptionCanceled || sub.Status == model.SubscriptionIncomplete {
+		return nil
+	}
+	if sub.RenewalMode == model.RenewalProvider && sub.ExternalSubscriptionID != nil {
+		g, err := s.gateway(sub.Provider)
+		if err != nil {
+			return err
+		}
+		if _, err := g.CancelSubscription(ctx, payment.CancelRequest{
+			ExternalSubscriptionID: *sub.ExternalSubscriptionID, Mode: payment.CancelNow,
+		}); err != nil && !errors.Is(err, payment.ErrNotFound) {
+			return s.gatewayErr("cancel refunded subscription", err)
+		}
+	}
+	now := s.now()
+	if _, err := repo.CancelSubscriptionNow(ctx, gen.CancelSubscriptionNowParams{
+		CanceledAt: &now, WorkspaceID: workspaceID, SubscriptionID: sub.ID,
+	}); err != nil {
+		return fmt.Errorf("cancel subscription: %w", err)
+	}
+	s.log.InfoContext(ctx, "billing: subscription invoice refunded; subscription canceled",
+		"workspace_id", workspaceID, "subscription_id", sub.ID)
+	return s.endSubscriptionGrant(ctx, tx, workspaceID, sub.ID)
 }
 
 // createRefund records a refund we haven't seen, unless it would take the
@@ -417,17 +507,18 @@ func (s *Service) createRefund(ctx context.Context, repo repository.Repository, 
 
 // syncRefundedStatus sets a paid invoice's status from what has been refunded.
 // A disputed, failed, open or void invoice keeps its status.
-func (s *Service) syncRefundedStatus(ctx context.Context, repo repository.Repository, workspaceID uuid.UUID, inv gen.FindInvoiceByExternalPaymentIDRow) error {
+// It returns the invoice's status afterwards.
+func (s *Service) syncRefundedStatus(ctx context.Context, repo repository.Repository, workspaceID uuid.UUID, inv gen.FindInvoiceByExternalPaymentIDRow) (string, error) {
 	switch inv.Status {
 	case model.InvoicePaid, model.InvoicePartiallyRefunded, model.InvoiceRefunded:
 	default:
-		return nil
+		return inv.Status, nil
 	}
 	status, err := refundedStatus(ctx, repo, workspaceID, inv)
 	if err != nil || status == inv.Status {
-		return err
+		return inv.Status, err
 	}
-	return setInvoiceStatus(ctx, repo, workspaceID, inv.ID, status)
+	return status, setInvoiceStatus(ctx, repo, workspaceID, inv.ID, status)
 }
 
 // refundedStatus is paid, partially_refunded or refunded, by the invoice's
@@ -507,7 +598,7 @@ func (s *Service) onDisputeClosed(ctx context.Context, tx pgx.Tx, workspaceID uu
 		}
 		if (inv.SubscriptionID != nil && sameID(g.SubscriptionID, *inv.SubscriptionID)) ||
 			(inv.OrderID != nil && sameID(g.OrderID, *inv.OrderID)) {
-			return s.SuspendGrant(ctx, tx, workspaceID, g.ID)
+			return s.SuspendGrant(ctx, tx, workspaceID, g.ID, model.SuspendDispute)
 		}
 		return nil
 	}
@@ -519,6 +610,29 @@ func (s *Service) onDisputeClosed(ctx context.Context, tx pgx.Tx, workspaceID uu
 }
 
 // ---------- Periodic jobs ----------
+
+// stuckEventAge is how long an event may stay unprocessed before it is reported.
+// River retries a failing event for weeks; a day of failures already needs a person.
+const stuckEventAge = 24 * time.Hour
+
+// ReportStuckPaymentEvents logs an error for each webhook event still
+// unprocessed a day after it arrived, so alerting picks it up and support can
+// look at it (the event's job has been failing all that time). It returns how
+// many it found. Run by the StuckPaymentEvents worker. The payload is never read.
+func (s *Service) ReportStuckPaymentEvents(ctx context.Context) (int, error) {
+	rows, err := repository.NewRepository(s.pool).ListStuckPaymentEvents(ctx, gen.ListStuckPaymentEventsParams{
+		Before: s.now().Add(-stuckEventAge), MaxRows: jobBatch,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("list stuck payment events: %w", err)
+	}
+	for _, e := range rows {
+		s.log.ErrorContext(ctx, "billing: webhook event still unprocessed", "payment_event_id", e.ID,
+			"provider", e.Provider, "external_event_id", e.ExternalEventID, "event_type", e.EventType,
+			"workspace_id", e.WorkspaceID, "received_at", e.ReceivedAt)
+	}
+	return len(rows), nil
+}
 
 // PurgeEventPayloads nulls payment_events.payload older than cfg.EventPayloadTTL
 // and returns how many it cleared. Run by the PurgeEventPayloads worker.

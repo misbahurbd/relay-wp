@@ -43,12 +43,16 @@ type AdminPlanDTO struct {
 	Code              string          `json:"code"`
 	Version           int             `json:"version"`
 	Name              string          `json:"name"`
+	Description       string          `json:"description" doc:"One line about the plan; may be empty"`
+	Features          []string        `json:"features" doc:"Bullet points for the pricing table, in order"`
+	Recommended       bool            `json:"recommended" doc:"The plan the pricing table points people to"`
 	TrialDays         int             `json:"trial_days"`
 	TrialRequiresCard bool            `json:"trial_requires_card"`
 	Limits            LimitsDTO       `json:"limits"`
 	IsActive          bool            `json:"is_active"`
 	SortOrder         int             `json:"sort_order"`
 	Prices            []AdminPriceDTO `json:"prices"`
+	Workspaces        int             `json:"workspaces" doc:"Workspaces whose limits come from this plan now; editing its limits reaches them all"`
 }
 
 type AdminCatalogOutput struct {
@@ -72,9 +76,10 @@ func ToAdminCatalogOutput(c model.AdminCatalog) *AdminCatalogOutput {
 	out.Body.Plans = make([]AdminPlanDTO, 0, len(c.Plans))
 	for _, p := range c.Plans {
 		plan := AdminPlanDTO{
-			ID: p.ID, Code: p.Code, Version: p.Version, Name: p.Name, TrialDays: p.TrialDays,
+			ID: p.ID, Code: p.Code, Version: p.Version, Name: p.Name, Description: p.Description,
+			Features: nonNil(p.Features), Recommended: p.Recommended, TrialDays: p.TrialDays,
 			TrialRequiresCard: p.TrialRequiresCard, Limits: ToLimitsDTO(p.Limits), IsActive: p.IsActive,
-			SortOrder: p.SortOrder, Prices: make([]AdminPriceDTO, 0, len(p.Prices)),
+			SortOrder: p.SortOrder, Prices: make([]AdminPriceDTO, 0, len(p.Prices)), Workspaces: p.Workspaces,
 		}
 		for _, pr := range p.Prices {
 			price := AdminPriceDTO{
@@ -108,23 +113,46 @@ func ToCreatedOutput(id uuid.UUID) *CreatedOutput {
 	return out
 }
 
+// PlanDetailsBody is what staff set on a plan version, on create and on edit.
+type PlanDetailsBody struct {
+	Name              string    `json:"name" minLength:"1" maxLength:"80" example:"Growth"`
+	Description       string    `json:"description,omitempty" maxLength:"200" example:"For growing teams running regular campaigns."`
+	Features          []string  `json:"features,omitempty" maxItems:"20" doc:"Bullet points for the pricing table, in order; each at most 80 characters"`
+	Recommended       bool      `json:"recommended,omitempty" doc:"Mark this as the plan the pricing table points people to"`
+	TrialDays         int       `json:"trial_days" minimum:"0" maximum:"90"`
+	TrialRequiresCard bool      `json:"trial_requires_card"`
+	Limits            LimitsDTO `json:"limits" doc:"What the plan includes: a cap (-1 unlimited) per count or monthly resource, 1 per feature. A resource left out is not included."`
+	SortOrder         int       `json:"sort_order" minimum:"0" maximum:"10000"`
+}
+
+func (b PlanDetailsBody) toModel() model.PlanDetails {
+	return model.PlanDetails{
+		Name: b.Name, Description: b.Description, Features: b.Features, Recommended: b.Recommended,
+		TrialDays: b.TrialDays, TrialRequiresCard: b.TrialRequiresCard, Limits: model.Limits(b.Limits), SortOrder: b.SortOrder,
+	}
+}
+
 type CreatePlanInput struct {
 	Body struct {
-		Code              string    `json:"code" minLength:"2" maxLength:"41" example:"growth" doc:"A code already in use publishes its next version"`
-		Name              string    `json:"name" minLength:"1" maxLength:"80" example:"Growth"`
-		TrialDays         int       `json:"trial_days" minimum:"0" maximum:"90"`
-		TrialRequiresCard bool      `json:"trial_requires_card"`
-		Limits            LimitsDTO `json:"limits"`
-		SortOrder         int       `json:"sort_order" minimum:"0" maximum:"10000"`
+		Code string `json:"code" minLength:"2" maxLength:"41" example:"growth" doc:"A code already in use publishes its next version"`
+		PlanDetailsBody
 	}
 }
 
 func (in *CreatePlanInput) ToModel() model.NewPlan {
-	b := in.Body
-	return model.NewPlan{
-		Code: b.Code, Name: b.Name, TrialDays: b.TrialDays, TrialRequiresCard: b.TrialRequiresCard,
-		Limits: model.Limits(b.Limits), SortOrder: b.SortOrder,
+	return model.NewPlan{Code: in.Body.Code, PlanDetails: in.Body.toModel()}
+}
+
+type UpdatePlanInput struct {
+	ID   uuid.UUID `path:"id"`
+	Body struct {
+		PlanDetailsBody
+		Reason string `json:"reason,omitempty" maxLength:"300" doc:"Required when the limits change; kept with the change"`
 	}
+}
+
+func (in *UpdatePlanInput) ToModel(changedBy uuid.UUID) model.PlanEdit {
+	return model.PlanEdit{PlanID: in.ID, PlanDetails: in.Body.toModel(), Reason: in.Body.Reason, ChangedBy: changedBy}
 }
 
 type CreatePriceInput struct {
@@ -270,12 +298,13 @@ type AdminWorkspacesInput struct {
 }
 
 type AdminGrantDTO struct {
-	ID       uuid.UUID  `json:"id"`
-	PlanCode string     `json:"plan_code"`
-	PlanName string     `json:"plan_name"`
-	Source   string     `json:"source" enum:"subscription,order,trial,manual"`
-	Status   string     `json:"status" enum:"active,suspended"`
-	EndsAt   *time.Time `nullable:"true" json:"ends_at"`
+	ID        uuid.UUID  `json:"id"`
+	PlanCode  string     `json:"plan_code"`
+	PlanName  string     `json:"plan_name"`
+	Source    string     `json:"source" enum:"subscription,order,trial,manual"`
+	Status    string     `json:"status" enum:"active,suspended"`
+	EndsAt    *time.Time `nullable:"true" json:"ends_at"`
+	Overrides LimitsDTO  `json:"overrides" doc:"This workspace's own limits on top of the plan's; only the keys that differ"`
 }
 
 type AdminWorkspaceDTO struct {
@@ -286,6 +315,7 @@ type AdminWorkspaceDTO struct {
 	TrialEndsAt *time.Time     `nullable:"true" json:"trial_ends_at"`
 	CreatedAt   time.Time      `json:"created_at"`
 	Grant       *AdminGrantDTO `json:"grant" doc:"Null on the free plan"`
+	Limits      LimitsDTO      `json:"limits" doc:"What applies now, overrides included"`
 }
 
 type AdminWorkspacesOutput struct {
@@ -300,10 +330,13 @@ func ToAdminWorkspacesOutput(ws []model.AdminWorkspace) *AdminWorkspacesOutput {
 	for _, w := range ws {
 		d := AdminWorkspaceDTO{
 			ID: w.ID, Name: w.Name, OwnerEmail: w.OwnerEmail, Plan: w.Plan, TrialEndsAt: w.TrialEndsAt, CreatedAt: w.CreatedAt,
+			Limits: ToLimitsDTO(w.Limits),
 		}
-		if w.Grant != nil {
-			g := AdminGrantDTO(*w.Grant)
-			d.Grant = &g
+		if g := w.Grant; g != nil {
+			d.Grant = &AdminGrantDTO{
+				ID: g.ID, PlanCode: g.PlanCode, PlanName: g.PlanName, Source: g.Source, Status: g.Status, EndsAt: g.EndsAt,
+				Overrides: LimitsDTO(g.Overrides),
+			}
 		}
 		out.Body.Workspaces = append(out.Body.Workspaces, d)
 	}
@@ -330,4 +363,17 @@ type AdminWorkspaceInput struct {
 	Body struct {
 		WorkspaceID uuid.UUID `json:"workspace_id"`
 	}
+}
+
+type GrantOverridesInput struct {
+	Body struct {
+		WorkspaceID uuid.UUID `json:"workspace_id"`
+		Overrides   LimitsDTO `json:"overrides" doc:"Only the keys that differ from the plan (0 takes a resource away); {} clears them"`
+		Reason      string    `json:"reason" minLength:"1" maxLength:"300" doc:"Kept with the change, for the record"`
+	}
+}
+
+func (in *GrantOverridesInput) ToModel(changedBy uuid.UUID) model.GrantOverridesEdit {
+	b := in.Body
+	return model.GrantOverridesEdit{WorkspaceID: b.WorkspaceID, Overrides: model.Limits(b.Overrides), Reason: b.Reason, ChangedBy: changedBy}
 }

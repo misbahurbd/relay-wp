@@ -6,6 +6,7 @@ import type {
   AdminPriceDto,
   AdminProviderPriceDto,
   AdminWorkspaceDto,
+  ResourceDto,
 } from '@relay/api-client'
 
 export type ProviderPrice = AdminProviderPriceDto
@@ -32,3 +33,8 @@ export type AdminWorkspace = Omit<AdminWorkspaceDto, 'grant'> & { grant: AdminGr
 export type CatalogRowKind = 'plan' | 'price' | 'installment_offer' | 'provider_price'
 
 export type Provider = AdminProviderPriceDto['provider']
+
+export type Resource = ResourceDto
+
+/** Resource key to cap; -1 is unlimited. */
+export type Limits = Plan['limits']

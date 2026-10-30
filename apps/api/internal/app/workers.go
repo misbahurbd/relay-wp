@@ -33,6 +33,8 @@ func (a *App) addFeatureWorkers(w *river.Workers) {
 	river.AddWorker(w, billingjobs.NewExpireCheckoutsWorker(a.billing))
 	river.AddWorker(w, billingjobs.NewPurgeEventPayloadsWorker(a.billing))
 	river.AddWorker(w, billingjobs.NewPlanCacheDriftWorker(a.billing))
+	river.AddWorker(w, billingjobs.NewPastDueGraceWorker(a.billing))
+	river.AddWorker(w, billingjobs.NewStuckPaymentEventsWorker(a.billing))
 	river.AddWorker(w, contactsjobs.NewImportWorker(a.contacts))
 	// Periodic jobs run on the leader only, so several workers don't repeat them.
 	a.queue.PeriodicJobs().Add(authjobs.CleanupPeriodicJob())

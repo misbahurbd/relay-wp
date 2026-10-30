@@ -234,6 +234,7 @@ func (a *App) buildBilling() error {
 	}, a.log)
 	a.team.SetPlanLimits(a.billing)
 	a.whatsapp.SetPlanLimits(a.billing)
+	a.contacts.SetPlanLimits(a.billing)
 	a.workspaces.SetBilling(deletionGuard{a.billing})
 	a.workspaces.SetTrials(a.billing)
 	return nil

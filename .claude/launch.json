@@ -6,7 +6,7 @@
       "runtimeExecutable": "sh",
       "runtimeArgs": [
         "-c",
-        "WEB_PORT=3010 WEB_HTTPS=true pnpm --filter @relay/web dev --host localhost"
+        "WEB_PORT=3010 WEB_HTTPS=true VITE_API_URL=https://localhost:3010 pnpm --filter @relay/web dev --host localhost"
       ],
       "port": 3010,
       "url": "https://localhost:3010"
@@ -40,6 +40,36 @@
       ],
       "port": 8080,
       "url": "http://localhost:8080"
+    },
+    {
+      "name": "api-billing",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "set -a; . ./.env; set +a; export DATABASE_URL=postgres://relay:relay@localhost:55440/relay_billing_ui?sslmode=disable DATABASE_DIRECT_URL=postgres://relay:relay@localhost:55440/relay_billing_ui?sslmode=disable HTTP_ADDR=:8092 APP_BASE_URL=http://localhost:3014 CORS_ALLOWED_ORIGINS=http://localhost:3014,http://localhost:3022 ADMIN_EMAILS=billing-ui-1793321561@relay.test PAYMENT_PROVIDERS=stripe:fake; cd apps/api && go run ./cmd/relay migrate up && go run ./cmd/relay all"
+      ],
+      "port": 8092,
+      "url": "http://localhost:8092"
+    },
+    {
+      "name": "web-billing",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "WEB_PORT=3014 VITE_API_URL=http://localhost:8092 pnpm --filter @relay/web dev --host localhost"
+      ],
+      "port": 3014,
+      "url": "http://localhost:3014"
+    },
+    {
+      "name": "crm-billing",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "CRM_PORT=3022 VITE_API_URL=http://localhost:8092 pnpm --filter @relay/crm dev --host localhost"
+      ],
+      "port": 3022,
+      "url": "http://localhost:3022"
     }
   ]
 }

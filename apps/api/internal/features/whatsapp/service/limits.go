@@ -12,10 +12,10 @@ import (
 	"github.com/misbahurbd/relay-wp/apps/api/internal/shared/apperr"
 )
 
-// PlanLimits reads the number cap of the workspace's billing plan. Implemented by billing.Service.
+// PlanLimits reads a cap of the workspace's billing plan. Implemented by billing.Service.
 type PlanLimits interface {
-	// NumberLimit is how many WhatsApp numbers the plan allows; a negative value is unlimited.
-	NumberLimit(ctx context.Context, workspaceID uuid.UUID) (int, error)
+	// Limit is the plan's cap on a resource (model.PlanResourceNumbers); a negative value is unlimited.
+	Limit(ctx context.Context, workspaceID uuid.UUID, resource string) (int, error)
 }
 
 // SetPlanLimits makes Connect respect the plan's number cap. Without it (nil) there is no cap.
@@ -26,7 +26,7 @@ func (s *Service) numberLimit(ctx context.Context, workspaceID uuid.UUID) (int, 
 	if s.plans == nil {
 		return -1, nil
 	}
-	limit, err := s.plans.NumberLimit(ctx, workspaceID)
+	limit, err := s.plans.Limit(ctx, workspaceID, model.PlanResourceNumbers)
 	if err != nil {
 		return 0, fmt.Errorf("plan number limit: %w", err)
 	}

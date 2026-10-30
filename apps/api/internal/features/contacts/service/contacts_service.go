@@ -365,9 +365,20 @@ func (s *Service) Create(ctx context.Context, workspaceID uuid.UUID, in model.Co
 	if err != nil {
 		return model.ContactDetail{}, fmt.Errorf("contact id: %w", err)
 	}
+	limit, err := s.contactLimit(ctx, workspaceID)
+	if err != nil {
+		return model.ContactDetail{}, err
+	}
 	var detail model.ContactDetail
 	err = database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
 		r := repository.NewRepository(tx)
+		room, err := contactRoom(ctx, r, workspaceID, limit)
+		if err != nil {
+			return err
+		}
+		if err := overContactLimit(limit, room); err != nil {
+			return err
+		}
 		var tagIDs []uuid.UUID
 		if in.TagIDs != nil {
 			if tagIDs, err = checkTags(ctx, r, workspaceID, *in.TagIDs); err != nil {

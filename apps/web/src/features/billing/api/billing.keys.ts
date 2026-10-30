@@ -18,6 +18,13 @@ export const billingKeys = {
     ['billing', workspaceId, 'change-preview', priceId] as const,
   checkout: (workspaceId: string, sessionId: string) =>
     ['billing', workspaceId, 'checkout', sessionId] as const,
+  paymentMethod: (workspaceId: string) => ['billing', workspaceId, 'payment-method'] as const,
+  /** Seats and WhatsApp numbers, read from their own endpoints for the usage meters. */
+  seats: (workspaceId: string) => ['billing', workspaceId, 'usage', 'seats'] as const,
+  numbers: (workspaceId: string) => ['billing', workspaceId, 'usage', 'numbers'] as const,
+  /** Sample data (api/billing.preview.ts). */
+  preview: (workspaceId: string, part: string) =>
+    ['billing', workspaceId, 'preview', part] as const,
 }
 
 export function invalidateBilling(queryClient: QueryClient, workspaceId: string) {

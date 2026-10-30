@@ -156,3 +156,10 @@ SET name          = CASE WHEN EXCLUDED.name <> '' THEN EXCLUDED.name ELSE contac
     opt_in_source = CASE WHEN contacts.opt_in = 'pending' THEN 'import' ELSE contacts.opt_in_source END,
     opt_in_at     = CASE WHEN contacts.opt_in = 'pending' THEN now() ELSE contacts.opt_in_at END
 RETURNING id, phone, (xmax = 0)::boolean AS inserted;
+
+-- name: LockContactCap :exec
+-- Serializes adding contacts in one workspace, so two adds can't both pass the plan's cap.
+SELECT pg_advisory_xact_lock(hashtextextended('contacts:' || sqlc.arg(workspace_id)::uuid::text, 0));
+
+-- name: CountWorkspaceContacts :one
+SELECT count(*) FROM contacts WHERE workspace_id = @workspace_id;

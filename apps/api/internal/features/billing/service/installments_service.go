@@ -331,7 +331,7 @@ func (l lifetimeDeals) pastGrace(ctx context.Context, row gen.ListInstallmentsPa
 		g, err := r.GetOrderGrant(ctx, gen.GetOrderGrantParams{WorkspaceID: row.WorkspaceID, OrderID: &o.ID})
 		switch {
 		case err == nil && g.Status == model.GrantActive:
-			if err := l.t3.suspendGrant(ctx, tx, row.WorkspaceID, g.ID); err != nil {
+			if err := l.t3.suspendGrant(ctx, tx, row.WorkspaceID, g.ID, model.SuspendInstallments); err != nil {
 				return err
 			}
 			suspended = true

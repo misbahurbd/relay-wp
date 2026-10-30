@@ -208,6 +208,55 @@ func (q *Queries) GetInvoice(ctx context.Context, arg GetInvoiceParams) (GetInvo
 	return i, err
 }
 
+const getLatestSubscriptionInvoiceID = `-- name: GetLatestSubscriptionInvoiceID :one
+SELECT id
+FROM invoices
+WHERE workspace_id = $1 AND subscription_id = $2
+ORDER BY created_at DESC, id DESC
+LIMIT 1
+`
+
+type GetLatestSubscriptionInvoiceIDParams struct {
+	WorkspaceID    uuid.UUID
+	SubscriptionID *uuid.UUID
+}
+
+// The subscription's newest invoice: refunding it in full ends the subscription.
+func (q *Queries) GetLatestSubscriptionInvoiceID(ctx context.Context, arg GetLatestSubscriptionInvoiceIDParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, getLatestSubscriptionInvoiceID, arg.WorkspaceID, arg.SubscriptionID)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const getOrderRefundTotals = `-- name: GetOrderRefundTotals :one
+SELECT COALESCE((SELECT sum(i.total_minor) FROM invoices i
+                 WHERE i.workspace_id = $1 AND i.order_id = $2
+                   AND i.status IN ('paid', 'partially_refunded', 'refunded')), 0)::bigint AS paid_minor,
+       COALESCE((SELECT sum(r.amount_minor) FROM refunds r JOIN invoices i ON i.id = r.invoice_id
+                 WHERE i.workspace_id = $1 AND i.order_id = $2
+                   AND r.status = 'succeeded'), 0)::bigint AS refunded_minor
+`
+
+type GetOrderRefundTotalsParams struct {
+	WorkspaceID uuid.UUID
+	OrderID     *uuid.UUID
+}
+
+type GetOrderRefundTotalsRow struct {
+	PaidMinor     int64
+	RefundedMinor int64
+}
+
+// What a lifetime deal has been paid across its invoices, and how much of it
+// has been refunded. A refunded duplicate payment counts on both sides.
+func (q *Queries) GetOrderRefundTotals(ctx context.Context, arg GetOrderRefundTotalsParams) (GetOrderRefundTotalsRow, error) {
+	row := q.db.QueryRow(ctx, getOrderRefundTotals, arg.WorkspaceID, arg.OrderID)
+	var i GetOrderRefundTotalsRow
+	err := row.Scan(&i.PaidMinor, &i.RefundedMinor)
+	return i, err
+}
+
 const listInvoices = `-- name: ListInvoices :many
 SELECT id, number, subscription_id, order_id, installment_id, provider, status, subtotal_minor, tax_minor,
        total_minor, currency, period_start, period_end, discount_minor, receipt_url, paid_at, created_at

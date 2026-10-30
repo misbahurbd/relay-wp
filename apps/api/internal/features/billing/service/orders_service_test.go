@@ -98,8 +98,10 @@ func newLTDHarness(t *testing.T, collection string) *ltdHarness {
 			return h.subCredit, nil
 		},
 		activateGrant: h.activateGrant,
-		suspendGrant: func(ctx context.Context, tx pgx.Tx, ws, id uuid.UUID) error {
-			_, err := repository.NewRepository(tx).SuspendGrant(ctx, gen.SuspendGrantParams{Now: &h.now, WorkspaceID: ws, GrantID: id})
+		suspendGrant: func(ctx context.Context, tx pgx.Tx, ws, id uuid.UUID, reason string) error {
+			_, err := repository.NewRepository(tx).SuspendGrant(ctx, gen.SuspendGrantParams{
+				Now: &h.now, Reason: &reason, WorkspaceID: ws, GrantID: id,
+			})
 			return err
 		},
 		restoreGrant: func(ctx context.Context, tx pgx.Tx, ws, id uuid.UUID) error {
@@ -185,7 +187,7 @@ func (h *ltdHarness) activateGrant(ctx context.Context, tx pgx.Tx, ws uuid.UUID,
 		return model.Grant{}, err
 	}
 	id, err := r.CreateGrant(ctx, gen.CreateGrantParams{
-		WorkspaceID: ws, PlanID: in.PlanID, Source: in.Source, OrderID: in.OrderID, Limits: []byte(`{}`),
+		WorkspaceID: ws, PlanID: in.PlanID, Source: in.Source, OrderID: in.OrderID,
 		StartsAt: in.StartsAt, EndsAt: in.EndsAt, CreatedBy: in.CreatedBy,
 	})
 	return model.Grant{ID: id, PlanID: in.PlanID, Source: in.Source, OrderID: in.OrderID, Status: model.GrantActive}, err
@@ -712,4 +714,63 @@ func TestCurrentOrder(t *testing.T) {
 	if _, err := h.l.order(h.ctx, uuid.New(), o.ID); !errors.Is(err, model.ErrNoOrder) {
 		t.Errorf("another workspace's order: %v, want ErrNoOrder", err)
 	}
+}
+
+// refundAll refunds every paid invoice of the order in full, as the provider's
+// refund webhooks would, and says how many it refunded.
+func (h *ltdHarness) refundAll(orderID uuid.UUID, keep int) int {
+	h.t.Helper()
+	rows, err := h.pool.Query(h.ctx, `SELECT external_payment_id, total_minor FROM invoices
+		WHERE workspace_id = $1 AND order_id = $2 ORDER BY created_at OFFSET $3`, h.ws, orderID, keep)
+	h.must(err)
+	type inv struct {
+		pay   string
+		total int64
+	}
+	var all []inv
+	for rows.Next() {
+		var i inv
+		h.must(rows.Scan(&i.pay, &i.total))
+		all = append(all, i)
+	}
+	h.must(rows.Err())
+	for _, i := range all {
+		ev := refundEvent(i.pay, "re_"+uuid.NewString(), i.total, payment.RefundSucceeded)
+		ev.Provider = payment.Stripe
+		h.must(database.WithTx(h.ctx, h.pool, func(tx pgx.Tx) error {
+			return h.l.onRefund(h.ctx, tx, h.ws, ev)
+		}))
+	}
+	return len(all)
+}
+
+func TestRefundingALifetimeDealEndsIt(t *testing.T) {
+	h := newLTDHarness(t, model.CollectionAppLink)
+	q, err := h.quote(h.basic, nil, "")
+	h.must(err)
+	o := h.buy(q, "")
+	wantGrant(t, h.grant(o.ID), model.GrantActive)
+
+	if n := h.refundAll(o.ID, 0); n != 1 {
+		t.Fatalf("refunded %d invoices, want 1", n)
+	}
+	wantOrder(t, h.order(o.ID), model.OrderRefunded, 30000)
+	wantGrant(t, h.grant(o.ID), model.GrantEnded)
+}
+
+func TestRefundingPartOfALifetimeDealKeepsIt(t *testing.T) {
+	h := newLTDHarness(t, model.CollectionProviderSchedule)
+	q, err := h.quote(h.basic, &h.basic3, "")
+	h.must(err)
+	o := h.buy(q, "sched_"+uuid.NewString())
+	h.must(h.providerPayment(o.ID, h.payment(10333), true))
+
+	// Refunding the second installment alone leaves the first paid.
+	if n := h.refundAll(o.ID, 1); n != 1 {
+		t.Fatalf("refunded %d invoices, want 1", n)
+	}
+	if got := h.order(o.ID).Status; got != model.OrderInInstallments {
+		t.Fatalf("order %s, want in_installments", got)
+	}
+	wantGrant(t, h.grant(o.ID), model.GrantActive)
 }

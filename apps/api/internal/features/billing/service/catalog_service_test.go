@@ -52,7 +52,7 @@ func TestCatalogListsEnabledProvidersOnly(t *testing.T) {
 		t.Fatal("plan missing from catalog")
 	}
 	plan := c.Plans[i]
-	if len(plan.Prices) != 3 || plan.Limits.Members != 10 {
+	if len(plan.Prices) != 3 || plan.Limits.Of("members") != 10 {
 		t.Fatalf("plan = %+v", plan)
 	}
 	for _, pr := range plan.Prices {

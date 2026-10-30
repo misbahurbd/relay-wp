@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -54,42 +53,49 @@ func (s *Service) Overview(ctx context.Context, workspaceID uuid.UUID) (model.Ov
 // CurrentPlan is the plan the workspace is on now: free with no grant, and
 // free limits while the grant is suspended.
 func (s *Service) CurrentPlan(ctx context.Context, workspaceID uuid.UUID) (model.CurrentPlan, error) {
-	g, err := currentGrant(ctx, repository.NewRepository(s.pool), workspaceID)
+	r := repository.NewRepository(s.pool)
+	g, err := currentGrant(ctx, r, workspaceID)
 	if err != nil {
 		return model.CurrentPlan{}, err
 	}
-	return planOf(g), nil
+	if planCodeOf(g) != model.FreePlan {
+		return model.CurrentPlan{PlanCode: g.PlanCode, PlanName: g.PlanName, Grant: g, Limits: g.PlanLimits.With(g.Overrides).Complete()}, nil
+	}
+	free, err := freeLimits(ctx, r)
+	if err != nil {
+		return model.CurrentPlan{}, err
+	}
+	return model.CurrentPlan{PlanCode: model.FreePlan, PlanName: freePlanName, Grant: g, Limits: free.Complete()}, nil
 }
 
-// planOf is the plan a workspace with current grant g (nil: none) is on.
-func planOf(g *model.Grant) model.CurrentPlan {
-	if g == nil {
-		return model.CurrentPlan{PlanCode: model.FreePlan, PlanName: freePlanName, Limits: model.FreeLimits}
+// planCodeOf is the plan a workspace with current grant g (nil: none) is on.
+func planCodeOf(g *model.Grant) string {
+	if g == nil || g.Status == model.GrantSuspended {
+		return model.FreePlan
 	}
-	if g.Status == model.GrantSuspended {
-		return model.CurrentPlan{PlanCode: model.FreePlan, PlanName: freePlanName, Grant: g, Limits: model.FreeLimits}
-	}
-	return model.CurrentPlan{PlanCode: g.PlanCode, PlanName: g.PlanName, Grant: g, Limits: g.Limits}
+	return g.PlanCode
 }
 
-// MemberLimit is how many seat-using members the current plan allows, or
-// model.Unlimited. For features/team, through an interface it declares (T8).
-func (s *Service) MemberLimit(ctx context.Context, workspaceID uuid.UUID) (int, error) {
+// freeLimits are the free plan row's limits (ADR 0008).
+func freeLimits(ctx context.Context, r repository.Repository) (model.Limits, error) {
+	raw, err := r.GetFreePlanLimits(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get free plan limits: %w", err)
+	}
+	return model.ParseLimits(raw)
+}
+
+// Limit is the current plan's cap on resource key, or model.Unlimited. Team
+// and WhatsApp call it through interfaces they declare (ADR 0008).
+func (s *Service) Limit(ctx context.Context, workspaceID uuid.UUID, key string) (int, error) {
+	if _, ok := model.ResourceByKey(key); !ok {
+		return 0, fmt.Errorf("plan limit: %q is not in the resource catalog", key)
+	}
 	p, err := s.CurrentPlan(ctx, workspaceID)
 	if err != nil {
 		return 0, err
 	}
-	return p.Limits.Members, nil
-}
-
-// NumberLimit is how many WhatsApp numbers the current plan allows, or
-// model.Unlimited. For features/whatsapp, through an interface it declares (T8).
-func (s *Service) NumberLimit(ctx context.Context, workspaceID uuid.UUID) (int, error) {
-	p, err := s.CurrentPlan(ctx, workspaceID)
-	if err != nil {
-		return 0, err
-	}
-	return p.Limits.WhatsAppNumbers, nil
+	return p.Limits.Of(key), nil
 }
 
 // DeletionCheck says whether the workspace can be deleted (Q17): not while a
@@ -179,11 +185,10 @@ func (s *Service) ActivateGrant(ctx context.Context, tx pgx.Tx, workspaceID uuid
 	if err != nil {
 		return model.Grant{}, fmt.Errorf("get plan: %w", err)
 	}
-	limits := plan.Limits
-	if in.Limits != nil {
-		if limits, err = json.Marshal(in.Limits); err != nil {
-			return model.Grant{}, fmt.Errorf("encode limits: %w", err)
-		}
+	if plan.Code == model.FreePlan {
+		return model.Grant{}, model.ErrInvalidInput.WithDetails(apperr.Detail{
+			Field: "plan_id", Message: "The free plan is what a workspace has with no grant; end the grant instead",
+		})
 	}
 	now := s.now()
 	cur, err := r.LockCurrentGrant(ctx, workspaceID)
@@ -201,7 +206,7 @@ func (s *Service) ActivateGrant(ctx context.Context, tx pgx.Tx, workspaceID uuid
 	}
 	if _, err := r.CreateGrant(ctx, gen.CreateGrantParams{
 		WorkspaceID: workspaceID, PlanID: in.PlanID, Source: in.Source, SubscriptionID: in.SubscriptionID,
-		OrderID: in.OrderID, Limits: limits, StartsAt: startsAt, EndsAt: in.EndsAt, CreatedBy: in.CreatedBy,
+		OrderID: in.OrderID, StartsAt: startsAt, EndsAt: in.EndsAt, CreatedBy: in.CreatedBy,
 		Reason: in.Reason,
 	}); err != nil {
 		if repository.IsForeignKey(err) {
@@ -245,10 +250,12 @@ func checkGrantInput(in model.GrantInput) error {
 
 // SuspendGrant suspends a grant in tx: the workspace falls back to free limits
 // and keeps its data (Q2). Track T4 calls it for an overdue installment.
-func (s *Service) SuspendGrant(ctx context.Context, tx pgx.Tx, workspaceID, grantID uuid.UUID) error {
+func (s *Service) SuspendGrant(ctx context.Context, tx pgx.Tx, workspaceID, grantID uuid.UUID, reason string) error {
 	r := repository.NewRepository(tx)
 	now := s.now()
-	if _, err := r.SuspendGrant(ctx, gen.SuspendGrantParams{Now: &now, WorkspaceID: workspaceID, GrantID: grantID}); err != nil {
+	if _, err := r.SuspendGrant(ctx, gen.SuspendGrantParams{
+		Now: &now, Reason: &reason, WorkspaceID: workspaceID, GrantID: grantID,
+	}); err != nil {
 		return fmt.Errorf("suspend grant: %w", err)
 	}
 	_, err := s.syncPlanCache(ctx, r, workspaceID)
@@ -277,17 +284,17 @@ func (s *Service) EndGrant(ctx context.Context, tx pgx.Tx, workspaceID, grantID 
 	return err
 }
 
-// ExpireTrials ends trial grants that reached ends_at and returns how many.
-// Run by the ExpireTrials worker.
-func (s *Service) ExpireTrials(ctx context.Context) (int, error) {
+// ExpireGrants ends card-less trials and staff grants that reached ends_at, and
+// returns how many. Run by the ExpireTrials worker.
+func (s *Service) ExpireGrants(ctx context.Context) (int, error) {
 	ended := 0
 	for {
 		now := s.now()
-		rows, err := repository.NewRepository(s.pool).ListExpiredTrialGrants(ctx, gen.ListExpiredTrialGrantsParams{
+		rows, err := repository.NewRepository(s.pool).ListExpiredGrants(ctx, gen.ListExpiredGrantsParams{
 			Now: &now, MaxRows: jobBatch,
 		})
 		if err != nil {
-			return ended, fmt.Errorf("list expired trials: %w", err)
+			return ended, fmt.Errorf("list expired grants: %w", err)
 		}
 		for _, g := range rows {
 			if err := database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
@@ -310,7 +317,7 @@ func (s *Service) syncPlanCache(ctx context.Context, r repository.Repository, wo
 	if err != nil {
 		return nil, err
 	}
-	params := gen.SetWorkspacePlanCacheParams{PlanCode: planOf(g).PlanCode, WorkspaceID: workspaceID}
+	params := gen.SetWorkspacePlanCacheParams{PlanCode: planCodeOf(g), WorkspaceID: workspaceID}
 	if g != nil && g.Status == model.GrantActive && g.Source == model.GrantFromTrial {
 		params.TrialEndsAt = g.EndsAt
 	}
@@ -333,13 +340,17 @@ func currentGrant(ctx context.Context, r repository.Repository, workspaceID uuid
 	if err != nil {
 		return nil, fmt.Errorf("get current grant: %w", err)
 	}
-	limits, err := model.ParseLimits(row.Limits)
+	planLimits, err := model.ParseLimits(row.PlanLimits)
 	if err != nil {
-		return nil, fmt.Errorf("grant %s: %w", row.ID, err)
+		return nil, fmt.Errorf("grant %s plan: %w", row.ID, err)
+	}
+	overrides, err := model.ParseLimits(row.Overrides)
+	if err != nil {
+		return nil, fmt.Errorf("grant %s overrides: %w", row.ID, err)
 	}
 	return &model.Grant{
 		ID: row.ID, PlanID: row.PlanID, PlanCode: row.PlanCode, PlanName: row.PlanName, Source: row.Source,
-		SubscriptionID: row.SubscriptionID, OrderID: row.OrderID, Status: row.Status, Limits: limits,
-		StartsAt: row.StartsAt, EndsAt: row.EndsAt, SuspendedAt: row.SuspendedAt,
+		SubscriptionID: row.SubscriptionID, OrderID: row.OrderID, Status: row.Status, PlanLimits: planLimits, Overrides: overrides,
+		StartsAt: row.StartsAt, EndsAt: row.EndsAt, SuspendedAt: row.SuspendedAt, SuspendReason: deref(row.SuspendReason),
 	}, nil
 }

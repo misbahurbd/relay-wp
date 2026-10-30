@@ -1,9 +1,9 @@
 -- ---------- Plans ----------
 
 -- name: ListActivePlans :many
-SELECT id, code, version, name, trial_days, trial_requires_card, limits, sort_order
+SELECT id, code, version, name, description, features, recommended, trial_days, trial_requires_card, limits, sort_order
 FROM plans
-WHERE is_active
+WHERE is_active AND code <> 'free'
 ORDER BY sort_order, code, version DESC;
 
 -- name: GetPlan :one
@@ -12,12 +12,26 @@ FROM plans
 WHERE id = @plan_id;
 
 -- name: CreatePlan :one
-INSERT INTO plans (code, version, name, trial_days, trial_requires_card, limits, sort_order)
-VALUES (@code, @version, @name, @trial_days, @trial_requires_card, @limits, @sort_order)
+INSERT INTO plans (code, version, name, description, features, recommended, trial_days, trial_requires_card,
+                   limits, sort_order)
+VALUES (@code, @version, @name, @description, COALESCE(@features::text[], '{}'), @recommended, @trial_days, @trial_requires_card,
+        @limits, @sort_order)
 RETURNING id;
 
 -- name: DeactivatePlan :execrows
-UPDATE plans SET is_active = false WHERE id = @plan_id AND is_active;
+-- The free plan stays: it is what a workspace with no grant uses.
+UPDATE plans SET is_active = false WHERE id = @plan_id AND is_active AND code <> 'free';
+
+-- name: LockPlanLimits :one
+SELECT code, limits FROM plans WHERE id = @plan_id FOR UPDATE;
+
+-- name: UpdatePlan :exec
+-- Everything but the code, version and prices may change in place (ADR 0008).
+UPDATE plans
+SET name = @name, description = @description, features = COALESCE(@features::text[], '{}'), recommended = @recommended,
+    trial_days = @trial_days, trial_requires_card = @trial_requires_card, limits = @limits, sort_order = @sort_order,
+    updated_at = now()
+WHERE id = @plan_id;
 
 -- ---------- Prices (never updated: deactivate and insert a replacement) ----------
 

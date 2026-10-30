@@ -109,6 +109,16 @@ WHERE renewal_mode = 'app' AND status IN ('active', 'past_due') AND current_peri
 ORDER BY current_period_end
 LIMIT @max_rows;
 
+-- name: ListPastDueGraceEnded :many
+-- Job only (all workspaces): past-due subscriptions whose grace has run out
+-- and whose plan is still active.
+SELECT s.id, s.workspace_id
+FROM subscriptions s
+WHERE s.status = 'past_due' AND s.grace_ends_at <= @now
+  AND EXISTS (SELECT 1 FROM plan_grants g WHERE g.subscription_id = s.id AND g.status = 'active')
+ORDER BY s.grace_ends_at
+LIMIT @max_rows;
+
 -- ---------- Change history (append-only) ----------
 
 -- name: CreateSubscriptionChange :exec
@@ -122,6 +132,13 @@ FROM subscription_changes
 WHERE workspace_id = @workspace_id AND subscription_id = @subscription_id
 ORDER BY effective_at DESC
 LIMIT 100;
+
+-- name: CountSubscriptionChanges :one
+-- How many changes the subscription has had: part of a plan change's
+-- idempotency key, so a retried change reuses its key and a new one doesn't.
+SELECT count(*)::int
+FROM subscription_changes
+WHERE workspace_id = @workspace_id AND subscription_id = @subscription_id;
 
 -- name: HasHadTrial :one
 -- Whether the workspace has used its one trial: it had a subscription that

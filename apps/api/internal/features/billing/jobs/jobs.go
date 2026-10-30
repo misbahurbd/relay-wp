@@ -58,7 +58,7 @@ func NewExpireTrialsWorker(svc *service.Service) *ExpireTrialsWorker {
 
 // Work ends trials that reached their end.
 func (w *ExpireTrialsWorker) Work(ctx context.Context, _ *river.Job[model.ExpireTrialsArgs]) error {
-	_, err := w.svc.ExpireTrials(ctx)
+	_, err := w.svc.ExpireGrants(ctx)
 	return err
 }
 
@@ -113,6 +113,40 @@ func (w *PlanCacheDriftWorker) Work(ctx context.Context, _ *river.Job[model.Plan
 	return err
 }
 
+// PastDueGraceWorker works PastDueGraceArgs.
+type PastDueGraceWorker struct {
+	river.WorkerDefaults[model.PastDueGraceArgs]
+	svc *service.Service
+}
+
+// NewPastDueGraceWorker builds the worker.
+func NewPastDueGraceWorker(svc *service.Service) *PastDueGraceWorker {
+	return &PastDueGraceWorker{svc: svc}
+}
+
+// Work suspends plans whose past-due grace has ended.
+func (w *PastDueGraceWorker) Work(ctx context.Context, _ *river.Job[model.PastDueGraceArgs]) error {
+	_, err := w.svc.SuspendPastDue(ctx)
+	return err
+}
+
+// StuckPaymentEventsWorker works StuckPaymentEventsArgs.
+type StuckPaymentEventsWorker struct {
+	river.WorkerDefaults[model.StuckPaymentEventsArgs]
+	svc *service.Service
+}
+
+// NewStuckPaymentEventsWorker builds the worker.
+func NewStuckPaymentEventsWorker(svc *service.Service) *StuckPaymentEventsWorker {
+	return &StuckPaymentEventsWorker{svc: svc}
+}
+
+// Work logs webhook events that never got processed.
+func (w *StuckPaymentEventsWorker) Work(ctx context.Context, _ *river.Job[model.StuckPaymentEventsArgs]) error {
+	_, err := w.svc.ReportStuckPaymentEvents(ctx)
+	return err
+}
+
 // PeriodicJobs are billing's scheduled passes. They run on the leader only.
 func PeriodicJobs() []*river.PeriodicJob {
 	every := func(d time.Duration, args river.JobArgs) *river.PeriodicJob {
@@ -126,5 +160,7 @@ func PeriodicJobs() []*river.PeriodicJob {
 		every(15*time.Minute, model.ExpireCheckoutsArgs{}),
 		every(6*time.Hour, model.PurgeEventPayloadsArgs{}),
 		every(24*time.Hour, model.PlanCacheDriftArgs{}),
+		every(15*time.Minute, model.PastDueGraceArgs{}),
+		every(time.Hour, model.StuckPaymentEventsArgs{}),
 	}
 }

@@ -257,6 +257,14 @@
           "id": {
             "type": "string"
           },
+          "overrides": {
+            "additionalProperties": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "description": "This workspace's own limits on top of the plan's; only the keys that differ",
+            "type": "object"
+          },
           "plan_code": {
             "type": "string"
           },
@@ -286,7 +294,8 @@
           "plan_name",
           "source",
           "status",
-          "ends_at"
+          "ends_at",
+          "overrides"
         ],
         "type": "object"
       },
@@ -353,6 +362,20 @@
           "code": {
             "type": "string"
           },
+          "description": {
+            "description": "One line about the plan; may be empty",
+            "type": "string"
+          },
+          "features": {
+            "description": "Bullet points for the pricing table, in order",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -360,7 +383,11 @@
             "type": "boolean"
           },
           "limits": {
-            "$ref": "#/components/schemas/LimitsDTO"
+            "additionalProperties": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "object"
           },
           "name": {
             "type": "string"
@@ -373,6 +400,10 @@
               "array",
               "null"
             ]
+          },
+          "recommended": {
+            "description": "The plan the pricing table points people to",
+            "type": "boolean"
           },
           "sort_order": {
             "format": "int64",
@@ -388,6 +419,11 @@
           "version": {
             "format": "int64",
             "type": "integer"
+          },
+          "workspaces": {
+            "description": "Workspaces whose limits come from this plan now; editing its limits reaches them all",
+            "format": "int64",
+            "type": "integer"
           }
         },
         "required": [
@@ -395,12 +431,16 @@
           "code",
           "version",
           "name",
+          "description",
+          "features",
+          "recommended",
           "trial_days",
           "trial_requires_card",
           "limits",
           "is_active",
           "sort_order",
-          "prices"
+          "prices",
+          "workspaces"
         ],
         "type": "object"
       },
@@ -529,6 +569,14 @@
           "id": {
             "type": "string"
           },
+          "limits": {
+            "additionalProperties": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "description": "What applies now, overrides included",
+            "type": "object"
+          },
           "name": {
             "type": "string"
           },
@@ -555,7 +603,8 @@
           "plan",
           "trial_ends_at",
           "created_at",
-          "grant"
+          "grant",
+          "limits"
         ],
         "type": "object"
       },
@@ -980,6 +1029,45 @@
         },
         "required": [
           "at_period_end"
+        ],
+        "type": "object"
+      },
+      "CardDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "brand": {
+            "description": "The card network, lower case",
+            "examples": [
+              "visa"
+            ],
+            "type": "string"
+          },
+          "exp_month": {
+            "examples": [
+              8
+            ],
+            "format": "int64",
+            "type": "integer"
+          },
+          "exp_year": {
+            "examples": [
+              2028
+            ],
+            "format": "int64",
+            "type": "integer"
+          },
+          "last4": {
+            "examples": [
+              "4242"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "brand",
+          "last4",
+          "exp_month",
+          "exp_year"
         ],
         "type": "object"
       },
@@ -1945,8 +2033,31 @@
             "minLength": 2,
             "type": "string"
           },
+          "description": {
+            "examples": [
+              "For growing teams running regular campaigns."
+            ],
+            "maxLength": 200,
+            "type": "string"
+          },
+          "features": {
+            "description": "Bullet points for the pricing table, in order; each at most 80 characters",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "limits": {
-            "$ref": "#/components/schemas/LimitsDTO"
+            "additionalProperties": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "description": "What the plan includes: a cap (-1 unlimited) per count or monthly resource, 1 per feature. A resource left out is not included.",
+            "type": "object"
           },
           "name": {
             "examples": [
@@ -1955,6 +2066,10 @@
             "maxLength": 80,
             "minLength": 1,
             "type": "string"
+          },
+          "recommended": {
+            "description": "Mark this as the plan the pricing table points people to",
+            "type": "boolean"
           },
           "sort_order": {
             "format": "int64",
@@ -2101,8 +2216,12 @@
             "$ref": "#/components/schemas/GrantDTO"
           },
           "limits": {
-            "$ref": "#/components/schemas/LimitsDTO",
-            "description": "What applies right now"
+            "additionalProperties": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "description": "What applies right now",
+            "type": "object"
           },
           "plan_code": {
             "description": "free with no grant, or while it is suspended",
@@ -2418,6 +2537,34 @@
           "starts_at",
           "ends_at",
           "suspended_at"
+        ],
+        "type": "object"
+      },
+      "GrantOverridesInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "overrides": {
+            "additionalProperties": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "description": "Only the keys that differ from the plan (0 takes a resource away); {} clears them",
+            "type": "object"
+          },
+          "reason": {
+            "description": "Kept with the change, for the record",
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          },
+          "workspace_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace_id",
+          "overrides",
+          "reason"
         ],
         "type": "object"
       },
@@ -3105,26 +3252,6 @@
         "required": [
           "invoices",
           "next_cursor"
-        ],
-        "type": "object"
-      },
-      "LimitsDTO": {
-        "additionalProperties": false,
-        "properties": {
-          "members": {
-            "description": "Seat-using members; -1 is unlimited",
-            "format": "int64",
-            "type": "integer"
-          },
-          "whatsapp_numbers": {
-            "description": "Connected WhatsApp numbers; -1 is unlimited",
-            "format": "int64",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "members",
-          "whatsapp_numbers"
         ],
         "type": "object"
       },
@@ -4390,6 +4517,38 @@
         ],
         "type": "object"
       },
+      "PaymentMethodOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "can_manage": {
+            "description": "The provider has a portal for changing cards",
+            "type": "boolean"
+          },
+          "card": {
+            "$ref": "#/components/schemas/CardDTO",
+            "description": "Read from the provider each time; absent when there is none, or the provider shares no card details"
+          },
+          "card_details": {
+            "description": "False when the provider never shares card details (Creem)",
+            "type": "boolean"
+          },
+          "provider": {
+            "description": "Absent until something is bought",
+            "enum": [
+              "stripe",
+              "creem",
+              "paypal",
+              "sslcommerz"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "card_details",
+          "can_manage"
+        ],
+        "type": "object"
+      },
       "PermissionDTO": {
         "additionalProperties": false,
         "properties": {
@@ -4467,11 +4626,31 @@
             ],
             "type": "string"
           },
+          "description": {
+            "examples": [
+              "For growing teams running regular campaigns."
+            ],
+            "type": "string"
+          },
+          "features": {
+            "description": "Bullet points for the pricing table, in order",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "id": {
             "type": "string"
           },
           "limits": {
-            "$ref": "#/components/schemas/LimitsDTO"
+            "additionalProperties": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "object"
           },
           "name": {
             "examples": [
@@ -4487,6 +4666,10 @@
               "array",
               "null"
             ]
+          },
+          "recommended": {
+            "description": "The plan the pricing table points people to",
+            "type": "boolean"
           },
           "trial_days": {
             "description": "0: no trial",
@@ -4506,10 +4689,27 @@
           "code",
           "version",
           "name",
+          "description",
+          "features",
+          "recommended",
           "trial_days",
           "trial_requires_card",
           "limits",
           "prices"
+        ],
+        "type": "object"
+      },
+      "PortalSessionOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "url": {
+            "description": "The provider's card management page; short-lived, open it at once",
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
         ],
         "type": "object"
       },
@@ -5078,6 +5278,75 @@
         "required": [
           "token",
           "new_password"
+        ],
+        "type": "object"
+      },
+      "ResourceDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "enforced": {
+            "description": "A feature checks it; until then it only shows on the pricing table",
+            "type": "boolean"
+          },
+          "key": {
+            "examples": [
+              "members"
+            ],
+            "type": "string"
+          },
+          "kind": {
+            "description": "count: how many at once; monthly: how many per calendar month (UTC); access: a feature, in or out",
+            "enum": [
+              "count",
+              "monthly",
+              "access"
+            ],
+            "type": "string"
+          },
+          "label": {
+            "examples": [
+              "Team seats"
+            ],
+            "type": "string"
+          },
+          "required": {
+            "description": "Every plan includes it",
+            "type": "boolean"
+          },
+          "unit": {
+            "description": "One of it; empty for a feature",
+            "examples": [
+              "team seat"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "kind",
+          "unit",
+          "label",
+          "required",
+          "enforced"
+        ],
+        "type": "object"
+      },
+      "ResourcesOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "resources": {
+            "description": "What plans can include, in display order: limits first, then features",
+            "items": {
+              "$ref": "#/components/schemas/ResourceDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "resources"
         ],
         "type": "object"
       },
@@ -6270,6 +6539,77 @@
         },
         "type": "object"
       },
+      "UpdatePlanInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "examples": [
+              "For growing teams running regular campaigns."
+            ],
+            "maxLength": 200,
+            "type": "string"
+          },
+          "features": {
+            "description": "Bullet points for the pricing table, in order; each at most 80 characters",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "limits": {
+            "additionalProperties": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "description": "What the plan includes: a cap (-1 unlimited) per count or monthly resource, 1 per feature. A resource left out is not included.",
+            "type": "object"
+          },
+          "name": {
+            "examples": [
+              "Growth"
+            ],
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "reason": {
+            "description": "Required when the limits change; kept with the change",
+            "maxLength": 300,
+            "type": "string"
+          },
+          "recommended": {
+            "description": "Mark this as the plan the pricing table points people to",
+            "type": "boolean"
+          },
+          "sort_order": {
+            "format": "int64",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "trial_days": {
+            "format": "int64",
+            "maximum": 90,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "trial_requires_card": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "trial_days",
+          "trial_requires_card",
+          "limits",
+          "sort_order"
+        ],
+        "type": "object"
+      },
       "UpdatePreferencesInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -7002,6 +7342,58 @@
         ]
       }
     },
+    "/v1/admin/billing/plans/{id}": {
+      "put": {
+        "operationId": "admin-update-plan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlanInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Change a plan version in place (not its prices); new limits reach every workspace on it now",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/v1/admin/billing/plans/{id}/deactivate": {
       "post": {
         "operationId": "admin-deactivate-plan",
@@ -7315,6 +7707,48 @@
           }
         ],
         "summary": "End a manual grant or trial; the workspace goes to the free plan",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/workspaces/grant-overrides": {
+      "put": {
+        "operationId": "admin-set-grant-overrides",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantOverridesInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Set a workspace's own limits on top of its plan's; {} clears them",
         "tags": [
           "admin"
         ]
@@ -9100,6 +9534,37 @@
         ]
       }
     },
+    "/v1/billing/resources": {
+      "get": {
+        "operationId": "list-billing-resources",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourcesOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "What plans can include, in display order (ADR 0008)",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
     "/v1/invitations/accept": {
       "post": {
         "operationId": "accept-invitation",
@@ -10565,6 +11030,108 @@
           }
         ],
         "summary": "Start a checkout for a defaulted order's remaining balance",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/v1/workspace/billing/payment-method": {
+      "get": {
+        "operationId": "get-payment-method",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "The card the payment provider charges next, read from the provider",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/v1/workspace/billing/portal-session": {
+      "post": {
+        "operationId": "create-portal-session",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalSessionOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "A link to the payment provider's page for changing cards",
         "tags": [
           "billing"
         ]

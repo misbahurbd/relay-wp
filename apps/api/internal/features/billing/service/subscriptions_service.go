@@ -172,9 +172,13 @@ func (s *Service) ChangePlan(ctx context.Context, workspaceID, _, planPriceID uu
 	if err != nil || pp.ExternalPriceID == nil {
 		return model.Subscription{}, model.ErrChangeNotSupported
 	}
+	key, err := changeKey(ctx, r, sub, "change", target.ID)
+	if err != nil {
+		return model.Subscription{}, err
+	}
 	changed, err := g.ChangeSubscription(ctx, payment.ChangeRequest{
 		ExternalSubscriptionID: extSub, ExternalPriceID: *pp.ExternalPriceID, ProrateNow: immediate,
-		IdempotencyKey: fmt.Sprintf("change:%s:%s:%d", sub.ID, target.ID, now.Unix()),
+		IdempotencyKey: key,
 	})
 	if err != nil {
 		return model.Subscription{}, s.gatewayErr("change subscription", err)
@@ -253,9 +257,12 @@ func (s *Service) CancelPendingChange(ctx context.Context, workspaceID, _ uuid.U
 		return model.Subscription{}, model.ErrChangeNotSupported
 	}
 	// The provider was told the new price for the next period; put the current one back.
+	key, err := changeKey(ctx, r, sub, "undo", sub.PlanPriceID)
+	if err != nil {
+		return model.Subscription{}, err
+	}
 	if _, err := g.ChangeSubscription(ctx, payment.ChangeRequest{
-		ExternalSubscriptionID: extSub, ExternalPriceID: *pp.ExternalPriceID,
-		IdempotencyKey: fmt.Sprintf("change:%s:%s:%d", sub.ID, sub.PlanPriceID, s.now().Unix()),
+		ExternalSubscriptionID: extSub, ExternalPriceID: *pp.ExternalPriceID, IdempotencyKey: key,
 	}); err != nil {
 		return model.Subscription{}, s.gatewayErr("undo plan change", err)
 	}
@@ -490,11 +497,7 @@ func (s *Service) SyncSubscription(ctx context.Context, tx pgx.Tx, workspaceID, 
 		if now.Before(*next.GraceEndsAt) {
 			return s.ensurePriceGrant(ctx, tx, workspaceID, sub.ID, sub.PlanPriceID)
 		}
-		g, err := currentGrant(ctx, r, workspaceID)
-		if err != nil || g == nil || !sameID(g.SubscriptionID, sub.ID) {
-			return err
-		}
-		return s.SuspendGrant(ctx, tx, workspaceID, g.ID)
+		return s.suspendPastDue(ctx, tx, workspaceID, sub.ID)
 	default:
 		return nil
 	}
@@ -604,14 +607,19 @@ func (s *Service) ensurePriceGrant(ctx context.Context, tx pgx.Tx, workspaceID, 
 }
 
 // ensureSubscriptionGrant makes the subscription's grant for planID current:
-// a no-op if it already is, restored if it was suspended, a new grant otherwise.
+// a no-op if it already is, restored if it was suspended for being past due, a
+// new grant otherwise. A grant suspended over a lost dispute waits for support.
 func (s *Service) ensureSubscriptionGrant(ctx context.Context, tx pgx.Tx, workspaceID, subscriptionID, planID uuid.UUID) error {
 	g, err := currentGrant(ctx, repository.NewRepository(tx), workspaceID)
 	if err != nil {
 		return err
 	}
+	if g != nil && sameID(g.SubscriptionID, subscriptionID) && g.Status == model.GrantSuspended &&
+		g.SuspendReason == model.SuspendDispute {
+		return nil // support lifts it, not a renewal or a plan change
+	}
 	if g != nil && sameID(g.SubscriptionID, subscriptionID) && g.PlanID == planID {
-		if g.Status == model.GrantSuspended {
+		if g.Status == model.GrantSuspended && g.SuspendReason == model.SuspendPastDue {
 			return s.RestoreGrant(ctx, tx, workspaceID, g.ID)
 		}
 		return nil
@@ -620,6 +628,62 @@ func (s *Service) ensureSubscriptionGrant(ctx context.Context, tx pgx.Tx, worksp
 		PlanID: planID, Source: model.GrantFromSubscription, SubscriptionID: &subscriptionID, StartsAt: s.now(),
 	})
 	return err
+}
+
+// changeKey is the provider idempotency key for a plan change. It is built from
+// the subscription's state, not the clock: retrying a change whose database
+// write failed sends the same key, so the provider replays its first answer and
+// charges nothing twice, while the next real change (which logs a row in
+// subscription_changes) gets a new key.
+func changeKey(ctx context.Context, r repository.Repository, sub model.Subscription, op string, to uuid.UUID) (string, error) {
+	n, err := r.CountSubscriptionChanges(ctx, gen.CountSubscriptionChangesParams{
+		WorkspaceID: sub.WorkspaceID, SubscriptionID: sub.ID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("count subscription changes: %w", err)
+	}
+	pending := "none"
+	if sub.PendingPlanPriceID != nil {
+		pending = sub.PendingPlanPriceID.String()
+	}
+	return fmt.Sprintf("%s:%s:%d:%s:%s:%s", op, sub.ID, n, sub.PlanPriceID, pending, to), nil
+}
+
+// suspendPastDue suspends the current grant if it comes from this subscription
+// and is still active.
+func (s *Service) suspendPastDue(ctx context.Context, tx pgx.Tx, workspaceID, subscriptionID uuid.UUID) error {
+	g, err := currentGrant(ctx, repository.NewRepository(tx), workspaceID)
+	if err != nil || g == nil || !sameID(g.SubscriptionID, subscriptionID) || g.Status != model.GrantActive {
+		return err
+	}
+	return s.SuspendGrant(ctx, tx, workspaceID, g.ID, model.SuspendPastDue)
+}
+
+// SuspendPastDue suspends the plan of every past-due subscription whose grace
+// has run out, and returns how many it suspended. Providers send no event when
+// grace ends, so the PastDueGrace worker runs it.
+func (s *Service) SuspendPastDue(ctx context.Context) (int, error) {
+	suspended := 0
+	for {
+		now := s.now()
+		rows, err := repository.NewRepository(s.pool).ListPastDueGraceEnded(ctx, gen.ListPastDueGraceEndedParams{
+			Now: &now, MaxRows: jobBatch,
+		})
+		if err != nil {
+			return suspended, fmt.Errorf("list past-due subscriptions: %w", err)
+		}
+		for _, row := range rows {
+			if err := database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+				return s.suspendPastDue(ctx, tx, row.WorkspaceID, row.ID)
+			}); err != nil {
+				return suspended, err
+			}
+			suspended++
+		}
+		if len(rows) < jobBatch {
+			return suspended, nil
+		}
+	}
 }
 
 // endSubscriptionGrant ends the current grant if it comes from this subscription.

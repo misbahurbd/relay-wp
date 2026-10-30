@@ -16,29 +16,40 @@ import {
 import { errorMessage } from '#/lib/api'
 import {
   catalogQueryOptions,
+  resourcesQueryOptions,
   useEndGrant,
   useRestoreGrant,
   workspacesQueryOptions,
 } from '../../api/admin.api'
-import type { AdminWorkspace } from '../../types'
+import type { AdminWorkspace, Resource } from '../../types'
+import { FREE_PLAN, limitsSummary } from '../kit/limits'
 import { LoadError } from '../kit/load-error'
 import { GrantDialog } from './grant-dialog'
+import { OverridesDialog } from './overrides-dialog'
 
 const day = (s: string) => new Date(s).toLocaleDateString()
 
-function PlanCell({ w }: { w: AdminWorkspace }) {
+function PlanCell({ w, resources }: { w: AdminWorkspace; resources: Resource[] }) {
   const g = w.grant
-  if (!g) return <Badge variant="neutral">free</Badge>
+  const custom = g && Object.keys(g.overrides).length > 0
   return (
     <div className="flex flex-col gap-0.5">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="font-bold">{g.plan_name}</span>
-        <Badge variant={g.status === 'active' ? 'success' : 'warning'}>{g.status}</Badge>
-      </div>
-      <span className="text-xs text-muted-foreground">
-        {g.source}
-        {g.ends_at && ` · until ${day(g.ends_at)}`}
-      </span>
+      {g ? (
+        <>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="font-bold">{g.plan_name}</span>
+            <Badge variant={g.status === 'active' ? 'success' : 'warning'}>{g.status}</Badge>
+            {custom && <Badge variant="neutral">own limits</Badge>}
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {g.source}
+            {g.ends_at && ` · until ${day(g.ends_at)}`}
+          </span>
+        </>
+      ) : (
+        <Badge variant="neutral">free</Badge>
+      )}
+      <span className="text-xs text-muted-foreground">{limitsSummary(resources, w.limits)}</span>
     </div>
   )
 }
@@ -51,16 +62,18 @@ export function WorkspacesPanel() {
     placeholderData: keepPreviousData,
   })
   const catalog = useQuery(catalogQueryOptions())
+  const resources = useQuery(resourcesQueryOptions())
   const end = useEndGrant()
   const restore = useRestoreGrant()
   const [granting, setGranting] = useState<AdminWorkspace | null>(null)
+  const [limiting, setLimiting] = useState<AdminWorkspace | null>(null)
 
   const act = (run: Promise<unknown>, done: string) =>
     run.then(
       () => toast.success(done),
       (e) => toast.error(errorMessage(e)),
     )
-  const plans = (catalog.data?.plans ?? []).filter((p) => p.is_active)
+  const plans = (catalog.data?.plans ?? []).filter((p) => p.is_active && p.code !== FREE_PLAN)
 
   return (
     <div className="flex flex-col gap-4">
@@ -104,7 +117,7 @@ export function WorkspacesPanel() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <PlanCell w={w} />
+                      <PlanCell w={w} resources={resources.data ?? []} />
                     </TableCell>
                     <TableCell className="text-sm">{day(w.created_at)}</TableCell>
                     <TableCell>
@@ -119,6 +132,11 @@ export function WorkspacesPanel() {
                             }
                           >
                             Restore
+                          </Button>
+                        )}
+                        {g && resources.data && (
+                          <Button size="xs" variant="outline" onClick={() => setLimiting(w)}>
+                            Limits
                           </Button>
                         )}
                         {!paid && (
@@ -156,6 +174,13 @@ export function WorkspacesPanel() {
       )}
       {granting && (
         <GrantDialog workspace={granting} plans={plans} onClose={() => setGranting(null)} />
+      )}
+      {limiting && resources.data && (
+        <OverridesDialog
+          workspace={limiting}
+          resources={resources.data}
+          onClose={() => setLimiting(null)}
+        />
       )}
     </div>
   )

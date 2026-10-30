@@ -17,6 +17,7 @@ const (
 	reasonBadPhone  = "invalid phone (include the country code)"
 	reasonBadEmail  = "invalid email"
 	reasonDuplicate = "duplicate phone in file"
+	reasonOverLimit = "over your plan's contact limit"
 )
 
 // plannedRow is one data row after the mapping. reason is set when it can't be imported.

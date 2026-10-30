@@ -7,7 +7,7 @@ import { ToggleGroup, ToggleGroupItem } from '#/components/ui/toggle-group'
 import { cn } from '#/lib/utils'
 import type { Cadence, Catalog, Plan, Price, Selection } from '../../types'
 import { describeInstallments } from '../kit/installments'
-import { formatMoney, limitLines, perInterval, yearlySaving } from '../kit/money'
+import { formatMoney, formatPrice, limitLines, yearlySaving } from '../kit/money'
 
 const PAY_ONCE = 'once'
 
@@ -37,9 +37,18 @@ type Props = {
   /** The price this workspace pays now, marked "Current plan". */
   currentPriceId?: string
   action: PlanAction
+  /** Places the cadence toggle, e.g. beside a section title. Without it the toggle is centred. */
+  header?: (toggle: ReactNode) => ReactNode
 }
 
-export function PricingTable({ catalog, cadence, onCadence, currentPriceId, action }: Props) {
+export function PricingTable({
+  catalog,
+  cadence,
+  onCadence,
+  currentPriceId,
+  action,
+  header,
+}: Props) {
   const cadences = cadencesOf(catalog)
   const plans = catalog.plans.filter((plan) => priceFor(plan, cadence))
   const bestSaving = Math.max(
@@ -47,30 +56,36 @@ export function PricingTable({ catalog, cadence, onCadence, currentPriceId, acti
     ...catalog.plans.map((p) => yearlySaving(priceFor(p, 'month'), priceFor(p, 'year'))),
   )
 
-  return (
-    <div className="flex flex-col gap-6">
-      {cadences.length > 1 && (
-        <ToggleGroup
-          type="single"
-          variant="outline"
-          value={cadence}
-          // Radix lets a pressed item be unpressed; keep one cadence chosen.
-          onValueChange={(v) => v && onCadence(v as Cadence)}
-          aria-label="Billing period"
-          className="self-center"
+  const toggle = cadences.length > 1 && (
+    <ToggleGroup
+      type="single"
+      value={cadence}
+      // Radix lets a pressed item be unpressed; keep one cadence chosen.
+      onValueChange={(v) => v && onCadence(v as Cadence)}
+      aria-label="Billing period"
+      className="rounded-lg bg-muted p-1"
+    >
+      {cadences.map((c) => (
+        <ToggleGroupItem
+          key={c}
+          value={c}
+          className="h-9 gap-1.5 rounded-md border-0 px-3.5 text-[13px] font-bold text-foreground data-[state=on]:bg-card data-[state=on]:shadow-sm"
         >
-          {cadences.map((c) => (
-            <ToggleGroupItem key={c} value={c} className="h-11 px-4 font-bold">
-              {c === 'month' ? 'Monthly' : c === 'year' ? 'Yearly' : 'Lifetime'}
-              {c === 'year' && bestSaving > 0 && (
-                <span className="text-xs font-bold text-brand-text">Save up to {bestSaving}%</span>
-              )}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-      )}
+          {c === 'month' ? 'Monthly' : c === 'year' ? 'Yearly' : 'Lifetime'}
+          {c === 'year' && bestSaving > 0 && (
+            <span className="rounded-sm bg-brand-soft px-1.5 py-px text-[11px] text-brand-text">
+              Save {bestSaving}%
+            </span>
+          )}
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
+  )
 
-      <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+  return (
+    <div className="flex flex-col gap-4">
+      {header ? header(toggle) : toggle && <div className="self-center">{toggle}</div>}
+      <ul className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
         {plans.map((plan) => {
           const price = priceFor(plan, cadence)
           if (!price) return null
@@ -79,7 +94,6 @@ export function PricingTable({ catalog, cadence, onCadence, currentPriceId, acti
               <PlanCard
                 plan={plan}
                 price={price}
-                saving={cadence === 'year' ? yearlySaving(priceFor(plan, 'month'), price) : 0}
                 current={price.id === currentPriceId}
                 action={action}
               />
@@ -94,13 +108,11 @@ export function PricingTable({ catalog, cadence, onCadence, currentPriceId, acti
 function PlanCard({
   plan,
   price,
-  saving,
   current,
   action,
 }: {
   plan: Plan
   price: Price
-  saving: number
   current: boolean
   action: PlanAction
 }) {
@@ -109,48 +121,50 @@ function PlanCard({
   const offer = offers.find((o) => o.id === offerId)
   const headingId = useId()
   const selection: Selection = { priceId: price.id, offerId: offer?.id }
+  const features = plan.features.length > 0 ? plan.features : limitLines(plan.limits)
+  const yearly = price.interval === 'year'
+  // Yearly prices show what they come to each month, as the design does.
+  const shown = yearly ? Math.round(price.amount_minor / 12) : price.amount_minor
 
   return (
     <article
       aria-labelledby={headingId}
       className={cn(
-        'flex w-full flex-col gap-5 rounded-xl border bg-card p-5 shadow-card sm:p-6',
-        current && 'border-primary',
+        'flex w-full flex-col gap-3.5 rounded-xl bg-card p-5',
+        current ? 'border-2 border-brand' : 'border',
       )}
     >
-      <header className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 id={headingId} className="text-lg font-extrabold tracking-tight">
-            {plan.name}
-          </h3>
-          {current && <Badge variant="success">Current plan</Badge>}
-          {saving > 0 && <Badge variant="info">Save {saving}%</Badge>}
-        </div>
-        <p className="flex flex-wrap items-baseline gap-x-1.5">
-          <span className="text-[28px] font-extrabold tracking-[-0.02em]">
-            {formatMoney(price.amount_minor, price.currency)}
-          </span>
-          <span className="text-[13px] text-muted-foreground">{perInterval(price)}</span>
-        </p>
-        {price.billing_type === 'recurring' && plan.trial_days > 0 && (
-          <p className="text-[13px] text-muted-foreground">
-            {plan.trial_days}-day free trial
-            {plan.trial_requires_card ? ', card required' : ', no card needed'}
-          </p>
-        )}
-        {price.billing_type === 'one_time' && (
-          <p className="text-[13px] text-muted-foreground">Pay once, keep the plan for life.</p>
+      <header className="flex min-h-[26px] items-center justify-between gap-2">
+        <h3 id={headingId} className="text-lg font-extrabold">
+          {plan.name}
+        </h3>
+        {current ? (
+          <Badge variant="success" className="rounded-full px-2.5">
+            Current plan
+          </Badge>
+        ) : (
+          plan.recommended && (
+            <Badge variant="info" className="rounded-full px-2.5">
+              Recommended
+            </Badge>
+          )
         )}
       </header>
+      {plan.description && (
+        <p className="min-h-[38px] text-[13px] text-muted-foreground">{plan.description}</p>
+      )}
 
-      <ul className="flex flex-col gap-2 text-sm">
-        {limitLines(plan.limits).map((line) => (
-          <li key={line} className="flex items-center gap-2">
-            <CheckIcon className="size-4 flex-none text-brand-text" aria-hidden="true" />
-            {line}
-          </li>
-        ))}
-      </ul>
+      <div className="flex flex-col gap-0.5">
+        <p className="flex flex-wrap items-baseline gap-x-1.5">
+          <span className="text-[34px] leading-tight font-extrabold tracking-[-0.02em]">
+            {formatPrice(shown, price.currency)}
+          </span>
+          <span className="text-muted-foreground">
+            {price.billing_type === 'one_time' ? 'once' : '/ month'}
+          </span>
+        </p>
+        <p className="text-xs text-muted-foreground">{billedNote(plan, price)}</p>
+      </div>
 
       {offers.length > 0 && (
         <fieldset className="flex flex-col gap-2">
@@ -186,11 +200,33 @@ function PlanCard({
         </fieldset>
       )}
 
-      <div className="mt-auto flex flex-col gap-2">
-        {action({ plan, price, selection, current })}
-      </div>
+      <div className="flex flex-col gap-2">{action({ plan, price, selection, current })}</div>
+
+      <ul className="flex flex-col gap-[9px] text-[13px]">
+        {features.map((line) => (
+          <li key={line} className="flex items-start gap-2">
+            <CheckIcon className="mt-0.5 size-4 flex-none text-brand" aria-hidden="true" />
+            <span>{line}</span>
+          </li>
+        ))}
+      </ul>
     </article>
   )
+}
+
+/** The small line under a price: how and when it is billed. */
+function billedNote(plan: Plan, price: Price) {
+  if (price.billing_type === 'one_time') return 'Pay once, keep the plan for life.'
+  const trial =
+    plan.trial_days > 0
+      ? `${plan.trial_days}-day free trial${plan.trial_requires_card ? ', card required' : ''}, then `
+      : ''
+  const billed =
+    price.interval === 'year'
+      ? `billed ${formatPrice(price.amount_minor, price.currency)} yearly`
+      : 'billed monthly, cancel anytime'
+  const note = trial + billed
+  return note[0].toUpperCase() + note.slice(1)
 }
 
 function OfferOption({

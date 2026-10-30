@@ -86,6 +86,13 @@ type Gateway interface {
 	// subscriptions the provider renews. One-time payments never need one:
 	// Relay charges the reduced amount.
 	CreateCoupon(ctx context.Context, req CouponRequest) (Coupon, error)
+	// Card returns the card the provider charges next, or nil when the
+	// customer has none. ErrUnsupported when the provider doesn't share card
+	// details. Nothing it returns is stored or logged.
+	Card(ctx context.Context, req CardRequest) (*Card, error)
+	// PortalURL returns a short-lived link to the provider's page where the
+	// customer manages their cards.
+	PortalURL(ctx context.Context, req PortalRequest) (string, error)
 
 	// ParseWebhook verifies a webhook delivery and normalises it. A bad or
 	// missing signature returns ErrInvalidSignature. A verified event Relay
@@ -320,6 +327,29 @@ type Coupon struct {
 	ExternalPromotionCodeID string
 }
 
+// CardRequest names the customer whose card to read.
+type CardRequest struct {
+	ExternalCustomerID string
+	// ExternalSubscriptionID is optional: a card set on the subscription wins over the customer's default.
+	ExternalSubscriptionID string
+}
+
+// Card is a saved card as the provider describes it. Never a card number.
+type Card struct {
+	// Brand is the provider's card network name in lower case: visa, mastercard, amex, …
+	Brand    string
+	Last4    string
+	ExpMonth int
+	ExpYear  int
+}
+
+// PortalRequest opens the provider's customer portal.
+type PortalRequest struct {
+	ExternalCustomerID string
+	// ReturnURL is where the portal sends the customer back, for providers that support one.
+	ReturnURL string
+}
+
 // EventType is a normalised webhook event. Billing dispatches on it.
 type EventType string
 
@@ -462,7 +492,7 @@ func New(cfg config.Payment, dev bool) (*Registry, error) {
 			if !dev {
 				return nil, fmt.Errorf("PAYMENT_PROVIDERS: %q is only allowed in development", entry)
 			}
-			gateways = append(gateways, NewFake(p, DevFakeWebhookSecret))
+			gateways = append(gateways, NewDevFake(p))
 			continue
 		}
 		var (

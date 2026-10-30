@@ -4,6 +4,7 @@ import {
   changeSubscription,
   completeTestCheckout,
   createCheckoutSession,
+  createPortalSession,
   type ProviderDto,
   payInstallment,
   previewDiscount,
@@ -185,5 +186,19 @@ export function useUpdateProfile(workspaceId: string) {
       return data
     },
     onSuccess: (data) => queryClient.setQueryData(billingKeys.profile(workspaceId), data),
+  })
+}
+
+/** Opens the payment provider's page for changing cards, in this tab. */
+export function useOpenCardPortal(workspaceId: string) {
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await createPortalSession({
+        headers: inWorkspace(workspaceId),
+        throwOnError: true,
+      })
+      return data.url
+    },
+    onSuccess: (url) => window.location.assign(url),
   })
 }

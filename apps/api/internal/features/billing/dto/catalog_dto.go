@@ -6,12 +6,38 @@ import (
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/model"
 )
 
-type LimitsDTO struct {
-	Members         int `json:"members" doc:"Seat-using members; -1 is unlimited"`
-	WhatsAppNumbers int `json:"whatsapp_numbers" doc:"Connected WhatsApp numbers; -1 is unlimited"`
+// LimitsDTO maps a resource key (GET /v1/billing/resources) to what is included: a cap
+// (-1 unlimited) for count and monthly resources, 1 for a feature, 0 for not included.
+type LimitsDTO map[string]int
+
+// ToLimitsDTO fills in every resource, so clients never apply the missing-key rule.
+func ToLimitsDTO(l model.Limits) LimitsDTO { return LimitsDTO(l.Complete()) }
+
+type ResourceDTO struct {
+	Key      string `json:"key" example:"members"`
+	Kind     string `json:"kind" enum:"count,monthly,access" doc:"count: how many at once; monthly: how many per calendar month (UTC); access: a feature, in or out"`
+	Unit     string `json:"unit" example:"team seat" doc:"One of it; empty for a feature"`
+	Label    string `json:"label" example:"Team seats"`
+	Required bool   `json:"required" doc:"Every plan includes it"`
+	Enforced bool   `json:"enforced" doc:"A feature checks it; until then it only shows on the pricing table"`
 }
 
-func ToLimitsDTO(l model.Limits) LimitsDTO { return LimitsDTO(l) }
+type ResourcesOutput struct {
+	Body struct {
+		Resources []ResourceDTO `json:"resources" doc:"What plans can include, in display order: limits first, then features"`
+	}
+}
+
+func ToResourcesOutput(rs []model.Resource) *ResourcesOutput {
+	out := &ResourcesOutput{}
+	out.Body.Resources = make([]ResourceDTO, 0, len(rs))
+	for _, r := range rs {
+		out.Body.Resources = append(out.Body.Resources, ResourceDTO{
+			Key: r.Key, Kind: string(r.Kind), Unit: r.Unit, Label: r.Label, Required: r.Required, Enforced: r.Enforced,
+		})
+	}
+	return out
+}
 
 type OfferProviderDTO struct {
 	Provider   string `json:"provider" enum:"stripe,creem,paypal,sslcommerz"`
@@ -65,6 +91,9 @@ type PlanDTO struct {
 	Code              string     `json:"code" example:"growth"`
 	Version           int        `json:"version"`
 	Name              string     `json:"name" example:"Growth"`
+	Description       string     `json:"description" example:"For growing teams running regular campaigns."`
+	Features          []string   `json:"features" doc:"Bullet points for the pricing table, in order"`
+	Recommended       bool       `json:"recommended" doc:"The plan the pricing table points people to"`
 	TrialDays         int        `json:"trial_days" doc:"0: no trial"`
 	TrialRequiresCard bool       `json:"trial_requires_card"`
 	Limits            LimitsDTO  `json:"limits"`
@@ -94,7 +123,8 @@ func ToCatalogOutput(c model.Catalog) *CatalogOutput {
 	out.Body.Plans = make([]PlanDTO, 0, len(c.Plans))
 	for _, p := range c.Plans {
 		plan := PlanDTO{
-			ID: p.ID, Code: p.Code, Version: p.Version, Name: p.Name, TrialDays: p.TrialDays,
+			ID: p.ID, Code: p.Code, Version: p.Version, Name: p.Name, Description: p.Description,
+			Features: nonNil(p.Features), Recommended: p.Recommended, TrialDays: p.TrialDays,
 			TrialRequiresCard: p.TrialRequiresCard, Limits: ToLimitsDTO(p.Limits),
 			Prices: make([]PriceDTO, 0, len(p.Prices)),
 		}

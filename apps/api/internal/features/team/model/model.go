@@ -8,6 +8,9 @@ import (
 	"github.com/misbahurbd/relay-wp/apps/api/internal/shared/authctx"
 )
 
+// PlanResourceMembers is the billing resource that caps seat-using members (ADR 0008).
+const PlanResourceMembers = "members"
+
 // System role keys. Every workspace has one role of each.
 const (
 	RoleOwner  = "owner"

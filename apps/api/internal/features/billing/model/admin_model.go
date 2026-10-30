@@ -17,16 +17,24 @@ type AdminCatalog struct {
 
 // AdminPlan is one plan version with every price it has had.
 type AdminPlan struct {
-	ID                uuid.UUID
-	Code              string
-	Version           int
-	Name              string
+	ID      uuid.UUID
+	Code    string
+	Version int
+	Name    string
+	// Description is the pricing table's one line about the plan.
+	Description string
+	// Features are the pricing table's bullet points, in order.
+	Features []string
+	// Recommended marks the plan the pricing table points people to.
+	Recommended       bool
 	TrialDays         int
 	TrialRequiresCard bool
 	Limits            Limits
 	IsActive          bool
 	SortOrder         int
 	Prices            []AdminPrice
+	// Workspaces is how many workspaces an edit to Limits reaches now.
+	Workspaces int
 }
 
 // AdminPrice is a plan price with how each provider sells it.
@@ -61,14 +69,34 @@ type AdminProviderPrice struct {
 	IsActive        bool
 }
 
-// NewPlan adds a plan. A code already in use publishes its next version.
-type NewPlan struct {
-	Code              string
-	Name              string
+// PlanDetails are what staff set on a plan version: everything but its code, version and prices.
+type PlanDetails struct {
+	Name string
+	// Description is the pricing table's one line about the plan.
+	Description string
+	// Features are the pricing table's bullet points, in order.
+	Features []string
+	// Recommended marks the plan the pricing table points people to.
+	Recommended       bool
 	TrialDays         int
 	TrialRequiresCard bool
 	Limits            Limits
 	SortOrder         int
+}
+
+// NewPlan adds a plan. A code already in use publishes its next version.
+type NewPlan struct {
+	Code string
+	PlanDetails
+}
+
+// PlanEdit changes a plan version in place. Its limits reach every workspace
+// on it at once, so a change to them needs a reason and is audited.
+type PlanEdit struct {
+	PlanID uuid.UUID
+	PlanDetails
+	Reason    string
+	ChangedBy uuid.UUID
 }
 
 // NewPrice adds a price to a plan.
@@ -108,6 +136,8 @@ type AdminWorkspace struct {
 	CreatedAt   time.Time
 	// Grant is nil on the free plan.
 	Grant *AdminGrant
+	// Limits apply now, overrides included.
+	Limits Limits
 }
 
 // AdminGrant is a workspace's current grant.
@@ -118,6 +148,8 @@ type AdminGrant struct {
 	Source   string
 	Status   string
 	EndsAt   *time.Time
+	// Overrides are this workspace's own limits on top of the plan's.
+	Overrides Limits
 }
 
 // ManualGrantInput puts a workspace on a plan by hand.
@@ -127,4 +159,12 @@ type ManualGrantInput struct {
 	EndsAt      *time.Time // nil: until staff ends it
 	Reason      string
 	CreatedBy   uuid.UUID
+}
+
+// GrantOverridesEdit replaces a workspace's own limits on top of its plan's. Empty clears them.
+type GrantOverridesEdit struct {
+	WorkspaceID uuid.UUID
+	Overrides   Limits
+	Reason      string
+	ChangedBy   uuid.UUID
 }

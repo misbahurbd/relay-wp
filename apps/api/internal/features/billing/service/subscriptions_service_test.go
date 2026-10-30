@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/model"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/repository"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/payment"
 )
 
@@ -310,4 +311,104 @@ func TestSyncSubscriptionPastDueSuspendsAfterGrace(t *testing.T) {
 	ps.Status = payment.SubscriptionCanceled
 	sync()
 	e.wantCache(e.ws, model.FreePlan)
+}
+
+// Providers send nothing when grace runs out, so the sweep must suspend the plan.
+func TestPastDueSweepSuspendsAfterGrace(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	sub := e.subscribe(p.Monthly)
+	ps := payment.Subscription{ExternalID: *sub.ExternalSubscriptionID, Status: payment.SubscriptionPastDue}
+	e.inTx(func(tx pgx.Tx) error { return e.svc.SyncSubscription(e.ctx, tx, e.ws, sub.ID, ps) })
+
+	if _, err := e.svc.SuspendPastDue(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	e.wantCache(e.ws, p.Code) // still within grace
+
+	e.tick(pastDueGrace + time.Hour)
+	if _, err := e.svc.SuspendPastDue(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	e.wantCache(e.ws, model.FreePlan)
+	if g := e.grant(e.ws); g == nil || g.SuspendReason != model.SuspendPastDue {
+		t.Fatalf("grant = %+v", g)
+	}
+
+	// Paying again restores it.
+	ps.Status = payment.SubscriptionActive
+	e.inTx(func(tx pgx.Tx) error { return e.svc.SyncSubscription(e.ctx, tx, e.ws, sub.ID, ps) })
+	e.wantCache(e.ws, p.Code)
+}
+
+// A lost dispute suspends the plan until support restores it, renewals or not.
+func TestLostDisputeSuspensionSurvivesRenewal(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	sub := e.subscribe(p.Monthly)
+	g := e.grant(e.ws)
+	e.inTx(func(tx pgx.Tx) error { return e.svc.SuspendGrant(e.ctx, tx, e.ws, g.ID, model.SuspendDispute) })
+
+	ps := payment.Subscription{ExternalID: *sub.ExternalSubscriptionID, Status: payment.SubscriptionActive}
+	e.inTx(func(tx pgx.Tx) error { return e.svc.SyncSubscription(e.ctx, tx, e.ws, sub.ID, ps) })
+	e.wantCache(e.ws, model.FreePlan)
+	if got := e.grant(e.ws); got == nil || got.ID != g.ID || got.SuspendReason != model.SuspendDispute {
+		t.Fatalf("grant after renewal = %+v", got)
+	}
+}
+
+func TestRefundingTheLatestSubscriptionInvoiceCancelsIt(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	sub := e.subscribe(p.Monthly)
+	var pay string
+	var total int64
+	if err := e.pool.QueryRow(e.ctx, `SELECT external_payment_id, total_minor FROM invoices
+		WHERE workspace_id = $1 AND subscription_id = $2`, e.ws, sub.ID).Scan(&pay, &total); err != nil {
+		t.Fatal(err)
+	}
+
+	// A partial refund keeps the plan.
+	refund := func(amount int64) {
+		ev := refundEvent(pay, "re_"+uuid.NewString(), amount, payment.RefundSucceeded)
+		ev.Provider = payment.Stripe
+		e.inTx(func(tx pgx.Tx) error { return e.svc.onRefund(e.ctx, tx, e.ws, ev) })
+	}
+	refund(total / 2)
+	e.wantCache(e.ws, p.Code)
+
+	refund(total - total/2)
+	e.wantCache(e.ws, model.FreePlan)
+	if got, err := e.svc.Subscription(e.ctx, e.ws); err != nil || got.Status != model.SubscriptionCanceled {
+		t.Fatalf("subscription after a full refund = %s, %v; want canceled", got.Status, err)
+	}
+	if fs, _ := e.fake.Subscription(*sub.ExternalSubscriptionID); fs.Status != payment.SubscriptionCanceled {
+		t.Fatalf("provider status = %s, want canceled", fs.Status)
+	}
+}
+
+// The provider key for a plan change stays the same until a change is logged,
+// so a retry after a failed database write can't change or charge twice.
+func TestChangeKeyRepeatsUntilAChangeIsLogged(t *testing.T) {
+	e := newT3Env(t)
+	small := e.plan(t3PlanOpts{Monthly: 1000})
+	big := e.plan(t3PlanOpts{Monthly: 3000})
+	sub := e.subscribe(small.Monthly)
+	r := repository.NewRepository(e.pool)
+
+	k1, err := changeKey(e.ctx, r, sub, "change", big.Monthly)
+	if err != nil {
+		t.Fatal(err)
+	}
+	k2, _ := changeKey(e.ctx, r, sub, "change", big.Monthly)
+	if k1 != k2 {
+		t.Fatalf("keys differ on retry: %q vs %q", k1, k2)
+	}
+	if _, err := e.svc.ChangePlan(e.ctx, e.ws, e.user, big.Monthly); err != nil {
+		t.Fatal(err)
+	}
+	k3, _ := changeKey(e.ctx, r, sub, "change", big.Monthly)
+	if k3 == k1 {
+		t.Fatal("key unchanged after a logged change")
+	}
 }

@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"mime/multipart"
@@ -415,4 +416,39 @@ func TestContactImport(t *testing.T) {
 	if err := w.e.a.contacts.RunImport(t.Context(), w.id, importID, false); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// planCap is a billing plan with the same cap on every resource.
+type planCap int
+
+func (c planCap) Limit(context.Context, uuid.UUID, string) (int, error) { return int(c), nil }
+
+func TestContactLimitStopsAddsAndImports(t *testing.T) {
+	w := newContactsWorkspace(t)
+	o := w.owner
+	w.e.a.contacts.SetPlanLimits(planCap(2))
+
+	expect(t, o.do("POST", w.base+"/contacts", map[string]any{"name": "One", "phone": "+447700900401"}), http.StatusCreated)
+	expect(t, o.do("POST", w.base+"/contacts", map[string]any{"name": "Two", "phone": "+447700900402"}), http.StatusCreated)
+	expect(t, o.do("POST", w.base+"/contacts", map[string]any{"name": "Three", "phone": "+447700900403"}),
+		http.StatusConflict, "plan_contact_limit")
+
+	file := "Name,Phone\nOne again,+447700900401\nThree,+447700900403\nFour,+447700900404\n"
+	up := o.upload(w.base+"/contacts/imports", "more.csv", []byte(file))
+	expect(t, up, http.StatusCreated)
+	path := w.base + "/contacts/imports/" + up.body["id"].(string)
+	columns := []map[string]any{{"name": "Name", "field": "name"}, {"name": "Phone", "field": "phone"}}
+	expect(t, o.do("PUT", path+"/mapping", map[string]any{"columns": columns, "opt_in_confirmed": true}), http.StatusOK)
+	expect(t, o.do("POST", path+"/start", nil), http.StatusAccepted)
+	if err := w.e.a.contacts.RunImport(t.Context(), w.id, uuid.MustParse(up.body["id"].(string)), false); err != nil {
+		t.Fatal(err)
+	}
+	done := o.do("GET", path, nil)
+	expect(t, done, http.StatusOK)
+	if done.body["created"] != 0.0 || done.body["updated"] != 1.0 || done.body["skipped"] != 2.0 {
+		t.Fatalf("an import at the cap should only update: %s", done.raw)
+	}
+
+	w.e.a.contacts.SetPlanLimits(planCap(3))
+	expect(t, o.do("POST", w.base+"/contacts", map[string]any{"name": "Three", "phone": "+447700900403"}), http.StatusCreated)
 }

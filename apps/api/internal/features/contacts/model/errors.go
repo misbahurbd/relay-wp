@@ -14,6 +14,7 @@ var (
 	ErrTagNotFound     = apperr.NotFound("tag_not_found", "Tag not found")
 	ErrUserNotMember   = apperr.Validation("user_not_member", "That person isn't a member of this workspace")
 	ErrContactExists   = apperr.Conflict("contact_exists", "A contact with this phone number already exists")
+	ErrContactLimit    = apperr.Conflict("plan_contact_limit", "Your plan's contact limit is reached. Upgrade your plan to add more contacts.")
 
 	// ErrPermissionDenied matches middleware.RequirePermission's error, for checks that depend on the request.
 	ErrPermissionDenied = apperr.Forbidden("permission_denied", "Your role in this workspace can't do that")

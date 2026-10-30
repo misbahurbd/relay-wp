@@ -24,6 +24,10 @@ type Querier interface {
 	// Runs in the same transaction as the paid invoice. The CHECK on orders
 	// rejects paying more than the total.
 	AddOrderPayment(ctx context.Context, arg AddOrderPaymentParams) (AddOrderPaymentRow, error)
+	// Workspaces on the free plan's limits: no grant, or a suspended one.
+	AdminCountFreeWorkspaces(ctx context.Context) (int32, error)
+	// Workspaces whose limits come from each plan right now: an active grant on it.
+	AdminCountPlanWorkspaces(ctx context.Context) ([]AdminCountPlanWorkspacesRow, error)
 	AdminListInstallmentOffers(ctx context.Context) ([]AdminListInstallmentOffersRow, error)
 	AdminListPlanPrices(ctx context.Context) ([]AdminListPlanPricesRow, error)
 	// Staff admin tools only (/v1/admin): the whole catalog, active or not, and
@@ -62,10 +66,14 @@ type Querier interface {
 	CountRecentTestMessages(ctx context.Context, workspaceID uuid.UUID) (int64, error)
 	// Members and pending invites whose role uses a seat.
 	CountSeatsUsed(ctx context.Context, workspaceID uuid.UUID) (CountSeatsUsedRow, error)
+	// How many changes the subscription has had: part of a plan change's
+	// idempotency key, so a retried change reuses its key and a new one doesn't.
+	CountSubscriptionChanges(ctx context.Context, arg CountSubscriptionChangesParams) (int32, error)
 	// Tab counts for the list; they follow the category and search filters, not the status one.
 	CountTemplates(ctx context.Context, arg CountTemplatesParams) (CountTemplatesRow, error)
 	// Workspaces this user owns that haven't sent a real message yet.
 	CountTrialWorkspacesOwned(ctx context.Context, userID uuid.UUID) (int64, error)
+	CountWorkspaceContacts(ctx context.Context, workspaceID uuid.UUID) (int64, error)
 	CountWorkspaceNumbers(ctx context.Context, arg CountWorkspaceNumbersParams) (int64, error)
 	// ---------- Redemptions ----------
 	// Uses that still count against per_workspace_limit (reserved or redeemed).
@@ -127,6 +135,7 @@ type Querier interface {
 	CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) error
 	DeactivateDiscount(ctx context.Context, discountID uuid.UUID) (int64, error)
 	DeactivateInstallmentOffer(ctx context.Context, installmentOfferID uuid.UUID) (int64, error)
+	// The free plan stays: it is what a workspace with no grant uses.
 	DeactivatePlan(ctx context.Context, planID uuid.UUID) (int64, error)
 	DeactivatePlanPrice(ctx context.Context, planPriceID uuid.UUID) (int64, error)
 	DeactivateProviderDiscounts(ctx context.Context, discountID uuid.UUID) (int64, error)
@@ -196,6 +205,10 @@ type Querier interface {
 	GetBillingCustomer(ctx context.Context, arg GetBillingCustomerParams) (GetBillingCustomerRow, error)
 	// ---------- Billing profiles (personal data: never logged) ----------
 	GetBillingProfile(ctx context.Context, workspaceID uuid.UUID) (GetBillingProfileRow, error)
+	// The provider customer whose card pays next: the live subscription's, else
+	// the live lifetime deal's, else the newest one the provider knows. The card
+	// itself stays at the provider.
+	GetCardCustomer(ctx context.Context, workspaceID uuid.UUID) (GetCardCustomerRow, error)
 	GetCheckoutSession(ctx context.Context, arg GetCheckoutSessionParams) (GetCheckoutSessionRow, error)
 	GetCheckoutSessionByIdempotencyKey(ctx context.Context, arg GetCheckoutSessionByIdempotencyKeyParams) (GetCheckoutSessionByIdempotencyKeyRow, error)
 	GetContact(ctx context.Context, arg GetContactParams) (GetContactRow, error)
@@ -203,10 +216,13 @@ type Querier interface {
 	GetContactTag(ctx context.Context, arg GetContactTagParams) (GetContactTagRow, error)
 	// ---------- Plan grants: what a workspace can use ----------
 	// The workspace's one active or suspended grant. No row means the free plan.
+	// Limits are the plan's as they are now, plus the grant's overrides (ADR 0008).
 	GetCurrentGrant(ctx context.Context, workspaceID uuid.UUID) (GetCurrentGrantRow, error)
 	GetDiscount(ctx context.Context, discountID uuid.UUID) (GetDiscountRow, error)
 	// ---------- Discounts (owned by Relay, not by a workspace) ----------
 	GetDiscountByCode(ctx context.Context, code string) (GetDiscountByCodeRow, error)
+	// What a workspace with no active grant may use: the free plan row's limits.
+	GetFreePlanLimits(ctx context.Context) ([]byte, error)
 	GetIdentity(ctx context.Context, arg GetIdentityParams) (GetIdentityRow, error)
 	GetInstallmentBySeq(ctx context.Context, arg GetInstallmentBySeqParams) (GetInstallmentBySeqRow, error)
 	GetInstallmentOffer(ctx context.Context, installmentOfferID uuid.UUID) (GetInstallmentOfferRow, error)
@@ -215,6 +231,8 @@ type Querier interface {
 	GetInvoice(ctx context.Context, arg GetInvoiceParams) (GetInvoiceRow, error)
 	// The workspace's live subscription if it has one, else its most recent.
 	GetLatestSubscription(ctx context.Context, workspaceID uuid.UUID) (GetLatestSubscriptionRow, error)
+	// The subscription's newest invoice: refunding it in full ends the subscription.
+	GetLatestSubscriptionInvoiceID(ctx context.Context, arg GetLatestSubscriptionInvoiceIDParams) (uuid.UUID, error)
 	// The workspace's one in_installments, paid or defaulted order.
 	GetLiveOrder(ctx context.Context, workspaceID uuid.UUID) (GetLiveOrderRow, error)
 	// The workspace's one trialing, active or past_due subscription.
@@ -229,6 +247,9 @@ type Querier interface {
 	GetOnboarding(ctx context.Context, workspaceID uuid.UUID) (GetOnboardingRow, error)
 	GetOrder(ctx context.Context, arg GetOrderParams) (GetOrderRow, error)
 	GetOrderGrant(ctx context.Context, arg GetOrderGrantParams) (GetOrderGrantRow, error)
+	// What a lifetime deal has been paid across its invoices, and how much of it
+	// has been refunded. A refunded duplicate payment counts on both sides.
+	GetOrderRefundTotals(ctx context.Context, arg GetOrderRefundTotalsParams) (GetOrderRefundTotalsRow, error)
 	// Change password, and confirming the password on the verify-link page.
 	GetPasswordHash(ctx context.Context, id uuid.UUID) (*string, error)
 	GetPaymentEvent(ctx context.Context, paymentEventID uuid.UUID) (GetPaymentEventRow, error)
@@ -263,6 +284,7 @@ type Querier interface {
 	// ---------- Access log ----------
 	InsertAccessLog(ctx context.Context, arg InsertAccessLogParams) error
 	InsertAuthEvent(ctx context.Context, arg InsertAuthEventParams) error
+	InsertLimitChange(ctx context.Context, arg InsertLimitChangeParams) error
 	// ---------- Webhook inbox ----------
 	// payload is written once here and nulled by PurgeEventPayloads. No query
 	// selects it: it is never logged or returned.
@@ -307,8 +329,8 @@ type Querier interface {
 	ListDuePendingChanges(ctx context.Context, arg ListDuePendingChangesParams) ([]ListDuePendingChangesRow, error)
 	// Job only (all workspaces): pending sessions past their expiry, oldest first.
 	ListExpiredCheckoutSessions(ctx context.Context, arg ListExpiredCheckoutSessionsParams) ([]ListExpiredCheckoutSessionsRow, error)
-	// Job only (all workspaces): card-less trials that have reached their end.
-	ListExpiredTrialGrants(ctx context.Context, arg ListExpiredTrialGrantsParams) ([]ListExpiredTrialGrantsRow, error)
+	// Job only (all workspaces): card-less trials and staff grants that have reached their end.
+	ListExpiredGrants(ctx context.Context, arg ListExpiredGrantsParams) ([]ListExpiredGrantsRow, error)
 	ListIdentities(ctx context.Context, userID uuid.UUID) ([]ListIdentitiesRow, error)
 	// Job only (all workspaces): scheduled installments whose due date has come.
 	ListInstallmentsComingDue(ctx context.Context, arg ListInstallmentsComingDueParams) ([]ListInstallmentsComingDueRow, error)
@@ -324,6 +346,9 @@ type Querier interface {
 	// Cursor: (joined_at, user_id) of the last row of the previous page.
 	ListMembers(ctx context.Context, arg ListMembersParams) ([]ListMembersRow, error)
 	ListOrderInstallments(ctx context.Context, arg ListOrderInstallmentsParams) ([]ListOrderInstallmentsRow, error)
+	// Job only (all workspaces): past-due subscriptions whose grace has run out
+	// and whose plan is still active.
+	ListPastDueGraceEnded(ctx context.Context, arg ListPastDueGraceEndedParams) ([]ListPastDueGraceEndedRow, error)
 	ListPermissions(ctx context.Context) ([]ListPermissionsRow, error)
 	// Job only (all workspaces): workspaces whose cached plan disagrees with their grant.
 	ListPlanCacheDrift(ctx context.Context, arg ListPlanCacheDriftParams) ([]ListPlanCacheDriftRow, error)
@@ -331,6 +356,8 @@ type Querier interface {
 	ListRecurringExternalPriceIDs(ctx context.Context, provider string) ([]string, error)
 	// ---------- Roles ----------
 	ListRoles(ctx context.Context, workspaceID uuid.UUID) ([]ListRolesRow, error)
+	// Job only (all workspaces): events still unprocessed long after they arrived.
+	ListStuckPaymentEvents(ctx context.Context, arg ListStuckPaymentEventsParams) ([]ListStuckPaymentEventsRow, error)
 	ListSubscriptionChanges(ctx context.Context, arg ListSubscriptionChangesParams) ([]ListSubscriptionChangesRow, error)
 	ListTagsOfContacts(ctx context.Context, arg ListTagsOfContactsParams) ([]ListTagsOfContactsRow, error)
 	// ---------- Teams ----------
@@ -342,12 +369,15 @@ type Querier interface {
 	ListWorkspacePaymentEvents(ctx context.Context, arg ListWorkspacePaymentEventsParams) ([]ListWorkspacePaymentEventsRow, error)
 	LockCheckoutSession(ctx context.Context, arg LockCheckoutSessionParams) (LockCheckoutSessionRow, error)
 	LockContact(ctx context.Context, arg LockContactParams) (LockContactRow, error)
+	// Serializes adding contacts in one workspace, so two adds can't both pass the plan's cap.
+	LockContactCap(ctx context.Context, workspaceID uuid.UUID) error
 	LockCurrentGrant(ctx context.Context, workspaceID uuid.UUID) (LockCurrentGrantRow, error)
 	LockInstallment(ctx context.Context, arg LockInstallmentParams) (LockInstallmentRow, error)
 	LockInvitation(ctx context.Context, arg LockInvitationParams) (LockInvitationRow, error)
 	LockMember(ctx context.Context, arg LockMemberParams) (LockMemberRow, error)
 	// Every balance change locks the order first.
 	LockOrder(ctx context.Context, arg LockOrderParams) (LockOrderRow, error)
+	LockPlanLimits(ctx context.Context, planID uuid.UUID) (LockPlanLimitsRow, error)
 	LockRole(ctx context.Context, arg LockRoleParams) (int32, error)
 	// Locks the workspace row so seat checks in concurrent invites and accepts run one at a time.
 	LockSeatLimit(ctx context.Context, workspaceID uuid.UUID) (int32, error)
@@ -408,6 +438,7 @@ type Querier interface {
 	SetCheckoutSessionExternalID(ctx context.Context, arg SetCheckoutSessionExternalIDParams) (int64, error)
 	// Mapping can change until the import starts.
 	SetContactImportMapping(ctx context.Context, arg SetContactImportMappingParams) (int64, error)
+	SetGrantOverrides(ctx context.Context, arg SetGrantOverridesParams) (int64, error)
 	SetInstallmentReminderSent(ctx context.Context, arg SetInstallmentReminderSentParams) (int64, error)
 	// Any status but paid (MarkInstallmentPaid sets paid_at with it).
 	SetInstallmentStatus(ctx context.Context, arg SetInstallmentStatusParams) (int64, error)
@@ -469,6 +500,8 @@ type Querier interface {
 	UpdateNumberNameStatus(ctx context.Context, arg UpdateNumberNameStatusParams) error
 	UpdateNumberProfile(ctx context.Context, arg UpdateNumberProfileParams) error
 	UpdateNumberQuality(ctx context.Context, arg UpdateNumberQualityParams) error
+	// Everything but the code, version and prices may change in place (ADR 0008).
+	UpdatePlan(ctx context.Context, arg UpdatePlanParams) error
 	UpdatePreferences(ctx context.Context, arg UpdatePreferencesParams) error
 	// A NULL argument keeps the current value; an empty string clears an optional field.
 	UpdateProfile(ctx context.Context, arg UpdateProfileParams) error

@@ -20,7 +20,10 @@ var (
 	ErrAlreadySubscribed       = apperr.Conflict("already_subscribed", "This workspace already has a subscription. Change its plan instead.")
 	ErrHasLifetimeDeal         = apperr.Conflict("has_lifetime_deal", "This workspace has a lifetime deal. Upgrade it instead.")
 	ErrPaymentProviderDeclined = apperr.Validation("payment_declined", "The payment provider declined this. Try another card.")
-	ErrPaymentProviderDown     = apperr.Unavailable("payment_provider_unavailable", "The payment provider isn't answering. Try again in a minute.")
+	ErrPaymentProviderMissing  = apperr.Conflict("payment_provider_out_of_sync",
+		"The payment provider has no record of this. Contact support and we'll sort it out.")
+	ErrPaymentProviderRefused = apperr.Validation("payment_provider_refused", "The payment provider couldn't do this. Contact support.")
+	ErrPaymentProviderDown    = apperr.Unavailable("payment_provider_unavailable", "The payment provider isn't answering. Try again in a minute.")
 
 	// Subscriptions.
 	ErrNoSubscription     = apperr.NotFound("subscription_not_found", "This workspace has no subscription.")
@@ -57,6 +60,7 @@ var (
 	ErrInvoiceNotFound = apperr.NotFound("invoice_not_found", "Invoice not found")
 	ErrInvalidCursor   = apperr.Validation("invalid_cursor", "The page cursor is invalid")
 	ErrPlanNotFound    = apperr.NotFound("plan_not_found", "Plan not found")
+	ErrNoCardCustomer  = apperr.NotFound("no_payment_customer", "There's no card on file yet. It's saved when you first pay.")
 
 	// Staff admin tools.
 	ErrWorkspaceNotFound = apperr.NotFound("workspace_not_found", "Workspace not found")

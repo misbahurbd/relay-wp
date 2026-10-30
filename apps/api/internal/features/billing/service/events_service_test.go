@@ -493,7 +493,7 @@ func TestDisputes(t *testing.T) {
 		t.Fatal(err)
 	}
 	grantID, err := e.repo.CreateGrant(e.ctx, gen.CreateGrantParams{
-		WorkspaceID: ws, PlanID: planID, Source: model.GrantFromOrder, OrderID: &orderID, Limits: []byte(`{}`),
+		WorkspaceID: ws, PlanID: planID, Source: model.GrantFromOrder, OrderID: &orderID,
 		StartsAt: time.Now(),
 	})
 	if err != nil {

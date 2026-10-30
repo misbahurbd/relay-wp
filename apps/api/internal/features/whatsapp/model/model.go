@@ -106,3 +106,6 @@ func Digits(s string) string { return nonDigits.ReplaceAllString(s, "") }
 // --- Test messages ---
 
 var nonDigits = regexp.MustCompile(`[^0-9]`)
+
+// PlanResourceNumbers is the billing resource that caps connected numbers (ADR 0008).
+const PlanResourceNumbers = "whatsapp_numbers"

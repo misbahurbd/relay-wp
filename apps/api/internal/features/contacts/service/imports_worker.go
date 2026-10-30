@@ -82,10 +82,23 @@ func (s *Service) runImport(ctx context.Context, workspaceID uuid.UUID, row gen.
 			skipped = append(skipped, p)
 		}
 	}
+	limit, err := s.contactLimit(ctx, workspaceID)
+	if err != nil {
+		return err
+	}
 	for start := 0; start < len(valid); start += model.ImportBatchSize {
 		batch := valid[start:min(start+model.ImportBatchSize, len(valid))]
 		if err := database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
-			return s.importBatch(ctx, repository.NewRepository(tx), workspaceID, row.ID, batch, row.TagName, tags)
+			r := repository.NewRepository(tx)
+			fits, over, err := s.fitContactLimit(ctx, r, workspaceID, limit, batch)
+			if err != nil {
+				return err
+			}
+			skipped = append(skipped, over...)
+			if len(fits) == 0 {
+				return nil
+			}
+			return s.importBatch(ctx, r, workspaceID, row.ID, fits, row.TagName, tags)
 		}); err != nil {
 			return err
 		}
@@ -134,6 +147,43 @@ func (s *Service) importTags(ctx context.Context, r repository.Repository, works
 		out[key] = t.ID
 	}
 	return out, nil
+}
+
+// fitContactLimit splits batch into the rows that fit the plan's contact cap and
+// those that don't. Rows for phones already in the workspace update a contact,
+// so they always fit; new ones fit while there is room.
+func (s *Service) fitContactLimit(ctx context.Context, r repository.Repository, workspaceID uuid.UUID, limit int,
+	batch []plannedRow,
+) (fits, over []plannedRow, err error) {
+	room, err := contactRoom(ctx, r, workspaceID, limit)
+	if err != nil || room < 0 {
+		return batch, nil, err
+	}
+	phones := make([]string, len(batch))
+	for i, p := range batch {
+		phones[i] = p.phone
+	}
+	found, err := r.ExistingContactPhones(ctx, gen.ExistingContactPhonesParams{WorkspaceID: workspaceID, Phones: phones})
+	if err != nil {
+		return nil, nil, fmt.Errorf("existing phones: %w", err)
+	}
+	existing := make(map[string]bool, len(found))
+	for _, f := range found {
+		existing[f.Phone] = true
+	}
+	for _, p := range batch {
+		switch {
+		case existing[p.phone]:
+			fits = append(fits, p)
+		case room > 0:
+			fits = append(fits, p)
+			room--
+		default:
+			p.reason = reasonOverLimit
+			over = append(over, p)
+		}
+	}
+	return fits, over, nil
 }
 
 func (s *Service) importBatch(ctx context.Context, r repository.Repository, workspaceID, importID uuid.UUID,

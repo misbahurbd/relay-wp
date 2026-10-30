@@ -12,6 +12,54 @@ import (
 	"github.com/google/uuid"
 )
 
+const adminCountFreeWorkspaces = `-- name: AdminCountFreeWorkspaces :one
+SELECT count(*)::int
+FROM workspaces w
+WHERE w.deleted_at IS NULL
+  AND NOT EXISTS (SELECT 1 FROM plan_grants g WHERE g.workspace_id = w.id AND g.status = 'active')
+`
+
+// Workspaces on the free plan's limits: no grant, or a suspended one.
+func (q *Queries) AdminCountFreeWorkspaces(ctx context.Context) (int32, error) {
+	row := q.db.QueryRow(ctx, adminCountFreeWorkspaces)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const adminCountPlanWorkspaces = `-- name: AdminCountPlanWorkspaces :many
+SELECT plan_id, count(*)::int AS workspaces
+FROM plan_grants
+WHERE status = 'active'
+GROUP BY plan_id
+`
+
+type AdminCountPlanWorkspacesRow struct {
+	PlanID     uuid.UUID
+	Workspaces int32
+}
+
+// Workspaces whose limits come from each plan right now: an active grant on it.
+func (q *Queries) AdminCountPlanWorkspaces(ctx context.Context) ([]AdminCountPlanWorkspacesRow, error) {
+	rows, err := q.db.Query(ctx, adminCountPlanWorkspaces)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AdminCountPlanWorkspacesRow{}
+	for rows.Next() {
+		var i AdminCountPlanWorkspacesRow
+		if err := rows.Scan(&i.PlanID, &i.Workspaces); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const adminListInstallmentOffers = `-- name: AdminListInstallmentOffers :many
 SELECT id, plan_price_id, count, total_minor, grace_days, max_missed, is_active
 FROM installment_offers
@@ -102,7 +150,8 @@ func (q *Queries) AdminListPlanPrices(ctx context.Context) ([]AdminListPlanPrice
 
 const adminListPlans = `-- name: AdminListPlans :many
 
-SELECT id, code, version, name, trial_days, trial_requires_card, limits, is_active, sort_order
+SELECT id, code, version, name, description, features, recommended, trial_days, trial_requires_card, limits,
+       is_active, sort_order
 FROM plans
 ORDER BY sort_order, code, version DESC
 `
@@ -112,6 +161,9 @@ type AdminListPlansRow struct {
 	Code              string
 	Version           int32
 	Name              string
+	Description       string
+	Features          []string
+	Recommended       bool
 	TrialDays         int32
 	TrialRequiresCard bool
 	Limits            []byte
@@ -135,6 +187,9 @@ func (q *Queries) AdminListPlans(ctx context.Context) ([]AdminListPlansRow, erro
 			&i.Code,
 			&i.Version,
 			&i.Name,
+			&i.Description,
+			&i.Features,
+			&i.Recommended,
 			&i.TrialDays,
 			&i.TrialRequiresCard,
 			&i.Limits,
@@ -198,7 +253,8 @@ func (q *Queries) AdminListProviderPrices(ctx context.Context) ([]AdminListProvi
 const adminListWorkspaces = `-- name: AdminListWorkspaces :many
 SELECT w.id, w.name, w.plan, w.trial_ends_at, w.created_at, COALESCE(u.email, '')::text AS owner_email,
        g.id AS grant_id, g.source AS grant_source, g.status AS grant_status, g.ends_at AS grant_ends_at,
-       p.code AS grant_plan_code, p.name AS grant_plan_name
+       g.overrides AS grant_overrides, p.code AS grant_plan_code, p.name AS grant_plan_name,
+       p.limits AS grant_plan_limits
 FROM workspaces w
 LEFT JOIN users u ON u.id = w.created_by
 LEFT JOIN plan_grants g ON g.workspace_id = w.id AND g.status IN ('active', 'suspended')
@@ -210,18 +266,20 @@ LIMIT 200
 `
 
 type AdminListWorkspacesRow struct {
-	ID            uuid.UUID
-	Name          string
-	Plan          string
-	TrialEndsAt   *time.Time
-	CreatedAt     time.Time
-	OwnerEmail    string
-	GrantID       *uuid.UUID
-	GrantSource   *string
-	GrantStatus   *string
-	GrantEndsAt   *time.Time
-	GrantPlanCode *string
-	GrantPlanName *string
+	ID              uuid.UUID
+	Name            string
+	Plan            string
+	TrialEndsAt     *time.Time
+	CreatedAt       time.Time
+	OwnerEmail      string
+	GrantID         *uuid.UUID
+	GrantSource     *string
+	GrantStatus     *string
+	GrantEndsAt     *time.Time
+	GrantOverrides  []byte
+	GrantPlanCode   *string
+	GrantPlanName   *string
+	GrantPlanLimits []byte
 }
 
 // Newest first. search matches the workspace name or the creator's email.
@@ -245,8 +303,10 @@ func (q *Queries) AdminListWorkspaces(ctx context.Context, search string) ([]Adm
 			&i.GrantSource,
 			&i.GrantStatus,
 			&i.GrantEndsAt,
+			&i.GrantOverrides,
 			&i.GrantPlanCode,
 			&i.GrantPlanName,
+			&i.GrantPlanLimits,
 		); err != nil {
 			return nil, err
 		}
@@ -267,6 +327,32 @@ func (q *Queries) AdminWorkspaceExists(ctx context.Context, workspaceID uuid.UUI
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const insertLimitChange = `-- name: InsertLimitChange :exec
+INSERT INTO limit_changes (plan_id, grant_id, changed_by, before, after, reason)
+VALUES ($1, $2, $3, $4, $5, $6)
+`
+
+type InsertLimitChangeParams struct {
+	PlanID    *uuid.UUID
+	GrantID   *uuid.UUID
+	ChangedBy *uuid.UUID
+	Before    []byte
+	After     []byte
+	Reason    string
+}
+
+func (q *Queries) InsertLimitChange(ctx context.Context, arg InsertLimitChangeParams) error {
+	_, err := q.db.Exec(ctx, insertLimitChange,
+		arg.PlanID,
+		arg.GrantID,
+		arg.ChangedBy,
+		arg.Before,
+		arg.After,
+		arg.Reason,
+	)
+	return err
 }
 
 const nextPlanVersion = `-- name: NextPlanVersion :one

@@ -26,6 +26,7 @@ import { Route as AppWorkspaceShellIndexRouteImport } from './routes/_app/_works
 import { Route as AppWorkspaceShellBillingIndexRouteImport } from './routes/_app/_workspace/_shell/billing/index'
 import { Route as AppWorkspaceShellBillingCheckoutRouteImport } from './routes/_app/_workspace/_shell/billing/checkout'
 import { Route as AppWorkspaceShellBillingPlansRouteImport } from './routes/_app/_workspace/_shell/billing/plans'
+import { Route as AppWorkspaceShellBillingSpendingRouteImport } from './routes/_app/_workspace/_shell/billing/spending'
 import { Route as AppWorkspaceShellContactsIndexRouteImport } from './routes/_app/_workspace/_shell/contacts/index'
 import { Route as AppWorkspaceShellTeamIndexRouteImport } from './routes/_app/_workspace/_shell/team/index'
 import { Route as AppWorkspaceShellTeamInviteRouteImport } from './routes/_app/_workspace/_shell/team/invite'
@@ -120,6 +121,12 @@ const AppWorkspaceShellBillingPlansRoute =
     path: '/billing/plans',
     getParentRoute: () => AppWorkspaceShellRoute,
   } as any)
+const AppWorkspaceShellBillingSpendingRoute =
+  AppWorkspaceShellBillingSpendingRouteImport.update({
+    id: '/billing/spending',
+    path: '/billing/spending',
+    getParentRoute: () => AppWorkspaceShellRoute,
+  } as any)
 const AppWorkspaceShellContactsIndexRoute =
   AppWorkspaceShellContactsIndexRouteImport.update({
     id: '/contacts/',
@@ -188,6 +195,7 @@ export interface FileRoutesByFullPath {
   '/setup': typeof AppWorkspaceSetupRoute
   '/billing/checkout': typeof AppWorkspaceShellBillingCheckoutRoute
   '/billing/plans': typeof AppWorkspaceShellBillingPlansRoute
+  '/billing/spending': typeof AppWorkspaceShellBillingSpendingRoute
   '/team/invite': typeof AppWorkspaceShellTeamInviteRoute
   '/team/log': typeof AppWorkspaceShellTeamLogRoute
   '/team/roles': typeof AppWorkspaceShellTeamRolesRoute
@@ -212,6 +220,7 @@ export interface FileRoutesByTo {
   '/setup': typeof AppWorkspaceSetupRoute
   '/billing/checkout': typeof AppWorkspaceShellBillingCheckoutRoute
   '/billing/plans': typeof AppWorkspaceShellBillingPlansRoute
+  '/billing/spending': typeof AppWorkspaceShellBillingSpendingRoute
   '/team/invite': typeof AppWorkspaceShellTeamInviteRoute
   '/team/log': typeof AppWorkspaceShellTeamLogRoute
   '/team/roles': typeof AppWorkspaceShellTeamRolesRoute
@@ -241,6 +250,7 @@ export interface FileRoutesById {
   '/_app/_workspace/_shell/': typeof AppWorkspaceShellIndexRoute
   '/_app/_workspace/_shell/billing/checkout': typeof AppWorkspaceShellBillingCheckoutRoute
   '/_app/_workspace/_shell/billing/plans': typeof AppWorkspaceShellBillingPlansRoute
+  '/_app/_workspace/_shell/billing/spending': typeof AppWorkspaceShellBillingSpendingRoute
   '/_app/_workspace/_shell/team/invite': typeof AppWorkspaceShellTeamInviteRoute
   '/_app/_workspace/_shell/team/log': typeof AppWorkspaceShellTeamLogRoute
   '/_app/_workspace/_shell/team/roles': typeof AppWorkspaceShellTeamRolesRoute
@@ -267,6 +277,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/billing/checkout'
     | '/billing/plans'
+    | '/billing/spending'
     | '/team/invite'
     | '/team/log'
     | '/team/roles'
@@ -291,6 +302,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/billing/checkout'
     | '/billing/plans'
+    | '/billing/spending'
     | '/team/invite'
     | '/team/log'
     | '/team/roles'
@@ -319,6 +331,7 @@ export interface FileRouteTypes {
     | '/_app/_workspace/_shell/'
     | '/_app/_workspace/_shell/billing/checkout'
     | '/_app/_workspace/_shell/billing/plans'
+    | '/_app/_workspace/_shell/billing/spending'
     | '/_app/_workspace/_shell/team/invite'
     | '/_app/_workspace/_shell/team/log'
     | '/_app/_workspace/_shell/team/roles'
@@ -459,6 +472,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspaceShellBillingPlansRouteImport
       parentRoute: typeof AppWorkspaceShellRoute
     }
+    '/_app/_workspace/_shell/billing/spending': {
+      id: '/_app/_workspace/_shell/billing/spending'
+      path: '/billing/spending'
+      fullPath: '/billing/spending'
+      preLoaderRoute: typeof AppWorkspaceShellBillingSpendingRouteImport
+      parentRoute: typeof AppWorkspaceShellRoute
+    }
     '/_app/_workspace/_shell/contacts/': {
       id: '/_app/_workspace/_shell/contacts/'
       path: '/contacts'
@@ -529,6 +549,7 @@ interface AppWorkspaceShellRouteChildren {
   AppWorkspaceShellIndexRoute: typeof AppWorkspaceShellIndexRoute
   AppWorkspaceShellBillingCheckoutRoute: typeof AppWorkspaceShellBillingCheckoutRoute
   AppWorkspaceShellBillingPlansRoute: typeof AppWorkspaceShellBillingPlansRoute
+  AppWorkspaceShellBillingSpendingRoute: typeof AppWorkspaceShellBillingSpendingRoute
   AppWorkspaceShellTeamInviteRoute: typeof AppWorkspaceShellTeamInviteRoute
   AppWorkspaceShellTeamLogRoute: typeof AppWorkspaceShellTeamLogRoute
   AppWorkspaceShellTeamRolesRoute: typeof AppWorkspaceShellTeamRolesRoute
@@ -545,6 +566,7 @@ const AppWorkspaceShellRouteChildren: AppWorkspaceShellRouteChildren = {
   AppWorkspaceShellIndexRoute: AppWorkspaceShellIndexRoute,
   AppWorkspaceShellBillingCheckoutRoute: AppWorkspaceShellBillingCheckoutRoute,
   AppWorkspaceShellBillingPlansRoute: AppWorkspaceShellBillingPlansRoute,
+  AppWorkspaceShellBillingSpendingRoute: AppWorkspaceShellBillingSpendingRoute,
   AppWorkspaceShellTeamInviteRoute: AppWorkspaceShellTeamInviteRoute,
   AppWorkspaceShellTeamLogRoute: AppWorkspaceShellTeamLogRoute,
   AppWorkspaceShellTeamRolesRoute: AppWorkspaceShellTeamRolesRoute,

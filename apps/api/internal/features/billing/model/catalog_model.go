@@ -20,10 +20,16 @@ type ProviderInfo struct {
 
 // Plan is one version of a plan with its active prices.
 type Plan struct {
-	ID                uuid.UUID
-	Code              string
-	Version           int
-	Name              string
+	ID      uuid.UUID
+	Code    string
+	Version int
+	Name    string
+	// Description is the pricing table's one line about the plan.
+	Description string
+	// Features are the pricing table's bullet points, in order.
+	Features []string
+	// Recommended marks the plan the pricing table points people to.
+	Recommended       bool
 	TrialDays         int
 	TrialRequiresCard bool
 	Limits            Limits

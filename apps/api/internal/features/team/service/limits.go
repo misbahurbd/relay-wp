@@ -11,10 +11,10 @@ import (
 	"github.com/misbahurbd/relay-wp/apps/api/internal/shared/apperr"
 )
 
-// PlanLimits reads the member cap of the workspace's billing plan. Implemented by billing.Service.
+// PlanLimits reads a cap of the workspace's billing plan. Implemented by billing.Service.
 type PlanLimits interface {
-	// MemberLimit is how many seat-using members the plan allows; a negative value is unlimited.
-	MemberLimit(ctx context.Context, workspaceID uuid.UUID) (int, error)
+	// Limit is the plan's cap on a resource (model.PlanResourceMembers); a negative value is unlimited.
+	Limit(ctx context.Context, workspaceID uuid.UUID, resource string) (int, error)
 }
 
 // SetPlanLimits makes invites and acceptances respect the plan's member cap.
@@ -26,7 +26,7 @@ func (s *Service) memberLimit(ctx context.Context, workspaceID uuid.UUID) (int, 
 	if s.plans == nil {
 		return -1, nil
 	}
-	limit, err := s.plans.MemberLimit(ctx, workspaceID)
+	limit, err := s.plans.Limit(ctx, workspaceID, model.PlanResourceMembers)
 	if err != nil {
 		return 0, fmt.Errorf("plan member limit: %w", err)
 	}
