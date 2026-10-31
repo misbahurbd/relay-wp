@@ -21,7 +21,7 @@ WHERE workspace_id = $2 AND contact_id = $3 AND state = 'scheduled'
 type CancelContactRunsParams struct {
 	Reason      *string
 	WorkspaceID uuid.UUID
-	ContactID   uuid.UUID
+	ContactID   *uuid.UUID
 }
 
 func (q *Queries) CancelContactRuns(ctx context.Context, arg CancelContactRunsParams) error {
@@ -45,7 +45,7 @@ type ClaimRunParams struct {
 type ClaimRunRow struct {
 	ID             uuid.UUID
 	Kind           string
-	ContactID      uuid.UUID
+	ContactID      *uuid.UUID
 	ConversationID *uuid.UUID
 	Step           int32
 	Context        []byte
@@ -162,7 +162,7 @@ type InsertRunParams struct {
 	ID             uuid.UUID
 	WorkspaceID    uuid.UUID
 	Kind           string
-	ContactID      uuid.UUID
+	ContactID      *uuid.UUID
 	ConversationID *uuid.UUID
 	DedupeKey      string
 	State          string
@@ -203,11 +203,45 @@ func (q *Queries) InsertRun(ctx context.Context, arg InsertRunParams) ([]uuid.UU
 	return items, nil
 }
 
+const redactContactRuns = `-- name: RedactContactRuns :exec
+UPDATE automation_runs
+SET state = CASE WHEN state = 'scheduled' THEN 'cancelled' ELSE state END,
+    reason = CASE WHEN state = 'scheduled' THEN 'redacted' ELSE reason END,
+    next_at = NULL, context = '{}'
+WHERE workspace_id = $1 AND contact_id = $2
+`
+
+type RedactContactRunsParams struct {
+	WorkspaceID uuid.UUID
+	ContactID   *uuid.UUID
+}
+
+func (q *Queries) RedactContactRuns(ctx context.Context, arg RedactContactRunsParams) error {
+	_, err := q.db.Exec(ctx, redactContactRuns, arg.WorkspaceID, arg.ContactID)
+	return err
+}
+
+const redactStoreRuns = `-- name: RedactStoreRuns :exec
+UPDATE automation_runs
+SET state = CASE WHEN state = 'scheduled' THEN 'cancelled' ELSE state END,
+    reason = CASE WHEN state = 'scheduled' THEN 'redacted' ELSE reason END,
+    next_at = NULL, context = '{}'
+WHERE workspace_id = $1 AND kind IN ('order', 'cart')
+`
+
+func (q *Queries) RedactStoreRuns(ctx context.Context, workspaceID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, redactStoreRuns, workspaceID)
+	return err
+}
+
 const runStats = `-- name: RunStats :many
-SELECT kind, count(id) FILTER (WHERE state = 'done') AS sent
-FROM automation_runs
-WHERE workspace_id = $1 AND created_at >= $2::timestamptz
-GROUP BY kind
+SELECT r.kind, count(r.id) FILTER (WHERE r.state = 'done') AS sent,
+       count(r.id) FILTER (WHERE r.state = 'failed') AS failed,
+       count(m.id) FILTER (WHERE m.status = 'read') AS read
+FROM automation_runs r
+LEFT JOIN messages m ON m.automation_run_id = r.id
+WHERE r.workspace_id = $1 AND r.created_at >= $2::timestamptz
+GROUP BY r.kind
 `
 
 type RunStatsParams struct {
@@ -216,8 +250,10 @@ type RunStatsParams struct {
 }
 
 type RunStatsRow struct {
-	Kind string
-	Sent int64
+	Kind   string
+	Sent   int64
+	Failed int64
+	Read   int64
 }
 
 func (q *Queries) RunStats(ctx context.Context, arg RunStatsParams) ([]RunStatsRow, error) {
@@ -229,7 +265,12 @@ func (q *Queries) RunStats(ctx context.Context, arg RunStatsParams) ([]RunStatsR
 	items := []RunStatsRow{}
 	for rows.Next() {
 		var i RunStatsRow
-		if err := rows.Scan(&i.Kind, &i.Sent); err != nil {
+		if err := rows.Scan(
+			&i.Kind,
+			&i.Sent,
+			&i.Failed,
+			&i.Read,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

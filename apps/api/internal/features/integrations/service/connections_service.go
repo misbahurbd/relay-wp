@@ -27,6 +27,8 @@ type storeCredentials struct {
 	ConsumerKey    string `json:"consumer_key,omitempty"`
 	ConsumerSecret string `json:"consumer_secret,omitempty"`
 	RefreshToken   string `json:"refresh_token,omitempty"`
+	// WebhookSecret signs a WooCommerce store's webhooks.
+	WebhookSecret string `json:"webhook_secret,omitempty"`
 }
 
 // storeConfig is the connection's non-secret settings.
@@ -34,6 +36,8 @@ type storeConfig struct {
 	Shop     string `json:"shop,omitempty"`
 	StoreURL string `json:"store_url,omitempty"`
 	Email    string `json:"email,omitempty"`
+	// OAuth means Relay's own Shopify app holds the token, so it signs the webhooks.
+	OAuth bool `json:"oauth,omitempty"`
 }
 
 // Connections lists the workspace's store and app connections, disconnected ones included.
@@ -94,6 +98,9 @@ func (s *Service) Connect(ctx context.Context, workspaceID, userID uuid.UUID, pr
 			return model.Connection{}, model.ErrMissingFields
 		}
 		label, err = s.checkWooCommerce(ctx, cfg.StoreURL, creds)
+		if err == nil {
+			creds.WebhookSecret, err = randomToken(32)
+		}
 	default:
 		return model.Connection{}, model.ErrUnknownProvider
 	}
@@ -103,6 +110,7 @@ func (s *Service) Connect(ctx context.Context, workspaceID, userID uuid.UUID, pr
 	if err := s.saveConnection(ctx, workspaceID, userID, provider, label, cfg, creds); err != nil {
 		return model.Connection{}, err
 	}
+	s.setUpStoreWebhooks(ctx, workspaceID, provider, cfg, creds)
 	return s.connection(ctx, workspaceID, provider)
 }
 
@@ -131,6 +139,22 @@ func (s *Service) saveConnection(ctx context.Context, workspaceID, userID uuid.U
 		return fmt.Errorf("save connection: %w", err)
 	}
 	return nil
+}
+
+// setUpStoreWebhooks subscribes a just-connected store. A failure doesn't undo
+// the connection: it shows on the card, and Test connection tries again.
+func (s *Service) setUpStoreWebhooks(ctx context.Context, workspaceID uuid.UUID, provider string, cfg storeConfig, creds storeCredentials) {
+	err := s.registerStoreWebhooks(ctx, workspaceID, provider, cfg, creds)
+	if err == nil {
+		return
+	}
+	s.log.WarnContext(ctx, "store webhook setup failed", "provider", provider, "err", err)
+	msg := model.ErrStoreNeedsReconnect.Message
+	if err := repository.NewRepository(s.pool).RecordConnectionCheck(ctx, gen.RecordConnectionCheckParams{
+		Status: model.StatusError, LastError: &msg, WorkspaceID: workspaceID, Provider: provider,
+	}); err != nil {
+		s.log.WarnContext(ctx, "record webhook setup failure", "provider", provider, "err", err)
+	}
 }
 
 // TestConnection checks saved credentials again and records the result.
@@ -169,6 +193,9 @@ func (s *Service) TestConnection(ctx context.Context, workspaceID uuid.UUID, pro
 		_, checkErr = s.refreshGoogle(ctx, creds.RefreshToken)
 	default:
 		return model.Connection{}, model.ErrUnknownProvider
+	}
+	if checkErr == nil && provider != model.ProviderGoogleSheets {
+		checkErr = s.registerStoreWebhooks(ctx, workspaceID, provider, cfg, creds)
 	}
 	params := gen.RecordConnectionCheckParams{Status: model.StatusConnected, WorkspaceID: workspaceID, Provider: provider}
 	if checkErr != nil {

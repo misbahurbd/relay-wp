@@ -37,7 +37,24 @@ WHERE workspace_id = @workspace_id AND conversation_id = @conversation_id AND st
   AND created_at >= @since::timestamptz;
 
 -- name: RunStats :many
-SELECT kind, count(id) FILTER (WHERE state = 'done') AS sent
-FROM automation_runs
-WHERE workspace_id = @workspace_id AND created_at >= @since::timestamptz
-GROUP BY kind;
+SELECT r.kind, count(r.id) FILTER (WHERE r.state = 'done') AS sent,
+       count(r.id) FILTER (WHERE r.state = 'failed') AS failed,
+       count(m.id) FILTER (WHERE m.status = 'read') AS read
+FROM automation_runs r
+LEFT JOIN messages m ON m.automation_run_id = r.id
+WHERE r.workspace_id = @workspace_id AND r.created_at >= @since::timestamptz
+GROUP BY r.kind;
+
+-- name: RedactContactRuns :exec
+UPDATE automation_runs
+SET state = CASE WHEN state = 'scheduled' THEN 'cancelled' ELSE state END,
+    reason = CASE WHEN state = 'scheduled' THEN 'redacted' ELSE reason END,
+    next_at = NULL, context = '{}'
+WHERE workspace_id = @workspace_id AND contact_id = @contact_id;
+
+-- name: RedactStoreRuns :exec
+UPDATE automation_runs
+SET state = CASE WHEN state = 'scheduled' THEN 'cancelled' ELSE state END,
+    reason = CASE WHEN state = 'scheduled' THEN 'redacted' ELSE reason END,
+    next_at = NULL, context = '{}'
+WHERE workspace_id = @workspace_id AND kind IN ('order', 'cart');

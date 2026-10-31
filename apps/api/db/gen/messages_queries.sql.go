@@ -296,15 +296,17 @@ func (q *Queries) GetThreadMessage(ctx context.Context, arg GetThreadMessagePara
 }
 
 const insertAutomatedMessage = `-- name: InsertAutomatedMessage :exec
-INSERT INTO messages (id, workspace_id, conversation_id, direction, kind, type, body, status, automation_run_id, created_at)
-VALUES ($1, $2, $3, 'out', 'message', 'text', $4, 'pending', $5, $6)
+INSERT INTO messages (id, workspace_id, conversation_id, direction, kind, type, body, content, status, automation_run_id, created_at)
+VALUES ($1, $2, $3, 'out', 'message', $4, $5, $6, 'pending', $7, $8)
 `
 
 type InsertAutomatedMessageParams struct {
 	ID              uuid.UUID
 	WorkspaceID     uuid.UUID
 	ConversationID  uuid.UUID
+	Type            string
 	Body            string
+	Content         []byte
 	AutomationRunID *uuid.UUID
 	CreatedAt       time.Time
 }
@@ -314,11 +316,42 @@ func (q *Queries) InsertAutomatedMessage(ctx context.Context, arg InsertAutomate
 		arg.ID,
 		arg.WorkspaceID,
 		arg.ConversationID,
+		arg.Type,
 		arg.Body,
+		arg.Content,
 		arg.AutomationRunID,
 		arg.CreatedAt,
 	)
 	return err
+}
+
+const insertAutomationConversation = `-- name: InsertAutomationConversation :one
+INSERT INTO conversations (id, workspace_id, contact_id, channel_type, channel_id, source, last_message_direction)
+VALUES ($1, $2, $3, $4, $5, 'automation', 'out')
+ON CONFLICT (workspace_id, contact_id, channel_type, channel_id) DO UPDATE SET updated_at = now()
+RETURNING id
+`
+
+type InsertAutomationConversationParams struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	ContactID   uuid.UUID
+	ChannelType string
+	ChannelID   uuid.UUID
+}
+
+// A chat a template starts: no window until the customer writes back.
+func (q *Queries) InsertAutomationConversation(ctx context.Context, arg InsertAutomationConversationParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, insertAutomationConversation,
+		arg.ID,
+		arg.WorkspaceID,
+		arg.ContactID,
+		arg.ChannelType,
+		arg.ChannelID,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const insertMessage = `-- name: InsertMessage :many
@@ -405,6 +438,25 @@ func (q *Queries) LastInboundExternalID(ctx context.Context, arg LastInboundExte
 	var external_id *string
 	err := row.Scan(&external_id)
 	return external_id, err
+}
+
+const latestContactConversation = `-- name: LatestContactConversation :one
+SELECT id FROM conversations
+WHERE workspace_id = $1 AND contact_id = $2
+ORDER BY last_message_at DESC
+LIMIT 1
+`
+
+type LatestContactConversationParams struct {
+	WorkspaceID uuid.UUID
+	ContactID   uuid.UUID
+}
+
+func (q *Queries) LatestContactConversation(ctx context.Context, arg LatestContactConversationParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, latestContactConversation, arg.WorkspaceID, arg.ContactID)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const listMessages = `-- name: ListMessages :many
@@ -751,14 +803,17 @@ const touchAutomated = `-- name: TouchAutomated :one
 UPDATE conversations
 SET last_message_at        = GREATEST(last_message_at, $1::timestamptz),
     last_message_preview   = $2,
-    last_message_direction = 'out'
-WHERE workspace_id = $3 AND id = $4
+    last_message_direction = 'out',
+    status                 = CASE WHEN $3::boolean AND status = 'closed' THEN 'pending' ELSE status END,
+    closed_at              = CASE WHEN $3::boolean AND status = 'closed' THEN NULL ELSE closed_at END
+WHERE workspace_id = $4 AND id = $5
 RETURNING team_id, assignee_id, channel_type, channel_id
 `
 
 type TouchAutomatedParams struct {
 	At          time.Time
 	Preview     string
+	ToPending   bool
 	WorkspaceID uuid.UUID
 	ID          uuid.UUID
 }
@@ -776,6 +831,7 @@ func (q *Queries) TouchAutomated(ctx context.Context, arg TouchAutomatedParams) 
 	row := q.db.QueryRow(ctx, touchAutomated,
 		arg.At,
 		arg.Preview,
+		arg.ToPending,
 		arg.WorkspaceID,
 		arg.ID,
 	)

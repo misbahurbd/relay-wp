@@ -165,6 +165,7 @@ type Querier interface {
 	DeactivatePlanPrice(ctx context.Context, planPriceID uuid.UUID) (int64, error)
 	DeactivateProviderDiscounts(ctx context.Context, discountID uuid.UUID) (int64, error)
 	DeactivateProviderPrice(ctx context.Context, providerPriceID uuid.UUID) (int64, error)
+	DeleteCommerceEvents(ctx context.Context, connectionID uuid.UUID) error
 	DeleteContacts(ctx context.Context, arg DeleteContactsParams) (int64, error)
 	DeleteEndedSessions(ctx context.Context) (int64, error)
 	DeleteExpiredEmailCodes(ctx context.Context) (int64, error)
@@ -249,7 +250,10 @@ type Querier interface {
 	GetCardCustomer(ctx context.Context, workspaceID uuid.UUID) (GetCardCustomerRow, error)
 	GetCheckoutSession(ctx context.Context, arg GetCheckoutSessionParams) (GetCheckoutSessionRow, error)
 	GetCheckoutSessionByIdempotencyKey(ctx context.Context, arg GetCheckoutSessionByIdempotencyKeyParams) (GetCheckoutSessionByIdempotencyKeyRow, error)
+	GetConnectionByShop(ctx context.Context, shop string) (GetConnectionByShopRow, error)
 	GetConnectionCredentials(ctx context.Context, arg GetConnectionCredentialsParams) (GetConnectionCredentialsRow, error)
+	GetConnectionForWebhook(ctx context.Context, arg GetConnectionForWebhookParams) (GetConnectionForWebhookRow, error)
+	GetConnectionID(ctx context.Context, arg GetConnectionIDParams) (uuid.UUID, error)
 	GetContact(ctx context.Context, arg GetContactParams) (GetContactRow, error)
 	GetContactImport(ctx context.Context, arg GetContactImportParams) (GetContactImportRow, error)
 	GetContactTag(ctx context.Context, arg GetContactTagParams) (GetContactTagRow, error)
@@ -336,6 +340,10 @@ type Querier interface {
 	InsertAccessLog(ctx context.Context, arg InsertAccessLogParams) error
 	InsertAuthEvent(ctx context.Context, arg InsertAuthEventParams) error
 	InsertAutomatedMessage(ctx context.Context, arg InsertAutomatedMessageParams) error
+	// A chat a template starts: no window until the customer writes back.
+	InsertAutomationConversation(ctx context.Context, arg InsertAutomationConversationParams) (uuid.UUID, error)
+	// A delivery already stored inserts nothing and returns no row.
+	InsertCommerceEvent(ctx context.Context, arg InsertCommerceEventParams) ([]string, error)
 	// Links a sender to a contact. A concurrent link of the same sender wins; the
 	// caller reads the identity back.
 	InsertContactIdentity(ctx context.Context, arg InsertContactIdentityParams) error
@@ -368,6 +376,7 @@ type Querier interface {
 	// the access token expires.
 	IsSessionActive(ctx context.Context, arg IsSessionActiveParams) (bool, error)
 	LastInboundExternalID(ctx context.Context, arg LastInboundExternalIDParams) (*string, error)
+	LatestContactConversation(ctx context.Context, arg LatestContactConversationParams) (uuid.UUID, error)
 	// Records the subscription or order a pending checkout created.
 	LinkCheckoutSession(ctx context.Context, arg LinkCheckoutSessionParams) (int64, error)
 	// ---------- API keys ----------
@@ -513,6 +522,8 @@ type Querier interface {
 	RecordEndpointFailure(ctx context.Context, arg RecordEndpointFailureParams) (bool, error)
 	RecordEndpointSuccess(ctx context.Context, arg RecordEndpointSuccessParams) error
 	RecordOAuthFlowCodeAttempt(ctx context.Context, id uuid.UUID) (int32, error)
+	RedactContactRuns(ctx context.Context, arg RedactContactRunsParams) error
+	RedactStoreRuns(ctx context.Context, workspaceID uuid.UUID) error
 	// Payment went through: the reservation becomes a redemption.
 	RedeemDiscount(ctx context.Context, arg RedeemDiscountParams) (int64, error)
 	// The checkout failed or expired: free the reservation and give the use back,

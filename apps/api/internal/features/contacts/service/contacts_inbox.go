@@ -107,6 +107,29 @@ func (s *Service) SetLastMessage(ctx context.Context, tx pgx.Tx, workspaceID, co
 	return nil
 }
 
+// FindOrCreateByPhone returns who has a phone, adding them if new. For
+// features/automations, through an interface it declares.
+func (s *Service) FindOrCreateByPhone(ctx context.Context, workspaceID uuid.UUID, phone, name string) (uuid.UUID, error) {
+	id, _, err := s.findOrCreateByPhone(ctx, repository.NewRepository(s.pool), workspaceID, phone, name)
+	return id, err
+}
+
+// ContactIDByPhone says who has a phone, if anyone.
+func (s *Service) ContactIDByPhone(ctx context.Context, workspaceID uuid.UUID, phone string) (uuid.UUID, bool, error) {
+	e164, ok := NormalizePhone(phone)
+	if !ok {
+		return uuid.Nil, false, nil
+	}
+	id, err := repository.NewRepository(s.pool).ContactIDByPhone(ctx, gen.ContactIDByPhoneParams{WorkspaceID: workspaceID, Phone: e164})
+	if repository.IsNoRows(err) {
+		return uuid.Nil, false, nil
+	}
+	if err != nil {
+		return uuid.Nil, false, fmt.Errorf("contact by phone: %w", err)
+	}
+	return id, true, nil
+}
+
 // SetOptOut records that a contact opted out; changed is false if they already
 // had. For features/automations, through an interface it declares.
 func (s *Service) SetOptOut(ctx context.Context, workspaceID, contactID uuid.UUID, source string) (bool, error) {

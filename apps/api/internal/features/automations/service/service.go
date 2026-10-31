@@ -22,8 +22,9 @@ import (
 // internal/app on top of features/inbox.
 type Inbox interface {
 	Conversation(ctx context.Context, workspaceID, conversationID uuid.UUID) (model.Conversation, error)
-	// SendAutomated queues a message in tx. It returns model.ErrWindowClosed or
-	// model.ErrOptedOut, having written nothing, when the message can't go.
+	// SendAutomated queues a message in tx. When it can't go it writes nothing and
+	// returns model.ErrWindowClosed, ErrOptedOut, ErrTemplateUnavailable,
+	// ErrMissingVariable or ErrNoChannel.
 	SendAutomated(ctx context.Context, tx pgx.Tx, in model.AutomatedSend) error
 	// NoteOptOut adds a line to the thread saying the customer opted out.
 	NoteOptOut(ctx context.Context, workspaceID, conversationID uuid.UUID) error
@@ -33,6 +34,10 @@ type Inbox interface {
 type Contacts interface {
 	// SetOptOut opts the contact out; changed is false if they already were.
 	SetOptOut(ctx context.Context, workspaceID, contactID uuid.UUID, source string) (changed bool, err error)
+	// FindOrCreateByPhone returns model.ErrInvalidPhone for a phone nobody can have.
+	FindOrCreateByPhone(ctx context.Context, workspaceID uuid.UUID, phone, name string) (uuid.UUID, error)
+	// ContactIDByPhone says who has a phone, if anyone.
+	ContactIDByPhone(ctx context.Context, workspaceID uuid.UUID, phone string) (uuid.UUID, bool, error)
 }
 
 // PlanAccess says whether a plan includes a resource. Implemented by features/billing.
@@ -75,7 +80,7 @@ func (s *Service) List(ctx context.Context, workspaceID uuid.UUID) ([]model.Auto
 	if err != nil {
 		return nil, fmt.Errorf("list automations: %w", err)
 	}
-	sent, err := s.sentThisMonth(ctx, workspaceID)
+	stats, err := s.thisMonth(ctx, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -93,12 +98,12 @@ func (s *Service) List(ctx context.Context, workspaceID uuid.UUID) ([]model.Auto
 		if out[i], err = toAutomation(r.Kind, r.Enabled, r.Settings, r.UpdatedAt); err != nil {
 			return nil, err
 		}
-		out[i].Sent = sent[k]
+		out[i].Stats = stats[k]
 	}
 	return out, nil
 }
 
-func (s *Service) sentThisMonth(ctx context.Context, workspaceID uuid.UUID) (map[model.Kind]int64, error) {
+func (s *Service) thisMonth(ctx context.Context, workspaceID uuid.UUID) (map[model.Kind]model.Stats, error) {
 	now := s.now()
 	rows, err := repository.NewRepository(s.pool).RunStats(ctx, gen.RunStatsParams{
 		WorkspaceID: workspaceID, Since: time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC),
@@ -106,9 +111,9 @@ func (s *Service) sentThisMonth(ctx context.Context, workspaceID uuid.UUID) (map
 	if err != nil {
 		return nil, fmt.Errorf("automation stats: %w", err)
 	}
-	out := make(map[model.Kind]int64, len(rows))
+	out := make(map[model.Kind]model.Stats, len(rows))
 	for _, r := range rows {
-		out[model.Kind(r.Kind)] = r.Sent
+		out[model.Kind(r.Kind)] = model.Stats{Sent: r.Sent, Failed: r.Failed, Read: r.Read}
 	}
 	return out, nil
 }

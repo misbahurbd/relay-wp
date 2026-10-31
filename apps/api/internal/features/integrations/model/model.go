@@ -191,3 +191,29 @@ type AppKeyStatus struct {
 	ActiveKeys int
 	LastUsedAt *time.Time
 }
+
+// What happened to an order.
+const (
+	OrderCreated = "created"
+	OrderPaid    = "paid"
+)
+
+// CommerceDelivery is one webhook as a store sent it.
+type CommerceDelivery struct {
+	Topic, DeliveryID, Signature string
+	Body                         []byte
+}
+
+// OrderEvent is a store order in one shape for every provider.
+type OrderEvent struct {
+	WorkspaceID uuid.UUID
+	Provider    string
+	Status      string
+	OrderID     string
+	Number      string
+	Total       string
+	FirstName   string
+	LastName    string
+	Phone       string
+	StatusURL   string
+}

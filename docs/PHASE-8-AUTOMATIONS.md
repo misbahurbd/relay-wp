@@ -270,7 +270,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 - [ ] Register `orders/create` and `orders/paid` for Shopify and `order.created` for WooCommerce when a store connects, and add a Reconnect path for existing stores.
 - [ ] Map provider payloads to one `model.OrderEvent` and pass it to automations through an interface wired in `internal/app`.
 - [ ] Add `StartConversation` to inbox, so a template can reach a contact with no thread. Use the contact's latest channel, else the workspace's first connected number.
-- [ ] Add Shopify's privacy webhooks `customers/data_request`, `customers/redact` and `shop/redact` on the same route, signed the same way. `customers/redact` clears that customer's `automation_runs.context` and `commerce_events` rows. `shop/redact` does the same for the whole connection. `customers/data_request` is logged and queued for the operator, because Relay has no customer export yet.
+- [ ] Add Shopify's privacy webhooks `customers/data_request`, `customers/redact` and `shop/redact` at `/v1/webhooks/shopify/privacy`, signed the same way, because Shopify sends them to one app-wide address. `commerce_events` holds no customer data. `customers/redact` clears that customer's `automation_runs.context`. `shop/redact` clears it for the store's runs and deletes its `commerce_events` rows. `customers/data_request` is logged and queued for the operator, because Relay has no customer export yet.
 - [ ] Resolve template variables from the kind's source catalogue. Tracking URL reads the store's order status URL, because a tracking number rarely exists at order creation.
 
 **You see.**
