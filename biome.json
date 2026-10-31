@@ -9,6 +9,7 @@
     "includes": [
       "**",
       "!apps/api",
+      "!.claude",
       "!**/routeTree.gen.ts",
       "!packages/api-client/src/gen",
       "!apps/web/src/components/ui",
@@ -59,7 +60,7 @@
             "noLabelWithoutControl": {
               "level": "error",
               "options": {
-                "inputComponents": ["Input", "NativeSelect", "Textarea"]
+                "inputComponents": ["Input", "OptionSelect", "Textarea"]
               }
             }
           },
@@ -71,6 +72,10 @@
                   {
                     "group": ["#/features/*/**"],
                     "message": "Import a feature through its public index: #/features/<name>"
+                  },
+                  {
+                    "group": ["#/components/ui/native-select"],
+                    "message": "No native select boxes (CLAUDE.md): use OptionSelect or Select from #/components/ui"
                   }
                 ]
               }

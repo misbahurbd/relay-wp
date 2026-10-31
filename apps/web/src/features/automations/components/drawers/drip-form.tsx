@@ -23,15 +23,13 @@ export function DripForm({ workspaceId, settings, errors, onChange }: FormProps)
       <Fld label="Who gets this sequence" error={errors.tag_id}>
         <Select
           value={s.tag_id ?? ''}
-          onChange={(e) => set({ tag_id: e.target.value || undefined })}
-        >
-          <option value="">Choose a tag</option>
-          {tags.data?.map((t) => (
-            <option key={t.id} value={t.id}>
-              Contacts tagged “{t.name}”
-            </option>
-          ))}
-        </Select>
+          onValueChange={(tag_id) => set({ tag_id: tag_id || undefined })}
+          placeholder="Choose a tag"
+          options={(tags.data ?? []).map((t) => ({
+            value: t.id,
+            label: `Contacts tagged “${t.name}”`,
+          }))}
+        />
       </Fld>
       <div className="flex flex-col">
         {errors.steps && (

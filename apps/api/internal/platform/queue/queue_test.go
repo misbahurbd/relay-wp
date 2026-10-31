@@ -33,7 +33,7 @@ func TestSendEmailJobRuns(t *testing.T) {
 	workers := river.NewWorkers()
 	river.AddWorker(workers, mailer.NewSendWorker(fm))
 
-	client, err := queue.New(pool, workers, 2, slog.Default())
+	client, err := queue.New(pool, workers, 2, 1, slog.Default())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,6 +48,20 @@ func TestSendEmailJobRuns(t *testing.T) {
 	}}, nil); err != nil {
 		t.Fatal(err)
 	}
+	waitFor(t, fm, subject)
+
+	// The bulk queue is worked too.
+	bulk := subject + " bulk"
+	if _, err := client.Insert(ctx, mailer.SendArgs{Message: mailer.Message{
+		To: []string{"dev@relay.test"}, Subject: bulk, Text: "hi",
+	}}, &river.InsertOpts{Queue: queue.Bulk}); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, fm, bulk)
+}
+
+func waitFor(t *testing.T, fm *fakeMailer, subject string) {
+	t.Helper()
 
 	// Other tests may share this database, so skip any job that isn't ours.
 	timeout := time.After(15 * time.Second)
@@ -58,7 +72,7 @@ func TestSendEmailJobRuns(t *testing.T) {
 				return
 			}
 		case <-timeout:
-			t.Fatal("send_email job did not run within 15s")
+			t.Fatalf("send_email job %q did not run within 15s", subject)
 		}
 	}
 }

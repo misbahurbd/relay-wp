@@ -22,6 +22,8 @@ export const billingKeys = {
   /** Seats and WhatsApp numbers, read from their own endpoints for the usage meters. */
   seats: (workspaceId: string) => ['billing', workspaceId, 'usage', 'seats'] as const,
   numbers: (workspaceId: string) => ['billing', workspaceId, 'usage', 'numbers'] as const,
+  /** This month's use of monthly resources (broadcasts, API calls). */
+  monthly: (workspaceId: string) => ['billing', workspaceId, 'usage', 'monthly'] as const,
   /** Sample data (api/billing.preview.ts). */
   preview: (workspaceId: string, part: string) =>
     ['billing', workspaceId, 'preview', part] as const,

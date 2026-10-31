@@ -57,7 +57,7 @@ func newAuthEnv(t *testing.T) *authEnv {
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := queue.New(pool, nil, 0, slog.Default())
+	q, err := queue.New(pool, nil, 0, 0, slog.Default())
 	if err != nil {
 		t.Fatal(err)
 	}

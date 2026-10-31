@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactNode } from 'react'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
-import { NativeSelect } from '#/components/ui/native-select'
+import { OptionSelect } from '#/components/ui/option-select'
 import { cn } from '#/lib/utils'
 
 export const controlClass =
@@ -29,8 +29,17 @@ export function Fld({
   )
 }
 
-export function Select({ className, ...props }: ComponentProps<'select'>) {
-  return <NativeSelect unstyled className={cn(controlClass, className)} {...props} />
+/** The kit's select box: OptionSelect styled to match `controlClass`. */
+export function Select({ className, ...props }: ComponentProps<typeof OptionSelect>) {
+  return (
+    <OptionSelect
+      className={cn(
+        'min-h-11 rounded-[10px] bg-muted px-3 text-base text-foreground shadow-none data-[size=default]:h-auto md:text-sm',
+        className,
+      )}
+      {...props}
+    />
+  )
 }
 
 export function Check({

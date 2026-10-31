@@ -12,9 +12,15 @@ var (
 
 	ErrContactNotFound = apperr.NotFound("contact_not_found", "Contact not found")
 	ErrTagNotFound     = apperr.NotFound("tag_not_found", "Tag not found")
-	ErrUserNotMember   = apperr.Validation("user_not_member", "That person isn't a member of this workspace")
-	ErrContactExists   = apperr.Conflict("contact_exists", "A contact with this phone number already exists")
-	ErrContactLimit    = apperr.Conflict("plan_contact_limit", "Your plan's contact limit is reached. Upgrade your plan to add more contacts.")
+	// ErrSegmentNotFound: no such segment in this workspace.
+	ErrSegmentNotFound = apperr.NotFound("segment_not_found", "Segment not found")
+	// ErrInvalidSegment carries per-field details, located like "rules.groups[0].conditions[1]".
+	ErrInvalidSegment = apperr.Validation("invalid_segment", "Some conditions need changes")
+	// ErrSegmentNameTaken: another segment has this name.
+	ErrSegmentNameTaken = apperr.Conflict("segment_name_taken", "A segment with this name already exists")
+	ErrUserNotMember    = apperr.Validation("user_not_member", "That person isn't a member of this workspace")
+	ErrContactExists    = apperr.Conflict("contact_exists", "A contact with this phone number already exists")
+	ErrContactLimit     = apperr.Conflict("plan_contact_limit", "Your plan's contact limit is reached. Upgrade your plan to add more contacts.")
 	// ErrIdentityNeedsPhone: a sender without a contact can't be added yet without a phone
 	// (phone-less contacts arrive with the second channel, ADR 0010).
 	ErrIdentityNeedsPhone = apperr.Validation("identity_needs_phone", "This sender has no phone number, so no contact can be created")

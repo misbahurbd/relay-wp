@@ -2,6 +2,7 @@ import {
   type CatalogOutputBody,
   getBillingOverview,
   getBillingProfile,
+  getBillingUsage,
   getCheckoutSession,
   getInvoice,
   getPaymentMethod,
@@ -244,5 +245,19 @@ export const numbersUsageQueryOptions = (workspaceId: string) =>
         throwOnError: true,
       })
       return list(data.numbers).filter((n) => n.status !== 'disconnected').length
+    },
+  })
+
+/** This month's use of each monthly plan resource, keyed by resource, for the usage meters. */
+export const monthlyUsageQueryOptions = (workspaceId: string) =>
+  queryOptions({
+    queryKey: billingKeys.monthly(workspaceId),
+    queryFn: async ({ signal }) => {
+      const { data } = await getBillingUsage({
+        headers: inWorkspace(workspaceId),
+        signal,
+        throwOnError: true,
+      })
+      return Object.fromEntries(list(data.resources).map((r) => [r.resource, r]))
     },
   })

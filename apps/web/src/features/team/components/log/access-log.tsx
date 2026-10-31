@@ -4,7 +4,7 @@ import { ArrowRightIcon, DownloadIcon, InfoIcon, SearchIcon } from 'lucide-react
 import { useDeferredValue, useMemo, useState } from 'react'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
-import { NativeSelect } from '#/components/ui/native-select'
+import { OptionSelect } from '#/components/ui/option-select'
 import { Skeleton } from '#/components/ui/skeleton'
 import { errorMessage } from '#/lib/api'
 import { cn } from '#/lib/utils'
@@ -181,34 +181,28 @@ export function AccessLog({
           </label>
           <label className="flex items-center gap-2 text-[13px] font-semibold text-muted-foreground">
             <span className="sr-only">Date range</span>
-            <NativeSelect
-              unstyled
+            <OptionSelect
+              size="sm"
+              aria-label="Date range"
               value={range}
-              onChange={(e) => setRange(e.target.value as Range)}
-              className="h-10 rounded-[10px] border bg-card px-2.5 text-[13px] font-semibold text-foreground"
-            >
-              {RANGES.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </NativeSelect>
+              onValueChange={(v) => setRange(v as Range)}
+              options={RANGES.map((r) => ({ value: r.value, label: r.label }))}
+              className="w-auto text-[13px] font-semibold text-foreground"
+            />
           </label>
           <label className="flex items-center gap-2 text-[13px] font-semibold text-muted-foreground">
             Member
-            <NativeSelect
-              unstyled
+            <OptionSelect
+              size="sm"
+              aria-label="Member"
               value={member}
-              onChange={(e) => setMember(e.target.value)}
-              className="h-10 rounded-[10px] border bg-card px-2.5 text-[13px] font-semibold text-foreground"
-            >
-              <option value="">All members</option>
-              {people.map((p) => (
-                <option key={p.user_id} value={p.user_id}>
-                  {p.name}
-                </option>
-              ))}
-            </NativeSelect>
+              onValueChange={setMember}
+              options={[
+                { value: '', label: 'All members' },
+                ...people.map((p) => ({ value: p.user_id, label: p.name })),
+              ]}
+              className="w-auto text-[13px] font-semibold text-foreground"
+            />
           </label>
           <span className="ml-auto text-[13px] text-muted-foreground">
             {rows.length} {rows.length === 1 ? 'event' : 'events'}

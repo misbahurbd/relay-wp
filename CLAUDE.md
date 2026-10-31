@@ -83,7 +83,8 @@ features/<feature>/
 - Import a feature **only** through its `index.ts` (`#/features/<name>`). Biome enforces this; do not disable the rule.
 - A feature never imports another feature's internals.
 - A component moves to `components/` only when 2+ features use it.
-- **No native form controls in `apps/web`.** Outside `apps/web/src/components/ui/`, never write `<button>`, `<input>`, `<select>` or `<textarea>`. Use `Button`, `Input`, `NativeSelect`, `Textarea`, or a richer primitive (`Select`, `Checkbox`, `RadioGroup`) from `#/components/ui`. Start from the primitive's own styles. Use `variant="unstyled"` on `Button`, or `unstyled` on the others, only when a design needs a look the primitive can't give. If a primitive is missing, add it to `components/ui/` first.
+- **No native form controls in `apps/web`.** Outside `apps/web/src/components/ui/`, never write `<button>`, `<input>`, `<select>` or `<textarea>`. Use `Button`, `Input`, `Textarea`, or a richer primitive (`OptionSelect`, `Select`, `Checkbox`, `RadioGroup`) from `#/components/ui`. Start from the primitive's own styles. Use `variant="unstyled"` on `Button`, or `unstyled` on the others, only when a design needs a look the primitive can't give. If a primitive is missing, add it to `components/ui/` first.
+- **No default (native) select boxes, in `apps/web` or `apps/crm`.** Never use `NativeSelect` or a browser `<select>`, anywhere outside `components/ui`. A dropdown is `OptionSelect` (`value`, `onValueChange`, `options`, `placeholder`) or, for custom item content, `Select` + `SelectTrigger` + `SelectContent` + `SelectItem`. Biome refuses imports of `#/components/ui/native-select`; do not disable the rule.
 - Never hand-write API types or fetch calls; use `@relay/api-client`.
 - Each feature owns its query keys; mutations invalidate through them.
 - Staff-only tools live in `apps/crm`, never in `apps/web`, and call only `/v1/admin` routes (plus sign-in and `/v1/me`). `apps/web` and `apps/crm` never import each other.
@@ -183,6 +184,7 @@ Then check your change against sections 1 and 2:
 - [ ] No workspace ID in an API path or a web page URL (`grep -rn 'workspaceId}' apps/api/internal --include='*.go'` and `grep -rn '/w/' apps/web/src --include='*.tsx'` find none).
 - [ ] No `SELECT *` or `RETURNING *` in any query (`grep -rn '\*' --include='*.sql' apps/api/internal` finds none).
 - [ ] No native form control in `apps/web` outside `components/ui` (`grep -rnE '<(button|input|select|textarea)([ >]|$)' apps/web/src --include='*.tsx' --exclude-dir=ui` finds none).
+- [ ] No native select box (`grep -rnE 'NativeSelect|<select' apps/web/src apps/crm/src --include='*.tsx' --exclude-dir=ui` finds none).
 - [ ] No password or token hash appears in a model, DTO, response or log line.
 - [ ] A new feature, table or plan resource has sample data in `apps/api/internal/app/seed_dev.go`, so `task dev:seed` still shows it working. Run the seed twice on a fresh database: the second run must add nothing.
 

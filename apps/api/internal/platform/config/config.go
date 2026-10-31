@@ -55,6 +55,8 @@ type HTTP struct {
 // Queue configures River workers.
 type Queue struct {
 	MaxWorkers int `env:"QUEUE_MAX_WORKERS" envDefault:"10"`
+	// BulkMaxWorkers sizes the bulk queue: broadcast sends (ADR 0013).
+	BulkMaxWorkers int `env:"QUEUE_BULK_MAX_WORKERS" envDefault:"4"`
 }
 
 // Mailer configures outgoing email.

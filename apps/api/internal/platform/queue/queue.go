@@ -14,13 +14,22 @@ import (
 // Client inserts jobs (and works them, when built with workers).
 type Client = river.Client[pgx.Tx]
 
+// Bulk is the queue for jobs that come in thousands at once, such as a
+// broadcast's sends, so they never wait in front of the default queue's work
+// (ADR 0013). Insert on it with &river.InsertOpts{Queue: queue.Bulk}.
+const Bulk = "bulk"
+
 // New builds a River client on the direct (non-pooled) pool, which River needs for LISTEN/NOTIFY.
 // With workers == nil the client is insert-only, as used by the API process.
-func New(directPool *pgxpool.Pool, workers *river.Workers, maxWorkers int, log *slog.Logger) (*Client, error) {
+// maxWorkers and bulkWorkers size the default and Bulk queues.
+func New(directPool *pgxpool.Pool, workers *river.Workers, maxWorkers, bulkWorkers int, log *slog.Logger) (*Client, error) {
 	cfg := &river.Config{Logger: log}
 	if workers != nil {
 		cfg.Workers = workers
-		cfg.Queues = map[string]river.QueueConfig{river.QueueDefault: {MaxWorkers: maxWorkers}}
+		cfg.Queues = map[string]river.QueueConfig{
+			river.QueueDefault: {MaxWorkers: maxWorkers},
+			Bulk:               {MaxWorkers: bulkWorkers},
+		}
 	}
 
 	c, err := river.NewClient(riverpgxv5.New(directPool), cfg)

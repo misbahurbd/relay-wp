@@ -1,5 +1,6 @@
 import { Badge } from '#/components/ui/badge'
 import { Input } from '#/components/ui/input'
+import { OptionSelect } from '#/components/ui/option-select'
 import type { Resource } from '../../types'
 import type { ResourceEntries, ResourceEntry } from './limits'
 
@@ -64,24 +65,20 @@ export function ResourceTable({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <select
+                    <OptionSelect
                       id={id}
+                      size="sm"
                       value={e.mode}
-                      onChange={(ev) => {
-                        const mode = ev.target.value as Mode
+                      onValueChange={(v) => {
+                        const mode = v as Mode
                         set(
                           r.key,
                           mode === 'cap' ? { mode, cap: e.mode === 'cap' ? e.cap : '' } : { mode },
                         )
                       }}
-                      className="h-10 rounded-md border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                    >
-                      {modes(r, followsPlan).map((m) => (
-                        <option key={m.value} value={m.value}>
-                          {m.label}
-                        </option>
-                      ))}
-                    </select>
+                      options={modes(r, followsPlan)}
+                      className="h-10 w-auto min-w-[140px] rounded-md bg-card"
+                    />
                     {e.mode === 'cap' && (
                       <Input
                         type="number"
