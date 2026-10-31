@@ -98,19 +98,21 @@ type Automation struct {
 }
 
 type AutomationRun struct {
-	ID             uuid.UUID
-	WorkspaceID    uuid.UUID
-	Kind           string
-	ContactID      *uuid.UUID
-	ConversationID *uuid.UUID
-	DedupeKey      string
-	State          string
-	Reason         *string
-	Step           int32
-	NextAt         *time.Time
-	Context        []byte
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID                uuid.UUID
+	WorkspaceID       uuid.UUID
+	Kind              string
+	ContactID         *uuid.UUID
+	ConversationID    *uuid.UUID
+	DedupeKey         string
+	State             string
+	Reason            *string
+	Step              int32
+	NextAt            *time.Time
+	Context           []byte
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	RecoveredMinor    *int64
+	RecoveredCurrency *string
 }
 
 type BillingCustomer struct {

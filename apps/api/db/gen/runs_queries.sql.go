@@ -12,6 +12,40 @@ import (
 	"github.com/google/uuid"
 )
 
+const advanceRun = `-- name: AdvanceRun :exec
+UPDATE automation_runs
+SET step = step + 1, next_at = $1
+WHERE workspace_id = $2 AND id = $3
+`
+
+type AdvanceRunParams struct {
+	NextAt      *time.Time
+	WorkspaceID uuid.UUID
+	ID          uuid.UUID
+}
+
+func (q *Queries) AdvanceRun(ctx context.Context, arg AdvanceRunParams) error {
+	_, err := q.db.Exec(ctx, advanceRun, arg.NextAt, arg.WorkspaceID, arg.ID)
+	return err
+}
+
+const cancelCartRun = `-- name: CancelCartRun :exec
+UPDATE automation_runs
+SET state = 'cancelled', reason = 'order_placed', next_at = NULL
+WHERE workspace_id = $1 AND dedupe_key = $2 AND state = 'scheduled' AND step = 0
+`
+
+type CancelCartRunParams struct {
+	WorkspaceID uuid.UUID
+	DedupeKey   string
+}
+
+// The order came before any reminder went.
+func (q *Queries) CancelCartRun(ctx context.Context, arg CancelCartRunParams) error {
+	_, err := q.db.Exec(ctx, cancelCartRun, arg.WorkspaceID, arg.DedupeKey)
+	return err
+}
+
 const cancelContactRuns = `-- name: CancelContactRuns :exec
 UPDATE automation_runs
 SET state = 'cancelled', reason = $1, next_at = NULL
@@ -203,6 +237,31 @@ func (q *Queries) InsertRun(ctx context.Context, arg InsertRunParams) ([]uuid.UU
 	return items, nil
 }
 
+const recoverCart = `-- name: RecoverCart :exec
+UPDATE automation_runs
+SET recovered_minor = $1, recovered_currency = $2, state = 'done', next_at = NULL
+WHERE workspace_id = $3 AND dedupe_key = $4 AND recovered_minor IS NULL
+  AND (state = 'done' OR (state = 'scheduled' AND step > 0))
+`
+
+type RecoverCartParams struct {
+	AmountMinor *int64
+	Currency    *string
+	WorkspaceID uuid.UUID
+	DedupeKey   string
+}
+
+// The order came after a reminder: count it, once, and send no more.
+func (q *Queries) RecoverCart(ctx context.Context, arg RecoverCartParams) error {
+	_, err := q.db.Exec(ctx, recoverCart,
+		arg.AmountMinor,
+		arg.Currency,
+		arg.WorkspaceID,
+		arg.DedupeKey,
+	)
+	return err
+}
+
 const redactContactRuns = `-- name: RedactContactRuns :exec
 UPDATE automation_runs
 SET state = CASE WHEN state = 'scheduled' THEN 'cancelled' ELSE state END,
@@ -235,9 +294,13 @@ func (q *Queries) RedactStoreRuns(ctx context.Context, workspaceID uuid.UUID) er
 }
 
 const runStats = `-- name: RunStats :many
-SELECT r.kind, count(r.id) FILTER (WHERE r.state = 'done') AS sent,
-       count(r.id) FILTER (WHERE r.state = 'failed') AS failed,
-       count(m.id) FILTER (WHERE m.status = 'read') AS read
+SELECT r.kind, count(m.id) AS sent,
+       count(DISTINCT r.id) FILTER (WHERE r.state = 'failed') AS failed,
+       count(m.id) FILTER (WHERE m.status = 'read') AS read,
+       count(DISTINCT r.id) FILTER (WHERE r.recovered_minor IS NOT NULL) AS recovered,
+       (SELECT COALESCE(sum(x.recovered_minor), 0) FROM automation_runs x
+        WHERE x.workspace_id = $1 AND x.kind = r.kind AND x.created_at >= $2::timestamptz)::bigint AS recovered_minor,
+       COALESCE(min(r.recovered_currency), '')::text AS recovered_currency
 FROM automation_runs r
 LEFT JOIN messages m ON m.automation_run_id = r.id
 WHERE r.workspace_id = $1 AND r.created_at >= $2::timestamptz
@@ -250,10 +313,13 @@ type RunStatsParams struct {
 }
 
 type RunStatsRow struct {
-	Kind   string
-	Sent   int64
-	Failed int64
-	Read   int64
+	Kind              string
+	Sent              int64
+	Failed            int64
+	Read              int64
+	Recovered         int64
+	RecoveredMinor    int64
+	RecoveredCurrency string
 }
 
 func (q *Queries) RunStats(ctx context.Context, arg RunStatsParams) ([]RunStatsRow, error) {
@@ -270,6 +336,9 @@ func (q *Queries) RunStats(ctx context.Context, arg RunStatsParams) ([]RunStatsR
 			&i.Sent,
 			&i.Failed,
 			&i.Read,
+			&i.Recovered,
+			&i.RecoveredMinor,
+			&i.RecoveredCurrency,
 		); err != nil {
 			return nil, err
 		}
@@ -279,4 +348,34 @@ func (q *Queries) RunStats(ctx context.Context, arg RunStatsParams) ([]RunStatsR
 		return nil, err
 	}
 	return items, nil
+}
+
+const upsertCartRun = `-- name: UpsertCartRun :exec
+INSERT INTO automation_runs (id, workspace_id, kind, contact_id, dedupe_key, state, next_at, context)
+VALUES ($1, $2, 'cart', $3, $4, 'scheduled', $5, $6)
+ON CONFLICT (workspace_id, dedupe_key) DO UPDATE
+SET next_at = EXCLUDED.next_at, context = EXCLUDED.context, contact_id = EXCLUDED.contact_id
+WHERE automation_runs.state = 'scheduled' AND automation_runs.step = 0
+`
+
+type UpsertCartRunParams struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	ContactID   *uuid.UUID
+	DedupeKey   string
+	NextAt      *time.Time
+	Context     []byte
+}
+
+// One run per checkout. Each change restarts the wait, until a reminder has gone.
+func (q *Queries) UpsertCartRun(ctx context.Context, arg UpsertCartRunParams) error {
+	_, err := q.db.Exec(ctx, upsertCartRun,
+		arg.ID,
+		arg.WorkspaceID,
+		arg.ContactID,
+		arg.DedupeKey,
+		arg.NextAt,
+		arg.Context,
+	)
+	return err
 }

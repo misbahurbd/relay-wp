@@ -18,8 +18,8 @@ import (
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/integrations/model"
 )
 
-// shopifyScopes are what syncing customers and reading orders need.
-const shopifyScopes = "read_customers,read_orders"
+// shopifyScopes are what syncing customers, reading orders and following checkouts need.
+const shopifyScopes = "read_customers,read_orders,read_checkouts"
 
 // ShopifyCallbackPath is the Shopify app's redirect URL path, under API_BASE_URL.
 const ShopifyCallbackPath = "/v1/integrations/shopify/callback"

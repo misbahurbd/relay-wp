@@ -216,4 +216,21 @@ type OrderEvent struct {
 	LastName    string
 	Phone       string
 	StatusURL   string
+	// CheckoutToken links the order to the checkout it came from.
+	CheckoutToken string
+	AmountMinor   int64
+	Currency      string
+}
+
+// CheckoutEvent is a shopper's checkout, as it changes.
+type CheckoutEvent struct {
+	WorkspaceID uuid.UUID
+	Token       string
+	FirstName   string
+	LastName    string
+	Phone       string
+	Total       string
+	CheckoutURL string
+	// Consent means the shopper accepted marketing.
+	Consent bool
 }

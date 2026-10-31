@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -29,6 +30,8 @@ type CommerceSink interface {
 	// OnOrder runs in the transaction that records the delivery, so a failure
 	// makes the store send it again.
 	OnOrder(ctx context.Context, tx pgx.Tx, ev model.OrderEvent) error
+	// OnCheckout runs in the same kind of transaction.
+	OnCheckout(ctx context.Context, tx pgx.Tx, ev model.CheckoutEvent) error
 	// RedactCustomer erases what automations hold about one customer.
 	RedactCustomer(ctx context.Context, workspaceID uuid.UUID, phone string) error
 	// RedactStore erases what automations hold from a store's events.
@@ -38,7 +41,7 @@ type CommerceSink interface {
 // SetCommerceSink connects the sink, which is built after this service.
 func (s *Service) SetCommerceSink(sink CommerceSink) { s.sink = sink }
 
-var shopifyTopics = []string{"orders/create", "orders/paid"}
+var shopifyTopics = []string{"orders/create", "orders/paid", "checkouts/create", "checkouts/update"}
 
 // orderTopics maps a provider's topic to what happened to the order.
 var orderTopics = map[string]string{
@@ -79,6 +82,9 @@ func (s *Service) CommerceWebhook(ctx context.Context, provider string, connecti
 	if !validSignature(secret, in.Body, in.Signature) {
 		return model.ErrBadStoreSignature
 	}
+	if in.Topic == "checkouts/create" || in.Topic == "checkouts/update" {
+		return s.checkout(ctx, conn.ID, conn.WorkspaceID, in)
+	}
 	status, known := orderTopics[in.Topic]
 	if !known {
 		return nil
@@ -107,6 +113,36 @@ func (s *Service) CommerceWebhook(ctx context.Context, provider string, connecti
 			return nil
 		}
 		return s.sink.OnOrder(ctx, tx, ev)
+	})
+}
+
+// checkout records one delivery about a checkout and passes it on.
+func (s *Service) checkout(ctx context.Context, connectionID, workspaceID uuid.UUID, in model.CommerceDelivery) error {
+	ev, completed, err := parseShopifyCheckout(in.Body)
+	if err != nil {
+		return err
+	}
+	// An order follows a finished checkout and closes its run.
+	if completed || ev.Token == "" {
+		return nil
+	}
+	ev.WorkspaceID = workspaceID
+	return database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+		if in.DeliveryID != "" {
+			rows, err := repository.NewRepository(tx).InsertCommerceEvent(ctx, gen.InsertCommerceEventParams{
+				ConnectionID: connectionID, DeliveryID: in.DeliveryID, WorkspaceID: workspaceID, Topic: in.Topic,
+			})
+			if err != nil {
+				return fmt.Errorf("insert commerce event: %w", err)
+			}
+			if len(rows) == 0 {
+				return nil
+			}
+		}
+		if s.sink == nil {
+			return nil
+		}
+		return s.sink.OnCheckout(ctx, tx, ev)
 	})
 }
 
@@ -159,13 +195,15 @@ func parseShopifyOrder(body []byte) (model.OrderEvent, error) {
 		Customer        *person     `json:"customer"`
 		BillingAddress  *person     `json:"billing_address"`
 		ShippingAddress *person     `json:"shipping_address"`
+		CheckoutToken   string      `json:"checkout_token"`
 	}
 	if err := json.Unmarshal(body, &o); err != nil {
 		return model.OrderEvent{}, model.ErrBadStorePayload.Wrap(err)
 	}
 	ev := model.OrderEvent{
 		OrderID: o.ID.String(), Number: o.Name, Total: strings.TrimSpace(o.TotalPrice + " " + o.Currency),
-		Phone: o.Phone, StatusURL: o.OrderStatusURL,
+		Phone: o.Phone, StatusURL: o.OrderStatusURL, CheckoutToken: o.CheckoutToken,
+		AmountMinor: minorUnits(o.TotalPrice), Currency: o.Currency,
 	}
 	for _, p := range []*person{o.Customer, o.ShippingAddress, o.BillingAddress} {
 		if p == nil {
@@ -179,6 +217,56 @@ func parseShopifyOrder(body []byte) (model.OrderEvent, error) {
 		}
 	}
 	return ev, nil
+}
+
+// minorUnits reads a store's decimal amount, like "86.50", as 8650.
+func minorUnits(amount string) int64 {
+	whole, frac, _ := strings.Cut(strings.TrimSpace(amount), ".")
+	frac = (frac + "00")[:2]
+	n, err := strconv.ParseInt(whole+frac, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
+func parseShopifyCheckout(body []byte) (model.CheckoutEvent, bool, error) {
+	type person struct {
+		FirstName string `json:"first_name"`
+		LastName  string `json:"last_name"`
+		Phone     string `json:"phone"`
+	}
+	var c struct {
+		Token                 string  `json:"token"`
+		Phone                 string  `json:"phone"`
+		TotalPrice            string  `json:"total_price"`
+		Currency              string  `json:"currency"`
+		AbandonedCheckoutURL  string  `json:"abandoned_checkout_url"`
+		BuyerAcceptsMarketing bool    `json:"buyer_accepts_marketing"`
+		CompletedAt           *string `json:"completed_at"`
+		Customer              *person `json:"customer"`
+		ShippingAddress       *person `json:"shipping_address"`
+		BillingAddress        *person `json:"billing_address"`
+	}
+	if err := json.Unmarshal(body, &c); err != nil {
+		return model.CheckoutEvent{}, false, model.ErrBadStorePayload.Wrap(err)
+	}
+	ev := model.CheckoutEvent{
+		Token: c.Token, Phone: c.Phone, Total: strings.TrimSpace(c.TotalPrice + " " + c.Currency),
+		CheckoutURL: c.AbandonedCheckoutURL, Consent: c.BuyerAcceptsMarketing,
+	}
+	for _, p := range []*person{c.Customer, c.ShippingAddress, c.BillingAddress} {
+		if p == nil {
+			continue
+		}
+		if ev.Phone == "" {
+			ev.Phone = p.Phone
+		}
+		if ev.FirstName == "" {
+			ev.FirstName, ev.LastName = p.FirstName, p.LastName
+		}
+	}
+	return ev, c.CompletedAt != nil, nil
 }
 
 func parseWooOrder(body []byte) (model.OrderEvent, error) {
@@ -199,6 +287,7 @@ func parseWooOrder(body []byte) (model.OrderEvent, error) {
 	return model.OrderEvent{
 		OrderID: o.ID.String(), Number: o.Number, Total: strings.TrimSpace(o.Total + " " + o.Currency),
 		Phone: o.Billing.Phone, FirstName: o.Billing.FirstName, LastName: o.Billing.LastName,
+		AmountMinor: minorUnits(o.Total), Currency: o.Currency,
 	}, nil
 }
 

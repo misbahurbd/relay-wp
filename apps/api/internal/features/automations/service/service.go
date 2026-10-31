@@ -38,6 +38,8 @@ type Contacts interface {
 	FindOrCreateByPhone(ctx context.Context, workspaceID uuid.UUID, phone, name string) (uuid.UUID, error)
 	// ContactIDByPhone says who has a phone, if anyone.
 	ContactIDByPhone(ctx context.Context, workspaceID uuid.UUID, phone string) (uuid.UUID, bool, error)
+	// OptIn is the contact's consent: in, out or pending.
+	OptIn(ctx context.Context, workspaceID, contactID uuid.UUID) (string, error)
 }
 
 // PlanAccess says whether a plan includes a resource. Implemented by features/billing.
@@ -113,7 +115,10 @@ func (s *Service) thisMonth(ctx context.Context, workspaceID uuid.UUID) (map[mod
 	}
 	out := make(map[model.Kind]model.Stats, len(rows))
 	for _, r := range rows {
-		out[model.Kind(r.Kind)] = model.Stats{Sent: r.Sent, Failed: r.Failed, Read: r.Read}
+		out[model.Kind(r.Kind)] = model.Stats{
+			Sent: r.Sent, Failed: r.Failed, Read: r.Read,
+			Recovered: r.Recovered, RecoveredMinor: r.RecoveredMinor, RecoveredCurrency: r.RecoveredCurrency,
+		}
 	}
 	return out, nil
 }

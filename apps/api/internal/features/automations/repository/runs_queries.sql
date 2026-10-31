@@ -6,6 +6,32 @@ VALUES (@id, @workspace_id, @kind, @contact_id, sqlc.narg(conversation_id), @ded
 ON CONFLICT (workspace_id, dedupe_key) DO NOTHING
 RETURNING id;
 
+-- name: UpsertCartRun :exec
+-- One run per checkout. Each change restarts the wait, until a reminder has gone.
+INSERT INTO automation_runs (id, workspace_id, kind, contact_id, dedupe_key, state, next_at, context)
+VALUES (@id, @workspace_id, 'cart', @contact_id, @dedupe_key, 'scheduled', @next_at, @context)
+ON CONFLICT (workspace_id, dedupe_key) DO UPDATE
+SET next_at = EXCLUDED.next_at, context = EXCLUDED.context, contact_id = EXCLUDED.contact_id
+WHERE automation_runs.state = 'scheduled' AND automation_runs.step = 0;
+
+-- name: CancelCartRun :exec
+-- The order came before any reminder went.
+UPDATE automation_runs
+SET state = 'cancelled', reason = 'order_placed', next_at = NULL
+WHERE workspace_id = @workspace_id AND dedupe_key = @dedupe_key AND state = 'scheduled' AND step = 0;
+
+-- name: RecoverCart :exec
+-- The order came after a reminder: count it, once, and send no more.
+UPDATE automation_runs
+SET recovered_minor = @amount_minor, recovered_currency = @currency, state = 'done', next_at = NULL
+WHERE workspace_id = @workspace_id AND dedupe_key = @dedupe_key AND recovered_minor IS NULL
+  AND (state = 'done' OR (state = 'scheduled' AND step > 0));
+
+-- name: AdvanceRun :exec
+UPDATE automation_runs
+SET step = step + 1, next_at = @next_at
+WHERE workspace_id = @workspace_id AND id = @id;
+
 -- name: ClaimRun :one
 -- A due run, locked; another worker holding it means nothing to do here.
 SELECT id, kind, contact_id, conversation_id, step, context, created_at
@@ -37,9 +63,13 @@ WHERE workspace_id = @workspace_id AND conversation_id = @conversation_id AND st
   AND created_at >= @since::timestamptz;
 
 -- name: RunStats :many
-SELECT r.kind, count(r.id) FILTER (WHERE r.state = 'done') AS sent,
-       count(r.id) FILTER (WHERE r.state = 'failed') AS failed,
-       count(m.id) FILTER (WHERE m.status = 'read') AS read
+SELECT r.kind, count(m.id) AS sent,
+       count(DISTINCT r.id) FILTER (WHERE r.state = 'failed') AS failed,
+       count(m.id) FILTER (WHERE m.status = 'read') AS read,
+       count(DISTINCT r.id) FILTER (WHERE r.recovered_minor IS NOT NULL) AS recovered,
+       (SELECT COALESCE(sum(x.recovered_minor), 0) FROM automation_runs x
+        WHERE x.workspace_id = @workspace_id AND x.kind = r.kind AND x.created_at >= @since::timestamptz)::bigint AS recovered_minor,
+       COALESCE(min(r.recovered_currency), '')::text AS recovered_currency
 FROM automation_runs r
 LEFT JOIN messages m ON m.automation_run_id = r.id
 WHERE r.workspace_id = @workspace_id AND r.created_at >= @since::timestamptz

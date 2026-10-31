@@ -25,6 +25,7 @@ const (
 	ReasonPlan          = "plan"
 	ReasonWindowClosed  = "window_closed"
 	ReasonNoPhone       = "no_phone"
+	ReasonNoConsent     = "no_consent"
 	ReasonRedacted      = "redacted"
 	// ReasonTemplateUnavailable: the template was removed or lost its approval.
 	ReasonTemplateUnavailable = "template_unavailable"
@@ -75,6 +76,23 @@ type RunContext struct {
 	Text       string     `json:"text,omitempty"`
 	TemplateID *uuid.UUID `json:"template_id,omitempty"`
 	Params     []string   `json:"params,omitempty"`
+	// Consent means the shopper accepted marketing at checkout.
+	Consent bool `json:"consent,omitempty"`
+	// Second sends one more reminder.
+	Second bool `json:"second,omitempty"`
+}
+
+// CheckoutEvent is a shopper's checkout, as it changes.
+type CheckoutEvent struct {
+	WorkspaceID uuid.UUID
+	Token       string
+	FirstName   string
+	LastName    string
+	Phone       string
+	Total       string
+	CheckoutURL string
+	// Consent means the shopper accepted marketing.
+	Consent bool
 }
 
 // OrderEvent is a store order.
@@ -89,9 +107,16 @@ type OrderEvent struct {
 	LastName    string
 	Phone       string
 	StatusURL   string
+	// CheckoutToken links the order to the checkout it came from.
+	CheckoutToken string
+	AmountMinor   int64
+	Currency      string
 }
 
 // Stats are a kind's counts this month.
 type Stats struct {
 	Sent, Failed, Read int64
+	// Recovered counts carts bought after a reminder, worth RecoveredMinor.
+	Recovered, RecoveredMinor int64
+	RecoveredCurrency         string
 }

@@ -303,6 +303,18 @@ export type AutomationDto = {
      */
     read: number;
     /**
+     * Carts bought after a reminder this month
+     */
+    recovered: number;
+    /**
+     * Their currency
+     */
+    recovered_currency: string;
+    /**
+     * What those carts were worth, in minor units
+     */
+    recovered_minor: number;
+    /**
      * Messages sent this month
      */
     sent: number;

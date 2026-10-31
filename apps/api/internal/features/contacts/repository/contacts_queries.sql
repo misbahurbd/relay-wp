@@ -201,3 +201,6 @@ ON CONFLICT (workspace_id, channel_type, external_id) DO NOTHING;
 UPDATE contacts
 SET opt_in = 'out', opt_in_source = @source, opt_in_at = now()
 WHERE workspace_id = @workspace_id AND id = @id AND opt_in <> 'out';
+
+-- name: ContactOptIn :one
+SELECT opt_in FROM contacts WHERE workspace_id = @workspace_id AND id = @id;

@@ -28,6 +28,9 @@ func (s *Service) OnOrder(ctx context.Context, tx pgx.Tx, ev model.OrderEvent) e
 	if err != nil || !allowed {
 		return err
 	}
+	if err := s.closeCart(ctx, tx, ev); err != nil {
+		return err
+	}
 	items, err := s.enabled(ctx, ev.WorkspaceID)
 	if err != nil {
 		return err
