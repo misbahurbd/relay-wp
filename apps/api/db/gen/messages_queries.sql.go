@@ -82,6 +82,46 @@ func (q *Queries) AdvanceMessageStatus(ctx context.Context, arg AdvanceMessageSt
 	return items, nil
 }
 
+const automationConversation = `-- name: AutomationConversation :one
+SELECT c.contact_id, c.channel_type, c.window_expires_at, ct.name AS contact_name, ct.opt_in,
+       (SELECT COALESCE(max(m.created_at), 'epoch')::timestamptz FROM messages m
+        WHERE m.workspace_id = c.workspace_id AND m.conversation_id = c.id AND m.direction = 'out'
+          AND m.kind = 'message' AND m.automation_run_id IS NULL) AS last_agent_at
+FROM conversations c
+JOIN contacts ct ON ct.id = c.contact_id
+WHERE c.workspace_id = $1 AND c.id = $2
+`
+
+type AutomationConversationParams struct {
+	WorkspaceID uuid.UUID
+	ID          uuid.UUID
+}
+
+type AutomationConversationRow struct {
+	ContactID       uuid.UUID
+	ChannelType     string
+	WindowExpiresAt *time.Time
+	ContactName     string
+	OptIn           string
+	LastAgentAt     time.Time
+}
+
+// What automations need to know before they speak. last_agent_at is the epoch
+// when no person has written here.
+func (q *Queries) AutomationConversation(ctx context.Context, arg AutomationConversationParams) (AutomationConversationRow, error) {
+	row := q.db.QueryRow(ctx, automationConversation, arg.WorkspaceID, arg.ID)
+	var i AutomationConversationRow
+	err := row.Scan(
+		&i.ContactID,
+		&i.ChannelType,
+		&i.WindowExpiresAt,
+		&i.ContactName,
+		&i.OptIn,
+		&i.LastAgentAt,
+	)
+	return i, err
+}
+
 const getMessage = `-- name: GetMessage :one
 SELECT m.id, m.conversation_id, m.direction, m.kind, m.type, m.body, m.content, m.external_id, m.status
 FROM messages m
@@ -180,7 +220,7 @@ func (q *Queries) GetMessageToSend(ctx context.Context, arg GetMessageToSendPara
 
 const getThreadMessage = `-- name: GetThreadMessage :one
 SELECT m.id, m.direction, m.kind, m.type, m.body, m.content, m.reply_to_id, m.status, m.error_code,
-       m.error_title, m.author_id, m.mentions, m.reactions, m.created_at, m.status_at,
+       m.error_title, m.author_id, m.automation_run_id, m.mentions, m.reactions, m.created_at, m.status_at,
        u.email AS author_email, p.display_name AS author_display_name,
        p.first_name AS author_first_name, p.last_name AS author_last_name,
        r.direction AS reply_direction, r.type AS reply_type, r.body AS reply_body
@@ -209,6 +249,7 @@ type GetThreadMessageRow struct {
 	ErrorCode         *string
 	ErrorTitle        *string
 	AuthorID          *uuid.UUID
+	AutomationRunID   *uuid.UUID
 	Mentions          []uuid.UUID
 	Reactions         []byte
 	CreatedAt         time.Time
@@ -238,6 +279,7 @@ func (q *Queries) GetThreadMessage(ctx context.Context, arg GetThreadMessagePara
 		&i.ErrorCode,
 		&i.ErrorTitle,
 		&i.AuthorID,
+		&i.AutomationRunID,
 		&i.Mentions,
 		&i.Reactions,
 		&i.CreatedAt,
@@ -251,6 +293,32 @@ func (q *Queries) GetThreadMessage(ctx context.Context, arg GetThreadMessagePara
 		&i.ReplyBody,
 	)
 	return i, err
+}
+
+const insertAutomatedMessage = `-- name: InsertAutomatedMessage :exec
+INSERT INTO messages (id, workspace_id, conversation_id, direction, kind, type, body, status, automation_run_id, created_at)
+VALUES ($1, $2, $3, 'out', 'message', 'text', $4, 'pending', $5, $6)
+`
+
+type InsertAutomatedMessageParams struct {
+	ID              uuid.UUID
+	WorkspaceID     uuid.UUID
+	ConversationID  uuid.UUID
+	Body            string
+	AutomationRunID *uuid.UUID
+	CreatedAt       time.Time
+}
+
+func (q *Queries) InsertAutomatedMessage(ctx context.Context, arg InsertAutomatedMessageParams) error {
+	_, err := q.db.Exec(ctx, insertAutomatedMessage,
+		arg.ID,
+		arg.WorkspaceID,
+		arg.ConversationID,
+		arg.Body,
+		arg.AutomationRunID,
+		arg.CreatedAt,
+	)
+	return err
 }
 
 const insertMessage = `-- name: InsertMessage :many
@@ -341,7 +409,7 @@ func (q *Queries) LastInboundExternalID(ctx context.Context, arg LastInboundExte
 
 const listMessages = `-- name: ListMessages :many
 SELECT m.id, m.direction, m.kind, m.type, m.body, m.content, m.reply_to_id, m.status, m.error_code,
-       m.error_title, m.author_id, m.mentions, m.reactions, m.created_at, m.status_at,
+       m.error_title, m.author_id, m.automation_run_id, m.mentions, m.reactions, m.created_at, m.status_at,
        u.email AS author_email, p.display_name AS author_display_name,
        p.first_name AS author_first_name, p.last_name AS author_last_name,
        r.direction AS reply_direction, r.type AS reply_type, r.body AS reply_body
@@ -374,6 +442,7 @@ type ListMessagesRow struct {
 	ErrorCode         *string
 	ErrorTitle        *string
 	AuthorID          *uuid.UUID
+	AutomationRunID   *uuid.UUID
 	Mentions          []uuid.UUID
 	Reactions         []byte
 	CreatedAt         time.Time
@@ -414,6 +483,7 @@ func (q *Queries) ListMessages(ctx context.Context, arg ListMessagesParams) ([]L
 			&i.ErrorCode,
 			&i.ErrorTitle,
 			&i.AuthorID,
+			&i.AutomationRunID,
 			&i.Mentions,
 			&i.Reactions,
 			&i.CreatedAt,
@@ -675,4 +745,46 @@ func (q *Queries) SetReaction(ctx context.Context, arg SetReactionParams) ([]Set
 		return nil, err
 	}
 	return items, nil
+}
+
+const touchAutomated = `-- name: TouchAutomated :one
+UPDATE conversations
+SET last_message_at        = GREATEST(last_message_at, $1::timestamptz),
+    last_message_preview   = $2,
+    last_message_direction = 'out'
+WHERE workspace_id = $3 AND id = $4
+RETURNING team_id, assignee_id, channel_type, channel_id
+`
+
+type TouchAutomatedParams struct {
+	At          time.Time
+	Preview     string
+	WorkspaceID uuid.UUID
+	ID          uuid.UUID
+}
+
+type TouchAutomatedRow struct {
+	TeamID      *uuid.UUID
+	AssigneeID  *uuid.UUID
+	ChannelType string
+	ChannelID   uuid.UUID
+}
+
+// An automated reply shows in the list but answers nobody: a customer waiting
+// for a person stays waiting.
+func (q *Queries) TouchAutomated(ctx context.Context, arg TouchAutomatedParams) (TouchAutomatedRow, error) {
+	row := q.db.QueryRow(ctx, touchAutomated,
+		arg.At,
+		arg.Preview,
+		arg.WorkspaceID,
+		arg.ID,
+	)
+	var i TouchAutomatedRow
+	err := row.Scan(
+		&i.TeamID,
+		&i.AssigneeID,
+		&i.ChannelType,
+		&i.ChannelID,
+	)
+	return i, err
 }

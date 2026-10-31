@@ -73,7 +73,7 @@ func newEnv(t *testing.T) env {
 	t.Helper()
 	pool := dbtest.New(t)
 	usr, ws := seed(t, pool)
-	return env{svc: New(pool), ws: ws, usr: usr}
+	return env{svc: New(pool, nil), ws: ws, usr: usr}
 }
 
 func seed(t *testing.T, pool *pgxpool.Pool) (user, workspace uuid.UUID) {

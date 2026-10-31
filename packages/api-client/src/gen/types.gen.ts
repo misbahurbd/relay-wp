@@ -294,6 +294,10 @@ export type AuthorizeWooInputBody = {
 export type AutomationDto = {
     enabled: boolean;
     kind: 'welcome' | 'away' | 'keyword' | 'cart' | 'order' | 'drip';
+    /**
+     * Messages sent this month
+     */
+    sent: number;
     settings: SettingsDto;
     /**
      * Absent until the automation is first saved
@@ -1231,7 +1235,7 @@ export type InboxCountsDto = {
 };
 
 export type InboxEventDto = {
-    action: 'assigned' | 'unassigned' | 'closed' | 'reopened' | 'snoozed' | 'unsnoozed' | 'template_pending' | 'window_reopened';
+    action: 'assigned' | 'unassigned' | 'closed' | 'reopened' | 'snoozed' | 'unsnoozed' | 'template_pending' | 'window_reopened' | 'opted_out';
     /**
      * Null for the system
      */
@@ -1319,6 +1323,10 @@ export type InboxMessageDto = {
      * Who sent the message or wrote the note
      */
     author: InboxPersonDto;
+    /**
+     * An automation sent this message
+     */
+    automated: boolean;
     /**
      * Text, caption or the rendered template
      */

@@ -13,7 +13,7 @@ RETURNING id;
 -- name: ListMessages :many
 -- One page of a thread, newest first. Cursor: the id of the oldest message so far.
 SELECT m.id, m.direction, m.kind, m.type, m.body, m.content, m.reply_to_id, m.status, m.error_code,
-       m.error_title, m.author_id, m.mentions, m.reactions, m.created_at, m.status_at,
+       m.error_title, m.author_id, m.automation_run_id, m.mentions, m.reactions, m.created_at, m.status_at,
        u.email AS author_email, p.display_name AS author_display_name,
        p.first_name AS author_first_name, p.last_name AS author_last_name,
        r.direction AS reply_direction, r.type AS reply_type, r.body AS reply_body
@@ -113,7 +113,7 @@ RETURNING messages.conversation_id, c.team_id, c.assignee_id, c.channel_type, c.
 -- name: GetThreadMessage :one
 -- One message in the thread's shape, after a send or a note.
 SELECT m.id, m.direction, m.kind, m.type, m.body, m.content, m.reply_to_id, m.status, m.error_code,
-       m.error_title, m.author_id, m.mentions, m.reactions, m.created_at, m.status_at,
+       m.error_title, m.author_id, m.automation_run_id, m.mentions, m.reactions, m.created_at, m.status_at,
        u.email AS author_email, p.display_name AS author_display_name,
        p.first_name AS author_first_name, p.last_name AS author_last_name,
        r.direction AS reply_direction, r.type AS reply_type, r.body AS reply_body
@@ -122,3 +122,28 @@ LEFT JOIN users u ON u.id = m.author_id
 LEFT JOIN user_profiles p ON p.user_id = m.author_id
 LEFT JOIN messages r ON r.id = m.reply_to_id
 WHERE m.workspace_id = @workspace_id AND m.conversation_id = @conversation_id AND m.id = @id;
+
+-- name: AutomationConversation :one
+-- What automations need to know before they speak. last_agent_at is the epoch
+-- when no person has written here.
+SELECT c.contact_id, c.channel_type, c.window_expires_at, ct.name AS contact_name, ct.opt_in,
+       (SELECT COALESCE(max(m.created_at), 'epoch')::timestamptz FROM messages m
+        WHERE m.workspace_id = c.workspace_id AND m.conversation_id = c.id AND m.direction = 'out'
+          AND m.kind = 'message' AND m.automation_run_id IS NULL) AS last_agent_at
+FROM conversations c
+JOIN contacts ct ON ct.id = c.contact_id
+WHERE c.workspace_id = @workspace_id AND c.id = @id;
+
+-- name: InsertAutomatedMessage :exec
+INSERT INTO messages (id, workspace_id, conversation_id, direction, kind, type, body, status, automation_run_id, created_at)
+VALUES (@id, @workspace_id, @conversation_id, 'out', 'message', 'text', @body, 'pending', @automation_run_id, @created_at);
+
+-- name: TouchAutomated :one
+-- An automated reply shows in the list but answers nobody: a customer waiting
+-- for a person stays waiting.
+UPDATE conversations
+SET last_message_at        = GREATEST(last_message_at, @at::timestamptz),
+    last_message_preview   = @preview,
+    last_message_direction = 'out'
+WHERE workspace_id = @workspace_id AND id = @id
+RETURNING team_id, assignee_id, channel_type, channel_id;

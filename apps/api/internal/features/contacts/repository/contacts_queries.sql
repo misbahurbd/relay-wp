@@ -196,3 +196,8 @@ WHERE ci.workspace_id = @workspace_id AND ci.channel_type = @channel_type AND ci
 INSERT INTO contact_identities (workspace_id, contact_id, channel_type, external_id, handle)
 VALUES (@workspace_id, @contact_id, @channel_type, @external_id, @handle)
 ON CONFLICT (workspace_id, channel_type, external_id) DO NOTHING;
+
+-- name: SetContactOptOut :execrows
+UPDATE contacts
+SET opt_in = 'out', opt_in_source = @source, opt_in_at = now()
+WHERE workspace_id = @workspace_id AND id = @id AND opt_in <> 'out';

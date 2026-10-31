@@ -20,6 +20,7 @@ type Message struct {
 	ErrorCode  *string
 	ErrorTitle *string
 	Author     *Person
+	Automated  bool
 	Mentions   []uuid.UUID
 	Reactions  Reactions
 	CreatedAt  time.Time
@@ -125,6 +126,8 @@ const (
 	ActionTemplatePending = "template_pending"
 	// ActionWindowReopened: the customer replied after the channel's window had closed.
 	ActionWindowReopened = "window_reopened"
+	// ActionOptedOut: the customer replied STOP.
+	ActionOptedOut = "opted_out"
 )
 
 // EventContent is a system event in the thread.
@@ -169,4 +172,26 @@ type MediaFile struct {
 	Mime     string
 	Filename string
 	Size     int64
+}
+
+// InboundEvent tells automations about a customer's message.
+type InboundEvent struct {
+	WorkspaceID, ConversationID, ContactID, MessageID uuid.UUID
+	Text                                              string
+	NewConversation                                   bool
+	// Returning means the customer came back after the channel's window closed.
+	Returning bool
+}
+
+// AutomationConversation is what automations read before they send.
+type AutomationConversation struct {
+	ContactName string
+	OptIn       string
+	LastAgentAt *time.Time
+}
+
+// AutomatedText is a text message an automation sends.
+type AutomatedText struct {
+	WorkspaceID, ConversationID, RunID uuid.UUID
+	Text                               string
 }

@@ -923,6 +923,11 @@
             ],
             "type": "string"
           },
+          "sent": {
+            "description": "Messages sent this month",
+            "format": "int64",
+            "type": "integer"
+          },
           "settings": {
             "$ref": "#/components/schemas/SettingsDTO"
           },
@@ -935,7 +940,8 @@
         "required": [
           "kind",
           "enabled",
-          "settings"
+          "settings",
+          "sent"
         ],
         "type": "object"
       },
@@ -3928,7 +3934,8 @@
               "snoozed",
               "unsnoozed",
               "template_pending",
-              "window_reopened"
+              "window_reopened",
+              "opted_out"
             ],
             "type": "string"
           },
@@ -4160,6 +4167,10 @@
             "$ref": "#/components/schemas/InboxPersonDTO",
             "description": "Who sent the message or wrote the note"
           },
+          "automated": {
+            "description": "An automation sent this message",
+            "type": "boolean"
+          },
           "body": {
             "description": "Text, caption or the rendered template",
             "type": "string"
@@ -4255,6 +4266,7 @@
           "error_code",
           "error_title",
           "author",
+          "automated",
           "mentions",
           "reactions",
           "created_at",

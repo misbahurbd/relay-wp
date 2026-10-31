@@ -61,8 +61,8 @@ func toMessage(row gen.GetThreadMessageRow) (model.Message, error) {
 	m := model.Message{
 		ID: row.ID, Direction: row.Direction, Kind: row.Kind, Type: row.Type, Body: row.Body, Status: row.Status,
 		ErrorCode: row.ErrorCode, ErrorTitle: row.ErrorTitle, Mentions: row.Mentions, CreatedAt: row.CreatedAt,
-		StatusAt: row.StatusAt,
-		Author:   person(row.AuthorID, row.AuthorDisplayName, row.AuthorFirstName, row.AuthorLastName, row.AuthorEmail),
+		StatusAt: row.StatusAt, Automated: row.AutomationRunID != nil,
+		Author: person(row.AuthorID, row.AuthorDisplayName, row.AuthorFirstName, row.AuthorLastName, row.AuthorEmail),
 	}
 	var err error
 	if m.Content, err = decodeContent(row.Content); err != nil {

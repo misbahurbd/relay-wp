@@ -7,6 +7,7 @@ import (
 
 func includeAutomations(e *authEnv) {
 	e.exec(`UPDATE plans SET limits = limits || '{"automations": 1}'`)
+	e.t.Cleanup(func() { e.exec(`UPDATE plans SET limits = limits - 'automations'`) })
 }
 
 func TestAutomationsNeedThePlan(t *testing.T) {

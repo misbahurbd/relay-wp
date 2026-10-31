@@ -85,6 +85,7 @@ export function MessageBubble({
         <MessageContent workspaceId={workspaceId} conversationId={conversationId} message={m} />
         <span className="flex items-center justify-end gap-1 self-end text-[11px] text-muted-foreground">
           {out && m.author && <span>{firstName(m.author.name)} ·</span>}
+          {out && m.automated && <span>Automation ·</span>}
           <time dateTime={m.created_at}>{formatClock(m.created_at)}</time>
           {out && <Ticks status={m.status} />}
         </span>

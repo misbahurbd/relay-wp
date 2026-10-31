@@ -147,6 +147,14 @@ func (s *Service) InboundMessage(ctx context.Context, in model.Inbound) error {
 		}); err != nil {
 			return err
 		}
+		if s.hook != nil {
+			if err := s.hook.OnInbound(ctx, tx, model.InboundEvent{
+				WorkspaceID: ws, ConversationID: conv.ID, ContactID: contact.ID, MessageID: msgID, Text: in.Text,
+				NewConversation: conv.Created, Returning: window > 0 && !conv.Created && !at.Before(conv.PrevWindowExpiresAt),
+			}); err != nil {
+				return err
+			}
+		}
 		return signal(ctx, tx, ws, model.SignalMessage, conv.ID, conv.TeamID, conv.AssigneeID, in.ChannelType, in.ChannelID)
 	})
 	if errors.Is(err, errDuplicate) {

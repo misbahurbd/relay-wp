@@ -132,19 +132,19 @@ export function description(a: Automation) {
   return KINDS[a.kind].description
 }
 
-/** The card's stat line. Counts arrive with the run engine. */
+/** The card's stat line. */
 export function stat(a: Automation) {
   switch (a.kind) {
     case 'keyword':
-      return `${a.settings.keyword?.rules?.length ?? 0} rules · 0 replies this month`
+      return `${a.settings.keyword?.rules?.length ?? 0} rules · ${a.sent.toLocaleString()} replies this month`
     case 'cart':
-      return '0 sent · 0 carts recovered'
+      return `${a.sent.toLocaleString()} sent · 0 carts recovered`
     case 'order':
-      return '0 sent'
+      return `${a.sent.toLocaleString()} sent`
     case 'drip':
       return `${a.enabled ? 'Active' : 'Paused'} · 0 contacts in sequence`
     default:
-      return 'Sent 0 times this month'
+      return `Sent ${a.sent.toLocaleString()} times this month`
   }
 }
 

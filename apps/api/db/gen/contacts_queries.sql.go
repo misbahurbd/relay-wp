@@ -767,6 +767,26 @@ func (q *Queries) SetContactLastMessage(ctx context.Context, arg SetContactLastM
 	return err
 }
 
+const setContactOptOut = `-- name: SetContactOptOut :execrows
+UPDATE contacts
+SET opt_in = 'out', opt_in_source = $1, opt_in_at = now()
+WHERE workspace_id = $2 AND id = $3 AND opt_in <> 'out'
+`
+
+type SetContactOptOutParams struct {
+	Source      *string
+	WorkspaceID uuid.UUID
+	ID          uuid.UUID
+}
+
+func (q *Queries) SetContactOptOut(ctx context.Context, arg SetContactOptOutParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setContactOptOut, arg.Source, arg.WorkspaceID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const updateContact = `-- name: UpdateContact :exec
 UPDATE contacts
 SET name = $1, phone = $2, email = $3, opt_in = $4, opt_in_source = $5,
