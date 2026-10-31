@@ -36,10 +36,20 @@
       "runtimeExecutable": "sh",
       "runtimeArgs": [
         "-c",
-        "set -a; . ./.env; set +a; export APP_BASE_URL=http://localhost:3011 CORS_ALLOWED_ORIGINS=http://localhost:3011,http://127.0.0.1:3012; cd apps/api && go run ./cmd/relay migrate up && go run ./cmd/relay all"
+        "set -a; . ./.env; set +a; DATABASE_URL=${DATABASE_URL%/relay\\?*}/relay_inbox?sslmode=disable; DATABASE_DIRECT_URL=$DATABASE_URL; export ADMIN_EMAILS=billing-ui-1793321561@relay.test APP_BASE_URL=http://localhost:3011 CORS_ALLOWED_ORIGINS=http://localhost:3011,http://127.0.0.1:3012,http://localhost:3020; cd apps/api && go run ./cmd/relay migrate up && go run ./cmd/relay all"
       ],
       "port": 8080,
       "url": "http://localhost:8080"
+    },
+    {
+      "name": "crm",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "CRM_PORT=3020 VITE_API_URL=http://localhost:8080 pnpm --filter @relay/crm dev --host localhost"
+      ],
+      "port": 3020,
+      "url": "http://localhost:3020"
     },
     {
       "name": "api-billing",
@@ -70,6 +80,26 @@
       ],
       "port": 3022,
       "url": "http://localhost:3022"
+    },
+    {
+      "name": "api-automations",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "set -a; . ./.env; set +a; export DATABASE_URL=postgres://relay:relay@localhost:55440/relay_automations?sslmode=disable DATABASE_DIRECT_URL=postgres://relay:relay@localhost:55440/relay_automations?sslmode=disable HTTP_ADDR=:8093 APP_BASE_URL=http://localhost:3015 CORS_ALLOWED_ORIGINS=http://localhost:3015; cd apps/api && go run ./cmd/relay migrate up && go run ./cmd/relay all"
+      ],
+      "port": 8093,
+      "url": "http://localhost:8093"
+    },
+    {
+      "name": "web-automations",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "WEB_PORT=3015 VITE_API_URL=http://localhost:8093 pnpm --filter @relay/web dev --host localhost"
+      ],
+      "port": 3015,
+      "url": "http://localhost:3015"
     }
   ]
 }
