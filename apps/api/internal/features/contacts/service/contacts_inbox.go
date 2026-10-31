@@ -106,3 +106,15 @@ func (s *Service) SetLastMessage(ctx context.Context, tx pgx.Tx, workspaceID, co
 	}
 	return nil
 }
+
+// SetOptOut records that a contact opted out; changed is false if they already
+// had. For features/automations, through an interface it declares.
+func (s *Service) SetOptOut(ctx context.Context, workspaceID, contactID uuid.UUID, source string) (bool, error) {
+	n, err := repository.NewRepository(s.pool).SetContactOptOut(ctx, gen.SetContactOptOutParams{
+		WorkspaceID: workspaceID, ID: contactID, Source: &source,
+	})
+	if err != nil {
+		return false, fmt.Errorf("set opt out: %w", err)
+	}
+	return n > 0, nil
+}

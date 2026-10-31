@@ -8,4 +8,9 @@ var (
 	ErrInvalidSettings = apperr.Validation("invalid_automation_settings", "Some settings are invalid")
 	// ErrNotReady carries what is missing, located the same way.
 	ErrNotReady = apperr.Conflict("automation_not_ready", "Finish this automation's settings before turning it on")
+
+	// ErrWindowClosed: a free-form message can't reach this contact any more.
+	ErrWindowClosed = apperr.Conflict("automation_window_closed", "The reply window has closed")
+	// ErrOptedOut: the contact has opted out.
+	ErrOptedOut = apperr.Conflict("automation_opted_out", "This contact has opted out")
 )

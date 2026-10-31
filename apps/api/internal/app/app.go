@@ -163,7 +163,7 @@ func (a *App) buildFeatures() (err error) {
 	}
 	// Templates reach Meta through whatsapp, and hear its status webhooks (AD-9).
 	a.templates = templatesservice.New(a.db, metaTemplates{wa: a.whatsapp}, a.storage)
-	a.automations = automationsservice.New(a.db)
+	a.automations = automationsservice.New(a.db, a.queue)
 	a.whatsapp.SetTemplateStatusSink(a.templates)
 	if err := a.buildBilling(); err != nil {
 		return err
@@ -272,6 +272,10 @@ func (a *App) buildInbox() {
 		Members:   a.access,
 	}, a.log)
 	a.whatsapp.SetInboundSink(inboxSink{inbox: a.inbox})
+	a.inbox.SetInboundHook(automationsHook{automations: a.automations})
+	a.automations.Connect(automationsservice.Deps{
+		Inbox: automationsInbox{inbox: a.inbox}, Contacts: a.contacts, Plans: a.billing,
+	})
 	if a.mode != ModeWorker && a.directDB != nil {
 		a.live = realtime.New(a.directDB, a.log, realtime.InboxChannel)
 		a.inbox.SetSubscriber(a.live)

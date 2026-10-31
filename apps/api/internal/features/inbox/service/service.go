@@ -103,6 +103,7 @@ type Service struct {
 	store storage.Storage
 	deps  Deps
 	live  Subscriber
+	hook  InboundHook
 	log   *slog.Logger
 	now   func() time.Time
 }

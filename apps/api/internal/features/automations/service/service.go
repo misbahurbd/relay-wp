@@ -8,20 +8,65 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/rivertype"
 
 	"github.com/misbahurbd/relay-wp/apps/api/db/gen"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/automations/model"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/automations/repository"
 )
 
-// Service manages a workspace's automations.
-type Service struct {
-	pool *pgxpool.Pool
+// Inbox reads conversations and sends automated messages. Implemented in
+// internal/app on top of features/inbox.
+type Inbox interface {
+	Conversation(ctx context.Context, workspaceID, conversationID uuid.UUID) (model.Conversation, error)
+	// SendAutomated queues a message in tx. It returns model.ErrWindowClosed or
+	// model.ErrOptedOut, having written nothing, when the message can't go.
+	SendAutomated(ctx context.Context, tx pgx.Tx, in model.AutomatedSend) error
+	// NoteOptOut adds a line to the thread saying the customer opted out.
+	NoteOptOut(ctx context.Context, workspaceID, conversationID uuid.UUID) error
 }
 
-// New builds the service.
-func New(pool *pgxpool.Pool) *Service { return &Service{pool: pool} }
+// Contacts changes a contact's consent. Implemented by features/contacts.
+type Contacts interface {
+	// SetOptOut opts the contact out; changed is false if they already were.
+	SetOptOut(ctx context.Context, workspaceID, contactID uuid.UUID, source string) (changed bool, err error)
+}
+
+// PlanAccess says whether a plan includes a resource. Implemented by features/billing.
+type PlanAccess interface {
+	HasAccess(ctx context.Context, workspaceID uuid.UUID, key string) (bool, error)
+}
+
+// Enqueuer inserts background jobs in a transaction.
+type Enqueuer interface {
+	InsertTx(ctx context.Context, tx pgx.Tx, args river.JobArgs, opts *river.InsertOpts) (*rivertype.JobInsertResult, error)
+}
+
+// Deps are the service's collaborators, wired in internal/app.
+type Deps struct {
+	Inbox    Inbox
+	Contacts Contacts
+	Plans    PlanAccess
+}
+
+// Service manages a workspace's automations and runs them.
+type Service struct {
+	pool  *pgxpool.Pool
+	queue Enqueuer
+	deps  Deps
+	now   func() time.Time
+}
+
+// New builds the service. Call Connect before running automations.
+func New(pool *pgxpool.Pool, queue Enqueuer) *Service {
+	return &Service{pool: pool, queue: queue, now: func() time.Time { return time.Now().UTC() }}
+}
+
+// Connect passes in the features that are built after this one.
+func (s *Service) Connect(deps Deps) { s.deps = deps }
 
 // List returns all six kinds in page order. A kind nobody saved is off, with
 // its defaults.
@@ -29,6 +74,10 @@ func (s *Service) List(ctx context.Context, workspaceID uuid.UUID) ([]model.Auto
 	rows, err := repository.NewRepository(s.pool).ListAutomations(ctx, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("list automations: %w", err)
+	}
+	sent, err := s.sentThisMonth(ctx, workspaceID)
+	if err != nil {
+		return nil, err
 	}
 	saved := make(map[model.Kind]gen.ListAutomationsRow, len(rows))
 	for _, r := range rows {
@@ -44,6 +93,22 @@ func (s *Service) List(ctx context.Context, workspaceID uuid.UUID) ([]model.Auto
 		if out[i], err = toAutomation(r.Kind, r.Enabled, r.Settings, r.UpdatedAt); err != nil {
 			return nil, err
 		}
+		out[i].Sent = sent[k]
+	}
+	return out, nil
+}
+
+func (s *Service) sentThisMonth(ctx context.Context, workspaceID uuid.UUID) (map[model.Kind]int64, error) {
+	now := s.now()
+	rows, err := repository.NewRepository(s.pool).RunStats(ctx, gen.RunStatsParams{
+		WorkspaceID: workspaceID, Since: time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("automation stats: %w", err)
+	}
+	out := make(map[model.Kind]int64, len(rows))
+	for _, r := range rows {
+		out[model.Kind(r.Kind)] = r.Sent
 	}
 	return out, nil
 }

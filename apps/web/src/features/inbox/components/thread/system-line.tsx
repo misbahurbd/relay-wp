@@ -42,6 +42,8 @@ export function eventText(
       return actor
         ? `Template sent by ${actor} · chat moved to Pending`
         : 'Template sent · chat moved to Pending'
+    case 'opted_out':
+      return `Customer replied STOP · opted out of automated messages · ${time}`
     case 'window_reopened':
       return `Customer replied · ${windowHours}-hour window reopened`
     default:

@@ -43,11 +43,17 @@ type Querier interface {
 	// and the status only moves forward, so out-of-order webhooks can't undo a tick.
 	AdvanceMessageStatus(ctx context.Context, arg AdvanceMessageStatusParams) ([]AdvanceMessageStatusRow, error)
 	AssignContacts(ctx context.Context, arg AssignContactsParams) (int64, error)
+	// What automations need to know before they speak. last_agent_at is the epoch
+	// when no person has written here.
+	AutomationConversation(ctx context.Context, arg AutomationConversationParams) (AutomationConversationRow, error)
 	BumpAccessVersions(ctx context.Context, arg BumpAccessVersionsParams) error
 	BumpReminderCount(ctx context.Context, workspaceID uuid.UUID) error
+	CancelContactRuns(ctx context.Context, arg CancelContactRunsParams) error
 	// An upgraded or refunded order: what is still open will never be collected.
 	CancelOpenInstallments(ctx context.Context, arg CancelOpenInstallmentsParams) (int64, error)
 	CancelSubscriptionNow(ctx context.Context, arg CancelSubscriptionNowParams) (int64, error)
+	// A due run, locked; another worker holding it means nothing to do here.
+	ClaimRun(ctx context.Context, arg ClaimRunParams) (ClaimRunRow, error)
 	ClearContactTags(ctx context.Context, arg ClearContactTagsParams) error
 	ClearUnread(ctx context.Context, arg ClearUnreadParams) (ClearUnreadRow, error)
 	CompleteOnboarding(ctx context.Context, workspaceID uuid.UUID) error
@@ -75,6 +81,7 @@ type Querier interface {
 	CountPasswordFailures(ctx context.Context, arg CountPasswordFailuresParams) (CountPasswordFailuresRow, error)
 	// Codes sent to a user lately: resends are capped per account, not just per IP.
 	CountRecentEmailCodes(ctx context.Context, arg CountRecentEmailCodesParams) (int32, error)
+	CountRecentReplies(ctx context.Context, arg CountRecentRepliesParams) (int64, error)
 	CountRecentTestMessages(ctx context.Context, workspaceID uuid.UUID) (int64, error)
 	// Members and pending invites whose role uses a seat.
 	CountSeatsUsed(ctx context.Context, workspaceID uuid.UUID) (CountSeatsUsedRow, error)
@@ -185,6 +192,7 @@ type Querier interface {
 	DisconnectAccountNumbers(ctx context.Context, arg DisconnectAccountNumbersParams) error
 	DisconnectConnection(ctx context.Context, arg DisconnectConnectionParams) (int64, error)
 	DisconnectWhatsAppAccount(ctx context.Context, arg DisconnectWhatsAppAccountParams) error
+	DueRuns(ctx context.Context, arg DueRunsParams) ([]DueRunsRow, error)
 	EndGrant(ctx context.Context, arg EndGrantParams) (int64, error)
 	// Returns the workspace's customer row for provider, creating it on first use.
 	EnsureBillingCustomer(ctx context.Context, arg EnsureBillingCustomerParams) (EnsureBillingCustomerRow, error)
@@ -213,6 +221,7 @@ type Querier interface {
 	// Moves a pending session to completed, failed or expired; a finished one is left alone.
 	FinishCheckoutSession(ctx context.Context, arg FinishCheckoutSessionParams) (int64, error)
 	FinishContactImport(ctx context.Context, arg FinishContactImportParams) error
+	FinishRun(ctx context.Context, arg FinishRunParams) error
 	// The one lookup without a workspace: the key is how the workspace is found.
 	// RequireWorkspace then checks the creator's current access there.
 	GetAPIKeyByHash(ctx context.Context, tokenHash []byte) (GetAPIKeyByHashRow, error)
@@ -326,6 +335,7 @@ type Querier interface {
 	// ---------- Access log ----------
 	InsertAccessLog(ctx context.Context, arg InsertAccessLogParams) error
 	InsertAuthEvent(ctx context.Context, arg InsertAuthEventParams) error
+	InsertAutomatedMessage(ctx context.Context, arg InsertAutomatedMessageParams) error
 	// Links a sender to a contact. A concurrent link of the same sender wins; the
 	// caller reads the identity back.
 	InsertContactIdentity(ctx context.Context, arg InsertContactIdentityParams) error
@@ -343,6 +353,8 @@ type Querier interface {
 	// selects it: it is never logged or returned.
 	// Dedupes on (provider, external_event_id): a replay gets no row back.
 	InsertPaymentEvent(ctx context.Context, arg InsertPaymentEventParams) (uuid.UUID, error)
+	// A dedupe key already stored inserts nothing and returns no row.
+	InsertRun(ctx context.Context, arg InsertRunParams) ([]uuid.UUID, error)
 	InvalidateEmailCodes(ctx context.Context, arg InvalidateEmailCodesParams) error
 	InvalidateEmailTokens(ctx context.Context, arg InvalidateEmailTokensParams) error
 	InvitationNumberIDs(ctx context.Context, invitationID uuid.UUID) ([]uuid.UUID, error)
@@ -534,6 +546,7 @@ type Querier interface {
 	// Revokes every active session of a user, optionally keeping one (the current device).
 	RevokeUserSessions(ctx context.Context, arg RevokeUserSessionsParams) (int64, error)
 	RoleBits(ctx context.Context, roleID uuid.UUID) (int64, error)
+	RunStats(ctx context.Context, arg RunStatsParams) ([]RunStatsRow, error)
 	SaveAutomationSettings(ctx context.Context, arg SaveAutomationSettingsParams) (SaveAutomationSettingsRow, error)
 	SetAssignee(ctx context.Context, arg SetAssigneeParams) (SetAssigneeRow, error)
 	// settings is only used when the kind has no row yet.
@@ -544,6 +557,7 @@ type Querier interface {
 	// Mapping can change until the import starts.
 	SetContactImportMapping(ctx context.Context, arg SetContactImportMappingParams) (int64, error)
 	SetContactLastMessage(ctx context.Context, arg SetContactLastMessageParams) error
+	SetContactOptOut(ctx context.Context, arg SetContactOptOutParams) (int64, error)
 	SetConversationStatus(ctx context.Context, arg SetConversationStatusParams) (SetConversationStatusRow, error)
 	SetGrantOverrides(ctx context.Context, arg SetGrantOverridesParams) (int64, error)
 	SetInstallmentReminderSent(ctx context.Context, arg SetInstallmentReminderSentParams) (int64, error)
@@ -606,6 +620,9 @@ type Querier interface {
 	TeamMemberIDs(ctx context.Context, arg TeamMemberIDsParams) ([]uuid.UUID, error)
 	// At most one write a minute per key.
 	TouchAPIKey(ctx context.Context, arg TouchAPIKeyParams) error
+	// An automated reply shows in the list but answers nobody: a customer waiting
+	// for a person stays waiting.
+	TouchAutomated(ctx context.Context, arg TouchAutomatedParams) (TouchAutomatedRow, error)
 	// Refresh what the provider reports on every sign-in. Never touches the profile.
 	TouchIdentity(ctx context.Context, arg TouchIdentityParams) error
 	TouchLastLogin(ctx context.Context, id uuid.UUID) error

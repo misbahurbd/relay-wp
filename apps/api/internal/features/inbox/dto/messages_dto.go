@@ -60,7 +60,7 @@ type InboxTemplateContentDTO struct {
 }
 
 type InboxEventDTO struct {
-	Action   string     `json:"action" enum:"assigned,unassigned,closed,reopened,snoozed,unsnoozed,template_pending,window_reopened"`
+	Action   string     `json:"action" enum:"assigned,unassigned,closed,reopened,snoozed,unsnoozed,template_pending,window_reopened,opted_out"`
 	ActorID  *uuid.UUID `json:"actor_id" doc:"Null for the system"`
 	TargetID *uuid.UUID `json:"target_id" doc:"The member assigned or unassigned"`
 	Until    *time.Time `json:"until" doc:"Snoozed until"`
@@ -140,6 +140,7 @@ type InboxMessageDTO struct {
 	ErrorCode  *string           `json:"error_code"`
 	ErrorTitle *string           `json:"error_title"`
 	Author     *InboxPersonDTO   `json:"author" doc:"Who sent the message or wrote the note"`
+	Automated  bool              `json:"automated" doc:"An automation sent this message"`
 	Mentions   []uuid.UUID       `json:"mentions"`
 	Reactions  InboxReactionsDTO `json:"reactions"`
 	CreatedAt  time.Time         `json:"created_at"`
@@ -149,7 +150,7 @@ type InboxMessageDTO struct {
 func ToMessageDTO(m model.Message) InboxMessageDTO {
 	out := InboxMessageDTO{
 		ID: m.ID, Direction: m.Direction, Kind: m.Kind, Type: m.Type, Body: m.Body, Content: toContentDTO(m.Content),
-		Status: m.Status, ErrorCode: m.ErrorCode, ErrorTitle: m.ErrorTitle, Author: toPerson(m.Author),
+		Status: m.Status, ErrorCode: m.ErrorCode, ErrorTitle: m.ErrorTitle, Author: toPerson(m.Author), Automated: m.Automated,
 		Mentions: m.Mentions, Reactions: InboxReactionsDTO(m.Reactions), CreatedAt: m.CreatedAt, StatusAt: m.StatusAt,
 	}
 	if m.ReplyTo != nil {
