@@ -933,6 +933,20 @@
             "format": "int64",
             "type": "integer"
           },
+          "recovered": {
+            "description": "Carts bought after a reminder this month",
+            "format": "int64",
+            "type": "integer"
+          },
+          "recovered_currency": {
+            "description": "Their currency",
+            "type": "string"
+          },
+          "recovered_minor": {
+            "description": "What those carts were worth, in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
           "sent": {
             "description": "Messages sent this month",
             "format": "int64",
@@ -953,7 +967,10 @@
           "settings",
           "sent",
           "failed",
-          "read"
+          "read",
+          "recovered",
+          "recovered_minor",
+          "recovered_currency"
         ],
         "type": "object"
       },

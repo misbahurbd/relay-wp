@@ -130,6 +130,15 @@ func (s *Service) ContactIDByPhone(ctx context.Context, workspaceID uuid.UUID, p
 	return id, true, nil
 }
 
+// OptIn is a contact's consent: in, out or pending.
+func (s *Service) OptIn(ctx context.Context, workspaceID, contactID uuid.UUID) (string, error) {
+	opt, err := repository.NewRepository(s.pool).ContactOptIn(ctx, gen.ContactOptInParams{WorkspaceID: workspaceID, ID: contactID})
+	if err != nil {
+		return "", fmt.Errorf("contact opt in: %w", err)
+	}
+	return opt, nil
+}
+
 // SetOptOut records that a contact opted out; changed is false if they already
 // had. For features/automations, through an interface it declares.
 func (s *Service) SetOptOut(ctx context.Context, workspaceID, contactID uuid.UUID, source string) (bool, error) {

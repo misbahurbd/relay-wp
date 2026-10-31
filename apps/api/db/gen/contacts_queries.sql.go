@@ -163,6 +163,22 @@ func (q *Queries) ContactIDByPhone(ctx context.Context, arg ContactIDByPhonePara
 	return id, err
 }
 
+const contactOptIn = `-- name: ContactOptIn :one
+SELECT opt_in FROM contacts WHERE workspace_id = $1 AND id = $2
+`
+
+type ContactOptInParams struct {
+	WorkspaceID uuid.UUID
+	ID          uuid.UUID
+}
+
+func (q *Queries) ContactOptIn(ctx context.Context, arg ContactOptInParams) (string, error) {
+	row := q.db.QueryRow(ctx, contactOptIn, arg.WorkspaceID, arg.ID)
+	var opt_in string
+	err := row.Scan(&opt_in)
+	return opt_in, err
+}
+
 const contactSummary = `-- name: ContactSummary :one
 SELECT count(c.id) AS total, count(c.id) FILTER (WHERE c.opt_in = 'in') AS opted_in
 FROM contacts c

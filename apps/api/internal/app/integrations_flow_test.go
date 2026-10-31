@@ -530,7 +530,7 @@ func TestShopifyOAuthConnect(t *testing.T) {
 		u, _ := url.Parse(auth.body["url"].(string))
 		q := u.Query()
 		if u.Host != "greenleaf.myshopify.com" || u.Path != "/admin/oauth/authorize" || q.Get("client_id") != "shopify-client" ||
-			q.Get("scope") != "read_customers,read_orders" || !strings.HasSuffix(q.Get("redirect_uri"), "/v1/integrations/shopify/callback") {
+			q.Get("scope") != "read_customers,read_orders,read_checkouts" || !strings.HasSuffix(q.Get("redirect_uri"), "/v1/integrations/shopify/callback") {
 			t.Fatalf("install url: %s", u)
 		}
 		return q.Get("state")

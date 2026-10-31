@@ -42,12 +42,15 @@ type Querier interface {
 	// The channel's status webhook (AD-7): pending 0 < sent 1 < delivered 2 < read 3 < failed 4,
 	// and the status only moves forward, so out-of-order webhooks can't undo a tick.
 	AdvanceMessageStatus(ctx context.Context, arg AdvanceMessageStatusParams) ([]AdvanceMessageStatusRow, error)
+	AdvanceRun(ctx context.Context, arg AdvanceRunParams) error
 	AssignContacts(ctx context.Context, arg AssignContactsParams) (int64, error)
 	// What automations need to know before they speak. last_agent_at is the epoch
 	// when no person has written here.
 	AutomationConversation(ctx context.Context, arg AutomationConversationParams) (AutomationConversationRow, error)
 	BumpAccessVersions(ctx context.Context, arg BumpAccessVersionsParams) error
 	BumpReminderCount(ctx context.Context, workspaceID uuid.UUID) error
+	// The order came before any reminder went.
+	CancelCartRun(ctx context.Context, arg CancelCartRunParams) error
 	CancelContactRuns(ctx context.Context, arg CancelContactRunsParams) error
 	// An upgraded or refunded order: what is still open will never be collected.
 	CancelOpenInstallments(ctx context.Context, arg CancelOpenInstallmentsParams) (int64, error)
@@ -67,6 +70,7 @@ type Querier interface {
 	// The contact a channel's sender is (ADR 0010).
 	ContactIDByIdentity(ctx context.Context, arg ContactIDByIdentityParams) (uuid.UUID, error)
 	ContactIDByPhone(ctx context.Context, arg ContactIDByPhoneParams) (uuid.UUID, error)
+	ContactOptIn(ctx context.Context, arg ContactOptInParams) (string, error)
 	ContactSummary(ctx context.Context, workspaceID uuid.UUID) (ContactSummaryRow, error)
 	CountActiveAPIKeys(ctx context.Context, workspaceID uuid.UUID) (int64, error)
 	// How many of ids are tags of this workspace.
@@ -522,6 +526,8 @@ type Querier interface {
 	RecordEndpointFailure(ctx context.Context, arg RecordEndpointFailureParams) (bool, error)
 	RecordEndpointSuccess(ctx context.Context, arg RecordEndpointSuccessParams) error
 	RecordOAuthFlowCodeAttempt(ctx context.Context, id uuid.UUID) (int32, error)
+	// The order came after a reminder: count it, once, and send no more.
+	RecoverCart(ctx context.Context, arg RecoverCartParams) error
 	RedactContactRuns(ctx context.Context, arg RedactContactRunsParams) error
 	RedactStoreRuns(ctx context.Context, workspaceID uuid.UUID) error
 	// Payment went through: the reservation becomes a redemption.
@@ -661,6 +667,8 @@ type Querier interface {
 	UpdateWebhookEndpoint(ctx context.Context, arg UpdateWebhookEndpointParams) (int64, error)
 	UpdateWorkspaceBusiness(ctx context.Context, arg UpdateWorkspaceBusinessParams) error
 	UpsertBillingProfile(ctx context.Context, arg UpsertBillingProfileParams) (UpsertBillingProfileRow, error)
+	// One run per checkout. Each change restarts the wait, until a reminder has gone.
+	UpsertCartRun(ctx context.Context, arg UpsertCartRunParams) error
 	UpsertConnection(ctx context.Context, arg UpsertConnectionParams) error
 	// Returns the tag with this name (case-insensitive), creating it when there is none.
 	UpsertContactTag(ctx context.Context, arg UpsertContactTagParams) (UpsertContactTagRow, error)

@@ -82,6 +82,10 @@ func (c automationsCommerce) OnOrder(ctx context.Context, tx pgx.Tx, ev integrat
 	return c.automations.OnOrder(ctx, tx, automationsmodel.OrderEvent(ev))
 }
 
+func (c automationsCommerce) OnCheckout(ctx context.Context, tx pgx.Tx, ev integrationsmodel.CheckoutEvent) error {
+	return c.automations.OnCheckout(ctx, tx, automationsmodel.CheckoutEvent(ev))
+}
+
 func (c automationsCommerce) RedactCustomer(ctx context.Context, workspaceID uuid.UUID, phone string) error {
 	return c.automations.RedactCustomer(ctx, workspaceID, phone)
 }

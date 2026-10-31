@@ -184,8 +184,21 @@ func (s *Service) ProcessRun(ctx context.Context, workspaceID, runID uuid.UUID) 
 		if err != nil {
 			return err
 		}
+		if next := s.nextStep(run, state); next != nil {
+			return r.AdvanceRun(ctx, gen.AdvanceRunParams{WorkspaceID: workspaceID, ID: runID, NextAt: next})
+		}
 		return r.FinishRun(ctx, gen.FinishRunParams{WorkspaceID: workspaceID, ID: runID, State: state, Reason: reason})
 	})
+}
+
+// nextStep is when a run that just sent goes again, or nil when it is finished.
+func (s *Service) nextStep(run gen.ClaimRunRow, state string) *time.Time {
+	var c model.RunContext
+	if state != model.StateDone || model.Kind(run.Kind) != model.KindCart || run.Step != 0 || json.Unmarshal(run.Context, &c) != nil || !c.Second {
+		return nil
+	}
+	at := s.now().Add(secondReminderAfter)
+	return &at
 }
 
 func (s *Service) fire(ctx context.Context, tx pgx.Tx, r repository.Repository, workspaceID uuid.UUID, run gen.ClaimRunRow) (string, *string, error) {
@@ -216,6 +229,15 @@ func (s *Service) fire(ctx context.Context, tx pgx.Tx, r repository.Repository, 
 	var c model.RunContext
 	if err := json.Unmarshal(run.Context, &c); err != nil {
 		return "", nil, fmt.Errorf("decode run context: %w", err)
+	}
+	if model.Kind(run.Kind) == model.KindCart && !c.Consent {
+		optIn, err := s.deps.Contacts.OptIn(ctx, workspaceID, *run.ContactID)
+		if err != nil {
+			return "", nil, fmt.Errorf("contact consent: %w", err)
+		}
+		if optIn != "in" {
+			return end(model.StateSkipped, model.ReasonNoConsent)
+		}
 	}
 	err = s.deps.Inbox.SendAutomated(ctx, tx, model.AutomatedSend{
 		WorkspaceID: workspaceID, ConversationID: run.ConversationID, ContactID: run.ContactID, RunID: run.ID,

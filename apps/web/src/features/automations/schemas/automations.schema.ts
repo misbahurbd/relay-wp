@@ -132,6 +132,16 @@ export function description(a: Automation) {
   return KINDS[a.kind].description
 }
 
+function money(a: Automation) {
+  if (!a.recovered || !a.recovered_currency) return ''
+  const amount = new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: a.recovered_currency,
+    maximumFractionDigits: 0,
+  }).format(a.recovered_minor / 100)
+  return ` (${amount})`
+}
+
 /** The card's stat line. */
 export function stat(a: Automation) {
   const line = counts(a)
@@ -143,7 +153,7 @@ function counts(a: Automation) {
     case 'keyword':
       return `${a.settings.keyword?.rules?.length ?? 0} rules · ${a.sent.toLocaleString()} replies this month`
     case 'cart':
-      return `${a.sent.toLocaleString()} sent · 0 carts recovered`
+      return `${a.sent.toLocaleString()} sent · ${a.recovered.toLocaleString()} carts recovered${money(a)}`
     case 'order':
       return a.sent
         ? `${a.sent.toLocaleString()} sent · ${Math.round((a.read / a.sent) * 100)}% read`
