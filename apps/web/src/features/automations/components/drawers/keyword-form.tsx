@@ -31,10 +31,14 @@ export function KeywordForm({ settings, errors, onChange }: FormProps) {
               />
             </Fld>
             <Fld label="Match" className="flex-[1_1_120px]">
-              <Select value={r.match} onChange={(e) => set(i, { match: e.target.value })}>
-                <option value="any">Any word</option>
-                <option value="exact">Exact phrase</option>
-              </Select>
+              <Select
+                value={r.match}
+                onValueChange={(match) => set(i, { match })}
+                options={[
+                  { value: 'any', label: 'Any word' },
+                  { value: 'exact', label: 'Exact phrase' },
+                ]}
+              />
             </Fld>
           </div>
           <Fld label="Reply with" error={errors[`rules[${i}].reply`]}>

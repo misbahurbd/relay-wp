@@ -33,15 +33,10 @@ export function VariableRows({
               <Select
                 aria-label={`Value for ${key}`}
                 value={v.source}
-                onChange={(e) => set(i, { source: e.target.value })}
-              >
-                <option value="">Choose a value</option>
-                {sources.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </Select>
+                onValueChange={(source) => set(i, { source })}
+                placeholder="Choose a value"
+                options={sources.map((s) => ({ value: s.value, label: s.label }))}
+              />
             </div>
             {v.source === 'custom' && (
               <Input

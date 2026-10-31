@@ -24,13 +24,14 @@ export function TemplateSelect({
   onChange: (id: string | undefined) => void
 }) {
   return (
-    <Select value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)}>
-      <option value="">Choose a template</option>
-      {templates.map((t) => (
-        <option key={t.id} value={t.id}>
-          {t.name} · {CATEGORY[t.category] ?? t.category} · Approved
-        </option>
-      ))}
-    </Select>
+    <Select
+      value={value ?? ''}
+      onValueChange={(id) => onChange(id || undefined)}
+      placeholder="Choose a template"
+      options={templates.map((t) => ({
+        value: t.id,
+        label: `${t.name} · ${CATEGORY[t.category] ?? t.category} · Approved`,
+      }))}
+    />
   )
 }
