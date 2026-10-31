@@ -13,4 +13,12 @@ var (
 	ErrWindowClosed = apperr.Conflict("automation_window_closed", "The reply window has closed")
 	// ErrOptedOut: the contact has opted out.
 	ErrOptedOut = apperr.Conflict("automation_opted_out", "This contact has opted out")
+	// ErrTemplateUnavailable: the template can't be sent any more.
+	ErrTemplateUnavailable = apperr.Conflict("automation_template_unavailable", "This template can't be sent")
+	// ErrMissingVariable: a template variable has no value.
+	ErrMissingVariable = apperr.Conflict("automation_missing_variable", "A template variable has no value")
+	// ErrNoChannel: no connected number to start a chat from.
+	ErrNoChannel = apperr.Conflict("automation_no_channel", "No WhatsApp number is connected")
+	// ErrInvalidPhone: the phone can't reach anyone.
+	ErrInvalidPhone = apperr.Validation("automation_invalid_phone", "This phone number isn't valid")
 )

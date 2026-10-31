@@ -26,6 +26,8 @@ import (
 // fakeStores stands in for Shopify, WooCommerce and Google. "good" credentials pass.
 type fakeStores struct {
 	srv *httptest.Server
+	// webhooks are what stores were asked to create.
+	webhooks []map[string]any
 }
 
 func newFakeStores(t *testing.T) *fakeStores {
@@ -37,6 +39,15 @@ func newFakeStores(t *testing.T) *fakeStores {
 			_ = json.NewEncoder(w).Encode(v)
 		}
 		switch {
+		case strings.HasSuffix(r.URL.Path, "/webhooks.json"), strings.HasSuffix(r.URL.Path, "/wp-json/wc/v3/webhooks"):
+			if r.Method == http.MethodGet {
+				reply(http.StatusOK, []map[string]any{})
+				return
+			}
+			var body map[string]any
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			f.webhooks = append(f.webhooks, body)
+			reply(http.StatusCreated, map[string]any{})
 		case strings.HasSuffix(r.URL.Path, "/shop.json"):
 			if r.Header.Get("X-Shopify-Access-Token") != "good" {
 				reply(http.StatusUnauthorized, map[string]any{"errors": "Invalid API key"})
@@ -572,7 +583,7 @@ func TestWooCommerceOAuthConnect(t *testing.T) {
 	expect(t, auth, http.StatusOK)
 	u, _ := url.Parse(auth.body["url"].(string))
 	q := u.Query()
-	if !strings.HasPrefix(u.String(), stores.srv.URL+"/wc-auth/v1/authorize?") || q.Get("scope") != "read" ||
+	if !strings.HasPrefix(u.String(), stores.srv.URL+"/wc-auth/v1/authorize?") || q.Get("scope") != "read_write" ||
 		q.Get("callback_url") != "https://api.relay.test/v1/integrations/woocommerce/callback" ||
 		q.Get("return_url") != testOrigin+"/integrations?provider=woocommerce" {
 		t.Fatalf("authorize url: %s", u)
@@ -582,7 +593,7 @@ func TestWooCommerceOAuthConnect(t *testing.T) {
 		return e.browser(chromeMac).do("POST", "/v1/integrations/woocommerce/callback", body)
 	}
 	keys := func(st, secret string) map[string]any {
-		return map[string]any{"key_id": 7, "user_id": st, "consumer_key": "ck_good", "consumer_secret": secret, "key_permissions": "read"}
+		return map[string]any{"key_id": 7, "user_id": st, "consumer_key": "ck_good", "consumer_secret": secret, "key_permissions": "read_write"}
 	}
 	expect(t, post(keys("forged."+state, "cs_good")), http.StatusUnprocessableEntity, "invalid_oauth_state")
 	expect(t, post(keys(state, "wrong")), http.StatusUnprocessableEntity, "credentials_rejected")

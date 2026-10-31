@@ -24,6 +24,14 @@ const (
 	ReasonPaused        = "paused"
 	ReasonPlan          = "plan"
 	ReasonWindowClosed  = "window_closed"
+	ReasonNoPhone       = "no_phone"
+	ReasonRedacted      = "redacted"
+	// ReasonTemplateUnavailable: the template was removed or lost its approval.
+	ReasonTemplateUnavailable = "template_unavailable"
+	// ReasonMissingVariable: the event had no value for a template variable.
+	ReasonMissingVariable = "missing_variable"
+	// ReasonNoChannel: no connected number to start the chat from.
+	ReasonNoChannel = "no_channel"
 )
 
 // OptOutSource is the contact's opt_in_source after replying STOP.
@@ -51,13 +59,39 @@ type Conversation struct {
 
 // AutomatedSend is one message an automation sends.
 type AutomatedSend struct {
-	WorkspaceID    uuid.UUID
-	ConversationID uuid.UUID
+	WorkspaceID uuid.UUID
+	// ConversationID is nil when the run started from a store event.
+	ConversationID *uuid.UUID
+	ContactID      *uuid.UUID
 	RunID          uuid.UUID
 	Text           string
+	// TemplateID sends a template instead of Text.
+	TemplateID *uuid.UUID
+	Params     []string
 }
 
 // RunContext is stored on a run.
 type RunContext struct {
-	Text string `json:"text"`
+	Text       string     `json:"text,omitempty"`
+	TemplateID *uuid.UUID `json:"template_id,omitempty"`
+	Params     []string   `json:"params,omitempty"`
+}
+
+// OrderEvent is a store order.
+type OrderEvent struct {
+	WorkspaceID uuid.UUID
+	Provider    string
+	Status      string
+	OrderID     string
+	Number      string
+	Total       string
+	FirstName   string
+	LastName    string
+	Phone       string
+	StatusURL   string
+}
+
+// Stats are a kind's counts this month.
+type Stats struct {
+	Sent, Failed, Read int64
 }

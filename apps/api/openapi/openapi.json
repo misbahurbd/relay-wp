@@ -912,6 +912,11 @@
           "enabled": {
             "type": "boolean"
           },
+          "failed": {
+            "description": "Messages that could not be sent this month",
+            "format": "int64",
+            "type": "integer"
+          },
           "kind": {
             "enum": [
               "welcome",
@@ -922,6 +927,11 @@
               "drip"
             ],
             "type": "string"
+          },
+          "read": {
+            "description": "Messages read this month",
+            "format": "int64",
+            "type": "integer"
           },
           "sent": {
             "description": "Messages sent this month",
@@ -941,7 +951,9 @@
           "kind",
           "enabled",
           "settings",
-          "sent"
+          "sent",
+          "failed",
+          "read"
         ],
         "type": "object"
       },
@@ -12547,6 +12559,140 @@
         ]
       }
     },
+    "/v1/webhooks/commerce/shopify/{connectionId}": {
+      "post": {
+        "operationId": "shopify-order-webhook",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connectionId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Shopify-Topic",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Shopify-Webhook-Id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Shopify-Hmac-Sha256",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "contentMediaType": "application/octet-stream",
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "An order event from a connected Shopify store",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/v1/webhooks/commerce/woocommerce/{connectionId}": {
+      "post": {
+        "operationId": "woocommerce-order-webhook",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connectionId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-WC-Webhook-Topic",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-WC-Webhook-Delivery-ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-WC-Webhook-Signature",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "contentMediaType": "application/octet-stream",
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "An order event from a connected WooCommerce store",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
     "/v1/webhooks/payments/{provider}": {
       "post": {
         "operationId": "payment-webhook",
@@ -12596,6 +12742,58 @@
         "summary": "A payment provider's webhook (signed by the provider)",
         "tags": [
           "billing"
+        ]
+      }
+    },
+    "/v1/webhooks/shopify/privacy": {
+      "post": {
+        "operationId": "shopify-privacy-webhook",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Shopify-Topic",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Shopify-Hmac-Sha256",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "contentMediaType": "application/octet-stream",
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Shopify's customer data and erasure requests",
+        "tags": [
+          "integrations"
         ]
       }
     },

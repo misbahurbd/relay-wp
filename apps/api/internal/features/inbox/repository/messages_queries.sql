@@ -135,8 +135,8 @@ JOIN contacts ct ON ct.id = c.contact_id
 WHERE c.workspace_id = @workspace_id AND c.id = @id;
 
 -- name: InsertAutomatedMessage :exec
-INSERT INTO messages (id, workspace_id, conversation_id, direction, kind, type, body, status, automation_run_id, created_at)
-VALUES (@id, @workspace_id, @conversation_id, 'out', 'message', 'text', @body, 'pending', @automation_run_id, @created_at);
+INSERT INTO messages (id, workspace_id, conversation_id, direction, kind, type, body, content, status, automation_run_id, created_at)
+VALUES (@id, @workspace_id, @conversation_id, 'out', 'message', @type, @body, @content, 'pending', @automation_run_id, @created_at);
 
 -- name: TouchAutomated :one
 -- An automated reply shows in the list but answers nobody: a customer waiting
@@ -144,6 +144,21 @@ VALUES (@id, @workspace_id, @conversation_id, 'out', 'message', 'text', @body, '
 UPDATE conversations
 SET last_message_at        = GREATEST(last_message_at, @at::timestamptz),
     last_message_preview   = @preview,
-    last_message_direction = 'out'
+    last_message_direction = 'out',
+    status                 = CASE WHEN @to_pending::boolean AND status = 'closed' THEN 'pending' ELSE status END,
+    closed_at              = CASE WHEN @to_pending::boolean AND status = 'closed' THEN NULL ELSE closed_at END
 WHERE workspace_id = @workspace_id AND id = @id
 RETURNING team_id, assignee_id, channel_type, channel_id;
+
+-- name: LatestContactConversation :one
+SELECT id FROM conversations
+WHERE workspace_id = @workspace_id AND contact_id = @contact_id
+ORDER BY last_message_at DESC
+LIMIT 1;
+
+-- name: InsertAutomationConversation :one
+-- A chat a template starts: no window until the customer writes back.
+INSERT INTO conversations (id, workspace_id, contact_id, channel_type, channel_id, source, last_message_direction)
+VALUES (@id, @workspace_id, @contact_id, @channel_type, @channel_id, 'automation', 'out')
+ON CONFLICT (workspace_id, contact_id, channel_type, channel_id) DO UPDATE SET updated_at = now()
+RETURNING id;

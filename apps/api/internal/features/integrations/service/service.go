@@ -43,6 +43,7 @@ type Service struct {
 	box    *secretBox
 	cfg    Config
 	log    *slog.Logger
+	sink   CommerceSink
 	client *http.Client // for user-supplied URLs: no private addresses, no redirects
 	google *http.Client
 	now    func() time.Time

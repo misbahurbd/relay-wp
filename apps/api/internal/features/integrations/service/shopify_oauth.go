@@ -18,7 +18,7 @@ import (
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/integrations/model"
 )
 
-// shopifyScopes are what syncing customers and orders will need.
+// shopifyScopes are what syncing customers and reading orders need.
 const shopifyScopes = "read_customers,read_orders"
 
 // ShopifyCallbackPath is the Shopify app's redirect URL path, under API_BASE_URL.
@@ -86,10 +86,11 @@ func (s *Service) ShopifyCallback(ctx context.Context, rawQuery, nonce string) s
 	if err != nil {
 		return fail(err)
 	}
-	if err := s.saveConnection(ctx, st.WorkspaceID, st.UserID, model.ProviderShopify, label,
-		storeConfig{Shop: st.Target}, storeCredentials{AccessToken: token}); err != nil {
+	cfg, creds := storeConfig{Shop: st.Target, OAuth: true}, storeCredentials{AccessToken: token}
+	if err := s.saveConnection(ctx, st.WorkspaceID, st.UserID, model.ProviderShopify, label, cfg, creds); err != nil {
 		return fail(err)
 	}
+	s.setUpStoreWebhooks(ctx, st.WorkspaceID, model.ProviderShopify, cfg, creds)
 	return back + "?connected=" + model.ProviderShopify
 }
 

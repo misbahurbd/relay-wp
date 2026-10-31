@@ -48,10 +48,12 @@ type AutomationDTO struct {
 	Settings  SettingsDTO `json:"settings"`
 	UpdatedAt *time.Time  `json:"updated_at,omitempty" doc:"Absent until the automation is first saved"`
 	Sent      int64       `json:"sent" doc:"Messages sent this month"`
+	Failed    int64       `json:"failed" doc:"Messages that could not be sent this month"`
+	Read      int64       `json:"read" doc:"Messages read this month"`
 }
 
 func ToAutomationDTO(a model.Automation) AutomationDTO {
-	out := AutomationDTO{Kind: string(a.Kind), Enabled: a.Enabled, UpdatedAt: a.UpdatedAt, Sent: a.Sent}
+	out := AutomationDTO{Kind: string(a.Kind), Enabled: a.Enabled, UpdatedAt: a.UpdatedAt, Sent: a.Stats.Sent, Failed: a.Stats.Failed, Read: a.Stats.Read}
 	switch s := a.Settings.(type) {
 	case *model.WelcomeSettings:
 		out.Settings.Welcome = s

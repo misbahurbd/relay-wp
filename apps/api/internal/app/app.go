@@ -268,13 +268,14 @@ func (a *App) buildInbox() {
 		Contacts:  inboxContacts{contacts: a.contacts},
 		Channels:  a.inboxChannels(),
 		Templates: inboxTemplates{templates: a.templates},
+		Accounts:  inboxAccounts{wa: a.whatsapp},
 		Events:    a.integrations,
 		Members:   a.access,
 	}, a.log)
 	a.whatsapp.SetInboundSink(inboxSink{inbox: a.inbox})
 	a.inbox.SetInboundHook(automationsHook{automations: a.automations})
 	a.automations.Connect(automationsservice.Deps{
-		Inbox: automationsInbox{inbox: a.inbox}, Contacts: a.contacts, Plans: a.billing,
+		Inbox: automationsInbox{inbox: a.inbox}, Contacts: automationsContacts{a.contacts}, Plans: a.billing,
 	})
 	if a.mode != ModeWorker && a.directDB != nil {
 		a.live = realtime.New(a.directDB, a.log, realtime.InboxChannel)
@@ -343,10 +344,14 @@ func (a *App) buildIntegrations() error {
 			ClientID: a.cfg.Integrations.ShopifyClientID, ClientSecret: a.cfg.Integrations.ShopifyClientSecret,
 		},
 	}, a.log)
-	if err == nil && a.cfg.IsDevelopment() {
+	if err != nil {
+		return err
+	}
+	a.integrations.SetCommerceSink(automationsCommerce{automations: a.automations})
+	if a.cfg.IsDevelopment() {
 		a.warnIntegrationSetup()
 	}
-	return err
+	return nil
 }
 
 // warnIntegrationSetup reminds a developer which one-click connections still need setup

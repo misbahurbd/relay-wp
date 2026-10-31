@@ -41,7 +41,9 @@ export function AutomationsPage({ workspaceId, canEdit, canPublish }: Props) {
   const [editing, setEditing] = useState<Kind>()
 
   const items = automations.data ?? []
-  const stores = (overview.data?.connections ?? []).map((c) => c.provider as string)
+  const stores = (overview.data?.connections ?? [])
+    .filter((c) => c.status !== 'disconnected')
+    .map((c) => c.provider as string)
   const active = items.filter((a) => a.enabled).length
   const open = items.find((a) => a.kind === editing)
 

@@ -20,7 +20,8 @@ func (s *Service) WooOAuthAvailable() bool {
 }
 
 // AuthorizeWooCommerce returns the store's "Connect Relay" page (WooCommerce's
-// /wc-auth/v1/authorize). Approving it makes read-only REST keys and posts them to
+// /wc-auth/v1/authorize). Approving it makes REST keys, which can create our order
+// webhook, and posts them to
 // WooCallback; the store then sends the person back to Integrations.
 func (s *Service) AuthorizeWooCommerce(workspaceID, userID uuid.UUID, storeURL string) (string, error) {
 	if !s.WooOAuthAvailable() {
@@ -36,7 +37,7 @@ func (s *Service) AuthorizeWooCommerce(workspaceID, userID uuid.UUID, storeURL s
 		return "", err
 	}
 	q := url.Values{
-		"app_name": {"Relay"}, "scope": {"read"}, "user_id": {state},
+		"app_name": {"Relay"}, "scope": {"read_write"}, "user_id": {state},
 		"return_url":   {s.integrationsPage() + "?provider=" + model.ProviderWooCommerce},
 		"callback_url": {strings.TrimRight(s.cfg.APIBaseURL, "/") + WooCallbackPath},
 	}
@@ -59,6 +60,13 @@ func (s *Service) WooCallback(ctx context.Context, state, consumerKey, consumerS
 	if err != nil {
 		return err
 	}
-	return s.saveConnection(ctx, st.WorkspaceID, st.UserID, model.ProviderWooCommerce, label,
-		storeConfig{StoreURL: st.Target}, creds)
+	if creds.WebhookSecret, err = randomToken(32); err != nil {
+		return err
+	}
+	cfg := storeConfig{StoreURL: st.Target}
+	if err := s.saveConnection(ctx, st.WorkspaceID, st.UserID, model.ProviderWooCommerce, label, cfg, creds); err != nil {
+		return err
+	}
+	s.setUpStoreWebhooks(ctx, st.WorkspaceID, model.ProviderWooCommerce, cfg, creds)
+	return nil
 }

@@ -190,8 +190,13 @@ type AutomationConversation struct {
 	LastAgentAt *time.Time
 }
 
-// AutomatedText is a text message an automation sends.
+// AutomatedText is what an automation sends.
 type AutomatedText struct {
-	WorkspaceID, ConversationID, RunID uuid.UUID
-	Text                               string
+	WorkspaceID, RunID uuid.UUID
+	// ConversationID is nil when the sender only knows the contact.
+	ConversationID, ContactID *uuid.UUID
+	Text                      string
+	// TemplateID sends a template instead of Text.
+	TemplateID *uuid.UUID
+	Params     []string
 }

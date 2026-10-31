@@ -101,7 +101,7 @@ type AutomationRun struct {
 	ID             uuid.UUID
 	WorkspaceID    uuid.UUID
 	Kind           string
-	ContactID      uuid.UUID
+	ContactID      *uuid.UUID
 	ConversationID *uuid.UUID
 	DedupeKey      string
 	State          string
@@ -161,6 +161,14 @@ type CheckoutSession struct {
 	ExpiresAt          time.Time
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
+}
+
+type CommerceEvent struct {
+	ConnectionID uuid.UUID
+	DeliveryID   string
+	WorkspaceID  uuid.UUID
+	Topic        string
+	ReceivedAt   time.Time
 }
 
 type Contact struct {

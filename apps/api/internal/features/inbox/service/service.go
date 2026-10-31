@@ -87,6 +87,12 @@ type Enqueuer interface {
 	InsertTx(ctx context.Context, tx pgx.Tx, args river.JobArgs, opts *river.InsertOpts) (*rivertype.JobInsertResult, error)
 }
 
+// ChannelAccounts names the account a new chat starts from. Implemented in
+// internal/app on top of features/whatsapp.
+type ChannelAccounts interface {
+	DefaultAccount(ctx context.Context, workspaceID uuid.UUID) (channelType string, channelID uuid.UUID, ok bool, err error)
+}
+
 // Deps are the service's collaborators, wired in internal/app.
 type Deps struct {
 	Contacts  ContactDirectory
@@ -94,6 +100,7 @@ type Deps struct {
 	Templates TemplateCatalog
 	Events    EventPublisher
 	Members   MemberDirectory
+	Accounts  ChannelAccounts
 }
 
 // Service runs the team inbox.

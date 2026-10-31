@@ -70,6 +70,20 @@ func Register(api huma.API, h *Handler, g Guards, security []map[string][]string
 	huma.Register(api, op("redeliver-webhook", http.MethodPost, ws+"/webhooks/{endpointId}/deliveries/{deliveryId}/redeliver",
 		"Send a finished delivery again", http.StatusAccepted, g.Manage), h.redeliver)
 
+	// Stores post these and sign them, so they need no session.
+	public := func(id, path, summary string) huma.Operation {
+		return huma.Operation{
+			OperationID: id, Method: http.MethodPost, Path: path, Summary: summary, Tags: tags,
+			DefaultStatus: http.StatusOK, MaxBodyBytes: 5 << 20,
+		}
+	}
+	huma.Register(api, public("shopify-privacy-webhook", "/v1/webhooks/shopify/privacy",
+		"Shopify's customer data and erasure requests"), h.shopifyPrivacy)
+	huma.Register(api, public("shopify-order-webhook", service.CommercePath+"/shopify/{connectionId}",
+		"An order event from a connected Shopify store"), h.shopifyWebhook)
+	huma.Register(api, public("woocommerce-order-webhook", service.CommercePath+"/woocommerce/{connectionId}",
+		"An order event from a connected WooCommerce store"), h.wooWebhook)
+
 	// The static authorize routes are registered before {provider} so the router picks them.
 	huma.Register(api, op("authorize-google-sheets", http.MethodPost, ws+"/connections/google_sheets/authorize",
 		"Start connecting Google Sheets: returns Google's consent URL", http.StatusOK, g.Manage), h.authorizeGoogle)

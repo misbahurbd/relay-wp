@@ -43,8 +43,7 @@ type Automation struct {
 	Enabled   bool
 	Settings  Settings
 	UpdatedAt *time.Time
-	// Sent counts messages sent this month.
-	Sent int64
+	Stats     Stats
 }
 
 // Default is a kind's settings before anyone edits them.

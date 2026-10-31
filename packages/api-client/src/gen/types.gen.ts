@@ -293,7 +293,15 @@ export type AuthorizeWooInputBody = {
 
 export type AutomationDto = {
     enabled: boolean;
+    /**
+     * Messages that could not be sent this month
+     */
+    failed: number;
     kind: 'welcome' | 'away' | 'keyword' | 'cart' | 'order' | 'drip';
+    /**
+     * Messages read this month
+     */
+    read: number;
     /**
      * Messages sent this month
      */
@@ -4657,6 +4665,66 @@ export type ListPermissionsResponses = {
 
 export type ListPermissionsResponse = ListPermissionsResponses[keyof ListPermissionsResponses];
 
+export type ShopifyOrderWebhookData = {
+    body: Blob | File;
+    headers?: {
+        'X-Shopify-Topic'?: string;
+        'X-Shopify-Webhook-Id'?: string;
+        'X-Shopify-Hmac-Sha256'?: string;
+    };
+    path: {
+        connectionId: string;
+    };
+    query?: never;
+    url: '/v1/webhooks/commerce/shopify/{connectionId}';
+};
+
+export type ShopifyOrderWebhookErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ShopifyOrderWebhookError = ShopifyOrderWebhookErrors[keyof ShopifyOrderWebhookErrors];
+
+export type ShopifyOrderWebhookResponses = {
+    /**
+     * OK
+     */
+    200: unknown;
+};
+
+export type WoocommerceOrderWebhookData = {
+    body: Blob | File;
+    headers?: {
+        'X-WC-Webhook-Topic'?: string;
+        'X-WC-Webhook-Delivery-ID'?: string;
+        'X-WC-Webhook-Signature'?: string;
+    };
+    path: {
+        connectionId: string;
+    };
+    query?: never;
+    url: '/v1/webhooks/commerce/woocommerce/{connectionId}';
+};
+
+export type WoocommerceOrderWebhookErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type WoocommerceOrderWebhookError = WoocommerceOrderWebhookErrors[keyof WoocommerceOrderWebhookErrors];
+
+export type WoocommerceOrderWebhookResponses = {
+    /**
+     * OK
+     */
+    200: unknown;
+};
+
 export type PaymentWebhookData = {
     body: Blob | File;
     path: {
@@ -4676,6 +4744,33 @@ export type PaymentWebhookErrors = {
 export type PaymentWebhookError = PaymentWebhookErrors[keyof PaymentWebhookErrors];
 
 export type PaymentWebhookResponses = {
+    /**
+     * OK
+     */
+    200: unknown;
+};
+
+export type ShopifyPrivacyWebhookData = {
+    body: Blob | File;
+    headers?: {
+        'X-Shopify-Topic'?: string;
+        'X-Shopify-Hmac-Sha256'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/webhooks/shopify/privacy';
+};
+
+export type ShopifyPrivacyWebhookErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ShopifyPrivacyWebhookError = ShopifyPrivacyWebhookErrors[keyof ShopifyPrivacyWebhookErrors];
+
+export type ShopifyPrivacyWebhookResponses = {
     /**
      * OK
      */
