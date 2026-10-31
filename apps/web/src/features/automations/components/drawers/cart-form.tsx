@@ -1,3 +1,4 @@
+import { Input } from '#/components/ui/input'
 import { CART_DELAYS, CART_SOURCES, variableCount } from '../../schemas/automations.schema'
 import { Check, controlClass, Fld, Select } from '../kit/field'
 import { TemplateSelect, useApprovedTemplates } from '../kit/template-select'
@@ -38,7 +39,8 @@ export function CartForm({ workspaceId, settings, errors, onChange }: FormProps)
         onChange={(variables) => set({ variables })}
       />
       <Fld label="Discount code (optional)" error={errors.discount_code}>
-        <input
+        <Input
+          unstyled
           className={controlClass}
           value={s.discount_code}
           onChange={(e) => set({ discount_code: e.target.value })}

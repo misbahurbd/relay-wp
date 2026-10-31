@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { BarChart3Icon, PencilIcon } from 'lucide-react'
+import { Button } from '#/components/ui/button'
 import { cn } from '#/lib/utils'
 import { description, KINDS, stat } from '../../schemas/automations.schema'
 import type { Automation } from '../../types'
@@ -72,14 +73,15 @@ export function AutomationCard({
           <span aria-hidden="true" className="size-[7px] rounded-full bg-current" />
           {a.enabled ? 'Active' : 'Paused'}
         </span>
-        <button
+        <Button
+          variant="unstyled"
           type="button"
           onClick={onEdit}
           className="inline-flex h-10 items-center gap-1.5 rounded-[10px] border bg-card px-3.5 text-[13px] font-bold hover:bg-muted"
         >
           <PencilIcon className="size-[15px]" aria-hidden="true" />
           Edit settings
-        </button>
+        </Button>
       </div>
     </div>
   )

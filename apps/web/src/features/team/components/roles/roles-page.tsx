@@ -19,6 +19,9 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { NativeSelect } from '#/components/ui/native-select'
 import { Skeleton } from '#/components/ui/skeleton'
 import { errorMessage } from '#/lib/api'
 import { cn } from '#/lib/utils'
@@ -255,7 +258,8 @@ function RoleList({
   const item = (r: Role) => {
     const on = r.id === currentId
     return (
-      <button
+      <Button
+        variant="unstyled"
         key={r.id}
         type="button"
         aria-current={on ? 'true' : undefined}
@@ -280,7 +284,7 @@ function RoleList({
             Unsaved
           </span>
         )}
-      </button>
+      </Button>
     )
   }
   const system = roles.filter((r) => r.system_key)
@@ -307,14 +311,15 @@ function RoleList({
         </div>
       )}
       {editable && (
-        <button
+        <Button
+          variant="unstyled"
           type="button"
           onClick={() => onPick(NEW)}
           className="mt-1.5 flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-dashed bg-transparent font-bold text-brand-text hover:bg-muted"
         >
           <PlusIcon className="size-4" aria-hidden="true" />
           Create custom role
-        </button>
+        </Button>
       )}
     </section>
   )
@@ -506,7 +511,8 @@ function Editor({
         <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3.5">
           <label className="flex flex-col gap-1.5">
             <span className="text-[13px] font-bold">Role name</span>
-            <input
+            <Input
+              unstyled
               id="role-name"
               type="text"
               className={inputClass}
@@ -522,7 +528,8 @@ function Editor({
           </label>
           <label className="flex flex-col gap-1.5">
             <span className="text-[13px] font-bold">Description</span>
-            <input
+            <Input
+              unstyled
               type="text"
               className={inputClass}
               value={d.description}
@@ -558,7 +565,8 @@ function Editor({
           {creating && (
             <label className="flex min-w-[220px] flex-col gap-1.5">
               <span className="text-[13px] font-bold">Duplicate from</span>
-              <select
+              <NativeSelect
+                unstyled
                 className={selectClass}
                 value={d.copyFrom}
                 onChange={(e) => startFrom(e.target.value)}
@@ -571,7 +579,7 @@ function Editor({
                       {r.name}
                     </option>
                   ))}
-              </select>
+              </NativeSelect>
             </label>
           )}
           {role && editable && !owner && (
@@ -922,7 +930,8 @@ function ConfirmSave({
       )}
       {role && (
         <label className="flex items-center gap-2.5 text-sm">
-          <input
+          <Input
+            unstyled
             type="checkbox"
             className="size-[18px] accent-primary"
             checked={notify}
@@ -980,7 +989,8 @@ function DeleteRole({
     >
       <label className="flex flex-col gap-1.5">
         <span className="text-[13px] font-bold">Move its members and pending invites to</span>
-        <select
+        <NativeSelect
+          unstyled
           className={selectClass}
           value={moveTo}
           aria-invalid={!!error}
@@ -996,7 +1006,7 @@ function DeleteRole({
               {r.name}
             </option>
           ))}
-        </select>
+        </NativeSelect>
         <span id="move-help" className="text-xs text-muted-foreground">
           Required. Nobody is left without a role.
         </span>

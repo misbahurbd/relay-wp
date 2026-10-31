@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { Input } from '#/components/ui/input'
 import { contactTagsQueryOptions } from '#/features/contacts'
 import { variableCount } from '../../schemas/automations.schema'
 import { AddRow, Check, controlClass, Fld, Select } from '../kit/field'
@@ -47,7 +48,8 @@ export function DripForm({ workspaceId, settings, errors, onChange }: FormProps)
             </div>
             <div className="flex flex-1 flex-wrap gap-2 pb-3.5">
               <Fld label="Day" error={errors[`steps[${i}].day`]} className="flex-[0_1_110px]">
-                <input
+                <Input
+                  unstyled
                   type="number"
                   min={0}
                   className={controlClass}

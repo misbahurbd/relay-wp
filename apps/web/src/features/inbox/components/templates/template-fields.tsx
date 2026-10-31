@@ -84,7 +84,8 @@ export function TemplateFields({
               </span>
             )}
           </div>
-          <input
+          <Input
+            unstyled
             ref={file}
             type="file"
             hidden

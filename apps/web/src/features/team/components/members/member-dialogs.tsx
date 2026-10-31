@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { Input } from '#/components/ui/input'
 import { errorMessage } from '#/lib/api'
 import {
   fetchMemberRolePreview,
@@ -178,7 +179,8 @@ export function RemoveMemberDialog({
         <label htmlFor="remove-confirm" className="text-[13px] font-bold">
           Type <strong>{member.name}</strong> to confirm
         </label>
-        <input
+        <Input
+          unstyled
           id="remove-confirm"
           className={inputClass}
           value={typed}

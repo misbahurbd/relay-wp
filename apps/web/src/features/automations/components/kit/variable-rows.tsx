@@ -1,3 +1,4 @@
+import { Input } from '#/components/ui/input'
 import type { TemplateVariable } from '../../types'
 import { controlClass, Select } from './field'
 
@@ -43,7 +44,8 @@ export function VariableRows({
               </Select>
             </div>
             {v.source === 'custom' && (
-              <input
+              <Input
+                unstyled
                 className={controlClass}
                 aria-label={`Custom text for ${key}`}
                 value={v.custom}

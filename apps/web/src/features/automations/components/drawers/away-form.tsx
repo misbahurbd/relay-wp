@@ -1,4 +1,6 @@
 import { useEffect } from 'react'
+import { Input } from '#/components/ui/input'
+import { Textarea } from '#/components/ui/textarea'
 import { DAY_NAMES, timezones } from '../../schemas/automations.schema'
 import { controlClass, Fld, Select } from '../kit/field'
 import { Toggle } from '../kit/toggle'
@@ -45,7 +47,8 @@ export function AwayForm({ settings, errors, onChange, firstSave }: FormProps) {
                 <span className="w-11 font-bold">{day.short}</span>
                 {d.open ? (
                   <span className="flex flex-1 items-center gap-2">
-                    <input
+                    <Input
+                      unstyled
                       type="time"
                       aria-label={`${day.name} from`}
                       className={`${controlClass} min-h-9 w-[120px] px-2 py-1.5`}
@@ -53,7 +56,8 @@ export function AwayForm({ settings, errors, onChange, firstSave }: FormProps) {
                       onChange={(e) => setDay(i, { from: e.target.value })}
                     />
                     <span className="text-muted-foreground">to</span>
-                    <input
+                    <Input
+                      unstyled
                       type="time"
                       aria-label={`${day.name} to`}
                       className={`${controlClass} min-h-9 w-[120px] px-2 py-1.5`}
@@ -71,7 +75,8 @@ export function AwayForm({ settings, errors, onChange, firstSave }: FormProps) {
         })}
       </div>
       <Fld label="Away message" error={errors.message}>
-        <textarea
+        <Textarea
+          unstyled
           className={controlClass}
           rows={3}
           value={s.message}

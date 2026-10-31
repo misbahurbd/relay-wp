@@ -2,6 +2,9 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ArrowRightIcon, DownloadIcon, InfoIcon, SearchIcon } from 'lucide-react'
 import { useDeferredValue, useMemo, useState } from 'react'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { NativeSelect } from '#/components/ui/native-select'
 import { Skeleton } from '#/components/ui/skeleton'
 import { errorMessage } from '#/lib/api'
 import { cn } from '#/lib/utils'
@@ -167,7 +170,8 @@ export function AccessLog({
           <label className="flex h-10 max-w-[340px] flex-[1_1_240px] items-center gap-2 rounded-[10px] border bg-muted px-3 text-muted-foreground">
             <SearchIcon className="size-[18px] flex-none" aria-hidden="true" />
             <span className="sr-only">Search the log</span>
-            <input
+            <Input
+              unstyled
               type="search"
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -177,7 +181,8 @@ export function AccessLog({
           </label>
           <label className="flex items-center gap-2 text-[13px] font-semibold text-muted-foreground">
             <span className="sr-only">Date range</span>
-            <select
+            <NativeSelect
+              unstyled
               value={range}
               onChange={(e) => setRange(e.target.value as Range)}
               className="h-10 rounded-[10px] border bg-card px-2.5 text-[13px] font-semibold text-foreground"
@@ -187,11 +192,12 @@ export function AccessLog({
                   {r.label}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
           <label className="flex items-center gap-2 text-[13px] font-semibold text-muted-foreground">
             Member
-            <select
+            <NativeSelect
+              unstyled
               value={member}
               onChange={(e) => setMember(e.target.value)}
               className="h-10 rounded-[10px] border bg-card px-2.5 text-[13px] font-semibold text-foreground"
@@ -202,7 +208,7 @@ export function AccessLog({
                   {p.name}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
           <span className="ml-auto text-[13px] text-muted-foreground">
             {rows.length} {rows.length === 1 ? 'event' : 'events'}
@@ -216,7 +222,8 @@ export function AccessLog({
               .sort((a, b) => b[1] - a[1])
               .map(([k, n]) => [k, LOG_ACTIONS[k]?.label ?? k, n] as const),
           ].map(([k, text, n]) => (
-            <button
+            <Button
+              variant="unstyled"
               key={k || 'all'}
               type="button"
               role="tab"
@@ -231,7 +238,7 @@ export function AccessLog({
             >
               {text}
               <span className="text-xs opacity-80">{n}</span>
-            </button>
+            </Button>
           ))}
         </div>
 

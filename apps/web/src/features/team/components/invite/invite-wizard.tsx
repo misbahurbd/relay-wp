@@ -11,7 +11,11 @@ import {
 } from 'lucide-react'
 import { type ClipboardEvent, type KeyboardEvent, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { NativeSelect } from '#/components/ui/native-select'
 import { Skeleton } from '#/components/ui/skeleton'
+import { Textarea } from '#/components/ui/textarea'
 import { numbersQueryOptions } from '#/features/onboarding'
 import { errorMessage } from '#/lib/api'
 import { cn } from '#/lib/utils'
@@ -180,7 +184,8 @@ export function InviteWizard({ workspaceId }: { workspaceId: string }) {
             const done = n < step
             return (
               <li key={s.label} className="flex">
-                <button
+                <Button
+                  variant="unstyled"
                   type="button"
                   aria-current={current ? 'step' : undefined}
                   disabled={n > step}
@@ -204,7 +209,7 @@ export function InviteWizard({ workspaceId }: { workspaceId: string }) {
                     <span className="font-bold">{s.label}</span>
                     <span className="text-xs text-muted-foreground">{s.hint}</span>
                   </span>
-                </button>
+                </Button>
               </li>
             )
           })}
@@ -394,7 +399,8 @@ export function InviteWizard({ workspaceId }: { workspaceId: string }) {
                         (optional, shown in the email)
                       </span>
                     </span>
-                    <textarea
+                    <Textarea
+                      unstyled
                       rows={3}
                       maxLength={500}
                       value={message}
@@ -406,7 +412,8 @@ export function InviteWizard({ workspaceId }: { workspaceId: string }) {
                   <div className="flex flex-wrap gap-3.5">
                     <label className="flex flex-[1_1_200px] flex-col gap-1.5">
                       <span className="text-[13px] font-bold">Invite link expires after</span>
-                      <select
+                      <NativeSelect
+                        unstyled
                         className={selectClass}
                         value={expiry}
                         onChange={(e) => setExpiry(e.target.value as Expiry)}
@@ -416,10 +423,11 @@ export function InviteWizard({ workspaceId }: { workspaceId: string }) {
                             {x.label}
                           </option>
                         ))}
-                      </select>
+                      </NativeSelect>
                     </label>
                     <label className="flex min-h-11 flex-[1_1_240px] cursor-pointer items-center gap-2.5 self-end text-[13px]">
-                      <input
+                      <Input
+                        unstyled
                         type="checkbox"
                         className="size-[18px] accent-primary"
                         checked={twoFactor}
@@ -517,7 +525,8 @@ function CheckCard({
         on ? 'border-primary bg-brand-soft' : 'border-border bg-card hover:bg-muted',
       )}
     >
-      <input
+      <Input
+        unstyled
         type="checkbox"
         className="size-[18px] accent-primary"
         checked={on}
@@ -605,17 +614,19 @@ function PeopleStep({
               className="inline-flex h-8 items-center gap-1.5 rounded-full border bg-card pr-1 pl-2.5 text-[13px] font-semibold"
             >
               {e}
-              <button
+              <Button
+                variant="unstyled"
                 type="button"
                 aria-label={`Remove ${e}`}
                 onClick={() => onEmails(emails.filter((x) => x !== e))}
                 className="flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 <XIcon className="size-3.5" aria-hidden="true" />
-              </button>
+              </Button>
             </span>
           ))}
-          <input
+          <Input
+            unstyled
             id="inv-email"
             type="email"
             value={draft}
@@ -628,28 +639,31 @@ function PeopleStep({
             aria-describedby={invalid.length ? 'inv-email-error' : undefined}
             className="h-8 min-w-0 flex-[1_1_180px] border-0 bg-transparent px-1 text-base text-foreground outline-none placeholder:text-muted-foreground md:text-sm"
           />
-          <button
+          <Button
+            variant="unstyled"
             type="button"
             onClick={() => draft.trim() && add(draft)}
             className="h-[34px] rounded-lg bg-brand-soft px-3 font-bold text-brand-text hover:opacity-80"
           >
             Add
-          </button>
+          </Button>
         </div>
         <ErrorText id="inv-email-error">
           {invalid.length > 0 &&
             `Check ${invalid.length === 1 ? 'this address' : 'these addresses'}: ${invalid.join(', ')}`}
         </ErrorText>
         <div className="flex flex-wrap items-center gap-3.5 text-[13px]">
-          <button
+          <Button
+            variant="unstyled"
             type="button"
             onClick={() => file.current?.click()}
             className="inline-flex items-center gap-1.5 font-bold text-brand-text underline"
           >
             <UploadIcon className="size-4" aria-hidden="true" />
             Import from CSV
-          </button>
-          <input
+          </Button>
+          <Input
+            unstyled
             ref={file}
             type="file"
             accept=".csv,text/csv,text/plain"
@@ -835,7 +849,8 @@ function RoleStep({
       </div>
 
       <div className="rounded-lg border">
-        <button
+        <Button
+          variant="unstyled"
           type="button"
           aria-expanded={open}
           onClick={() => setOpen(!open)}
@@ -852,7 +867,7 @@ function RoleStep({
             className={cn('size-[18px] transition-transform', open && 'rotate-180')}
             aria-hidden="true"
           />
-        </button>
+        </Button>
         {open && (
           <div className="flex flex-col px-4 pb-3">
             <p className="mb-2 text-[13px] text-muted-foreground">
@@ -868,13 +883,14 @@ function RoleStep({
                     <span className="text-xs text-muted-foreground">{PERMISSION_HINTS[p.key]}</span>
                   </span>
                   {on !== base && (
-                    <button
+                    <Button
+                      variant="unstyled"
                       type="button"
                       onClick={() => onReset(p.key)}
                       className="h-7 rounded-md px-2 text-xs font-bold text-muted-foreground underline"
                     >
                       Reset
-                    </button>
+                    </Button>
                   )}
                   <Toggle on={on} label={p.label} onChange={(v) => onToggle(p.key, v)} />
                 </div>

@@ -1,4 +1,5 @@
 import { CheckCheckIcon } from 'lucide-react'
+import { Button } from '#/components/ui/button'
 import { cn } from '#/lib/utils'
 import { CHANNEL_COPY, channelHandle } from '../../schemas/inbox.schema'
 import type { Conversation } from '../../types'
@@ -33,7 +34,8 @@ export function ConversationRow({
   const wait = c.status !== 'closed' ? waitingMinutes(c.waiting_since, now) : null
 
   return (
-    <button
+    <Button
+      variant="unstyled"
       type="button"
       onClick={onSelect}
       aria-current={selected ? 'true' : undefined}
@@ -93,6 +95,6 @@ export function ConversationRow({
           </span>
         </span>
       </span>
-    </button>
+    </Button>
   )
 }

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { DownloadIcon, Loader2Icon, TagIcon, Trash2Icon, UserRoundIcon } from 'lucide-react'
 import { type ComponentProps, useState } from 'react'
 import { toast } from 'sonner'
+import { Button } from '#/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '#/components/ui/popover'
 import { errorMessage } from '#/lib/api'
 import { cn } from '#/lib/utils'
@@ -17,7 +18,8 @@ import { TagPicker } from '../kit/tag-picker'
 // React 19 passes ref as a prop, so Popover triggers can wrap this.
 function BarButton({ className, ...props }: ComponentProps<'button'>) {
   return (
-    <button
+    <Button
+      variant="unstyled"
       type="button"
       className={cn(
         'inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary-foreground/15 px-3 text-[13px] font-bold text-inherit hover:bg-primary-foreground/25 disabled:opacity-60 [&_svg]:size-4',
@@ -115,7 +117,8 @@ export function BulkBar({
               <ul aria-label="Agents" className="flex max-h-64 flex-col overflow-y-auto">
                 {agents.data.map((a) => (
                   <li key={a.id}>
-                    <button
+                    <Button
+                      variant="unstyled"
                       type="button"
                       className="flex min-h-9 w-full items-center rounded-md px-2 text-left text-sm hover:bg-accent"
                       onClick={() => {
@@ -127,11 +130,12 @@ export function BulkBar({
                       }}
                     >
                       <span className="truncate">{a.name}</span>
-                    </button>
+                    </Button>
                   </li>
                 ))}
                 <li className="mt-1 border-t pt-1">
-                  <button
+                  <Button
+                    variant="unstyled"
                     type="button"
                     className="flex min-h-9 w-full items-center rounded-md px-2 text-left text-sm text-muted-foreground hover:bg-accent"
                     onClick={() => {
@@ -140,7 +144,7 @@ export function BulkBar({
                     }}
                   >
                     Unassign
-                  </button>
+                  </Button>
                 </li>
               </ul>
             )}
@@ -159,13 +163,14 @@ export function BulkBar({
           Delete
         </BarButton>
       )}
-      <button
+      <Button
+        variant="unstyled"
         type="button"
         onClick={onClear}
         className="ml-auto h-9 rounded-lg px-3 text-[13px] font-bold underline"
       >
         Clear
-      </button>
+      </Button>
       <ConfirmDialog
         open={confirmDelete}
         onClose={() => {

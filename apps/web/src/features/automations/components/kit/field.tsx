@@ -1,4 +1,7 @@
 import type { ComponentProps, ReactNode } from 'react'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { NativeSelect } from '#/components/ui/native-select'
 import { cn } from '#/lib/utils'
 
 export const controlClass =
@@ -27,7 +30,7 @@ export function Fld({
 }
 
 export function Select({ className, ...props }: ComponentProps<'select'>) {
-  return <select className={cn(controlClass, className)} {...props} />
+  return <NativeSelect unstyled className={cn(controlClass, className)} {...props} />
 }
 
 export function Check({
@@ -41,7 +44,8 @@ export function Check({
 }) {
   return (
     <label className="flex items-center gap-2.5 font-semibold">
-      <input
+      <Input
+        unstyled
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
@@ -55,7 +59,8 @@ export function Check({
 /** The dashed "+ Add" button the design uses for rows. */
 export function AddRow(props: ComponentProps<'button'>) {
   return (
-    <button
+    <Button
+      variant="unstyled"
       type="button"
       className="h-11 rounded-[10px] border border-dashed bg-transparent font-bold text-brand-text hover:bg-muted"
       {...props}

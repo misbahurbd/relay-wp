@@ -2,6 +2,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronRightIcon, LockIcon } from 'lucide-react'
 import { useState } from 'react'
+import { Button } from '#/components/ui/button'
 import { Skeleton } from '#/components/ui/skeleton'
 import { cn } from '#/lib/utils'
 import {
@@ -109,7 +110,8 @@ export function SpendingPage({ workspaceId, canView }: { workspaceId: string; ca
             {PERIODS.map((p) => {
               const on = p.id === period
               return (
-                <button
+                <Button
+                  variant="unstyled"
                   key={p.id}
                   type="button"
                   role="tab"
@@ -121,7 +123,7 @@ export function SpendingPage({ workspaceId, canView }: { workspaceId: string; ca
                   )}
                 >
                   {p.label}
-                </button>
+                </Button>
               )
             })}
           </div>

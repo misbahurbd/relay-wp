@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ArrowRightIcon, CheckIcon, ClockIcon, LinkIcon, XIcon } from 'lucide-react'
 import { type FormEvent, type ReactNode, useState } from 'react'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
 import { Skeleton } from '#/components/ui/skeleton'
 import { errorMessage, isApiError } from '#/lib/api'
 import { cn } from '#/lib/utils'
@@ -137,14 +139,15 @@ function AcceptBody({ token, signedInAs, onSwitchAccount, onOpenWorkspace, socia
           <span>2. Open a chat and try a quick reply</span>
           <span>3. Turn on browser notifications</span>
         </div>
-        <button
+        <Button
+          variant="unstyled"
           type="button"
           onClick={() => onOpenWorkspace(joined)}
           className="inline-flex h-12 items-center gap-2 rounded-lg bg-primary px-[22px] font-extrabold text-primary-foreground hover:bg-primary/90"
         >
           Open {inv.workspace_name}
           <ArrowRightIcon className="size-[18px]" aria-hidden="true" />
-        </button>
+        </Button>
       </Centered>
     )
   }
@@ -176,13 +179,14 @@ function AcceptBody({ token, signedInAs, onSwitchAccount, onOpenWorkspace, socia
         <p className="max-w-[380px] text-muted-foreground">
           {inv.email} already joined {inv.workspace_name}. Log in to open it.
         </p>
-        <button
+        <Button
+          variant="unstyled"
           type="button"
           onClick={() => onOpenWorkspace(inv.workspace_id)}
           className="inline-flex h-12 items-center rounded-lg bg-primary px-[22px] font-extrabold text-primary-foreground hover:bg-primary/90"
         >
           Open {inv.workspace_name}
-        </button>
+        </Button>
       </Centered>
     )
   }
@@ -352,7 +356,8 @@ function AcceptBody({ token, signedInAs, onSwitchAccount, onOpenWorkspace, socia
           {social}
           <label className="flex flex-col gap-1.5">
             <span className="text-[13px] font-bold">Email</span>
-            <input
+            <Input
+              unstyled
               type="email"
               readOnly
               value={inv.email}
@@ -361,7 +366,8 @@ function AcceptBody({ token, signedInAs, onSwitchAccount, onOpenWorkspace, socia
           </label>
           <label className="flex flex-col gap-1.5">
             <span className="text-[13px] font-bold">Full name</span>
-            <input
+            <Input
+              unstyled
               type="text"
               autoComplete="name"
               value={name}
@@ -374,7 +380,8 @@ function AcceptBody({ token, signedInAs, onSwitchAccount, onOpenWorkspace, socia
           </label>
           <label className="flex flex-col gap-1.5">
             <span className="text-[13px] font-bold">Create a password</span>
-            <input
+            <Input
+              unstyled
               type="password"
               autoComplete="new-password"
               value={password}

@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { Input } from '#/components/ui/input'
 import { cn } from '#/lib/utils'
 import type { SpendingBudget } from '../../types'
 import { formatMoney } from '../kit/money'
@@ -46,7 +47,8 @@ export function BudgetCard({ budget, className }: { budget: SpendingBudget; clas
         Budget for this month
         <span className="flex h-11 items-center rounded-[10px] border bg-muted px-3 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
           <span className="font-bold text-muted-foreground">$</span>
-          <input
+          <Input
+            unstyled
             type="number"
             min={0}
             step={10}

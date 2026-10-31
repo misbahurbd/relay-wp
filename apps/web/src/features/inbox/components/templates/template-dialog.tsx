@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '#/components/ui/dialog'
+import { Input } from '#/components/ui/input'
 import { cn } from '#/lib/utils'
 import { useSendMessage, useUploadMedia } from '../../api/inbox.mutations'
 import { templatesQueryOptions } from '../../api/inbox.queries'
@@ -155,7 +156,8 @@ export function TemplateDialog({
             <label className="flex h-10 items-center gap-2 rounded-md border border-input bg-muted px-3 text-muted-foreground">
               <SearchIcon className="size-4" aria-hidden="true" />
               <span className="sr-only">Search templates</span>
-              <input
+              <Input
+                unstyled
                 type="search"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
@@ -189,7 +191,8 @@ export function TemplateDialog({
                       t.id === selectedId ? 'border-brand bg-brand-soft' : 'hover:bg-muted',
                     )}
                   >
-                    <input
+                    <Input
+                      unstyled
                       type="radio"
                       name="inbox-template"
                       value={t.id}

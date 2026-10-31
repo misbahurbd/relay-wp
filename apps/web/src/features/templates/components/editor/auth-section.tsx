@@ -131,7 +131,8 @@ function ButtonOptions({ editor }: { editor: TemplateEditorState }) {
                       on ? 'border-primary bg-brand-soft' : 'border-border bg-card hover:bg-muted',
                     )}
                   >
-                    <input
+                    <Input
+                      unstyled
                       type="radio"
                       name="tpl-auth-otp-type"
                       value={t.value}

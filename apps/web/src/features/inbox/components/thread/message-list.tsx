@@ -2,6 +2,7 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import { Loader2Icon } from 'lucide-react'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { Alert, AlertDescription } from '#/components/ui/alert'
+import { Button } from '#/components/ui/button'
 import { Skeleton } from '#/components/ui/skeleton'
 import { errorMessage } from '#/lib/api'
 import { messagesQueryOptions } from '../../api/inbox.queries'
@@ -98,9 +99,14 @@ export function MessageList({
           <Alert variant="danger">
             <AlertDescription>
               {errorMessage(query.error, 'We couldn’t load this chat.')}{' '}
-              <button type="button" className="font-bold underline" onClick={() => query.refetch()}>
+              <Button
+                variant="unstyled"
+                type="button"
+                className="font-bold underline"
+                onClick={() => query.refetch()}
+              >
                 Try again
-              </button>
+              </Button>
             </AlertDescription>
           </Alert>
         ) : messages.length === 0 ? (

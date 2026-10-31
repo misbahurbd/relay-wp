@@ -152,7 +152,8 @@ function WalletStrip({ wallet }: { wallet: Wallet }) {
         <span className="text-lg font-extrabold tabular-nums">{money(wallet.balance_minor)}</span>
       </span>
       <div className="flex items-center gap-2.5">
-        <button
+        <Button
+          variant="unstyled"
           type="button"
           role="switch"
           aria-checked={on}
@@ -164,7 +165,7 @@ function WalletStrip({ wallet }: { wallet: Wallet }) {
           )}
         >
           <span className="size-[22px] rounded-full bg-card shadow-sm" />
-        </button>
+        </Button>
         <span className="flex flex-col text-[13px] leading-tight">
           <span className="font-bold">Auto-recharge</span>
           <span className="text-xs text-muted-foreground">

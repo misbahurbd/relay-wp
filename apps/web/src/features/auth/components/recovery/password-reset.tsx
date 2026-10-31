@@ -317,9 +317,14 @@ function AddEmailCode({
     >
       <p className="text-[15px] text-muted-foreground">
         We sent a 6-digit code to <strong className="text-foreground">{email}</strong>.{' '}
-        <button type="button" className="font-bold text-foreground" onClick={onChangeEmail}>
+        <Button
+          variant="unstyled"
+          type="button"
+          className="font-bold text-foreground"
+          onClick={onChangeEmail}
+        >
           Change email
-        </button>
+        </Button>
       </p>
       <label htmlFor="add-email-code" className="font-bold">
         6-digit code
@@ -367,14 +372,15 @@ function AddEmailCode({
         ) : resend.isError ? (
           <span className="text-destructive">{errorMessage(resend.error)}</span>
         ) : (
-          <button
+          <Button
+            variant="unstyled"
             type="button"
             className="font-bold text-brand-text underline-offset-4 hover:underline"
             disabled={resend.isPending}
             onClick={() => resend.mutate({ body: { token: completeToken, email } })}
           >
             Send a new code
-          </button>
+          </Button>
         )}
       </p>
     </form>

@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 import { Alert, AlertDescription, AlertTitle } from '#/components/ui/alert'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
 import { Progress } from '#/components/ui/progress'
 import { trialDaysLeft, type Workspace } from '#/features/workspaces'
 import { cn } from '#/lib/utils'
@@ -357,7 +358,8 @@ function InboxEmpty({ link }: { link?: string }) {
             <label htmlFor="wa-link" className="sr-only">
               Your chat link
             </label>
-            <input
+            <Input
+              unstyled
               id="wa-link"
               readOnly
               value={link}

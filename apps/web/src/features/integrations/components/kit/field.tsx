@@ -1,4 +1,5 @@
 import type { ComponentProps, ReactNode } from 'react'
+import { Input } from '#/components/ui/input'
 import { cn } from '#/lib/utils'
 
 export const inputClass =
@@ -18,7 +19,8 @@ export function TextField({
       <label htmlFor={id} className="text-[13px] font-bold">
         {label}
       </label>
-      <input
+      <Input
+        unstyled
         id={id}
         aria-invalid={!!error}
         aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}

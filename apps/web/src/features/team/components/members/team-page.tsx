@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { useDeferredValue, useState } from 'react'
 import { toast } from 'sonner'
+import { Button } from '#/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '#/components/ui/dropdown-menu'
+import { Input } from '#/components/ui/input'
 import { Skeleton } from '#/components/ui/skeleton'
 import { numbersQueryOptions } from '#/features/onboarding'
 import { errorMessage } from '#/lib/api'
@@ -113,7 +115,8 @@ export function TeamPage({ workspaceId, meId, tab, onTab }: Props) {
 
       <div role="tablist" aria-label="Team sections" className="flex flex-wrap gap-1 border-b">
         {TABS.map((t) => (
-          <button
+          <Button
+            variant="unstyled"
             key={t.id}
             type="button"
             role="tab"
@@ -127,7 +130,7 @@ export function TeamPage({ workspaceId, meId, tab, onTab }: Props) {
             )}
           >
             {t.label}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -180,13 +183,14 @@ function FilterMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button
+        <Button
+          variant="unstyled"
           type="button"
           className="inline-flex h-10 items-center gap-1.5 rounded-[10px] border bg-card px-3 text-[13px] font-semibold text-foreground"
         >
           {current}
           <ChevronDownIcon className="size-4" aria-hidden="true" />
-        </button>
+        </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
@@ -254,7 +258,8 @@ function MembersTab({ workspaceId, meId }: { workspaceId: string; meId: string }
         <label className="flex h-10 max-w-[320px] flex-[1_1_220px] items-center gap-2 rounded-[10px] border bg-muted px-3 text-muted-foreground">
           <SearchIcon className="size-[18px] flex-none" aria-hidden="true" />
           <span className="sr-only">Search members</span>
-          <input
+          <Input
+            unstyled
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -430,14 +435,15 @@ function MemberRow({
         {editable ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button
+              <Button
+                variant="unstyled"
                 type="button"
                 aria-label={`Change role for ${m.name}, currently ${m.role_name}`}
                 className="inline-flex h-[34px] items-center gap-1.5 rounded-[10px] border bg-card pr-2.5 pl-3 text-[13px] font-semibold text-foreground"
               >
                 {m.role_name}
                 <ChevronDownIcon className="size-4" aria-hidden="true" />
-              </button>
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               <DropdownMenuRadioGroup
@@ -487,13 +493,14 @@ function MemberRow({
         <div className="flex items-center justify-end gap-1.5">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button
+              <Button
+                variant="unstyled"
                 type="button"
                 aria-label={`More actions for ${m.name}`}
                 className="flex size-10 items-center justify-center rounded-[10px] text-muted-foreground hover:bg-card hover:text-foreground"
               >
                 <MoreVerticalIcon className="size-[18px]" aria-hidden="true" />
-              </button>
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={onOpen}>
@@ -663,14 +670,15 @@ function TeamsTab({ workspaceId }: { workspaceId: string }) {
                 <span className="text-[13px] text-muted-foreground">{t.description}</span>
               </div>
               {editable && (
-                <button
+                <Button
+                  variant="unstyled"
                   type="button"
                   aria-label={`Edit team ${t.name}`}
                   onClick={() => setEditing(t)}
                   className="flex size-10 items-center justify-center rounded-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
                   <PencilIcon className="size-[18px]" aria-hidden="true" />
-                </button>
+                </Button>
               )}
             </div>
             <div className="flex items-center gap-2.5">
@@ -712,14 +720,15 @@ function TeamsTab({ workspaceId }: { workspaceId: string }) {
         )
       })}
       {editable && (
-        <button
+        <Button
+          variant="unstyled"
           type="button"
           onClick={() => setEditing('new')}
           className="flex min-h-[220px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed bg-transparent text-sm font-bold text-brand-text hover:bg-card"
         >
           <PlusIcon className="size-[18px]" aria-hidden="true" />
           Create team
-        </button>
+        </Button>
       )}
       {!editable && teams.data?.length === 0 && (
         <p className="text-muted-foreground">No teams yet.</p>

@@ -13,6 +13,9 @@ import {
 } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { toast } from 'sonner'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { NativeSelect } from '#/components/ui/native-select'
 import { Skeleton } from '#/components/ui/skeleton'
 import { numbersQueryOptions } from '#/features/onboarding'
 import { errorMessage } from '#/lib/api'
@@ -360,7 +363,8 @@ function AccessCard({
               >
                 {t.name}
                 {editable && (
-                  <button
+                  <Button
+                    variant="unstyled"
                     type="button"
                     aria-label={`Remove from ${t.name}`}
                     disabled={save.isPending}
@@ -373,7 +377,7 @@ function AccessCard({
                     className="flex size-7 items-center justify-center rounded-full hover:bg-card"
                   >
                     <XIcon className="size-3.5" aria-hidden="true" />
-                  </button>
+                  </Button>
                 )}
               </span>
             ))}
@@ -381,14 +385,15 @@ function AccessCard({
               <span className="text-sm text-muted-foreground">No teams</span>
             )}
             {editable && (
-              <button
+              <Button
+                variant="unstyled"
                 type="button"
                 aria-expanded={adding}
                 onClick={() => setAdding(!adding)}
                 className="h-[34px] rounded-full border border-dashed px-3 text-[13px] font-bold text-brand-text hover:bg-muted"
               >
                 + Add to team
-              </button>
+              </Button>
             )}
           </div>
         )}
@@ -435,7 +440,8 @@ function AccessCard({
                   editable ? 'cursor-pointer' : 'cursor-default',
                 )}
               >
-                <input
+                <Input
+                  unstyled
                   type="checkbox"
                   className="size-[18px] accent-primary"
                   checked={on}
@@ -608,7 +614,8 @@ function ExtraCard({
           <div className="flex flex-wrap gap-3">
             <label className="flex flex-[1_1_280px] flex-col gap-1.5">
               <span className="text-[13px] font-bold">Permission</span>
-              <select
+              <NativeSelect
+                unstyled
                 className={cn(selectClass, 'bg-card')}
                 value={selected}
                 onChange={(e) => setKey(e.target.value)}
@@ -618,13 +625,14 @@ function ExtraCard({
                     {p.label}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </label>
             <label className="flex flex-[1_1_180px] flex-col gap-1.5">
               <span className="text-[13px] font-bold">
                 Expires <span className="font-medium text-muted-foreground">(optional)</span>
               </span>
-              <input
+              <Input
+                unstyled
                 type="date"
                 className={cn(inputClass, 'bg-card')}
                 value={until}
@@ -638,7 +646,8 @@ function ExtraCard({
               Reason{' '}
               <span className="font-medium text-muted-foreground">(shown in the access log)</span>
             </span>
-            <input
+            <Input
+              unstyled
               type="text"
               className={cn(inputClass, 'bg-card')}
               value={reason}

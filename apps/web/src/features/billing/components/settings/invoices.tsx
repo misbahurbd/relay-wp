@@ -94,13 +94,14 @@ export function Invoices({ workspaceId }: { workspaceId: string }) {
                       {formatDate(inv.paid_at ?? inv.created_at)}
                     </td>
                     <td className="px-2 py-2.5 whitespace-nowrap">
-                      <button
+                      <Button
+                        variant="unstyled"
                         type="button"
                         onClick={() => setOpen(inv.id)}
                         className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                       >
                         {inv.number ?? 'View invoice'}
-                      </button>
+                      </Button>
                     </td>
                     <td className="px-2 py-2.5 font-semibold">{period(inv)}</td>
                     <td className="px-2 py-2.5 text-right font-bold tabular-nums">

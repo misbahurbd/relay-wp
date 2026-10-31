@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Input } from '#/components/ui/input'
 import { cn } from '#/lib/utils'
 
 export function RadioDot({ checked }: { checked: boolean }) {
@@ -41,7 +42,8 @@ export function RadioOption({
         className,
       )}
     >
-      <input
+      <Input
+        unstyled
         type="radio"
         className="sr-only"
         name={name}

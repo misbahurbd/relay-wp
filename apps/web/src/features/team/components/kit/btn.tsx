@@ -1,4 +1,5 @@
 import type { ComponentProps } from 'react'
+import { Button } from '#/components/ui/button'
 import { cn } from '#/lib/utils'
 
 /** Buttons in the prototype's sizes: lg 44px/12px radius, md 40px/10px, sm 34px. */
@@ -13,7 +14,8 @@ export function Btn({
   size?: 'lg' | 'md' | 'sm'
 }) {
   return (
-    <button
+    <Button
+      variant="unstyled"
       type={type}
       className={cn(
         'inline-flex items-center justify-center gap-2 font-bold whitespace-nowrap no-underline disabled:cursor-not-allowed disabled:opacity-50',

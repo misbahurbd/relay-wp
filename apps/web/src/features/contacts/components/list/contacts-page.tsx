@@ -177,9 +177,14 @@ export function ContactsPage({
           <Alert variant="danger">
             <AlertDescription>
               {errorMessage(list.error, 'We couldn’t load your contacts.')}{' '}
-              <button type="button" className="font-bold underline" onClick={() => list.refetch()}>
+              <Button
+                variant="unstyled"
+                type="button"
+                className="font-bold underline"
+                onClick={() => list.refetch()}
+              >
                 Try again
-              </button>
+              </Button>
             </AlertDescription>
           </Alert>
         ) : (

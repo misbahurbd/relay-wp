@@ -1,6 +1,7 @@
 import { CheckIcon, CopyIcon, EyeIcon, EyeOffIcon } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { Button } from '#/components/ui/button'
 import { cn } from '#/lib/utils'
 
 /** A secret in monospace with Copy, and Show/Hide when it starts hidden. */
@@ -37,7 +38,8 @@ export function CopyField({
         {shown ? value : `${value.slice(0, 10)}${'•'.repeat(18)}${value.slice(-4)}`}
       </code>
       {hideable && (
-        <button
+        <Button
+          variant="unstyled"
           type="button"
           onClick={() => setShown((s) => !s)}
           aria-label={shown ? `Hide ${label}` : `Show ${label}`}
@@ -48,9 +50,10 @@ export function CopyField({
           ) : (
             <EyeIcon className="size-4" aria-hidden="true" />
           )}
-        </button>
+        </Button>
       )}
-      <button
+      <Button
+        variant="unstyled"
         type="button"
         onClick={copy}
         className="inline-flex h-8 flex-none items-center gap-1.5 rounded-lg bg-card px-2.5 text-[13px] font-bold shadow-xs hover:bg-background"
@@ -61,7 +64,7 @@ export function CopyField({
           <CopyIcon className="size-3.5" aria-hidden="true" />
         )}
         {copied ? 'Copied' : 'Copy'}
-      </button>
+      </Button>
     </div>
   )
 }

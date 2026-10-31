@@ -2,6 +2,7 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import { ChevronRightIcon, RotateCwIcon } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { Button } from '#/components/ui/button'
 import { Skeleton } from '#/components/ui/skeleton'
 import { errorMessage } from '#/lib/api'
 import { cn } from '#/lib/utils'
@@ -60,7 +61,8 @@ export function DeliveriesDialog({
             const open = openId === d.id
             return (
               <li key={d.id} className="flex flex-col">
-                <button
+                <Button
+                  variant="unstyled"
                   type="button"
                   aria-expanded={open}
                   onClick={() => setOpenId(open ? undefined : d.id)}
@@ -81,7 +83,7 @@ export function DeliveriesDialog({
                     {d.response_ms != null && `${d.response_ms} ms · `}
                     {formatDateTime(d.created_at)}
                   </span>
-                </button>
+                </Button>
                 {open && (
                   <div className="flex flex-col gap-2 px-3 pb-3 pl-10">
                     <span className="text-xs text-muted-foreground sm:hidden">

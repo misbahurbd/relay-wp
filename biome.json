@@ -55,6 +55,14 @@
       ],
       "linter": {
         "rules": {
+          "a11y": {
+            "noLabelWithoutControl": {
+              "level": "error",
+              "options": {
+                "inputComponents": ["Input", "NativeSelect", "Textarea"]
+              }
+            }
+          },
           "style": {
             "noRestrictedImports": {
               "level": "error",

@@ -1,5 +1,6 @@
 import { CircleAlertIcon } from 'lucide-react'
 import { toast } from 'sonner'
+import { Button } from '#/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '#/components/ui/popover'
 import { cn } from '#/lib/utils'
 import { useReact } from '../../api/inbox.mutations'
@@ -139,28 +140,41 @@ export function MessageBubble({
 
       <div className="flex gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
         {canReply && (
-          <button
+          <Button
+            variant="unstyled"
             type="button"
             className={actionBtn}
             aria-label="Reply to this message"
             onClick={() => onReply(m)}
           >
             Reply
-          </button>
+          </Button>
         )}
-        <button type="button" className={actionBtn} aria-label="Copy this message" onClick={copy}>
+        <Button
+          variant="unstyled"
+          type="button"
+          className={actionBtn}
+          aria-label="Copy this message"
+          onClick={copy}
+        >
           Copy
-        </button>
+        </Button>
         {canReply && canReact && (
           <Popover>
             <PopoverTrigger asChild>
-              <button type="button" className={actionBtn} aria-label="React to this message">
+              <Button
+                variant="unstyled"
+                type="button"
+                className={actionBtn}
+                aria-label="React to this message"
+              >
                 React
-              </button>
+              </Button>
             </PopoverTrigger>
             <PopoverContent className="flex w-auto gap-1 p-1.5" align={out ? 'end' : 'start'}>
               {REACTIONS.map((r) => (
-                <button
+                <Button
+                  variant="unstyled"
                   key={r.emoji}
                   type="button"
                   aria-label={`React with ${r.label}`}
@@ -172,7 +186,7 @@ export function MessageBubble({
                   )}
                 >
                   {r.emoji}
-                </button>
+                </Button>
               ))}
             </PopoverContent>
           </Popover>

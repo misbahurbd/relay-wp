@@ -2,6 +2,7 @@ import { CheckCircle2Icon, InfoIcon, Loader2Icon, UploadIcon } from 'lucide-reac
 import { useId, useRef, useState } from 'react'
 import { Alert, AlertDescription } from '#/components/ui/alert'
 import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
 import { cn } from '#/lib/utils'
 import { downloadSampleFile } from '../../api/contacts.downloads'
 import type { ImportUpload } from '../../types'
@@ -52,7 +53,8 @@ export function UploadStep({
         <span className="text-[13px] text-muted-foreground">
           .csv or .xlsx · up to 10 MB and 50,000 rows
         </span>
-        <input
+        <Input
+          unstyled
           ref={inputRef}
           id={inputId}
           type="file"
@@ -118,13 +120,14 @@ export function UploadStep({
         <span>
           <strong>Tip:</strong> include the country code in phone numbers (for example +44 7700
           900412). Numbers without one are skipped.{' '}
-          <button
+          <Button
+            variant="unstyled"
             type="button"
             className="font-semibold text-brand-text underline"
             onClick={downloadSampleFile}
           >
             Download sample file
-          </button>
+          </Button>
         </span>
       </div>
     </>

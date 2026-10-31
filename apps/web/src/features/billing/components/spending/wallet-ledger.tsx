@@ -1,5 +1,6 @@
 import { DownloadIcon } from 'lucide-react'
 import { useId } from 'react'
+import { Button } from '#/components/ui/button'
 import { cn } from '#/lib/utils'
 import type { WalletEntry } from '../../types'
 import { formatMoney } from '../kit/money'
@@ -24,7 +25,8 @@ export function WalletLedger({
         <h2 id={`${id}-title`} className="text-[17px] font-bold">
           Wallet transactions
         </h2>
-        <button
+        <Button
+          variant="unstyled"
           type="button"
           disabled
           title="Coming soon"
@@ -33,7 +35,7 @@ export function WalletLedger({
           <DownloadIcon className="size-[18px]" aria-hidden="true" />
           Export CSV
           <span className="sr-only">(coming soon)</span>
-        </button>
+        </Button>
       </div>
       <div className="relative -mx-5 overflow-x-auto px-5 sm:-mx-[22px] sm:px-[22px]">
         <table className="w-full min-w-[620px] border-collapse text-sm">
