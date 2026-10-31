@@ -141,6 +141,7 @@ export function TemplatesPage({ workspaceId, filter, onFilter }: Props) {
             loading={list.isPending}
             canEdit={can('templates.create')}
             canDelete={can('templates.delete')}
+            canBroadcast={can('broadcasts.create')}
             empty={empty}
             onDelete={setDeleting}
           />

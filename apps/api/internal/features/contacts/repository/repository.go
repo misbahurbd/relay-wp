@@ -18,12 +18,16 @@ const PhoneConstraint = "contacts_workspace_phone_key"
 // Repository is the sqlc query set for contacts tables. It works on a pool or a transaction.
 type Repository struct {
 	*gen.Queries
+	db database.DBTX
 }
 
 // NewRepository wraps the sqlc queries for db, a pool or a transaction.
 func NewRepository(db database.DBTX) Repository {
-	return Repository{Queries: gen.New(db)}
+	return Repository{Queries: gen.New(db), db: db}
 }
+
+// SegmentNameConstraint is the unique constraint on a segment's name in its workspace.
+const SegmentNameConstraint = "contact_segments_workspace_name_key"
 
 // IsNoRows reports whether err means the query matched no row.
 func IsNoRows(err error) bool { return errors.Is(err, pgx.ErrNoRows) }

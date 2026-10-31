@@ -156,9 +156,14 @@ WHERE workspace_id = @workspace_id AND contact_id = @contact_id
 ORDER BY last_message_at DESC
 LIMIT 1;
 
+-- name: ChannelContactConversation :one
+-- The contact's chat on one number: a broadcast sends from the number it chose.
+SELECT id FROM conversations
+WHERE workspace_id = @workspace_id AND contact_id = @contact_id AND channel_type = @channel_type AND channel_id = @channel_id;
+
 -- name: InsertAutomationConversation :one
 -- A chat a template starts: no window until the customer writes back.
 INSERT INTO conversations (id, workspace_id, contact_id, channel_type, channel_id, source, last_message_direction)
-VALUES (@id, @workspace_id, @contact_id, @channel_type, @channel_id, 'automation', 'out')
+VALUES (@id, @workspace_id, @contact_id, @channel_type, @channel_id, @source, 'out')
 ON CONFLICT (workspace_id, contact_id, channel_type, channel_id) DO UPDATE SET updated_at = now()
 RETURNING id;

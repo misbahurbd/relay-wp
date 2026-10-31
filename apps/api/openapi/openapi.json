@@ -786,6 +786,114 @@
         },
         "type": "object"
       },
+      "AudienceDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "all": {
+            "description": "Every opted-in contact; the sources below are then ignored",
+            "type": "boolean"
+          },
+          "segment_ids": {
+            "description": "Opted-in contacts in any of these segments",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "skip_recent_marketing": {
+            "description": "Leave out contacts sent a marketing template in the last 24 hours",
+            "type": "boolean"
+          },
+          "tag_ids": {
+            "description": "Opted-in contacts with any of these tags",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "AudienceInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "all": {
+            "description": "Every opted-in contact; the sources below are then ignored",
+            "type": "boolean"
+          },
+          "number_id": {
+            "description": "Adds the number's daily Meta tier to the answer",
+            "type": "string"
+          },
+          "segment_ids": {
+            "description": "Opted-in contacts in any of these segments",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "skip_recent_marketing": {
+            "description": "Leave out contacts sent a marketing template in the last 24 hours",
+            "type": "boolean"
+          },
+          "tag_ids": {
+            "description": "Opted-in contacts with any of these tags",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "AudienceOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "included": {
+            "description": "Opted-in contacts who will get it",
+            "format": "int64",
+            "type": "integer"
+          },
+          "left_out": {
+            "description": "Contacts that match but are pending or opted out",
+            "format": "int64",
+            "type": "integer"
+          },
+          "recent": {
+            "description": "Opted-in contacts sent marketing in the last 24 hours; not in included when the audience skips them",
+            "format": "int64",
+            "type": "integer"
+          },
+          "tier_limit": {
+            "description": "The number's Meta limit on new customers a day; 0 when unknown or unlimited",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "included",
+          "left_out",
+          "recent",
+          "tier_limit"
+        ],
+        "type": "object"
+      },
       "AuthDTO": {
         "additionalProperties": false,
         "properties": {
@@ -1145,6 +1253,235 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "BroadcastBody": {
+        "additionalProperties": false,
+        "properties": {
+          "audience": {
+            "$ref": "#/components/schemas/AudienceDTO"
+          },
+          "name": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "number_id": {
+            "description": "The WhatsApp number to send from",
+            "type": "string"
+          },
+          "template_id": {
+            "description": "An approved template",
+            "type": "string"
+          },
+          "variables": {
+            "$ref": "#/components/schemas/VariablesDTO"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "BroadcastDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "audience": {
+            "$ref": "#/components/schemas/AudienceDTO"
+          },
+          "completed_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "failure_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "failures": {
+            "description": "Why recipients missed it, most common first",
+            "items": {
+              "$ref": "#/components/schemas/FailureDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "number_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recipients_total": {
+            "description": "Set when sending starts",
+            "format": "int64",
+            "type": "integer"
+          },
+          "scheduled_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "started_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "stats": {
+            "$ref": "#/components/schemas/StatsDTO"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "scheduled",
+              "sending",
+              "completed",
+              "cancelled",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "template": {
+            "$ref": "#/components/schemas/TemplateRefDTO",
+            "description": "Absent when none is chosen, or it was deleted"
+          },
+          "template_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "variables": {
+            "$ref": "#/components/schemas/VariablesDTO"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "number_id",
+          "template_id",
+          "audience",
+          "variables",
+          "status",
+          "scheduled_at",
+          "started_at",
+          "completed_at",
+          "recipients_total",
+          "failure_reason",
+          "stats",
+          "failures",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "BroadcastSummaryDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "completed_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "delivered": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "failed": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "read": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "recipients_total": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "scheduled_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sent": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "started_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "scheduled",
+              "sending",
+              "completed",
+              "cancelled",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "template": {
+            "$ref": "#/components/schemas/TemplateRefDTO",
+            "description": "Absent when none is chosen, or it was deleted"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "status",
+          "scheduled_at",
+          "started_at",
+          "completed_at",
+          "recipients_total",
+          "sent",
+          "delivered",
+          "read",
+          "failed",
+          "created_at"
+        ],
         "type": "object"
       },
       "BulkInputBody": {
@@ -3228,6 +3565,24 @@
         ],
         "type": "object"
       },
+      "FailureDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "description": "Meta's error, or opted_out, cancelled, template_unavailable, missing_variable, no_channel, stalled, segment_deleted",
+            "type": "string"
+          },
+          "recipients": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "reason",
+          "recipients"
+        ],
+        "type": "object"
+      },
       "FooterDTO": {
         "additionalProperties": false,
         "properties": {
@@ -3696,7 +4051,9 @@
             "enum": [
               "organic",
               "ctwa_ad",
-              "template"
+              "template",
+              "automation",
+              "broadcast"
             ],
             "type": "string"
           },
@@ -3822,7 +4179,9 @@
             "enum": [
               "organic",
               "ctwa_ad",
-              "template"
+              "template",
+              "automation",
+              "broadcast"
             ],
             "type": "string"
           },
@@ -5401,6 +5760,31 @@
         ],
         "type": "object"
       },
+      "ListOutputBody3": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BroadcastSummaryDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "type": "object"
+      },
       "LogDTO": {
         "additionalProperties": false,
         "properties": {
@@ -6043,6 +6427,33 @@
         },
         "required": [
           "message"
+        ],
+        "type": "object"
+      },
+      "MonthlyUsageDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "description": "-1 unlimited, 0 not included",
+            "format": "int64",
+            "type": "integer"
+          },
+          "resource": {
+            "description": "A monthly resource key from GET /v1/billing/resources",
+            "examples": [
+              "broadcasts"
+            ],
+            "type": "string"
+          },
+          "used": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "resource",
+          "used",
+          "limit"
         ],
         "type": "object"
       },
@@ -7087,6 +7498,18 @@
         ],
         "type": "object"
       },
+      "PreviewSegmentInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "rules": {
+            "$ref": "#/components/schemas/SegmentRulesDTO"
+          }
+        },
+        "required": [
+          "rules"
+        ],
+        "type": "object"
+      },
       "PriceDTO": {
         "additionalProperties": false,
         "properties": {
@@ -7402,6 +7825,110 @@
         },
         "required": [
           "emoji"
+        ],
+        "type": "object"
+      },
+      "RecipientDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "contact_id": {
+            "type": "string"
+          },
+          "error": {
+            "description": "Meta's reason a send failed",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "message_status": {
+            "enum": [
+              "pending",
+              "sent",
+              "delivered",
+              "read",
+              "failed"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "queued_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "replied": {
+            "type": "boolean"
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "queued",
+              "skipped",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "status_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "contact_id",
+          "name",
+          "phone",
+          "state",
+          "reason",
+          "queued_at",
+          "message_status",
+          "status_at",
+          "error",
+          "replied"
+        ],
+        "type": "object"
+      },
+      "RecipientsOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RecipientDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
         ],
         "type": "object"
       },
@@ -7769,6 +8296,269 @@
         "required": [
           "secret"
         ],
+        "type": "object"
+      },
+      "SegmentBody": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "maxLength": 400,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "rules": {
+            "$ref": "#/components/schemas/SegmentRulesDTO"
+          }
+        },
+        "required": [
+          "name",
+          "rules"
+        ],
+        "type": "object"
+      },
+      "SegmentConditionDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "enum": [
+              "tag",
+              "opt_in",
+              "last_message",
+              "added",
+              "source",
+              "language",
+              "country_code",
+              "attribute"
+            ],
+            "type": "string"
+          },
+          "key": {
+            "description": "The custom field, for attribute",
+            "maxLength": 100,
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "is",
+              "is_not",
+              "within",
+              "over",
+              "never",
+              "contains",
+              "starts_with"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "description": "A tag ID, an opt-in status, a number of days, a source, a language, a code like +44, or a custom field's value",
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "op",
+          "value"
+        ],
+        "type": "object"
+      },
+      "SegmentCountDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "matched": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "opted_in": {
+            "description": "Who a broadcast to this segment reaches",
+            "format": "int64",
+            "type": "integer"
+          },
+          "opted_out": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "pending": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "matched",
+          "opted_in",
+          "opted_out",
+          "pending"
+        ],
+        "type": "object"
+      },
+      "SegmentDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "$ref": "#/components/schemas/SegmentCountDTO",
+            "description": "Who matches right now"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "rules": {
+            "$ref": "#/components/schemas/SegmentRulesDTO"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "rules",
+          "count",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "SegmentGroupDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "conditions": {
+            "items": {
+              "$ref": "#/components/schemas/SegmentConditionDTO"
+            },
+            "maxItems": 10,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "match": {
+            "enum": [
+              "all",
+              "any"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "match",
+          "conditions"
+        ],
+        "type": "object"
+      },
+      "SegmentMatchDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "opt_in": {
+            "enum": [
+              "in",
+              "out",
+              "pending"
+            ],
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "phone",
+          "opt_in"
+        ],
+        "type": "object"
+      },
+      "SegmentPreviewOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "$ref": "#/components/schemas/SegmentCountDTO"
+          },
+          "sample": {
+            "description": "Up to 6 matching contacts, most recently active first",
+            "items": {
+              "$ref": "#/components/schemas/SegmentMatchDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "count",
+          "sample"
+        ],
+        "type": "object"
+      },
+      "SegmentRulesDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "groups": {
+            "description": "Joined by OR",
+            "items": {
+              "$ref": "#/components/schemas/SegmentGroupDTO"
+            },
+            "maxItems": 5,
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "groups"
+        ],
+        "type": "object"
+      },
+      "SegmentsOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SegmentDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "SendInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "scheduled_at": {
+            "description": "When to send; absent sends now. Up to 90 days ahead",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "SendMessageInputBody": {
@@ -8150,6 +8940,60 @@
           "client_secret",
           "url",
           "publishable_key"
+        ],
+        "type": "object"
+      },
+      "StatsDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "delivered": {
+            "description": "Delivered, including read",
+            "format": "int64",
+            "type": "integer"
+          },
+          "failed": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "pending": {
+            "description": "Recipients not handled yet",
+            "format": "int64",
+            "type": "integer"
+          },
+          "queued": {
+            "description": "Messages waiting to go to Meta",
+            "format": "int64",
+            "type": "integer"
+          },
+          "read": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "replied": {
+            "description": "Recipients who wrote back after it",
+            "format": "int64",
+            "type": "integer"
+          },
+          "sent": {
+            "description": "Messages Meta accepted, including delivered and read",
+            "format": "int64",
+            "type": "integer"
+          },
+          "skipped": {
+            "description": "Not sent on purpose: opted out, or cancelled",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pending",
+          "queued",
+          "sent",
+          "delivered",
+          "read",
+          "replied",
+          "failed",
+          "skipped"
         ],
         "type": "object"
       },
@@ -8671,6 +9515,29 @@
         ],
         "type": "object"
       },
+      "TemplateRefDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "enum": [
+              "marketing",
+              "utility",
+              "authentication"
+            ],
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "TestMessageOutputBody": {
         "additionalProperties": false,
         "properties": {
@@ -9038,6 +9905,37 @@
         ],
         "type": "object"
       },
+      "UsageOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "period_end": {
+            "description": "When the counts start again from 0",
+            "format": "date-time",
+            "type": "string"
+          },
+          "period_start": {
+            "description": "First instant of this calendar month (UTC)",
+            "format": "date-time",
+            "type": "string"
+          },
+          "resources": {
+            "description": "Every monthly resource, in catalog order",
+            "items": {
+              "$ref": "#/components/schemas/MonthlyUsageDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "period_start",
+          "period_end",
+          "resources"
+        ],
+        "type": "object"
+      },
       "UserDTO": {
         "additionalProperties": false,
         "properties": {
@@ -9094,6 +9992,57 @@
           "source",
           "custom"
         ],
+        "type": "object"
+      },
+      "VariableDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "fallback": {
+            "description": "Used when the contact's field is empty",
+            "maxLength": 1024,
+            "type": "string"
+          },
+          "source": {
+            "description": "Fixed text, or a field of the contact it is sent to",
+            "enum": [
+              "text",
+              "name",
+              "phone",
+              "attribute"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "description": "The text, or the attribute's key; empty for name and phone",
+            "maxLength": 1024,
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "value"
+        ],
+        "type": "object"
+      },
+      "VariablesDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "description": "body[0] fills {{1}}, body[1] fills {{2}}, …",
+            "items": {
+              "$ref": "#/components/schemas/VariableDTO"
+            },
+            "maxItems": 30,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "header": {
+            "$ref": "#/components/schemas/VariableDTO",
+            "description": "Fills the header's {{1}}"
+          }
+        },
         "type": "object"
       },
       "VerifyCodeInputBody": {
@@ -14655,6 +15604,1079 @@
         "summary": "Keep a subscription that was set to cancel",
         "tags": [
           "billing"
+        ]
+      }
+    },
+    "/v1/workspace/billing/usage": {
+      "get": {
+        "operationId": "get-billing-usage",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "This month's use of each monthly plan resource (ADR 0008)",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/v1/workspace/broadcasts": {
+      "get": {
+        "operationId": "list-broadcasts",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "enum": [
+                "draft",
+                "scheduled",
+                "sending",
+                "completed",
+                "cancelled",
+                "failed"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Part of the name, case-insensitive",
+            "explode": false,
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "description": "Part of the name, case-insensitive",
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 25,
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "maxLength": 100,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListOutputBody3"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Broadcasts, newest first, with delivery counts",
+        "tags": [
+          "broadcasts"
+        ]
+      },
+      "post": {
+        "operationId": "create-broadcast",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BroadcastBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BroadcastDTO"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Save a new draft",
+        "tags": [
+          "broadcasts"
+        ]
+      }
+    },
+    "/v1/workspace/broadcasts/audience-preview": {
+      "post": {
+        "operationId": "preview-broadcast-audience",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AudienceInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudienceOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "How many opted-in contacts an audience reaches",
+        "tags": [
+          "broadcasts"
+        ]
+      }
+    },
+    "/v1/workspace/broadcasts/{broadcastId}": {
+      "delete": {
+        "operationId": "delete-broadcast",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "broadcastId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Delete a draft",
+        "tags": [
+          "broadcasts"
+        ]
+      },
+      "get": {
+        "operationId": "get-broadcast",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "broadcastId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BroadcastDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "One broadcast and its report",
+        "tags": [
+          "broadcasts"
+        ]
+      },
+      "put": {
+        "operationId": "update-broadcast",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "broadcastId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BroadcastBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BroadcastDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Replace a draft or scheduled broadcast's content",
+        "tags": [
+          "broadcasts"
+        ]
+      }
+    },
+    "/v1/workspace/broadcasts/{broadcastId}/cancel": {
+      "post": {
+        "operationId": "cancel-broadcast",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "broadcastId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BroadcastDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Stop a scheduled or sending broadcast; messages already queued still go",
+        "tags": [
+          "broadcasts"
+        ]
+      }
+    },
+    "/v1/workspace/broadcasts/{broadcastId}/duplicate": {
+      "post": {
+        "operationId": "duplicate-broadcast",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "broadcastId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BroadcastDTO"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Copy a broadcast into a new draft",
+        "tags": [
+          "broadcasts"
+        ]
+      }
+    },
+    "/v1/workspace/broadcasts/{broadcastId}/recipients": {
+      "get": {
+        "operationId": "list-broadcast-recipients",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "broadcastId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "filter",
+            "schema": {
+              "enum": [
+                "failed",
+                "delivered",
+                "read"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 50,
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "maxLength": 100,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecipientsOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Who a broadcast went to, and what happened",
+        "tags": [
+          "broadcasts"
+        ]
+      }
+    },
+    "/v1/workspace/broadcasts/{broadcastId}/send": {
+      "post": {
+        "operationId": "send-broadcast",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "broadcastId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BroadcastDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Send a draft now or schedule it; on a scheduled one, move the time or send now",
+        "tags": [
+          "broadcasts"
+        ]
+      }
+    },
+    "/v1/workspace/contact-segments": {
+      "get": {
+        "operationId": "list-contact-segments",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SegmentsOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Segments by name, each with who matches it now",
+        "tags": [
+          "contacts"
+        ]
+      },
+      "post": {
+        "operationId": "create-contact-segment",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SegmentBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SegmentDTO"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Save a segment",
+        "tags": [
+          "contacts"
+        ]
+      }
+    },
+    "/v1/workspace/contact-segments/preview": {
+      "post": {
+        "operationId": "preview-contact-segment",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewSegmentInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SegmentPreviewOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Who rules match right now, before saving",
+        "tags": [
+          "contacts"
+        ]
+      }
+    },
+    "/v1/workspace/contact-segments/{segmentId}": {
+      "delete": {
+        "operationId": "delete-contact-segment",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "segmentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Delete a segment; its contacts stay",
+        "tags": [
+          "contacts"
+        ]
+      },
+      "get": {
+        "operationId": "get-contact-segment",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "segmentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SegmentDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "One segment with who matches it now",
+        "tags": [
+          "contacts"
+        ]
+      },
+      "put": {
+        "operationId": "update-contact-segment",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "segmentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SegmentBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SegmentDTO"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Replace a segment's name, description and rules",
+        "tags": [
+          "contacts"
         ]
       }
     },

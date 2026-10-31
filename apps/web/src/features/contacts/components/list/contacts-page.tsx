@@ -1,5 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
-import { DownloadIcon, Loader2Icon, PlusIcon, UploadIcon, UsersIcon } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import {
+  DownloadIcon,
+  Loader2Icon,
+  MegaphoneIcon,
+  PlusIcon,
+  UploadIcon,
+  UsersIcon,
+} from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { toast } from 'sonner'
 import { Alert, AlertDescription } from '#/components/ui/alert'
@@ -18,6 +26,7 @@ import type { ContactsSearch } from '../../schemas/contacts.schema'
 import type { Contact, ContactFilter } from '../../types'
 import { ContactDialog } from '../form/contact-dialog'
 import { ImportWizard } from '../import/import-wizard'
+import { ContactsTabs } from '../kit/contacts-tabs'
 import { formatNumber } from '../kit/format'
 import { ContactPanel } from '../panel/contact-panel'
 import { BulkBar } from './bulk-bar'
@@ -130,6 +139,14 @@ export function ContactsPage({
             ) : null}
           </div>
           <div className="flex flex-wrap gap-2.5">
+            {filter.tag_id && can('broadcasts.create') && (
+              <Button asChild variant="outline">
+                <Link to="/broadcasts/new" search={{ tag: filter.tag_id }}>
+                  <MegaphoneIcon aria-hidden="true" />
+                  Send broadcast to this tag
+                </Link>
+              </Button>
+            )}
             {perms.export && (
               <Button variant="outline" onClick={exportAll} disabled={exporting}>
                 {exporting ? (
@@ -158,6 +175,8 @@ export function ContactsPage({
             )}
           </div>
         </div>
+
+        <ContactsTabs current="all" />
 
         <ContactsToolbar filter={filter} tags={tags} onChange={setFilter} />
 

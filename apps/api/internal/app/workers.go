@@ -6,6 +6,7 @@ import (
 	authjobs "github.com/misbahurbd/relay-wp/apps/api/internal/features/auth/jobs"
 	automationsjobs "github.com/misbahurbd/relay-wp/apps/api/internal/features/automations/jobs"
 	billingjobs "github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/jobs"
+	broadcastsjobs "github.com/misbahurbd/relay-wp/apps/api/internal/features/broadcasts/jobs"
 	contactsjobs "github.com/misbahurbd/relay-wp/apps/api/internal/features/contacts/jobs"
 	inboxjobs "github.com/misbahurbd/relay-wp/apps/api/internal/features/inbox/jobs"
 	integrationsjobs "github.com/misbahurbd/relay-wp/apps/api/internal/features/integrations/jobs"
@@ -44,6 +45,9 @@ func (a *App) addFeatureWorkers(w *river.Workers) {
 	river.AddWorker(w, automationsjobs.NewInboundWorker(a.automations))
 	river.AddWorker(w, automationsjobs.NewProcessRunWorker(a.automations))
 	river.AddWorker(w, automationsjobs.NewTickWorker(a.automations))
+	river.AddWorker(w, broadcastsjobs.NewStartWorker(a.broadcasts))
+	river.AddWorker(w, broadcastsjobs.NewBatchWorker(a.broadcasts))
+	river.AddWorker(w, broadcastsjobs.NewTickWorker(a.broadcasts))
 	river.AddWorker(w, inboxjobs.NewSendWorker(a.inbox))
 	river.AddWorker(w, inboxjobs.NewReactWorker(a.inbox))
 	river.AddWorker(w, inboxjobs.NewFetchMediaWorker(a.inbox))
@@ -56,4 +60,5 @@ func (a *App) addFeatureWorkers(w *river.Workers) {
 	a.queue.PeriodicJobs().Add(integrationsjobs.CleanupPeriodicJob())
 	a.queue.PeriodicJobs().Add(inboxjobs.UnsnoozePeriodicJob())
 	a.queue.PeriodicJobs().Add(automationsjobs.TickPeriodicJob())
+	a.queue.PeriodicJobs().Add(broadcastsjobs.TickPeriodicJob())
 }

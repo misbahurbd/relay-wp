@@ -190,13 +190,29 @@ type AutomationConversation struct {
 	LastAgentAt *time.Time
 }
 
-// AutomatedText is what an automation sends.
+// AutomatedText is what an automation or a broadcast sends.
 type AutomatedText struct {
-	WorkspaceID, RunID uuid.UUID
+	WorkspaceID uuid.UUID
+	// RunID links the message to its automation run; nil for a broadcast.
+	RunID *uuid.UUID
 	// ConversationID is nil when the sender only knows the contact.
 	ConversationID, ContactID *uuid.UUID
-	Text                      string
+	// ChannelID picks the WhatsApp number to send from when there is no
+	// ConversationID; nil uses the contact's latest chat, or the default number.
+	ChannelID *uuid.UUID
+	Text      string
 	// TemplateID sends a template instead of Text.
 	TemplateID *uuid.UUID
 	Params     []string
+	HeaderText string
+	// Source is how a chat this send starts is labelled: SourceAutomation when empty.
+	Source string
+	// Bulk sends on the bulk queue, so a broadcast never delays agents' and automations' messages (ADR 0013).
+	Bulk bool
 }
+
+// Conversation sources a send without an agent can start.
+const (
+	SourceAutomation = "automation"
+	SourceBroadcast  = "broadcast"
+)

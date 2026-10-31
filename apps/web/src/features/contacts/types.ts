@@ -9,6 +9,10 @@ import type {
   PersonDto,
   PreviewOutputBody,
   PreviewRowDto,
+  SegmentConditionDto,
+  SegmentCountDto,
+  SegmentDto,
+  SegmentMatchDto,
   TagDto,
   TagRefDto,
   UpdateContactInputBody,
@@ -55,3 +59,14 @@ export type ColumnMapping = ColumnMappingDto
 export type ImportPreview = Omit<PreviewOutputBody, 'sample'> & { sample: PreviewRowDto[] }
 export type PreviewRow = PreviewRowDto
 export type ContactImport = ImportDto
+
+// ---------- Segments (ADR 0014) ----------
+
+export type SegmentField = SegmentConditionDto['field']
+export type SegmentOp = SegmentConditionDto['op']
+export type SegmentCondition = { field: SegmentField; op: SegmentOp; value: string; key?: string }
+export type SegmentGroup = { match: 'all' | 'any'; conditions: SegmentCondition[] }
+export type SegmentRules = { groups: SegmentGroup[] }
+export type SegmentCount = SegmentCountDto
+export type Segment = Omit<SegmentDto, 'rules'> & { rules: SegmentRules }
+export type SegmentPreview = { count: SegmentCount; sample: SegmentMatchDto[] }

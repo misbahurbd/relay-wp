@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type AccessLogEvent struct {
@@ -143,6 +144,39 @@ type BillingProfile struct {
 	UpdatedAt    time.Time
 }
 
+type Broadcast struct {
+	ID              uuid.UUID
+	WorkspaceID     uuid.UUID
+	Name            string
+	NumberID        *uuid.UUID
+	TemplateID      *uuid.UUID
+	Audience        []byte
+	Variables       []byte
+	Status          string
+	ScheduledAt     *time.Time
+	StartedAt       *time.Time
+	SnapshotAt      *time.Time
+	CompletedAt     *time.Time
+	RecipientsTotal int32
+	UsagePeriod     pgtype.Date
+	FailureReason   *string
+	CreatedBy       *uuid.UUID
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+type BroadcastRecipient struct {
+	WorkspaceID uuid.UUID
+	BroadcastID uuid.UUID
+	ContactID   uuid.UUID
+	Phone       string
+	Name        string
+	State       string
+	Reason      *string
+	MessageID   *uuid.UUID
+	QueuedAt    *time.Time
+}
+
 type CheckoutSession struct {
 	ID                 uuid.UUID
 	WorkspaceID        uuid.UUID
@@ -222,6 +256,17 @@ type ContactImport struct {
 	FinishedAt   *time.Time
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+}
+
+type ContactSegment struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	Name        string
+	Description string
+	Rules       []byte
+	CreatedBy   *uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 type ContactTag struct {
@@ -776,6 +821,14 @@ type TeamMember struct {
 	TeamID      uuid.UUID
 	UserID      uuid.UUID
 	CreatedAt   time.Time
+}
+
+type UsageCounter struct {
+	WorkspaceID uuid.UUID
+	Resource    string
+	PeriodStart pgtype.Date
+	Used        int32
+	UpdatedAt   time.Time
 }
 
 type User struct {

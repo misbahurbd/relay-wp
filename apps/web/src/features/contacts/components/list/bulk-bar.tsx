@@ -30,7 +30,10 @@ function BarButton({ className, ...props }: ComponentProps<'button'>) {
   )
 }
 
-/** Actions on the selected rows. "Send broadcast" waits for Broadcasts (AD-11). */
+/**
+ * Actions on the selected rows. Broadcasts go to tags, not hand-picked rows: filter by a tag
+ * and use "Send broadcast to this tag" in the page header (docs/PHASE-9-BROADCASTS.md, BC-5).
+ */
 export function BulkBar({
   workspaceId,
   selected,

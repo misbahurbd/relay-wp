@@ -11,6 +11,7 @@ import (
 	automationshandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/automations/handler"
 	automationsmodel "github.com/misbahurbd/relay-wp/apps/api/internal/features/automations/model"
 	billinghandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/handler"
+	broadcastshandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/broadcasts/handler"
 	contactshandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/contacts/handler"
 	inboxhandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/inbox/handler"
 	integrationshandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/integrations/handler"
@@ -117,6 +118,8 @@ func (a *App) registerRoutes(api huma.API) {
 	automationshandler.Register(api, automationshandler.NewHandler(a.automations), automationshandler.Guards{
 		Auth: requireAuth, Member: member, Can: can, Plan: middleware.RequirePlan(api, plans, automationsmodel.PlanResource),
 	}, authhandler.Security)
+	broadcastshandler.Register(api, broadcastshandler.NewHandler(a.broadcasts),
+		broadcastshandler.Guards{Auth: requireAuth, Member: member, Can: can}, authhandler.Security)
 	integrationshandler.Register(api, integrationshandler.NewHandler(a.integrations, integrationshandler.CookieConfig{
 		Domain: a.cfg.Auth.CookieDomain, Secure: a.cfg.Auth.CookieSecure,
 	}), integrationshandler.Guards{

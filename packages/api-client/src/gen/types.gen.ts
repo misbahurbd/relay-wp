@@ -223,6 +223,67 @@ export type AssignConversationInputBody = {
     user_id?: string | null;
 };
 
+export type AudienceDto = {
+    /**
+     * Every opted-in contact; the sources below are then ignored
+     */
+    all?: boolean;
+    /**
+     * Opted-in contacts in any of these segments
+     */
+    segment_ids?: Array<string> | null;
+    /**
+     * Leave out contacts sent a marketing template in the last 24 hours
+     */
+    skip_recent_marketing?: boolean;
+    /**
+     * Opted-in contacts with any of these tags
+     */
+    tag_ids?: Array<string> | null;
+};
+
+export type AudienceInputBody = {
+    /**
+     * Every opted-in contact; the sources below are then ignored
+     */
+    all?: boolean;
+    /**
+     * Adds the number's daily Meta tier to the answer
+     */
+    number_id?: string;
+    /**
+     * Opted-in contacts in any of these segments
+     */
+    segment_ids?: Array<string> | null;
+    /**
+     * Leave out contacts sent a marketing template in the last 24 hours
+     */
+    skip_recent_marketing?: boolean;
+    /**
+     * Opted-in contacts with any of these tags
+     */
+    tag_ids?: Array<string> | null;
+};
+
+export type AudienceOutputBody = {
+    /**
+     * Opted-in contacts who will get it
+     */
+    included: number;
+    /**
+     * Contacts that match but are pending or opted out
+     */
+    left_out: number;
+    /**
+     * Opted-in contacts sent marketing in the last 24 hours; not in included when the audience skips them
+     */
+    recent: number;
+    /**
+     * The number's Meta limit on new customers a day; 0 when unknown or unlimited
+     */
+    tier_limit: number;
+};
+
 export type AuthDto = {
     /**
      * The one-tap autofill button's text
@@ -370,6 +431,68 @@ export type BodyDto = {
 export type BodyInput = {
     examples?: Array<string> | null;
     text?: string;
+};
+
+export type BroadcastBody = {
+    audience?: AudienceDto;
+    name: string;
+    /**
+     * The WhatsApp number to send from
+     */
+    number_id?: string;
+    /**
+     * An approved template
+     */
+    template_id?: string;
+    variables?: VariablesDto;
+};
+
+export type BroadcastDto = {
+    audience: AudienceDto;
+    completed_at: string | null;
+    created_at: string;
+    failure_reason: string | null;
+    /**
+     * Why recipients missed it, most common first
+     */
+    failures: Array<FailureDto> | null;
+    id: string;
+    name: string;
+    number_id: string | null;
+    /**
+     * Set when sending starts
+     */
+    recipients_total: number;
+    scheduled_at: string | null;
+    started_at: string | null;
+    stats: StatsDto;
+    status: 'draft' | 'scheduled' | 'sending' | 'completed' | 'cancelled' | 'failed';
+    /**
+     * Absent when none is chosen, or it was deleted
+     */
+    template?: TemplateRefDto;
+    template_id: string | null;
+    updated_at: string;
+    variables: VariablesDto;
+};
+
+export type BroadcastSummaryDto = {
+    completed_at: string | null;
+    created_at: string;
+    delivered: number;
+    failed: number;
+    id: string;
+    name: string;
+    read: number;
+    recipients_total: number;
+    scheduled_at: string | null;
+    sent: number;
+    started_at: string | null;
+    status: 'draft' | 'scheduled' | 'sending' | 'completed' | 'cancelled' | 'failed';
+    /**
+     * Absent when none is chosen, or it was deleted
+     */
+    template?: TemplateRefDto;
 };
 
 export type BulkInputBody = {
@@ -1007,6 +1130,14 @@ export type ExpiringDto = {
     user_id: string;
 };
 
+export type FailureDto = {
+    /**
+     * Meta's error, or opted_out, cancelled, template_unavailable, missing_variable, no_channel, stalled, segment_deleted
+     */
+    reason: string;
+    recipients: number;
+};
+
 export type FooterDto = {
     text: string;
 };
@@ -1179,7 +1310,7 @@ export type InboxConversationDto = {
      */
     last_message_preview: string;
     snoozed_until: string | null;
-    source: 'organic' | 'ctwa_ad' | 'template';
+    source: 'organic' | 'ctwa_ad' | 'template' | 'automation' | 'broadcast';
     status: 'open' | 'pending' | 'closed';
     team_id: string;
     unread_count: number;
@@ -1216,7 +1347,7 @@ export type InboxConversationDetailDto = {
      */
     last_message_preview: string;
     snoozed_until: string | null;
-    source: 'organic' | 'ctwa_ad' | 'template';
+    source: 'organic' | 'ctwa_ad' | 'template' | 'automation' | 'broadcast';
     status: 'open' | 'pending' | 'closed';
     team_id: string;
     team_name: string | null;
@@ -1713,6 +1844,11 @@ export type ListOutputBody2 = {
     items: Array<AutomationDto> | null;
 };
 
+export type ListOutputBody3 = {
+    items: Array<BroadcastSummaryDto> | null;
+    next_cursor: string | null;
+};
+
 export type LogDto = {
     action: string;
     /**
@@ -1893,6 +2029,18 @@ export type MembersOutputBody = {
 
 export type MessageOutputBody = {
     message: string;
+};
+
+export type MonthlyUsageDto = {
+    /**
+     * -1 unlimited, 0 not included
+     */
+    limit: number;
+    /**
+     * A monthly resource key from GET /v1/billing/resources
+     */
+    resource: string;
+    used: number;
 };
 
 export type NewApiKeyOutputBody = {
@@ -2222,6 +2370,10 @@ export type PreviewRowDto = {
     status: 'new' | 'update' | 'invalid';
 };
 
+export type PreviewSegmentInputBody = {
+    rules: SegmentRulesDto;
+};
+
 export type PriceDto = {
     amount_minor: number;
     billing_type: 'recurring' | 'one_time';
@@ -2318,6 +2470,27 @@ export type ReactInputBody = {
      * One emoji; empty removes your reaction
      */
     emoji: string;
+};
+
+export type RecipientDto = {
+    contact_id: string;
+    /**
+     * Meta's reason a send failed
+     */
+    error: string | null;
+    message_status: 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
+    name: string;
+    phone: string;
+    queued_at: string | null;
+    reason: string | null;
+    replied: boolean;
+    state: 'pending' | 'queued' | 'skipped' | 'failed';
+    status_at: string | null;
+};
+
+export type RecipientsOutputBody = {
+    items: Array<RecipientDto> | null;
+    next_cursor: string | null;
 };
 
 export type RefreshInputBody = {
@@ -2451,6 +2624,86 @@ export type SecretOutputBody = {
     secret: string;
 };
 
+export type SegmentBody = {
+    description?: string;
+    name: string;
+    rules: SegmentRulesDto;
+};
+
+export type SegmentConditionDto = {
+    field: 'tag' | 'opt_in' | 'last_message' | 'added' | 'source' | 'language' | 'country_code' | 'attribute';
+    /**
+     * The custom field, for attribute
+     */
+    key?: string;
+    op: 'is' | 'is_not' | 'within' | 'over' | 'never' | 'contains' | 'starts_with';
+    /**
+     * A tag ID, an opt-in status, a number of days, a source, a language, a code like +44, or a custom field's value
+     */
+    value: string;
+};
+
+export type SegmentCountDto = {
+    matched: number;
+    /**
+     * Who a broadcast to this segment reaches
+     */
+    opted_in: number;
+    opted_out: number;
+    pending: number;
+};
+
+export type SegmentDto = {
+    /**
+     * Who matches right now
+     */
+    count: SegmentCountDto;
+    created_at: string;
+    description: string;
+    id: string;
+    name: string;
+    rules: SegmentRulesDto;
+    updated_at: string;
+};
+
+export type SegmentGroupDto = {
+    conditions: Array<SegmentConditionDto> | null;
+    match: 'all' | 'any';
+};
+
+export type SegmentMatchDto = {
+    id: string;
+    name: string;
+    opt_in: 'in' | 'out' | 'pending';
+    phone: string;
+};
+
+export type SegmentPreviewOutputBody = {
+    count: SegmentCountDto;
+    /**
+     * Up to 6 matching contacts, most recently active first
+     */
+    sample: Array<SegmentMatchDto> | null;
+};
+
+export type SegmentRulesDto = {
+    /**
+     * Joined by OR
+     */
+    groups: Array<SegmentGroupDto> | null;
+};
+
+export type SegmentsOutputBody = {
+    items: Array<SegmentDto> | null;
+};
+
+export type SendInputBody = {
+    /**
+     * When to send; absent sends now. Up to 90 days ahead
+     */
+    scheduled_at?: string;
+};
+
 export type SendMessageInputBody = {
     caption?: string;
     /**
@@ -2582,6 +2835,35 @@ export type StartedCheckoutOutputBody = {
      * The provider's hosted checkout page, when it has no embedded form
      */
     url: string | null;
+};
+
+export type StatsDto = {
+    /**
+     * Delivered, including read
+     */
+    delivered: number;
+    failed: number;
+    /**
+     * Recipients not handled yet
+     */
+    pending: number;
+    /**
+     * Messages waiting to go to Meta
+     */
+    queued: number;
+    read: number;
+    /**
+     * Recipients who wrote back after it
+     */
+    replied: number;
+    /**
+     * Messages Meta accepted, including delivered and read
+     */
+    sent: number;
+    /**
+     * Not sent on purpose: opted out, or cancelled
+     */
+    skipped: number;
 };
 
 export type StatusOutputBody = {
@@ -2719,6 +3001,12 @@ export type TemplateDto = {
      * Problems Meta may reject the template for; they don't block saving
      */
     warnings: Array<WarningDto> | null;
+};
+
+export type TemplateRefDto = {
+    category?: 'marketing' | 'utility' | 'authentication';
+    language?: string;
+    name: string;
 };
 
 export type TestMessageOutputBody = {
@@ -2866,6 +3154,21 @@ export type UploadOutputBody = {
     row_count: number;
 };
 
+export type UsageOutputBody = {
+    /**
+     * When the counts start again from 0
+     */
+    period_end: string;
+    /**
+     * First instant of this calendar month (UTC)
+     */
+    period_start: string;
+    /**
+     * Every monthly resource, in catalog order
+     */
+    resources: Array<MonthlyUsageDto> | null;
+};
+
 export type UserDto = {
     email: string;
     email_verified: boolean;
@@ -2884,6 +3187,32 @@ export type UserRefDto = {
 export type Variable = {
     custom: string;
     source: string;
+};
+
+export type VariableDto = {
+    /**
+     * Used when the contact's field is empty
+     */
+    fallback?: string;
+    /**
+     * Fixed text, or a field of the contact it is sent to
+     */
+    source: 'text' | 'name' | 'phone' | 'attribute';
+    /**
+     * The text, or the attribute's key; empty for name and phone
+     */
+    value: string;
+};
+
+export type VariablesDto = {
+    /**
+     * body[0] fills {{1}}, body[1] fills {{2}}, …
+     */
+    body?: Array<VariableDto> | null;
+    /**
+     * Fills the header's {{1}}
+     */
+    header?: VariableDto;
 };
 
 export type VerifyCodeInputBody = {
@@ -5768,6 +6097,565 @@ export type ResumeSubscriptionResponses = {
 };
 
 export type ResumeSubscriptionResponse = ResumeSubscriptionResponses[keyof ResumeSubscriptionResponses];
+
+export type GetBillingUsageData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/billing/usage';
+};
+
+export type GetBillingUsageErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetBillingUsageError = GetBillingUsageErrors[keyof GetBillingUsageErrors];
+
+export type GetBillingUsageResponses = {
+    /**
+     * OK
+     */
+    200: UsageOutputBody;
+};
+
+export type GetBillingUsageResponse = GetBillingUsageResponses[keyof GetBillingUsageResponses];
+
+export type ListBroadcastsData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: {
+        status?: 'draft' | 'scheduled' | 'sending' | 'completed' | 'cancelled' | 'failed';
+        /**
+         * Part of the name, case-insensitive
+         */
+        q?: string;
+        limit?: number;
+        cursor?: string;
+    };
+    url: '/v1/workspace/broadcasts';
+};
+
+export type ListBroadcastsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListBroadcastsError = ListBroadcastsErrors[keyof ListBroadcastsErrors];
+
+export type ListBroadcastsResponses = {
+    /**
+     * OK
+     */
+    200: ListOutputBody3;
+};
+
+export type ListBroadcastsResponse = ListBroadcastsResponses[keyof ListBroadcastsResponses];
+
+export type CreateBroadcastData = {
+    body: BroadcastBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/broadcasts';
+};
+
+export type CreateBroadcastErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CreateBroadcastError = CreateBroadcastErrors[keyof CreateBroadcastErrors];
+
+export type CreateBroadcastResponses = {
+    /**
+     * Created
+     */
+    201: BroadcastDto;
+};
+
+export type CreateBroadcastResponse = CreateBroadcastResponses[keyof CreateBroadcastResponses];
+
+export type PreviewBroadcastAudienceData = {
+    body: AudienceInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/broadcasts/audience-preview';
+};
+
+export type PreviewBroadcastAudienceErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type PreviewBroadcastAudienceError = PreviewBroadcastAudienceErrors[keyof PreviewBroadcastAudienceErrors];
+
+export type PreviewBroadcastAudienceResponses = {
+    /**
+     * OK
+     */
+    200: AudienceOutputBody;
+};
+
+export type PreviewBroadcastAudienceResponse = PreviewBroadcastAudienceResponses[keyof PreviewBroadcastAudienceResponses];
+
+export type DeleteBroadcastData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        broadcastId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/broadcasts/{broadcastId}';
+};
+
+export type DeleteBroadcastErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type DeleteBroadcastError = DeleteBroadcastErrors[keyof DeleteBroadcastErrors];
+
+export type DeleteBroadcastResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteBroadcastResponse = DeleteBroadcastResponses[keyof DeleteBroadcastResponses];
+
+export type GetBroadcastData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        broadcastId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/broadcasts/{broadcastId}';
+};
+
+export type GetBroadcastErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetBroadcastError = GetBroadcastErrors[keyof GetBroadcastErrors];
+
+export type GetBroadcastResponses = {
+    /**
+     * OK
+     */
+    200: BroadcastDto;
+};
+
+export type GetBroadcastResponse = GetBroadcastResponses[keyof GetBroadcastResponses];
+
+export type UpdateBroadcastData = {
+    body: BroadcastBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        broadcastId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/broadcasts/{broadcastId}';
+};
+
+export type UpdateBroadcastErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UpdateBroadcastError = UpdateBroadcastErrors[keyof UpdateBroadcastErrors];
+
+export type UpdateBroadcastResponses = {
+    /**
+     * OK
+     */
+    200: BroadcastDto;
+};
+
+export type UpdateBroadcastResponse = UpdateBroadcastResponses[keyof UpdateBroadcastResponses];
+
+export type CancelBroadcastData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        broadcastId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/broadcasts/{broadcastId}/cancel';
+};
+
+export type CancelBroadcastErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CancelBroadcastError = CancelBroadcastErrors[keyof CancelBroadcastErrors];
+
+export type CancelBroadcastResponses = {
+    /**
+     * OK
+     */
+    200: BroadcastDto;
+};
+
+export type CancelBroadcastResponse = CancelBroadcastResponses[keyof CancelBroadcastResponses];
+
+export type DuplicateBroadcastData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        broadcastId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/broadcasts/{broadcastId}/duplicate';
+};
+
+export type DuplicateBroadcastErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type DuplicateBroadcastError = DuplicateBroadcastErrors[keyof DuplicateBroadcastErrors];
+
+export type DuplicateBroadcastResponses = {
+    /**
+     * Created
+     */
+    201: BroadcastDto;
+};
+
+export type DuplicateBroadcastResponse = DuplicateBroadcastResponses[keyof DuplicateBroadcastResponses];
+
+export type ListBroadcastRecipientsData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        broadcastId: string;
+    };
+    query?: {
+        filter?: 'failed' | 'delivered' | 'read';
+        limit?: number;
+        cursor?: string;
+    };
+    url: '/v1/workspace/broadcasts/{broadcastId}/recipients';
+};
+
+export type ListBroadcastRecipientsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListBroadcastRecipientsError = ListBroadcastRecipientsErrors[keyof ListBroadcastRecipientsErrors];
+
+export type ListBroadcastRecipientsResponses = {
+    /**
+     * OK
+     */
+    200: RecipientsOutputBody;
+};
+
+export type ListBroadcastRecipientsResponse = ListBroadcastRecipientsResponses[keyof ListBroadcastRecipientsResponses];
+
+export type SendBroadcastData = {
+    body: SendInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        broadcastId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/broadcasts/{broadcastId}/send';
+};
+
+export type SendBroadcastErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SendBroadcastError = SendBroadcastErrors[keyof SendBroadcastErrors];
+
+export type SendBroadcastResponses = {
+    /**
+     * OK
+     */
+    200: BroadcastDto;
+};
+
+export type SendBroadcastResponse = SendBroadcastResponses[keyof SendBroadcastResponses];
+
+export type ListContactSegmentsData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/contact-segments';
+};
+
+export type ListContactSegmentsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListContactSegmentsError = ListContactSegmentsErrors[keyof ListContactSegmentsErrors];
+
+export type ListContactSegmentsResponses = {
+    /**
+     * OK
+     */
+    200: SegmentsOutputBody;
+};
+
+export type ListContactSegmentsResponse = ListContactSegmentsResponses[keyof ListContactSegmentsResponses];
+
+export type CreateContactSegmentData = {
+    body: SegmentBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/contact-segments';
+};
+
+export type CreateContactSegmentErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type CreateContactSegmentError = CreateContactSegmentErrors[keyof CreateContactSegmentErrors];
+
+export type CreateContactSegmentResponses = {
+    /**
+     * Created
+     */
+    201: SegmentDto;
+};
+
+export type CreateContactSegmentResponse = CreateContactSegmentResponses[keyof CreateContactSegmentResponses];
+
+export type PreviewContactSegmentData = {
+    body: PreviewSegmentInputBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/contact-segments/preview';
+};
+
+export type PreviewContactSegmentErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type PreviewContactSegmentError = PreviewContactSegmentErrors[keyof PreviewContactSegmentErrors];
+
+export type PreviewContactSegmentResponses = {
+    /**
+     * OK
+     */
+    200: SegmentPreviewOutputBody;
+};
+
+export type PreviewContactSegmentResponse = PreviewContactSegmentResponses[keyof PreviewContactSegmentResponses];
+
+export type DeleteContactSegmentData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        segmentId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/contact-segments/{segmentId}';
+};
+
+export type DeleteContactSegmentErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type DeleteContactSegmentError = DeleteContactSegmentErrors[keyof DeleteContactSegmentErrors];
+
+export type DeleteContactSegmentResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type DeleteContactSegmentResponse = DeleteContactSegmentResponses[keyof DeleteContactSegmentResponses];
+
+export type GetContactSegmentData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        segmentId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/contact-segments/{segmentId}';
+};
+
+export type GetContactSegmentErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type GetContactSegmentError = GetContactSegmentErrors[keyof GetContactSegmentErrors];
+
+export type GetContactSegmentResponses = {
+    /**
+     * OK
+     */
+    200: SegmentDto;
+};
+
+export type GetContactSegmentResponse = GetContactSegmentResponses[keyof GetContactSegmentResponses];
+
+export type UpdateContactSegmentData = {
+    body: SegmentBody;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+    };
+    path: {
+        segmentId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/contact-segments/{segmentId}';
+};
+
+export type UpdateContactSegmentErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type UpdateContactSegmentError = UpdateContactSegmentErrors[keyof UpdateContactSegmentErrors];
+
+export type UpdateContactSegmentResponses = {
+    /**
+     * OK
+     */
+    200: SegmentDto;
+};
+
+export type UpdateContactSegmentResponse = UpdateContactSegmentResponses[keyof UpdateContactSegmentResponses];
 
 export type ListContactTagsData = {
     body?: never;

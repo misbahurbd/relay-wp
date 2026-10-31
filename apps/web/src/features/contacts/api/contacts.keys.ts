@@ -14,6 +14,9 @@ export const contactsKeys = {
   agents: (workspaceId: string) => ['contacts', workspaceId, 'agents'] as const,
   import: (workspaceId: string, importId: string) =>
     ['contacts', workspaceId, 'import', importId] as const,
+  segments: (workspaceId: string) => ['contacts', workspaceId, 'segments'] as const,
+  segmentPreview: (workspaceId: string, rules: unknown) =>
+    ['contacts', workspaceId, 'segments', 'preview', rules] as const,
 }
 
 /** Refreshes lists, counts, details and tags after a change. */
