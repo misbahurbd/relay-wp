@@ -292,6 +292,10 @@ export type AuthorizeWooInputBody = {
 };
 
 export type AutomationDto = {
+    /**
+     * Contacts still waiting in this automation
+     */
+    active: number;
     enabled: boolean;
     /**
      * Messages that could not be sent this month

@@ -50,6 +50,7 @@ type AutomationDTO struct {
 	Sent              int64       `json:"sent" doc:"Messages sent this month"`
 	Failed            int64       `json:"failed" doc:"Messages that could not be sent this month"`
 	Read              int64       `json:"read" doc:"Messages read this month"`
+	Active            int64       `json:"active" doc:"Contacts still waiting in this automation"`
 	Recovered         int64       `json:"recovered" doc:"Carts bought after a reminder this month"`
 	RecoveredMinor    int64       `json:"recovered_minor" doc:"What those carts were worth, in minor units"`
 	RecoveredCurrency string      `json:"recovered_currency" doc:"Their currency"`
@@ -57,7 +58,7 @@ type AutomationDTO struct {
 
 func ToAutomationDTO(a model.Automation) AutomationDTO {
 	out := AutomationDTO{
-		Kind: string(a.Kind), Enabled: a.Enabled, UpdatedAt: a.UpdatedAt, Sent: a.Stats.Sent, Failed: a.Stats.Failed, Read: a.Stats.Read,
+		Kind: string(a.Kind), Enabled: a.Enabled, UpdatedAt: a.UpdatedAt, Sent: a.Stats.Sent, Failed: a.Stats.Failed, Read: a.Stats.Read, Active: a.Stats.Active,
 		Recovered: a.Stats.Recovered, RecoveredMinor: a.Stats.RecoveredMinor, RecoveredCurrency: a.Stats.RecoveredCurrency,
 	}
 	switch s := a.Settings.(type) {

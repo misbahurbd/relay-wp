@@ -148,20 +148,24 @@ export function stat(a: Automation) {
   return a.failed ? `${line} · ${a.failed.toLocaleString()} failed` : line
 }
 
+function plural(n: number, one: string, many = `${one}s`) {
+  return `${n.toLocaleString()} ${n === 1 ? one : many}`
+}
+
 function counts(a: Automation) {
   switch (a.kind) {
     case 'keyword':
-      return `${a.settings.keyword?.rules?.length ?? 0} rules · ${a.sent.toLocaleString()} replies this month`
+      return `${plural(a.settings.keyword?.rules?.length ?? 0, 'rule')} · ${plural(a.sent, 'reply', 'replies')} this month`
     case 'cart':
-      return `${a.sent.toLocaleString()} sent · ${a.recovered.toLocaleString()} carts recovered${money(a)}`
+      return `${a.sent.toLocaleString()} sent · ${plural(a.recovered, 'cart')} recovered${money(a)}`
     case 'order':
       return a.sent
         ? `${a.sent.toLocaleString()} sent · ${Math.round((a.read / a.sent) * 100)}% read`
         : '0 sent'
     case 'drip':
-      return `${a.enabled ? 'Active' : 'Paused'} · 0 contacts in sequence`
+      return `${a.enabled ? 'Active' : 'Paused'} · ${plural(a.active, 'contact')} in sequence`
     default:
-      return `Sent ${a.sent.toLocaleString()} times this month`
+      return `Sent ${plural(a.sent, 'time')} this month`
   }
 }
 

@@ -16,6 +16,7 @@ import (
 	"github.com/misbahurbd/relay-wp/apps/api/db/gen"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/automations/model"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/automations/repository"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/database"
 )
 
 // Inbox reads conversations and sends automated messages. Implemented in
@@ -38,8 +39,8 @@ type Contacts interface {
 	FindOrCreateByPhone(ctx context.Context, workspaceID uuid.UUID, phone, name string) (uuid.UUID, error)
 	// ContactIDByPhone says who has a phone, if anyone.
 	ContactIDByPhone(ctx context.Context, workspaceID uuid.UUID, phone string) (uuid.UUID, bool, error)
-	// OptIn is the contact's consent: in, out or pending.
-	OptIn(ctx context.Context, workspaceID, contactID uuid.UUID) (string, error)
+	// Contact reads a contact's consent and name.
+	Contact(ctx context.Context, workspaceID, contactID uuid.UUID) (model.Contact, error)
 }
 
 // PlanAccess says whether a plan includes a resource. Implemented by features/billing.
@@ -107,13 +108,25 @@ func (s *Service) List(ctx context.Context, workspaceID uuid.UUID) ([]model.Auto
 
 func (s *Service) thisMonth(ctx context.Context, workspaceID uuid.UUID) (map[model.Kind]model.Stats, error) {
 	now := s.now()
-	rows, err := repository.NewRepository(s.pool).RunStats(ctx, gen.RunStatsParams{
+	repo := repository.NewRepository(s.pool)
+	rows, err := repo.RunStats(ctx, gen.RunStatsParams{
 		WorkspaceID: workspaceID, Since: time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("automation stats: %w", err)
 	}
 	out := make(map[model.Kind]model.Stats, len(rows))
+	active, err := repo.ActiveRuns(ctx, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("active runs: %w", err)
+	}
+	defer func() {
+		for _, a := range active {
+			st := out[model.Kind(a.Kind)]
+			st.Active = a.Active
+			out[model.Kind(a.Kind)] = st
+		}
+	}()
 	for _, r := range rows {
 		out[model.Kind(r.Kind)] = model.Stats{
 			Sent: r.Sent, Failed: r.Failed, Read: r.Read,
@@ -141,33 +154,46 @@ func (s *Service) Save(ctx context.Context, workspaceID, userID uuid.UUID, kind 
 	return toAutomation(r.Kind, r.Enabled, r.Settings, r.UpdatedAt)
 }
 
-// SetEnabled turns a kind on or off. Turning on needs its settings complete.
+// SetEnabled turns a kind on or off. Turning on needs its settings complete, and
+// resuming a drip moves its dates on by the time it was paused.
 func (s *Service) SetEnabled(ctx context.Context, workspaceID, userID uuid.UUID, kind model.Kind, enabled bool) (model.Automation, error) {
-	repo := repository.NewRepository(s.pool)
-	current := model.Default(kind)
-	row, err := repo.GetAutomation(ctx, gen.GetAutomationParams{WorkspaceID: workspaceID, Kind: string(kind)})
-	switch {
-	case err == nil:
-		if current, err = model.Decode(kind, row.Settings); err != nil {
-			return model.Automation{}, err
+	var out model.Automation
+	err := database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+		repo := repository.NewRepository(tx)
+		current := model.Default(kind)
+		var pausedAt *time.Time
+		row, err := repo.GetAutomation(ctx, gen.GetAutomationParams{WorkspaceID: workspaceID, Kind: string(kind)})
+		switch {
+		case err == nil:
+			pausedAt = row.PausedAt
+			if current, err = model.Decode(kind, row.Settings); err != nil {
+				return err
+			}
+		case !repository.IsNoRows(err):
+			return fmt.Errorf("get automation: %w", err)
 		}
-	case !repository.IsNoRows(err):
-		return model.Automation{}, fmt.Errorf("get automation: %w", err)
-	}
-	if d := current.Ready(); enabled && len(d) > 0 {
-		return model.Automation{}, model.ErrNotReady.WithDetails(d...)
-	}
-	id, raw, err := newRow(current)
-	if err != nil {
-		return model.Automation{}, err
-	}
-	r, err := repo.SetAutomationEnabled(ctx, gen.SetAutomationEnabledParams{
-		ID: id, WorkspaceID: workspaceID, Kind: string(kind), Enabled: enabled, Settings: raw, UpdatedBy: &userID,
+		if d := current.Ready(); enabled && len(d) > 0 {
+			return model.ErrNotReady.WithDetails(d...)
+		}
+		id, raw, err := newRow(current)
+		if err != nil {
+			return err
+		}
+		r, err := repo.SetAutomationEnabled(ctx, gen.SetAutomationEnabledParams{
+			ID: id, WorkspaceID: workspaceID, Kind: string(kind), Enabled: enabled, Settings: raw, UpdatedBy: &userID,
+		})
+		if err != nil {
+			return fmt.Errorf("set automation enabled: %w", err)
+		}
+		if kind == model.KindDrip && enabled && pausedAt != nil {
+			if err := repo.ShiftDripRuns(ctx, gen.ShiftDripRunsParams{WorkspaceID: workspaceID, PausedSeconds: s.now().Sub(*pausedAt).Seconds()}); err != nil {
+				return fmt.Errorf("shift drip runs: %w", err)
+			}
+		}
+		out, err = toAutomation(r.Kind, r.Enabled, r.Settings, r.UpdatedAt)
+		return err
 	})
-	if err != nil {
-		return model.Automation{}, fmt.Errorf("set automation enabled: %w", err)
-	}
-	return toAutomation(r.Kind, r.Enabled, r.Settings, r.UpdatedAt)
+	return out, err
 }
 
 func newRow(settings model.Settings) (uuid.UUID, []byte, error) {

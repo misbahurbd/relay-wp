@@ -26,6 +26,7 @@ const (
 	ReasonWindowClosed  = "window_closed"
 	ReasonNoPhone       = "no_phone"
 	ReasonNoConsent     = "no_consent"
+	ReasonReplied       = "replied"
 	ReasonRedacted      = "redacted"
 	// ReasonTemplateUnavailable: the template was removed or lost its approval.
 	ReasonTemplateUnavailable = "template_unavailable"
@@ -37,6 +38,12 @@ const (
 
 // OptOutSource is the contact's opt_in_source after replying STOP.
 const OptOutSource = "whatsapp_reply"
+
+// Contact is what a send needs from a contact.
+type Contact struct {
+	OptIn string
+	Name  string
+}
 
 // Inbound is a customer's message.
 type Inbound struct {
@@ -118,5 +125,7 @@ type Stats struct {
 	Sent, Failed, Read int64
 	// Recovered counts carts bought after a reminder, worth RecoveredMinor.
 	Recovered, RecoveredMinor int64
-	RecoveredCurrency         string
+	// Active counts contacts still waiting, whenever they started.
+	Active            int64
+	RecoveredCurrency string
 }

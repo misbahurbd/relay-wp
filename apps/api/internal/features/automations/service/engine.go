@@ -33,6 +33,9 @@ func (s *Service) HandleInbound(ctx context.Context, in model.Inbound) error {
 	if isStop(in.Text) {
 		return s.optOut(ctx, in)
 	}
+	if err := s.stopDrip(ctx, in); err != nil {
+		return err
+	}
 	allowed, err := s.deps.Plans.HasAccess(ctx, in.WorkspaceID, model.PlanResource)
 	if err != nil || !allowed {
 		return err
@@ -184,7 +187,14 @@ func (s *Service) ProcessRun(ctx context.Context, workspaceID, runID uuid.UUID) 
 		if err != nil {
 			return err
 		}
-		if next := s.nextStep(run, state); next != nil {
+		if state == "" {
+			return nil // Held by a pause.
+		}
+		next, err := s.nextStep(ctx, r, workspaceID, run, state)
+		if err != nil {
+			return err
+		}
+		if next != nil {
 			return r.AdvanceRun(ctx, gen.AdvanceRunParams{WorkspaceID: workspaceID, ID: runID, NextAt: next})
 		}
 		return r.FinishRun(ctx, gen.FinishRunParams{WorkspaceID: workspaceID, ID: runID, State: state, Reason: reason})
@@ -192,13 +202,35 @@ func (s *Service) ProcessRun(ctx context.Context, workspaceID, runID uuid.UUID) 
 }
 
 // nextStep is when a run that just sent goes again, or nil when it is finished.
-func (s *Service) nextStep(run gen.ClaimRunRow, state string) *time.Time {
-	var c model.RunContext
-	if state != model.StateDone || model.Kind(run.Kind) != model.KindCart || run.Step != 0 || json.Unmarshal(run.Context, &c) != nil || !c.Second {
-		return nil
+func (s *Service) nextStep(ctx context.Context, r repository.Repository, workspaceID uuid.UUID, run gen.ClaimRunRow, state string) (*time.Time, error) {
+	if state != model.StateDone {
+		return nil, nil
 	}
-	at := s.now().Add(secondReminderAfter)
-	return &at
+	switch model.Kind(run.Kind) {
+	case model.KindCart:
+		var c model.RunContext
+		if err := json.Unmarshal(run.Context, &c); err != nil {
+			return nil, fmt.Errorf("decode run context: %w", err)
+		}
+		if run.Step == 0 && c.Second {
+			at := s.now().Add(secondReminderAfter)
+			return &at, nil
+		}
+	case model.KindDrip:
+		row, err := r.GetAutomation(ctx, gen.GetAutomationParams{WorkspaceID: workspaceID, Kind: run.Kind})
+		if err != nil {
+			return nil, fmt.Errorf("get drip: %w", err)
+		}
+		step, next, ok, err := dripStep(row.Settings, run.Step)
+		if err != nil {
+			return nil, err
+		}
+		if ok && next != nil {
+			at := s.now().Add(time.Duration(max(next.Day-step.Day, 0)) * day)
+			return &at, nil
+		}
+	}
+	return nil, nil
 }
 
 func (s *Service) fire(ctx context.Context, tx pgx.Tx, r repository.Repository, workspaceID uuid.UUID, run gen.ClaimRunRow) (string, *string, error) {
@@ -206,6 +238,9 @@ func (s *Service) fire(ctx context.Context, tx pgx.Tx, r repository.Repository, 
 	row, err := r.GetAutomation(ctx, gen.GetAutomationParams{WorkspaceID: workspaceID, Kind: run.Kind})
 	if err != nil && !repository.IsNoRows(err) {
 		return "", nil, fmt.Errorf("get automation: %w", err)
+	}
+	if err == nil && !row.Enabled && model.Kind(run.Kind) == model.KindDrip {
+		return "", nil, nil // A paused drip waits; the tick finds it after resume.
 	}
 	if err != nil || !row.Enabled {
 		return end(model.StateCancelled, model.ReasonPaused)
@@ -230,13 +265,28 @@ func (s *Service) fire(ctx context.Context, tx pgx.Tx, r repository.Repository, 
 	if err := json.Unmarshal(run.Context, &c); err != nil {
 		return "", nil, fmt.Errorf("decode run context: %w", err)
 	}
-	if model.Kind(run.Kind) == model.KindCart && !c.Consent {
-		optIn, err := s.deps.Contacts.OptIn(ctx, workspaceID, *run.ContactID)
+	kind := model.Kind(run.Kind)
+	if (kind == model.KindCart && !c.Consent) || kind == model.KindDrip {
+		contact, err := s.deps.Contacts.Contact(ctx, workspaceID, *run.ContactID)
 		if err != nil {
-			return "", nil, fmt.Errorf("contact consent: %w", err)
+			return "", nil, fmt.Errorf("read contact: %w", err)
 		}
-		if optIn != "in" {
+		switch contact.OptIn {
+		case "in":
+		case "out":
+			return end(model.StateSkipped, model.ReasonOptedOut)
+		default:
 			return end(model.StateSkipped, model.ReasonNoConsent)
+		}
+		if kind == model.KindDrip {
+			step, _, ok, err := dripStep(row.Settings, run.Step)
+			if err != nil {
+				return "", nil, err
+			}
+			if !ok {
+				return model.StateDone, nil, nil
+			}
+			c.TemplateID, c.Params = step.TemplateID, []string{personalize("{{name}}", contact.Name)}
 		}
 	}
 	err = s.deps.Inbox.SendAutomated(ctx, tx, model.AutomatedSend{

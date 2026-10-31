@@ -130,13 +130,13 @@ func (s *Service) ContactIDByPhone(ctx context.Context, workspaceID uuid.UUID, p
 	return id, true, nil
 }
 
-// OptIn is a contact's consent: in, out or pending.
-func (s *Service) OptIn(ctx context.Context, workspaceID, contactID uuid.UUID) (string, error) {
-	opt, err := repository.NewRepository(s.pool).ContactOptIn(ctx, gen.ContactOptInParams{WorkspaceID: workspaceID, ID: contactID})
+// Consent returns a contact's opt-in (in, out or pending) and name.
+func (s *Service) Consent(ctx context.Context, workspaceID, contactID uuid.UUID) (optIn, name string, err error) {
+	row, err := repository.NewRepository(s.pool).ContactConsent(ctx, gen.ContactConsentParams{WorkspaceID: workspaceID, ID: contactID})
 	if err != nil {
-		return "", fmt.Errorf("contact opt in: %w", err)
+		return "", "", fmt.Errorf("contact consent: %w", err)
 	}
-	return opt, nil
+	return row.OptIn, row.Name, nil
 }
 
 // SetOptOut records that a contact opted out; changed is false if they already

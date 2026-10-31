@@ -274,6 +274,7 @@ func (a *App) buildInbox() {
 	}, a.log)
 	a.whatsapp.SetInboundSink(inboxSink{inbox: a.inbox})
 	a.inbox.SetInboundHook(automationsHook{automations: a.automations})
+	a.contacts.SetTagListener(a.automations)
 	a.automations.Connect(automationsservice.Deps{
 		Inbox: automationsInbox{inbox: a.inbox}, Contacts: automationsContacts{a.contacts}, Plans: a.billing,
 	})

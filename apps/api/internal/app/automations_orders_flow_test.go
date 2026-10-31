@@ -158,6 +158,10 @@ func TestOrderSkipsAndFailures(t *testing.T) {
 	if s.runs(automationsmodel.StateFailed, automationsmodel.ReasonTemplateUnavailable) != 1 {
 		t.Fatal("template_unavailable")
 	}
+	if n := s.count(`SELECT count(*) FROM conversations c WHERE workspace_id = $1
+		AND NOT EXISTS (SELECT 1 FROM messages m WHERE m.conversation_id = c.id)`, s.wsID); n != 0 {
+		t.Fatalf("failed send left %d empty chats", n)
+	}
 	list := s.owner.do("GET", "/v1/workspace/automations", nil)
 	if items(list)[4]["failed"].(float64) != 1 {
 		t.Fatalf("card: %s", list.raw)

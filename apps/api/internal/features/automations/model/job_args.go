@@ -3,6 +3,7 @@ package model
 import (
 	"github.com/google/uuid"
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/rivertype"
 )
 
 // InboundArgs reacts to one customer message.
@@ -28,9 +29,13 @@ type ProcessRunArgs struct {
 // Kind is the job's stable name in the river_job table.
 func (ProcessRunArgs) Kind() string { return "automations_process_run" }
 
-// InsertOpts queues a step once, however often the tick sees it due.
+// InsertOpts queues a step once, however often the tick sees it due. A finished
+// job doesn't count: a run held by a pause must be able to queue again.
 func (ProcessRunArgs) InsertOpts() river.InsertOpts {
-	return river.InsertOpts{MaxAttempts: 5, UniqueOpts: river.UniqueOpts{ByArgs: true}}
+	return river.InsertOpts{MaxAttempts: 5, UniqueOpts: river.UniqueOpts{ByArgs: true, ByState: []rivertype.JobState{
+		rivertype.JobStateAvailable, rivertype.JobStatePending, rivertype.JobStateRetryable,
+		rivertype.JobStateRunning, rivertype.JobStateScheduled,
+	}}}
 }
 
 // TickArgs finds due runs.

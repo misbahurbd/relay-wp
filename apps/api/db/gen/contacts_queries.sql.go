@@ -12,13 +12,14 @@ import (
 	"github.com/google/uuid"
 )
 
-const addContactTagLinks = `-- name: AddContactTagLinks :execrows
+const addContactTagLinks = `-- name: AddContactTagLinks :many
 INSERT INTO contact_tag_links (workspace_id, contact_id, tag_id)
 SELECT $1, c.id, t.id
 FROM (SELECT unnest($2::uuid[]) AS contact_id, unnest($3::uuid[]) AS tag_id) AS u
 JOIN contacts c ON c.id = u.contact_id AND c.workspace_id = $1
 JOIN contact_tags t ON t.id = u.tag_id AND t.workspace_id = $1
 ON CONFLICT DO NOTHING
+RETURNING contact_id, tag_id
 `
 
 type AddContactTagLinksParams struct {
@@ -27,13 +28,31 @@ type AddContactTagLinksParams struct {
 	TagIds      []uuid.UUID
 }
 
+type AddContactTagLinksRow struct {
+	ContactID uuid.UUID
+	TagID     uuid.UUID
+}
+
 // Pairs (contact_ids[i], tag_ids[i]); pairs outside the workspace are dropped.
-func (q *Queries) AddContactTagLinks(ctx context.Context, arg AddContactTagLinksParams) (int64, error) {
-	result, err := q.db.Exec(ctx, addContactTagLinks, arg.WorkspaceID, arg.ContactIds, arg.TagIds)
+// Returns the links that are new.
+func (q *Queries) AddContactTagLinks(ctx context.Context, arg AddContactTagLinksParams) ([]AddContactTagLinksRow, error) {
+	rows, err := q.db.Query(ctx, addContactTagLinks, arg.WorkspaceID, arg.ContactIds, arg.TagIds)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return result.RowsAffected(), nil
+	defer rows.Close()
+	items := []AddContactTagLinksRow{}
+	for rows.Next() {
+		var i AddContactTagLinksRow
+		if err := rows.Scan(&i.ContactID, &i.TagID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const assignContacts = `-- name: AssignContacts :execrows
@@ -125,6 +144,27 @@ func (q *Queries) ContactAttributeKeys(ctx context.Context, arg ContactAttribute
 	return items, nil
 }
 
+const contactConsent = `-- name: ContactConsent :one
+SELECT opt_in, name FROM contacts WHERE workspace_id = $1 AND id = $2
+`
+
+type ContactConsentParams struct {
+	WorkspaceID uuid.UUID
+	ID          uuid.UUID
+}
+
+type ContactConsentRow struct {
+	OptIn string
+	Name  string
+}
+
+func (q *Queries) ContactConsent(ctx context.Context, arg ContactConsentParams) (ContactConsentRow, error) {
+	row := q.db.QueryRow(ctx, contactConsent, arg.WorkspaceID, arg.ID)
+	var i ContactConsentRow
+	err := row.Scan(&i.OptIn, &i.Name)
+	return i, err
+}
+
 const contactIDByIdentity = `-- name: ContactIDByIdentity :one
 SELECT ci.contact_id
 FROM contact_identities ci
@@ -161,22 +201,6 @@ func (q *Queries) ContactIDByPhone(ctx context.Context, arg ContactIDByPhonePara
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
-}
-
-const contactOptIn = `-- name: ContactOptIn :one
-SELECT opt_in FROM contacts WHERE workspace_id = $1 AND id = $2
-`
-
-type ContactOptInParams struct {
-	WorkspaceID uuid.UUID
-	ID          uuid.UUID
-}
-
-func (q *Queries) ContactOptIn(ctx context.Context, arg ContactOptInParams) (string, error) {
-	row := q.db.QueryRow(ctx, contactOptIn, arg.WorkspaceID, arg.ID)
-	var opt_in string
-	err := row.Scan(&opt_in)
-	return opt_in, err
 }
 
 const contactSummary = `-- name: ContactSummary :one

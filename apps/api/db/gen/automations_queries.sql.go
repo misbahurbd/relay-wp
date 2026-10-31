@@ -13,7 +13,7 @@ import (
 )
 
 const getAutomation = `-- name: GetAutomation :one
-SELECT kind, enabled, settings, updated_at
+SELECT kind, enabled, settings, paused_at, updated_at
 FROM automations
 WHERE workspace_id = $1 AND kind = $2
 `
@@ -27,6 +27,7 @@ type GetAutomationRow struct {
 	Kind      string
 	Enabled   bool
 	Settings  []byte
+	PausedAt  *time.Time
 	UpdatedAt time.Time
 }
 
@@ -37,6 +38,7 @@ func (q *Queries) GetAutomation(ctx context.Context, arg GetAutomationParams) (G
 		&i.Kind,
 		&i.Enabled,
 		&i.Settings,
+		&i.PausedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
@@ -125,7 +127,10 @@ const setAutomationEnabled = `-- name: SetAutomationEnabled :one
 INSERT INTO automations (id, workspace_id, kind, enabled, settings, updated_by)
 VALUES ($1, $2, $3, $4, $5, $6)
 ON CONFLICT (workspace_id, kind) DO UPDATE
-    SET enabled = EXCLUDED.enabled, updated_by = EXCLUDED.updated_by
+    SET enabled = EXCLUDED.enabled, updated_by = EXCLUDED.updated_by,
+        paused_at = CASE WHEN EXCLUDED.enabled THEN NULL
+                         WHEN automations.enabled THEN now()
+                         ELSE automations.paused_at END
 RETURNING kind, enabled, settings, updated_at
 `
 
