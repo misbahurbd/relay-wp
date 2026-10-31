@@ -227,6 +227,7 @@ type Querier interface {
 	GetActiveAccountID(ctx context.Context, workspaceID uuid.UUID) (uuid.UUID, error)
 	// The only query that reads code_hash. Locks the row so concurrent tries count correctly.
 	GetActiveEmailCode(ctx context.Context, arg GetActiveEmailCodeParams) (GetActiveEmailCodeRow, error)
+	GetAutomation(ctx context.Context, arg GetAutomationParams) (GetAutomationRow, error)
 	// The "add your email" step of a social sign-up. Locks the row while a code is sent.
 	GetAwaitingOAuthFlow(ctx context.Context, completionTokenHash []byte) (GetAwaitingOAuthFlowRow, error)
 	// ---------- Provider customers ----------
@@ -373,6 +374,7 @@ type Querier interface {
 	// Job only (all workspaces): subscriptions Relay renews itself (SSLCommerz).
 	ListAppRenewalsDue(ctx context.Context, arg ListAppRenewalsDueParams) ([]ListAppRenewalsDueRow, error)
 	ListAuthEvents(ctx context.Context, userID *uuid.UUID) ([]ListAuthEventsRow, error)
+	ListAutomations(ctx context.Context, workspaceID uuid.UUID) ([]ListAutomationsRow, error)
 	// ---------- Connections ----------
 	ListConnections(ctx context.Context, workspaceID uuid.UUID) ([]ListConnectionsRow, error)
 	// ---------- Tags ----------
@@ -532,7 +534,10 @@ type Querier interface {
 	// Revokes every active session of a user, optionally keeping one (the current device).
 	RevokeUserSessions(ctx context.Context, arg RevokeUserSessionsParams) (int64, error)
 	RoleBits(ctx context.Context, roleID uuid.UUID) (int64, error)
+	SaveAutomationSettings(ctx context.Context, arg SaveAutomationSettingsParams) (SaveAutomationSettingsRow, error)
 	SetAssignee(ctx context.Context, arg SetAssigneeParams) (SetAssigneeRow, error)
+	// settings is only used when the kind has no row yet.
+	SetAutomationEnabled(ctx context.Context, arg SetAutomationEnabledParams) (SetAutomationEnabledRow, error)
 	SetAvailability(ctx context.Context, arg SetAvailabilityParams) error
 	SetBillingCustomerExternalID(ctx context.Context, arg SetBillingCustomerExternalIDParams) (int64, error)
 	SetCheckoutSessionExternalID(ctx context.Context, arg SetCheckoutSessionExternalIDParams) (int64, error)

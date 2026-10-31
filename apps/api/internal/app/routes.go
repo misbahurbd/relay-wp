@@ -8,6 +8,8 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	authhandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/auth/handler"
+	automationshandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/automations/handler"
+	automationsmodel "github.com/misbahurbd/relay-wp/apps/api/internal/features/automations/model"
 	billinghandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/handler"
 	contactshandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/contacts/handler"
 	inboxhandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/inbox/handler"
@@ -108,6 +110,13 @@ func (a *App) registerRoutes(api huma.API) {
 		templateshandler.Guards{Auth: requireAuth, Member: member, Can: can}, authhandler.Security)
 	inboxhandler.Register(api, inboxhandler.NewHandler(a.inbox),
 		inboxhandler.Guards{Auth: requireAuth, Member: member, Can: can}, authhandler.Security)
+	var plans middleware.PlanAccess
+	if a.billing != nil {
+		plans = a.billing
+	}
+	automationshandler.Register(api, automationshandler.NewHandler(a.automations), automationshandler.Guards{
+		Auth: requireAuth, Member: member, Can: can, Plan: middleware.RequirePlan(api, plans, automationsmodel.PlanResource),
+	}, authhandler.Security)
 	integrationshandler.Register(api, integrationshandler.NewHandler(a.integrations, integrationshandler.CookieConfig{
 		Domain: a.cfg.Auth.CookieDomain, Secure: a.cfg.Auth.CookieSecure,
 	}), integrationshandler.Guards{

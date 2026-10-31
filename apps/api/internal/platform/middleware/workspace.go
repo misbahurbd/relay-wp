@@ -35,6 +35,8 @@ var (
 	errPermissionDenied = apperr.Forbidden("permission_denied", "Your role in this workspace can't do that")
 	errOwnerOnly        = apperr.Forbidden("owner_only", "Only the workspace owner can do that")
 	errAccessCheck      = apperr.Unavailable("membership_check_failed", "Could not check your workspace access. Try again.")
+	errPlanRequired     = apperr.PaymentRequired("plan_required", "Your plan doesn't include this. Upgrade to use it.")
+	errPlanCheck        = apperr.Unavailable("plan_check_failed", "Could not check your plan. Try again.")
 )
 
 // RequireWorkspace is a huma middleware for routes under /v1/workspace. It runs
@@ -98,6 +100,30 @@ func RequirePermission(api huma.API, perms ...authctx.Permission) func(huma.Cont
 			return
 		}
 		next(ctx)
+	}
+}
+
+// PlanAccess says whether a workspace's plan includes an access resource (ADR
+// 0008). Implemented by features/billing.
+type PlanAccess interface {
+	HasAccess(ctx context.Context, workspaceID uuid.UUID, key string) (bool, error)
+}
+
+// RequirePlan lets the request through when the workspace's plan includes key,
+// and answers 402 plan_required when it doesn't. It runs after RequireWorkspace.
+func RequirePlan(api huma.API, p PlanAccess, key string) func(huma.Context, func(huma.Context)) {
+	return func(ctx huma.Context, next func(huma.Context)) {
+		a, _ := authctx.AccessFrom(ctx.Context())
+		ok, err := p.HasAccess(ctx.Context(), a.WorkspaceID, key)
+		switch {
+		case err != nil:
+			_ = huma.WriteErr(api, ctx, http.StatusServiceUnavailable, "", errPlanCheck.Wrap(err))
+		case !ok:
+			_ = huma.WriteErr(api, ctx, http.StatusPaymentRequired, "",
+				errPlanRequired.WithDetails(apperr.Detail{Field: "resource", Message: key}))
+		default:
+			next(ctx)
+		}
 	}
 }
 

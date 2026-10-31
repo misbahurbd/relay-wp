@@ -291,8 +291,24 @@ export type AuthorizeWooInputBody = {
     store_url: string;
 };
 
+export type AutomationDto = {
+    enabled: boolean;
+    kind: 'welcome' | 'away' | 'keyword' | 'cart' | 'order' | 'drip';
+    settings: SettingsDto;
+    /**
+     * Absent until the automation is first saved
+     */
+    updated_at?: string;
+};
+
 export type AvailabilityInputBody = {
     availability: 'online' | 'away' | 'offline';
+};
+
+export type AwaySettings = {
+    hours: Array<WorkingDay> | null;
+    message: string;
+    timezone: string;
 };
 
 export type BillToDto = {
@@ -393,6 +409,14 @@ export type CardDto = {
     exp_month: number;
     exp_year: number;
     last4: string;
+};
+
+export type CartSettings = {
+    delay_minutes: number;
+    discount_code: string;
+    second_reminder: boolean;
+    template_id?: string;
+    variables: Array<Variable> | null;
 };
 
 export type CatalogOutputBody = {
@@ -866,6 +890,17 @@ export type DiscountPreviewOutputBody = {
     installments_minor: Array<number> | null;
     subtotal_minor: number;
     total_minor: number;
+};
+
+export type DripSettings = {
+    steps: Array<DripStep> | null;
+    stop_on_reply: boolean;
+    tag_id?: string;
+};
+
+export type DripStep = {
+    day: number;
+    template_id?: string;
 };
 
 export type EmailInputBody = {
@@ -1616,6 +1651,16 @@ export type KeysSummaryDto = {
     last_used_at: string | null;
 };
 
+export type KeywordRule = {
+    keywords: string;
+    match: string;
+    reply: string;
+};
+
+export type KeywordSettings = {
+    rules: Array<KeywordRule> | null;
+};
+
 export type ListOutputBody = {
     workspaces: Array<SummaryDto> | null;
 };
@@ -1627,6 +1672,13 @@ export type ListOutputBody1 = {
     counts: CountsDto;
     items: Array<TemplateDto> | null;
     next_cursor: string | null;
+};
+
+export type ListOutputBody2 = {
+    /**
+     * All six kinds in page order
+     */
+    items: Array<AutomationDto> | null;
 };
 
 export type LogDto = {
@@ -1957,6 +2009,12 @@ export type OrderQuoteOutputBody = {
      * Upgraded at checkout; what was paid is credit_minor
      */
     upgrades_order_id: string;
+};
+
+export type OrderSettings = {
+    template_id?: string;
+    trigger: string;
+    variables: Array<Variable> | null;
 };
 
 export type OverrideBody = {
@@ -2423,8 +2481,21 @@ export type SetConversationStatusInputBody = {
     status?: 'open' | 'closed';
 };
 
+export type SetEnabledInputBody = {
+    enabled: boolean;
+};
+
 export type SetPasswordInputBody = {
     new_password: string;
+};
+
+export type SettingsDto = {
+    away?: AwaySettings;
+    cart?: CartSettings;
+    drip?: DripSettings;
+    keyword?: KeywordSettings;
+    order?: OrderSettings;
+    welcome?: WelcomeSettings;
 };
 
 export type SetupErrorDto = {
@@ -2778,6 +2849,11 @@ export type UserRefDto = {
     name: string;
 };
 
+export type Variable = {
+    custom: string;
+    source: string;
+};
+
 export type VerifyCodeInputBody = {
     /**
      * web gets httpOnly cookies; mobile gets tokens in the body
@@ -2833,6 +2909,12 @@ export type WebhooksSummaryDto = {
     week_total: number;
 };
 
+export type WelcomeSettings = {
+    delay_minutes: number;
+    first_time_only: boolean;
+    message: string;
+};
+
 export type WooAuthorizeOutputBody = {
     /**
      * Open this to approve Relay in the store's admin
@@ -2850,6 +2932,13 @@ export type WooCallbackInputBody = {
      */
     user_id: string;
     [key: string]: unknown;
+};
+
+export type WorkingDay = {
+    day: string;
+    from: string;
+    open: boolean;
+    to: string;
 };
 
 export type WorkspaceDto = {
@@ -4766,6 +4855,94 @@ export type GetAccessLogSummaryResponses = {
 };
 
 export type GetAccessLogSummaryResponse = GetAccessLogSummaryResponses[keyof GetAccessLogSummaryResponses];
+
+export type ListAutomationsData = {
+    body?: never;
+    headers: {
+        'X-Workspace-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/workspace/automations';
+};
+
+export type ListAutomationsErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type ListAutomationsError = ListAutomationsErrors[keyof ListAutomationsErrors];
+
+export type ListAutomationsResponses = {
+    /**
+     * OK
+     */
+    200: ListOutputBody2;
+};
+
+export type ListAutomationsResponse = ListAutomationsResponses[keyof ListAutomationsResponses];
+
+export type SaveAutomationData = {
+    body: SettingsDto;
+    headers: {
+        'X-Workspace-ID': string;
+    };
+    path: {
+        kind: 'welcome' | 'away' | 'keyword' | 'cart' | 'order' | 'drip';
+    };
+    query?: never;
+    url: '/v1/workspace/automations/{kind}';
+};
+
+export type SaveAutomationErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SaveAutomationError = SaveAutomationErrors[keyof SaveAutomationErrors];
+
+export type SaveAutomationResponses = {
+    /**
+     * OK
+     */
+    200: AutomationDto;
+};
+
+export type SaveAutomationResponse = SaveAutomationResponses[keyof SaveAutomationResponses];
+
+export type SetAutomationEnabledData = {
+    body: SetEnabledInputBody;
+    headers: {
+        'X-Workspace-ID': string;
+    };
+    path: {
+        kind: 'welcome' | 'away' | 'keyword' | 'cart' | 'order' | 'drip';
+    };
+    query?: never;
+    url: '/v1/workspace/automations/{kind}/enabled';
+};
+
+export type SetAutomationEnabledErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type SetAutomationEnabledError = SetAutomationEnabledErrors[keyof SetAutomationEnabledErrors];
+
+export type SetAutomationEnabledResponses = {
+    /**
+     * OK
+     */
+    200: AutomationDto;
+};
+
+export type SetAutomationEnabledResponse = SetAutomationEnabledResponses[keyof SetAutomationEnabledResponses];
 
 export type GetBillingOverviewData = {
     body?: never;

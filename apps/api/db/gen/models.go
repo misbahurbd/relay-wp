@@ -86,6 +86,17 @@ type AuthSession struct {
 	CreatedAt       time.Time
 }
 
+type Automation struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	Kind        string
+	Enabled     bool
+	Settings    []byte
+	UpdatedBy   *uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
 type BillingCustomer struct {
 	ID                 uuid.UUID
 	WorkspaceID        uuid.UUID

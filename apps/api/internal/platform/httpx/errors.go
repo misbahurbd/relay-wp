@@ -98,6 +98,8 @@ func statusFor(k apperr.Kind) int {
 		return http.StatusBadRequest
 	case apperr.KindNotImplemented:
 		return http.StatusNotImplemented
+	case apperr.KindPaymentRequired:
+		return http.StatusPaymentRequired
 	default:
 		return http.StatusInternalServerError
 	}

@@ -98,6 +98,20 @@ func (s *Service) Limit(ctx context.Context, workspaceID uuid.UUID, key string) 
 	return p.Limits.Of(key), nil
 }
 
+// HasAccess says whether the current plan includes access resource key. The
+// RequirePlan middleware calls it (ADR 0008).
+func (s *Service) HasAccess(ctx context.Context, workspaceID uuid.UUID, key string) (bool, error) {
+	r, ok := model.ResourceByKey(key)
+	if !ok || r.Kind != model.KindAccess {
+		return false, fmt.Errorf("plan access: %q is not an access resource", key)
+	}
+	limit, err := s.Limit(ctx, workspaceID, key)
+	if err != nil {
+		return false, err
+	}
+	return limit != 0, nil
+}
+
 // DeletionCheck says whether the workspace can be deleted (Q17): not while a
 // subscription is live, and only with confirmation while it has a lifetime
 // deal. For features/workspaces, through an interface it declares (T8).
