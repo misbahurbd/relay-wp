@@ -44,6 +44,15 @@ func (s *Service) AutomationConversation(ctx context.Context, workspaceID, id uu
 // open window, and leaves the chat waiting for a person. Without a conversation
 // it uses the contact's latest, or starts one.
 func (s *Service) SendAutomated(ctx context.Context, tx pgx.Tx, in model.AutomatedText) error {
+	// The engine commits tx to record a failed run, so a failed send must not
+	// leave the chat it opened behind.
+	if err := pgx.BeginFunc(ctx, tx, func(sp pgx.Tx) error { return s.sendAutomated(ctx, sp, in) }); err != nil {
+		return fmt.Errorf("send automated: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) sendAutomated(ctx context.Context, tx pgx.Tx, in model.AutomatedText) error {
 	r := repository.NewRepository(tx)
 	ws := in.WorkspaceID
 	convID, err := s.automationConversation(ctx, r, in)

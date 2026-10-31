@@ -909,6 +909,11 @@
       "AutomationDTO": {
         "additionalProperties": false,
         "properties": {
+          "active": {
+            "description": "Contacts still waiting in this automation",
+            "format": "int64",
+            "type": "integer"
+          },
           "enabled": {
             "type": "boolean"
           },
@@ -968,6 +973,7 @@
           "sent",
           "failed",
           "read",
+          "active",
           "recovered",
           "recovered_minor",
           "recovered_currency"

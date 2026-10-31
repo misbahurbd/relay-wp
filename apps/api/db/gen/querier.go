@@ -14,9 +14,11 @@ import (
 type Querier interface {
 	AcceptInvitation(ctx context.Context, arg AcceptInvitationParams) error
 	AccessLogSummary(ctx context.Context, arg AccessLogSummaryParams) (AccessLogSummaryRow, error)
+	ActiveRuns(ctx context.Context, workspaceID uuid.UUID) ([]ActiveRunsRow, error)
 	AddContactImportProgress(ctx context.Context, arg AddContactImportProgressParams) error
 	// Pairs (contact_ids[i], tag_ids[i]); pairs outside the workspace are dropped.
-	AddContactTagLinks(ctx context.Context, arg AddContactTagLinksParams) (int64, error)
+	// Returns the links that are new.
+	AddContactTagLinks(ctx context.Context, arg AddContactTagLinksParams) ([]AddContactTagLinksRow, error)
 	AddInvitationNumbers(ctx context.Context, arg AddInvitationNumbersParams) error
 	AddInvitationOverrides(ctx context.Context, arg AddInvitationOverridesParams) error
 	AddInvitationTeams(ctx context.Context, arg AddInvitationTeamsParams) error
@@ -52,6 +54,7 @@ type Querier interface {
 	// The order came before any reminder went.
 	CancelCartRun(ctx context.Context, arg CancelCartRunParams) error
 	CancelContactRuns(ctx context.Context, arg CancelContactRunsParams) error
+	CancelDripRuns(ctx context.Context, arg CancelDripRunsParams) error
 	// An upgraded or refunded order: what is still open will never be collected.
 	CancelOpenInstallments(ctx context.Context, arg CancelOpenInstallmentsParams) (int64, error)
 	CancelSubscriptionNow(ctx context.Context, arg CancelSubscriptionNowParams) (int64, error)
@@ -67,10 +70,10 @@ type Querier interface {
 	ConsumePendingOAuthFlow(ctx context.Context, arg ConsumePendingOAuthFlowParams) (ConsumePendingOAuthFlowRow, error)
 	// Every custom-field key among the matching contacts, for the export's columns.
 	ContactAttributeKeys(ctx context.Context, arg ContactAttributeKeysParams) ([]string, error)
+	ContactConsent(ctx context.Context, arg ContactConsentParams) (ContactConsentRow, error)
 	// The contact a channel's sender is (ADR 0010).
 	ContactIDByIdentity(ctx context.Context, arg ContactIDByIdentityParams) (uuid.UUID, error)
 	ContactIDByPhone(ctx context.Context, arg ContactIDByPhoneParams) (uuid.UUID, error)
-	ContactOptIn(ctx context.Context, arg ContactOptInParams) (string, error)
 	ContactSummary(ctx context.Context, workspaceID uuid.UUID) (ContactSummaryRow, error)
 	CountActiveAPIKeys(ctx context.Context, workspaceID uuid.UUID) (int64, error)
 	// How many of ids are tags of this workspace.
@@ -197,8 +200,10 @@ type Querier interface {
 	DisconnectAccountNumbers(ctx context.Context, arg DisconnectAccountNumbersParams) error
 	DisconnectConnection(ctx context.Context, arg DisconnectConnectionParams) (int64, error)
 	DisconnectWhatsAppAccount(ctx context.Context, arg DisconnectWhatsAppAccountParams) error
+	// A paused drip holds its runs where they are.
 	DueRuns(ctx context.Context, arg DueRunsParams) ([]DueRunsRow, error)
 	EndGrant(ctx context.Context, arg EndGrantParams) (int64, error)
+	EnrolDrip(ctx context.Context, arg EnrolDripParams) error
 	// Returns the workspace's customer row for provider, creating it on first use.
 	EnsureBillingCustomer(ctx context.Context, arg EnsureBillingCustomerParams) (EnsureBillingCustomerRow, error)
 	ExistingContactPhones(ctx context.Context, arg ExistingContactPhonesParams) ([]ExistingContactPhonesRow, error)
@@ -627,6 +632,8 @@ type Querier interface {
 	// workspaces.plan and trial_ends_at are a cache of the current grant (Q8):
 	// written only in the same transaction as the grant change.
 	SetWorkspacePlanCache(ctx context.Context, arg SetWorkspacePlanCacheParams) (int64, error)
+	// Resuming moves every date on by the time paused, so nobody gets a burst.
+	ShiftDripRuns(ctx context.Context, arg ShiftDripRunsParams) error
 	SkipWhatsAppStep(ctx context.Context, workspaceID uuid.UUID) error
 	StartContactImport(ctx context.Context, arg StartContactImportParams) (int64, error)
 	// Pending and succeeded refunds; never more than the invoice total.
@@ -680,7 +687,8 @@ type Querier interface {
 	// order) counts as unread but doesn't replace the preview. window_expires_at is
 	// at + the channel's window, NULL for a channel without one. prev_window_expires_at
 	// is the window before this message (the epoch for a new chat or no window), so
-	// the service can say it reopened.
+	// the service can say it reopened. prev only runs for RETURNING, after the update,
+	// so FOR UPDATE here would skip the row this statement just changed.
 	UpsertInboundConversation(ctx context.Context, arg UpsertInboundConversationParams) (UpsertInboundConversationRow, error)
 	// A null flag leaves that column as it is; true stamps it once; false clears it.
 	UpsertMemberState(ctx context.Context, arg UpsertMemberStateParams) error

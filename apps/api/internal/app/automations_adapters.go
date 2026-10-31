@@ -75,6 +75,11 @@ func (c automationsContacts) FindOrCreateByPhone(ctx context.Context, workspaceI
 	return id, err
 }
 
+func (c automationsContacts) Contact(ctx context.Context, workspaceID, contactID uuid.UUID) (automationsmodel.Contact, error) {
+	optIn, name, err := c.Consent(ctx, workspaceID, contactID)
+	return automationsmodel.Contact{OptIn: optIn, Name: name}, err
+}
+
 // automationsCommerce passes store events to automations.
 type automationsCommerce struct{ automations *automationsservice.Service }
 

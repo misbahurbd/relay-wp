@@ -118,14 +118,16 @@ UPDATE contacts
 SET assigned_to = sqlc.narg(user_id)
 WHERE workspace_id = @workspace_id AND id = ANY(@ids::uuid[]);
 
--- name: AddContactTagLinks :execrows
+-- name: AddContactTagLinks :many
 -- Pairs (contact_ids[i], tag_ids[i]); pairs outside the workspace are dropped.
+-- Returns the links that are new.
 INSERT INTO contact_tag_links (workspace_id, contact_id, tag_id)
 SELECT @workspace_id, c.id, t.id
 FROM (SELECT unnest(@contact_ids::uuid[]) AS contact_id, unnest(@tag_ids::uuid[]) AS tag_id) AS u
 JOIN contacts c ON c.id = u.contact_id AND c.workspace_id = @workspace_id
 JOIN contact_tags t ON t.id = u.tag_id AND t.workspace_id = @workspace_id
-ON CONFLICT DO NOTHING;
+ON CONFLICT DO NOTHING
+RETURNING contact_id, tag_id;
 
 -- name: RemoveContactTagLinks :execrows
 DELETE FROM contact_tag_links
@@ -202,5 +204,5 @@ UPDATE contacts
 SET opt_in = 'out', opt_in_source = @source, opt_in_at = now()
 WHERE workspace_id = @workspace_id AND id = @id AND opt_in <> 'out';
 
--- name: ContactOptIn :one
-SELECT opt_in FROM contacts WHERE workspace_id = @workspace_id AND id = @id;
+-- name: ContactConsent :one
+SELECT opt_in, name FROM contacts WHERE workspace_id = @workspace_id AND id = @id;

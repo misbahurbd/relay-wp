@@ -13,6 +13,7 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
 
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/database"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/storage"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/shared/authctx"
 )
@@ -35,8 +36,18 @@ type Service struct {
 	queue   Enqueuer
 	members Members
 	plans   PlanLimits
+	tags    TagListener
 	now     func() time.Time
 }
+
+// TagListener hears who was newly given a tag, on the same db as the tagging.
+// Implemented by features/automations.
+type TagListener interface {
+	OnTagged(ctx context.Context, db database.DBTX, workspaceID, tagID uuid.UUID, contactIDs []uuid.UUID) error
+}
+
+// SetTagListener connects the listener, which is built after this service.
+func (s *Service) SetTagListener(l TagListener) { s.tags = l }
 
 // New builds the service.
 func New(pool *pgxpool.Pool, store storage.Storage, queue Enqueuer, members Members) *Service {

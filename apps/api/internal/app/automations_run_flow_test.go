@@ -90,12 +90,13 @@ func newAutomationsEnv(t *testing.T) *inboxEnv {
 	return v
 }
 
-// clearJobs finishes this workspace's jobs after the test, because the queue
-// table is shared with the other flow tests.
+// clearJobs finishes this workspace's jobs and runs after the test, because the
+// tables are shared with the other flow tests and the tick reads every workspace.
 func clearJobs(v *inboxEnv) {
 	v.e.t.Cleanup(func() {
 		v.e.exec(`UPDATE river_job SET state = 'completed', finalized_at = now()
 			WHERE state = 'available' AND args->>'workspace_id' = $1`, v.wsID.String())
+		v.e.exec(`UPDATE automation_runs SET state = 'cancelled', next_at = NULL WHERE workspace_id = $1 AND state = 'scheduled'`, v.wsID)
 	})
 }
 

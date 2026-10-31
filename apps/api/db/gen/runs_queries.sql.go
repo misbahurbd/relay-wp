@@ -12,6 +12,38 @@ import (
 	"github.com/google/uuid"
 )
 
+const activeRuns = `-- name: ActiveRuns :many
+SELECT kind, count(id) AS active
+FROM automation_runs
+WHERE workspace_id = $1 AND state = 'scheduled'
+GROUP BY kind
+`
+
+type ActiveRunsRow struct {
+	Kind   string
+	Active int64
+}
+
+func (q *Queries) ActiveRuns(ctx context.Context, workspaceID uuid.UUID) ([]ActiveRunsRow, error) {
+	rows, err := q.db.Query(ctx, activeRuns, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ActiveRunsRow{}
+	for rows.Next() {
+		var i ActiveRunsRow
+		if err := rows.Scan(&i.Kind, &i.Active); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const advanceRun = `-- name: AdvanceRun :exec
 UPDATE automation_runs
 SET step = step + 1, next_at = $1
@@ -60,6 +92,22 @@ type CancelContactRunsParams struct {
 
 func (q *Queries) CancelContactRuns(ctx context.Context, arg CancelContactRunsParams) error {
 	_, err := q.db.Exec(ctx, cancelContactRuns, arg.Reason, arg.WorkspaceID, arg.ContactID)
+	return err
+}
+
+const cancelDripRuns = `-- name: CancelDripRuns :exec
+UPDATE automation_runs
+SET state = 'cancelled', reason = 'replied', next_at = NULL
+WHERE workspace_id = $1 AND contact_id = $2 AND kind = 'drip' AND state = 'scheduled'
+`
+
+type CancelDripRunsParams struct {
+	WorkspaceID uuid.UUID
+	ContactID   *uuid.UUID
+}
+
+func (q *Queries) CancelDripRuns(ctx context.Context, arg CancelDripRunsParams) error {
+	_, err := q.db.Exec(ctx, cancelDripRuns, arg.WorkspaceID, arg.ContactID)
 	return err
 }
 
@@ -123,10 +171,12 @@ func (q *Queries) CountRecentReplies(ctx context.Context, arg CountRecentReplies
 }
 
 const dueRuns = `-- name: DueRuns :many
-SELECT workspace_id, id, step
-FROM automation_runs
-WHERE state = 'scheduled' AND next_at <= $1::timestamptz
-ORDER BY next_at
+SELECT r.workspace_id, r.id, r.step
+FROM automation_runs r
+WHERE r.state = 'scheduled' AND r.next_at <= $1::timestamptz
+  AND NOT EXISTS (SELECT 1 FROM automations a
+                  WHERE a.workspace_id = r.workspace_id AND a.kind = r.kind AND a.kind = 'drip' AND NOT a.enabled)
+ORDER BY r.next_at
 LIMIT $2
 `
 
@@ -141,6 +191,7 @@ type DueRunsRow struct {
 	Step        int32
 }
 
+// A paused drip holds its runs where they are.
 func (q *Queries) DueRuns(ctx context.Context, arg DueRunsParams) ([]DueRunsRow, error) {
 	rows, err := q.db.Query(ctx, dueRuns, arg.Now, arg.PageSize)
 	if err != nil {
@@ -159,6 +210,33 @@ func (q *Queries) DueRuns(ctx context.Context, arg DueRunsParams) ([]DueRunsRow,
 		return nil, err
 	}
 	return items, nil
+}
+
+const enrolDrip = `-- name: EnrolDrip :exec
+INSERT INTO automation_runs (id, workspace_id, kind, contact_id, dedupe_key, state, next_at)
+SELECT u.id, $1, 'drip', u.contact_id, u.dedupe_key, 'scheduled', $2
+FROM (SELECT unnest($3::uuid[]) AS id, unnest($4::uuid[]) AS contact_id,
+             unnest($5::text[]) AS dedupe_key) AS u
+ON CONFLICT (workspace_id, dedupe_key) DO NOTHING
+`
+
+type EnrolDripParams struct {
+	WorkspaceID uuid.UUID
+	NextAt      *time.Time
+	Ids         []uuid.UUID
+	ContactIds  []uuid.UUID
+	DedupeKeys  []string
+}
+
+func (q *Queries) EnrolDrip(ctx context.Context, arg EnrolDripParams) error {
+	_, err := q.db.Exec(ctx, enrolDrip,
+		arg.WorkspaceID,
+		arg.NextAt,
+		arg.Ids,
+		arg.ContactIds,
+		arg.DedupeKeys,
+	)
+	return err
 }
 
 const finishRun = `-- name: FinishRun :exec
@@ -348,6 +426,23 @@ func (q *Queries) RunStats(ctx context.Context, arg RunStatsParams) ([]RunStatsR
 		return nil, err
 	}
 	return items, nil
+}
+
+const shiftDripRuns = `-- name: ShiftDripRuns :exec
+UPDATE automation_runs
+SET next_at = next_at + make_interval(secs => $1::float8)
+WHERE workspace_id = $2 AND kind = 'drip' AND state = 'scheduled'
+`
+
+type ShiftDripRunsParams struct {
+	PausedSeconds float64
+	WorkspaceID   uuid.UUID
+}
+
+// Resuming moves every date on by the time paused, so nobody gets a burst.
+func (q *Queries) ShiftDripRuns(ctx context.Context, arg ShiftDripRunsParams) error {
+	_, err := q.db.Exec(ctx, shiftDripRuns, arg.PausedSeconds, arg.WorkspaceID)
+	return err
 }
 
 const upsertCartRun = `-- name: UpsertCartRun :exec

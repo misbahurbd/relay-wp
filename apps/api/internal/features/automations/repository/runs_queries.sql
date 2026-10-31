@@ -27,6 +27,30 @@ SET recovered_minor = @amount_minor, recovered_currency = @currency, state = 'do
 WHERE workspace_id = @workspace_id AND dedupe_key = @dedupe_key AND recovered_minor IS NULL
   AND (state = 'done' OR (state = 'scheduled' AND step > 0));
 
+-- name: EnrolDrip :exec
+INSERT INTO automation_runs (id, workspace_id, kind, contact_id, dedupe_key, state, next_at)
+SELECT u.id, @workspace_id, 'drip', u.contact_id, u.dedupe_key, 'scheduled', @next_at
+FROM (SELECT unnest(@ids::uuid[]) AS id, unnest(@contact_ids::uuid[]) AS contact_id,
+             unnest(@dedupe_keys::text[]) AS dedupe_key) AS u
+ON CONFLICT (workspace_id, dedupe_key) DO NOTHING;
+
+-- name: CancelDripRuns :exec
+UPDATE automation_runs
+SET state = 'cancelled', reason = 'replied', next_at = NULL
+WHERE workspace_id = @workspace_id AND contact_id = @contact_id AND kind = 'drip' AND state = 'scheduled';
+
+-- name: ShiftDripRuns :exec
+-- Resuming moves every date on by the time paused, so nobody gets a burst.
+UPDATE automation_runs
+SET next_at = next_at + make_interval(secs => @paused_seconds::float8)
+WHERE workspace_id = @workspace_id AND kind = 'drip' AND state = 'scheduled';
+
+-- name: ActiveRuns :many
+SELECT kind, count(id) AS active
+FROM automation_runs
+WHERE workspace_id = @workspace_id AND state = 'scheduled'
+GROUP BY kind;
+
 -- name: AdvanceRun :exec
 UPDATE automation_runs
 SET step = step + 1, next_at = @next_at
@@ -45,10 +69,13 @@ SET state = @state, reason = sqlc.narg(reason), next_at = NULL
 WHERE workspace_id = @workspace_id AND id = @id;
 
 -- name: DueRuns :many
-SELECT workspace_id, id, step
-FROM automation_runs
-WHERE state = 'scheduled' AND next_at <= @now::timestamptz
-ORDER BY next_at
+-- A paused drip holds its runs where they are.
+SELECT r.workspace_id, r.id, r.step
+FROM automation_runs r
+WHERE r.state = 'scheduled' AND r.next_at <= @now::timestamptz
+  AND NOT EXISTS (SELECT 1 FROM automations a
+                  WHERE a.workspace_id = r.workspace_id AND a.kind = r.kind AND a.kind = 'drip' AND NOT a.enabled)
+ORDER BY r.next_at
 LIMIT @page_size;
 
 -- name: CancelContactRuns :exec

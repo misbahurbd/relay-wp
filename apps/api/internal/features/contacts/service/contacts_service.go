@@ -333,8 +333,9 @@ func uniqueIDs(ids []uuid.UUID) []uuid.UUID {
 	return out
 }
 
-// linkTags gives every contact every tag.
-func linkTags(ctx context.Context, r repository.Repository, workspaceID uuid.UUID, contactIDs, tagIDs []uuid.UUID) (int64, error) {
+// linkTags gives every contact every tag on db, and tells the listener who is
+// newly tagged, so that commits or rolls back with the tags.
+func (s *Service) linkTags(ctx context.Context, db database.DBTX, workspaceID uuid.UUID, contactIDs, tagIDs []uuid.UUID) (int64, error) {
 	if len(contactIDs) == 0 || len(tagIDs) == 0 {
 		return 0, nil
 	}
@@ -345,11 +346,22 @@ func linkTags(ctx context.Context, r repository.Repository, workspaceID uuid.UUI
 			cs, ts = append(cs, c), append(ts, t)
 		}
 	}
-	n, err := r.AddContactTagLinks(ctx, gen.AddContactTagLinksParams{WorkspaceID: workspaceID, ContactIds: cs, TagIds: ts})
+	rows, err := repository.NewRepository(db).AddContactTagLinks(ctx, gen.AddContactTagLinksParams{WorkspaceID: workspaceID, ContactIds: cs, TagIds: ts})
 	if err != nil {
 		return 0, fmt.Errorf("tag contacts: %w", err)
 	}
-	return n, nil
+	if s.tags != nil {
+		byTag := make(map[uuid.UUID][]uuid.UUID, len(tagIDs))
+		for _, l := range rows {
+			byTag[l.TagID] = append(byTag[l.TagID], l.ContactID)
+		}
+		for tag, contacts := range byTag {
+			if err := s.tags.OnTagged(ctx, db, workspaceID, tag, contacts); err != nil {
+				return 0, fmt.Errorf("tag listener: %w", err)
+			}
+		}
+	}
+	return int64(len(rows)), nil
 }
 
 // Create adds a contact by hand.
@@ -399,7 +411,7 @@ func (s *Service) Create(ctx context.Context, workspaceID uuid.UUID, in model.Co
 			}
 			return fmt.Errorf("create contact: %w", err)
 		}
-		if _, err := linkTags(ctx, r, workspaceID, []uuid.UUID{id}, tagIDs); err != nil {
+		if _, err := s.linkTags(ctx, tx, workspaceID, []uuid.UUID{id}, tagIDs); err != nil {
 			return err
 		}
 		detail, err = s.get(ctx, tx, workspaceID, id)
@@ -449,7 +461,7 @@ func (s *Service) Update(ctx context.Context, workspaceID, id uuid.UUID, in mode
 			if err := r.ClearContactTags(ctx, gen.ClearContactTagsParams{WorkspaceID: workspaceID, ContactID: id}); err != nil {
 				return fmt.Errorf("clear contact tags: %w", err)
 			}
-			if _, err := linkTags(ctx, r, workspaceID, []uuid.UUID{id}, tagIDs); err != nil {
+			if _, err := s.linkTags(ctx, tx, workspaceID, []uuid.UUID{id}, tagIDs); err != nil {
 				return err
 			}
 		}
@@ -504,7 +516,7 @@ func (s *Service) Bulk(ctx context.Context, actor authctx.Access, b model.Bulk) 
 			return 0, err
 		}
 		if b.Action == model.BulkAddTag {
-			return linkTags(ctx, r, ws, ids, []uuid.UUID{*b.TagID})
+			return s.linkTags(ctx, s.pool, ws, ids, []uuid.UUID{*b.TagID})
 		}
 		n, err := r.RemoveContactTagLinks(ctx, gen.RemoveContactTagLinksParams{WorkspaceID: ws, TagID: *b.TagID, ContactIds: ids})
 		if err != nil {

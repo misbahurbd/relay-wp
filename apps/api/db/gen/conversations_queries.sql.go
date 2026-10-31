@@ -665,7 +665,6 @@ WITH prev AS (
     SELECT window_expires_at FROM conversations
     WHERE workspace_id = $2 AND contact_id = $3
       AND channel_type = $4 AND channel_id = $5
-    FOR UPDATE
 )
 INSERT INTO conversations (id, workspace_id, contact_id, channel_type, channel_id, status, source, last_message_at,
                            last_message_preview, last_message_direction, last_inbound_at, window_expires_at,
@@ -716,7 +715,8 @@ type UpsertInboundConversationRow struct {
 // order) counts as unread but doesn't replace the preview. window_expires_at is
 // at + the channel's window, NULL for a channel without one. prev_window_expires_at
 // is the window before this message (the epoch for a new chat or no window), so
-// the service can say it reopened.
+// the service can say it reopened. prev only runs for RETURNING, after the update,
+// so FOR UPDATE here would skip the row this statement just changed.
 func (q *Queries) UpsertInboundConversation(ctx context.Context, arg UpsertInboundConversationParams) (UpsertInboundConversationRow, error) {
 	row := q.db.QueryRow(ctx, upsertInboundConversation,
 		arg.ID,

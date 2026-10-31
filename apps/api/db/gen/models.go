@@ -95,6 +95,7 @@ type Automation struct {
 	UpdatedBy   *uuid.UUID
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+	PausedAt    *time.Time
 }
 
 type AutomationRun struct {

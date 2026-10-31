@@ -29,8 +29,8 @@ export function ConversationRow({
   const name = c.contact.name || c.contact.phone
   const unread = c.unread_count > 0
   const lastOut = c.last_message_direction === 'out'
-  // Waiting only counts while the customer has the last word and the chat isn't closed.
-  const wait = !lastOut && c.status !== 'closed' ? waitingMinutes(c.waiting_since, now) : null
+  // An agent's reply clears waiting_since; an automated one leaves the customer waiting.
+  const wait = c.status !== 'closed' ? waitingMinutes(c.waiting_since, now) : null
 
   return (
     <button
