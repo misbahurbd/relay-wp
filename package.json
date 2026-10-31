@@ -6,6 +6,7 @@
     "node": ">=24"
   },
   "scripts": {
+    "dev": "task dev",
     "check": "biome check .",
     "check:fix": "biome check --write .",
     "typecheck": "pnpm -r typecheck"
