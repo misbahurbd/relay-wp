@@ -23,6 +23,7 @@ import (
 
 	authhandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/auth/handler"
 	authservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/auth/service"
+	automationsservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/automations/service"
 	billingservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/service"
 	contactsservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/contacts/service"
 	inboxservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/inbox/service"
@@ -81,6 +82,7 @@ type App struct {
 	billing      *billingservice.Service
 	contacts     *contactsservice.Service
 	templates    *templatesservice.Service
+	automations  *automationsservice.Service
 	integrations *integrationsservice.Service
 	inbox        *inboxservice.Service
 	// live fans inbox signals out to SSE streams; API processes only.
@@ -161,6 +163,7 @@ func (a *App) buildFeatures() (err error) {
 	}
 	// Templates reach Meta through whatsapp, and hear its status webhooks (AD-9).
 	a.templates = templatesservice.New(a.db, metaTemplates{wa: a.whatsapp}, a.storage)
+	a.automations = automationsservice.New(a.db)
 	a.whatsapp.SetTemplateStatusSink(a.templates)
 	if err := a.buildBilling(); err != nil {
 		return err

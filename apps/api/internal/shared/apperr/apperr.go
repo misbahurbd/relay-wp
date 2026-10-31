@@ -22,6 +22,7 @@ const (
 	KindUnavailable
 	KindBadRequest
 	KindNotImplemented
+	KindPaymentRequired
 )
 
 // Detail describes one problem, usually tied to an input field.
@@ -90,6 +91,9 @@ func BadRequest(code, msg string) *Error { return newErr(KindBadRequest, code, m
 
 // NotImplemented reports an endpoint that exists but isn't built yet.
 func NotImplemented(code, msg string) *Error { return newErr(KindNotImplemented, code, msg) }
+
+// PaymentRequired means the workspace's plan does not include this.
+func PaymentRequired(code, msg string) *Error { return newErr(KindPaymentRequired, code, msg) }
 
 // As returns the *Error in err's chain, if any.
 func As(err error) (*Error, bool) {
