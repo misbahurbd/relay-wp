@@ -133,6 +133,29 @@ func TestWelcomeSendsOnceAndKeepsTheChatWaiting(t *testing.T) {
 	}
 }
 
+func TestReturningWelcomeWaitsForTheWindowToClose(t *testing.T) {
+	v := newAutomationsEnv(t)
+	v.turnOn("welcome", map[string]any{"message": "Hi {{name}}!", "delay_minutes": 0, "first_time_only": false})
+	v.inbound("wamid.1", "15551230001", "hello")
+	v.runAutomations()
+	v.inbound("wamid.2", "15551230001", "still here")
+	v.runAutomations()
+	if v.automated() != 1 {
+		t.Fatalf("a message inside the window was welcomed: automated = %d", v.automated())
+	}
+	reopened := `SELECT count(*) FROM messages WHERE workspace_id = $1 AND content->'event'->>'action' = 'window_reopened'`
+	if n := v.count(reopened, v.wsID); n != 0 {
+		t.Fatalf("window_reopened inside the window: %d", n)
+	}
+
+	v.e.exec(`UPDATE conversations SET window_expires_at = now() - interval '1 hour' WHERE workspace_id = $1`, v.wsID)
+	v.inbound("wamid.3", "15551230001", "back again")
+	v.runAutomations()
+	if v.automated() != 2 || v.count(reopened, v.wsID) != 1 {
+		t.Fatalf("return not noticed: automated = %d", v.automated())
+	}
+}
+
 func TestProcessRunTwiceSendsOnce(t *testing.T) {
 	v := newAutomationsEnv(t)
 	v.turnOn("welcome", welcome)
