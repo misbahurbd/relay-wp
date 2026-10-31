@@ -1,5 +1,6 @@
 import { DownloadIcon, Loader2Icon } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { Button } from '#/components/ui/button'
 import { useMediaUrl } from '../../hooks/use-media-url'
 import type { Message } from '../../types'
 import { formatSize } from '../kit/format'
@@ -108,7 +109,8 @@ export function MediaDocument({ workspaceId, conversationId, message }: Props) {
           {isError && ' · download failed'}
         </span>
       </span>
-      <button
+      <Button
+        variant="unstyled"
         type="button"
         disabled={!ready || isLoading}
         onClick={() => setWanted(true)}
@@ -120,7 +122,7 @@ export function MediaDocument({ workspaceId, conversationId, message }: Props) {
         ) : (
           <DownloadIcon className="size-4" aria-hidden="true" />
         )}
-      </button>
+      </Button>
     </div>
   )
 }

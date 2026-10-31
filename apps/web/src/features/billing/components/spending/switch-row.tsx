@@ -1,3 +1,4 @@
+import { Button } from '#/components/ui/button'
 import { cn } from '#/lib/utils'
 
 /** The design's on/off switch: a 48×28 track, green when on, with a white knob. */
@@ -11,7 +12,8 @@ export function Switch({
   onChange: (checked: boolean) => void
 }) {
   return (
-    <button
+    <Button
+      variant="unstyled"
       type="button"
       role="switch"
       aria-checked={checked}
@@ -23,7 +25,7 @@ export function Switch({
       )}
     >
       <span className="size-[22px] rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,.2)]" />
-    </button>
+    </Button>
   )
 }
 

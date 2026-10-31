@@ -1,5 +1,7 @@
 import { SearchIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -42,7 +44,8 @@ export function ContactsToolbar({
       <label className="flex h-10 max-w-[380px] min-w-0 flex-[1_1_260px] items-center gap-2 rounded-[10px] border border-input bg-card px-3 text-muted-foreground focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
         <SearchIcon className="size-4 flex-none" aria-hidden="true" />
         <span className="sr-only">Search contacts</span>
-        <input
+        <Input
+          unstyled
           type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -57,7 +60,8 @@ export function ContactsToolbar({
           {OPT_IN_FILTERS.map((f) => {
             const on = filter.opt_in === f.value
             return (
-              <button
+              <Button
+                variant="unstyled"
                 key={f.label}
                 type="button"
                 aria-pressed={on}
@@ -70,7 +74,7 @@ export function ContactsToolbar({
                 )}
               >
                 {f.label}
-              </button>
+              </Button>
             )
           })}
         </fieldset>

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { Button } from '#/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -153,13 +154,14 @@ export function WebhooksPanel({ id, workspaceId }: { id: string; workspaceId: st
                 />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button
+                    <Button
+                      variant="unstyled"
                       type="button"
                       aria-label={`Actions for ${e.url}`}
                       className="flex size-8 flex-none items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
                       <MoreVerticalIcon className="size-4" aria-hidden="true" />
-                    </button>
+                    </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onSelect={() => setOpen({ kind: 'edit', endpoint: e })}>

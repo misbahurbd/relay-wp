@@ -1,6 +1,7 @@
 import { XIcon } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { toast } from 'sonner'
+import { Button } from '#/components/ui/button'
 import {
   Sheet,
   SheetClose,
@@ -91,21 +92,23 @@ export function AutomationDrawer({
             {automation.kind === 'drip' && <DripForm {...form} />}
           </div>
           <div className="flex justify-end gap-2.5 border-t px-[22px] py-4">
-            <button
+            <Button
+              variant="unstyled"
               type="button"
               onClick={onClose}
               className="h-11 rounded-[10px] border bg-card px-[18px] font-bold hover:bg-muted"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="unstyled"
               type="submit"
               disabled={!canEdit || save.isPending}
               title={canEdit ? undefined : "Your role can't edit automations"}
               className="h-11 rounded-[10px] bg-primary px-5 font-bold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {save.isPending ? 'Saving…' : 'Save changes'}
-            </button>
+            </Button>
           </div>
         </form>
       </SheetContent>

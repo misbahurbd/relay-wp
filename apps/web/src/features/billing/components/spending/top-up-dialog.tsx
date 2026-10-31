@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button } from '#/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '#/components/ui/dialog'
+import { Input } from '#/components/ui/input'
 import { cn } from '#/lib/utils'
 import type { Wallet, WalletOutlook } from '../../types'
 import { formatMoney } from '../kit/money'
@@ -50,7 +51,8 @@ export function TopUpDialog({
             {chips.map((c) => {
               const on = c.value === choice
               return (
-                <button
+                <Button
+                  variant="unstyled"
                   key={c.value}
                   type="button"
                   aria-pressed={on}
@@ -61,7 +63,7 @@ export function TopUpDialog({
                   )}
                 >
                   {c.label}
-                </button>
+                </Button>
               )
             })}
           </div>
@@ -70,7 +72,8 @@ export function TopUpDialog({
               Custom amount
               <span className="flex h-11 items-center rounded-[10px] border bg-muted px-3 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring">
                 <span className="font-bold text-muted-foreground">$</span>
-                <input
+                <Input
+                  unstyled
                   type="number"
                   min={outlook.min_top_up_minor / 10 ** minorDigits(wallet.currency)}
                   step={10}
@@ -86,7 +89,13 @@ export function TopUpDialog({
         <div className="flex flex-col gap-2">
           <span className="text-[13px] font-bold">Pay with</span>
           <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-brand bg-brand-soft px-3.5 py-3">
-            <input type="radio" name="card" defaultChecked className="size-[18px] accent-primary" />
+            <Input
+              unstyled
+              type="radio"
+              name="card"
+              defaultChecked
+              className="size-[18px] accent-primary"
+            />
             <span
               aria-hidden="true"
               className="flex h-7 w-[42px] items-center justify-center rounded-md bg-foreground text-[10px] font-extrabold text-card"

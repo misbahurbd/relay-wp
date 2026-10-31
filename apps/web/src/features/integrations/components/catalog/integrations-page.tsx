@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { SearchIcon, XIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
 import { Skeleton } from '#/components/ui/skeleton'
 import { errorMessage } from '#/lib/api'
 import { cn } from '#/lib/utils'
@@ -140,7 +142,8 @@ export function IntegrationsPage({
             const on = c.id === category
             const count = APPS.filter((a) => c.id === 'all' || a.category === c.id).length
             return (
-              <button
+              <Button
+                variant="unstyled"
                 key={c.id}
                 type="button"
                 role="tab"
@@ -162,14 +165,15 @@ export function IntegrationsPage({
                 >
                   {count}
                 </span>
-              </button>
+              </Button>
             )
           })}
         </div>
         <label className="flex h-10 w-full max-w-[300px] items-center gap-2 rounded-[10px] border border-input bg-card px-3 text-muted-foreground focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring sm:w-auto sm:flex-[0_1_300px]">
           <SearchIcon className="size-4 flex-none" aria-hidden="true" />
           <span className="sr-only">Search apps</span>
-          <input
+          <Input
+            unstyled
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -177,14 +181,15 @@ export function IntegrationsPage({
             className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground md:text-[13px] [&::-webkit-search-cancel-button]:hidden"
           />
           {q && (
-            <button
+            <Button
+              variant="unstyled"
               type="button"
               aria-label="Clear search"
               onClick={() => setQ('')}
               className="-mr-1 flex size-7 flex-none items-center justify-center rounded-md hover:bg-muted hover:text-foreground"
             >
               <XIcon className="size-3.5" aria-hidden="true" />
-            </button>
+            </Button>
           )}
         </label>
       </div>
@@ -214,7 +219,8 @@ export function IntegrationsPage({
       {statuses && apps.length === 0 && (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed py-10 text-center">
           <p className="text-sm font-bold">No apps match “{q.trim()}”</p>
-          <button
+          <Button
+            variant="unstyled"
             type="button"
             onClick={() => {
               setQ('')
@@ -223,7 +229,7 @@ export function IntegrationsPage({
             className="text-[13px] font-bold text-brand-text hover:underline"
           >
             Show all apps
-          </button>
+          </Button>
         </div>
       )}
 

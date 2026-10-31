@@ -1,3 +1,4 @@
+import { Textarea } from '#/components/ui/textarea'
 import { WELCOME_DELAYS } from '../../schemas/automations.schema'
 import { ChatPreview, Check, controlClass, Fld, Select } from '../kit/field'
 import type { FormProps } from './automation-drawer'
@@ -9,7 +10,8 @@ export function WelcomeForm({ settings, errors, onChange }: FormProps) {
   return (
     <>
       <Fld label="Welcome message" error={errors.message}>
-        <textarea
+        <Textarea
+          unstyled
           className={controlClass}
           rows={4}
           value={s.message}

@@ -1,5 +1,6 @@
 import { CheckIcon, CircleIcon, EyeIcon, EyeOffIcon } from 'lucide-react'
 import { type ComponentProps, useState } from 'react'
+import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { cn } from '#/lib/utils'
 import { PASSWORD_RULES } from '../../schemas/auth.schema'
@@ -10,7 +11,8 @@ export function PasswordInput({ className, ...props }: Omit<ComponentProps<'inpu
   return (
     <div className="relative">
       <Input type={shown ? 'text' : 'password'} className={cn('pr-12', className)} {...props} />
-      <button
+      <Button
+        variant="unstyled"
         type="button"
         onClick={() => setShown((s) => !s)}
         aria-label={shown ? 'Hide password' : 'Show password'}
@@ -18,7 +20,7 @@ export function PasswordInput({ className, ...props }: Omit<ComponentProps<'inpu
         className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-lg text-muted-foreground hover:text-foreground"
       >
         {shown ? <EyeOffIcon className="size-4.5" /> : <EyeIcon className="size-4.5" />}
-      </button>
+      </Button>
     </div>
   )
 }

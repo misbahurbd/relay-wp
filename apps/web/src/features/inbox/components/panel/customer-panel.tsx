@@ -1,3 +1,4 @@
+import { Button } from '#/components/ui/button'
 import { ContactDetails } from '#/features/contacts'
 import { useAccess } from '#/features/team'
 import { cn } from '#/lib/utils'
@@ -90,14 +91,15 @@ export function CustomerPanel({
         </h2>
         {can('inbox.close_reassign') ? (
           <AssignMenu members={members} me={me} assignee={c.assignee} onAssign={actions.assign}>
-            <button
+            <Button
+              variant="unstyled"
               type="button"
               className="flex min-h-11 items-center gap-2.5 rounded-lg border px-3 text-left hover:bg-muted"
             >
               <AssigneeAvatar assignee={c.assignee} />
               <span className="min-w-0 flex-1 truncate text-sm font-semibold">{assignee}</span>
               <span className="text-xs font-bold text-brand-text">Change</span>
-            </button>
+            </Button>
           </AssignMenu>
         ) : (
           <div className="flex min-h-11 items-center gap-2.5 rounded-lg border px-3">

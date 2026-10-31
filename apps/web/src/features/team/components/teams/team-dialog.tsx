@@ -1,5 +1,7 @@
 import { type FormEvent, useState } from 'react'
 import { toast } from 'sonner'
+import { Input } from '#/components/ui/input'
+import { NativeSelect } from '#/components/ui/native-select'
 import { errorMessage } from '#/lib/api'
 import { cn } from '#/lib/utils'
 import {
@@ -94,7 +96,8 @@ export function TeamDialog({
           <label htmlFor="team-name" className="text-[13px] font-bold">
             Team name
           </label>
-          <input
+          <Input
+            unstyled
             id="team-name"
             className={inputClass}
             value={name}
@@ -109,7 +112,8 @@ export function TeamDialog({
           <label htmlFor="team-description" className="text-[13px] font-bold">
             Description
           </label>
-          <input
+          <Input
+            unstyled
             id="team-description"
             className={inputClass}
             value={description}
@@ -143,7 +147,8 @@ export function TeamDialog({
             <label htmlFor="team-number" className="text-[13px] font-bold">
               WhatsApp number
             </label>
-            <select
+            <NativeSelect
+              unstyled
               id="team-number"
               className={selectClass}
               value={numberId}
@@ -155,13 +160,14 @@ export function TeamDialog({
                   {n.verified_name} ({n.display_phone_number})
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </div>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="team-routing" className="text-[13px] font-bold">
               Routing
             </label>
-            <select
+            <NativeSelect
+              unstyled
               id="team-routing"
               className={selectClass}
               value={routing}
@@ -172,7 +178,7 @@ export function TeamDialog({
                   {r.label}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </div>
         </div>
         <div className="flex flex-col gap-2">
@@ -192,7 +198,8 @@ export function TeamDialog({
                           : 'border-border bg-card hover:bg-muted',
                       )}
                     >
-                      <input
+                      <Input
+                        unstyled
                         type="checkbox"
                         className="size-[18px] accent-primary"
                         checked={on}

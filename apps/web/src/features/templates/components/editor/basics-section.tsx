@@ -120,7 +120,8 @@ export function BasicsSection({
                           : 'border-border bg-card hover:bg-muted',
                       )}
                     >
-                      <input
+                      <Input
+                        unstyled
                         type="radio"
                         name="tpl-category"
                         value={c.value}

@@ -100,9 +100,14 @@ export function ContactDetails({
       <Alert variant="danger">
         <AlertDescription>
           {errorMessage(query.error, 'We couldn’t load this contact.')}{' '}
-          <button type="button" className="font-bold underline" onClick={() => query.refetch()}>
+          <Button
+            variant="unstyled"
+            type="button"
+            className="font-bold underline"
+            onClick={() => query.refetch()}
+          >
             Try again
-          </button>
+          </Button>
         </AlertDescription>
       </Alert>
     )
@@ -225,14 +230,15 @@ function PanelBody({
               onPick={addTag}
               onCreate={create}
               trigger={
-                <button
+                <Button
+                  variant="unstyled"
                   type="button"
                   disabled={update.isPending}
                   className="inline-flex h-7 items-center gap-1 rounded-full border border-dashed border-input px-2.5 text-xs font-bold text-brand-text hover:bg-muted disabled:opacity-60"
                 >
                   <PlusIcon className="size-3" aria-hidden="true" />
                   Add tag
-                </button>
+                </Button>
               }
             />
           )}

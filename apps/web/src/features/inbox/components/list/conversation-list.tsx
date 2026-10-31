@@ -2,6 +2,9 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import { Loader2Icon, SearchIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Alert, AlertDescription } from '#/components/ui/alert'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { NativeSelect } from '#/components/ui/native-select'
 import { Skeleton } from '#/components/ui/skeleton'
 import { useDebouncedValue } from '#/hooks/use-debounced-value'
 import { errorMessage } from '#/lib/api'
@@ -72,20 +75,22 @@ export function ConversationList({
           <h1 className="text-xl font-extrabold tracking-tight">Inbox</h1>
           <label className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
             Sort
-            <select
+            <NativeSelect
+              unstyled
               value={filter.sort}
               onChange={(e) => onFilterChange({ ...filter, sort: e.target.value as InboxSort })}
               className="h-9 rounded-md border border-input bg-card px-2 text-xs font-bold text-foreground"
             >
               <option value="newest">Newest</option>
               <option value="waiting">Waiting longest</option>
-            </select>
+            </NativeSelect>
           </label>
         </div>
         <label className="flex h-10 items-center gap-2 rounded-md border border-input bg-muted px-3 text-muted-foreground">
           <SearchIcon className="size-4" aria-hidden="true" />
           <span className="sr-only">Search chats</span>
-          <input
+          <Input
+            unstyled
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -113,9 +118,14 @@ export function ConversationList({
           <Alert variant="danger" className="m-2">
             <AlertDescription>
               {errorMessage(query.error, 'We couldn’t load your chats.')}{' '}
-              <button type="button" className="font-bold underline" onClick={() => query.refetch()}>
+              <Button
+                variant="unstyled"
+                type="button"
+                className="font-bold underline"
+                onClick={() => query.refetch()}
+              >
                 Try again
-              </button>
+              </Button>
             </AlertDescription>
           </Alert>
         ) : items.length === 0 ? (
@@ -156,7 +166,8 @@ function TabButton({
   onSelect: () => void
 }) {
   return (
-    <button
+    <Button
+      variant="unstyled"
       type="button"
       role="tab"
       aria-selected={selected}
@@ -170,7 +181,7 @@ function TabButton({
     >
       {TAB_LABEL[tab]}
       {count !== undefined && <span className="text-xs opacity-85">{count}</span>}
-    </button>
+    </Button>
   )
 }
 

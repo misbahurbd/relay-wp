@@ -1,5 +1,6 @@
 import { XIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { Button } from '#/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '#/components/ui/dialog'
 import { cn } from '#/lib/utils'
 
@@ -44,14 +45,15 @@ export function Modal({
               )}
             </div>
           </div>
-          <button
+          <Button
+            variant="unstyled"
             type="button"
             aria-label="Close"
             onClick={onClose}
             className="flex size-10 flex-none items-center justify-center rounded-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <XIcon className="size-[18px]" aria-hidden="true" />
-          </button>
+          </Button>
         </div>
         {children}
       </DialogContent>

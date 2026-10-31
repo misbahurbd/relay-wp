@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Button } from '#/components/ui/button'
 import { Checkbox } from '#/components/ui/checkbox'
 import { Skeleton } from '#/components/ui/skeleton'
 import { cn } from '#/lib/utils'
@@ -115,7 +116,8 @@ export function ContactsTable({
                       </td>
                     )}
                     <td className={cn(td, !selectable && 'pl-4')}>
-                      <button
+                      <Button
+                        variant="unstyled"
                         type="button"
                         onClick={() => onOpen(c.id)}
                         aria-current={open ? 'true' : undefined}
@@ -130,7 +132,7 @@ export function ContactsTable({
                             </span>
                           )}
                         </span>
-                      </button>
+                      </Button>
                     </td>
                     <td className={cn(td, 'whitespace-nowrap tabular-nums')}>{c.phone_display}</td>
                     <td className={td}>

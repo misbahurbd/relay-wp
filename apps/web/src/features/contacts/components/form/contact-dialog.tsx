@@ -266,13 +266,14 @@ function ContactForm({
                   onPick={toggle}
                   onCreate={createTag}
                   trigger={
-                    <button
+                    <Button
+                      variant="unstyled"
                       type="button"
                       className="inline-flex h-7 items-center gap-1 rounded-full border border-dashed border-input px-2.5 text-xs font-bold text-brand-text hover:bg-muted"
                     >
                       <PlusIcon className="size-3" aria-hidden="true" />
                       Add tag
-                    </button>
+                    </Button>
                   }
                 />
               </div>

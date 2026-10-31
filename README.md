@@ -108,10 +108,18 @@ Every command should print a version. If `air -v` prints nothing or shows an R f
 ```bash
 git clone https://github.com/misbahurbd/relay-wp.git
 cd relay-wp
-task setup
+pnpm bootstrap         # install dependencies, create .env and its keys
+pnpm services:up       # start Postgres, Mailpit and S3 in Docker
+pnpm migrate           # create the tables
+pnpm seed              # add sample accounts, plans and tenants
+pnpm dev               # start the API and web app
 ```
 
-`task setup`:
+Open <http://localhost:3000> and sign in with one of the [seeded accounts](#seeded-sample-accounts). Migrations don't run when the API starts, so run `pnpm migrate` after pulling new ones.
+
+Run every `pnpm` command from the repo root. Each one wraps a Task command, so `task setup` and `pnpm bootstrap` do the same thing. [Daily workflow](#8-daily-workflow) lists them all.
+
+`pnpm bootstrap` (`task setup`):
 
 1. Copies `.env.example` to `.env` (only if `.env` doesn't exist yet).
 2. Runs `pnpm install` for the whole workspace.
@@ -151,10 +159,10 @@ Locally both point at the same Postgres.
 ## 7. Run the project
 
 ```bash
-task dev
+pnpm dev
 ```
 
-This:
+This runs `task dev`, which:
 
 1. Starts Postgres, Mailpit and S3 in Docker and waits until they are healthy (`task up`).
 2. Starts the API with hot reload (`air`): it rebuilds on every `.go` or `.sql` change.
@@ -172,15 +180,39 @@ Open (default ports):
 | S3 console | <http://localhost:9001>         | Log in with `S3_ACCESS_KEY` / `S3_SECRET_KEY`     |
 | Postgres   | `localhost:5432`                | User / password / db: `relay` / `relay` / `relay` |
 
-Press `Ctrl+C` to stop the API and web. The Docker services keep running; stop them with `task down`.
+These are the defaults from `.env.example`. If you changed `WEB_PORT`, `WEB_HTTPS` or a service port in `.env`, use those values instead. With `WEB_HTTPS=true` the web app uses a self-signed certificate, so accept the browser warning.
+
+Press `Ctrl+C` to stop the API and web. The Docker services keep running; stop them with `pnpm services:down`.
 
 To run the pieces separately:
 
 ```bash
-task up        # services only
-task dev:api   # API only
-task dev:web   # web only
+pnpm services:up   # services only
+pnpm dev:api       # API only
+pnpm dev:web       # web only
+pnpm dev:crm       # staff CRM only (port 3020); pnpm dev doesn't start it
 ```
+
+### Seeded sample accounts
+
+`pnpm seed` (`task dev:seed`) fills the database that `DATABASE_URL` points at with staff, plans and sample tenants. Run `pnpm migrate` first. Running the seed again adds nothing new, and it refuses to run outside development.
+
+Every account signs in with the password **`Relay-dev-2026!`**. These logins are for local databases only.
+
+| Email                   | Role      | Workspace        | Plan    |
+| ----------------------- | --------- | ---------------- | ------- |
+| `admin@relay.test`      | CRM staff | None             | None    |
+| `owner@greenleaf.test`  | Owner     | Green Leaf Store | Growth  |
+| `agent@greenleaf.test`  | Agent     | Green Leaf Store | Growth  |
+| `owner@bloomcafe.test`  | Owner     | Bloom Cafe       | Starter |
+| `agent@bloomcafe.test`  | Agent     | Bloom Cafe       | Starter |
+| `owner@novaclinic.test` | Owner     | Nova Clinic      | Trial   |
+
+To use the staff CRM, add `ADMIN_EMAILS=admin@relay.test` to `.env`, make sure `CORS_ALLOWED_ORIGINS` includes the CRM's URL, restart the API, then run `pnpm dev:crm`. If `ADMIN_EMAILS` already has a value, the seed creates the first address in that list as staff instead of `admin@relay.test`.
+
+Set `WHATSAPP_FAKE=true` in `.env` so seeded sends get delivered ticks.
+
+If a seeded login says "Email or password is incorrect", the API is probably connected to a different database from the one you seeded. The API reads `.env` only at startup, so restart `pnpm dev` after changing `DATABASE_URL`, and change `DATABASE_DIRECT_URL` with it.
 
 ### API run modes
 
@@ -202,8 +234,9 @@ Start with `all` on one small instance. When load grows, run `api` and `worker` 
 
 ```bash
 git pull
-task setup       # only if dependencies changed
-task dev
+pnpm bootstrap   # only if dependencies changed
+pnpm migrate     # only if there are new migrations
+pnpm dev
 ```
 
 Before you push:
@@ -232,6 +265,20 @@ Run `task` on its own to list every available task.
 | `task test`                                           | Go tests (with the race detector)                    |
 | `task migrate:new -- <name>`                          | Create a new SQL migration                           |
 | `task migrate:up` / `migrate:down` / `migrate:status` | Apply / roll back / inspect migrations               |
+
+The same commands from the root `package.json`:
+
+| Command                                            | Runs                                                  |
+| -------------------------------------------------- | ----------------------------------------------------- |
+| `pnpm bootstrap`                                   | `task setup`                                          |
+| `pnpm dev` / `dev:api` / `dev:web` / `dev:crm`     | `task dev` / `dev:api` / `dev:web` / `dev:crm`        |
+| `pnpm services:up` / `services:down`               | `task up` / `task down`                               |
+| `pnpm migrate` / `migrate:down` / `migrate:status` | `task migrate:up` / `migrate:down` / `migrate:status` |
+| `pnpm migrate:new <name>`                          | `task migrate:new -- <name>`                          |
+| `pnpm seed`                                        | `task dev:seed`                                       |
+| `pnpm gen` / `build` / `lint` / `fmt` / `test`     | The `task` command of the same name                   |
+
+Use `pnpm bootstrap` and `pnpm services:up`, not `pnpm setup` and `pnpm up`: those two are pnpm's own commands, and `pnpm up` updates dependencies. `task reset` has no `pnpm` script because it deletes local data.
 
 ---
 

@@ -172,7 +172,8 @@ function MediaSample({ editor, type }: { editor: TemplateEditorState; type: Medi
           <UploadIcon aria-hidden="true" />
           {uploading ? 'Uploading…' : fits ? 'Replace sample' : 'Upload sample'}
         </Button>
-        <input
+        <Input
+          unstyled
           ref={input}
           type="file"
           tabIndex={-1}

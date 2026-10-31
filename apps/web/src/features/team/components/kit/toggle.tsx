@@ -1,3 +1,4 @@
+import { Button } from '#/components/ui/button'
 import { cn } from '#/lib/utils'
 
 /** The prototype's pill switch (aria-pressed button). */
@@ -15,7 +16,8 @@ export function Toggle({
   title?: string
 }) {
   return (
-    <button
+    <Button
+      variant="unstyled"
       type="button"
       aria-pressed={on}
       aria-label={label}
@@ -33,6 +35,6 @@ export function Toggle({
           on ? 'left-[22px]' : 'left-1',
         )}
       />
-    </button>
+    </Button>
   )
 }

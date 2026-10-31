@@ -7,6 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '#/components/ui/dropdown-menu'
+import { Input } from '#/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '#/components/ui/popover'
 import { type AttachOption, EMOJI } from '../../schemas/inbox.schema'
 
@@ -27,7 +28,8 @@ export function EmojiPicker({
       </PopoverTrigger>
       <PopoverContent align="start" side="top" className="grid w-auto grid-cols-6 gap-0.5 p-1.5">
         {EMOJI.map((e) => (
-          <button
+          <Button
+            variant="unstyled"
             key={e}
             type="button"
             aria-label={`Insert ${e}`}
@@ -38,7 +40,7 @@ export function EmojiPicker({
             className="flex size-10 items-center justify-center rounded-md text-xl hover:bg-muted"
           >
             {e}
-          </button>
+          </Button>
         ))}
       </PopoverContent>
     </Popover>
@@ -89,7 +91,8 @@ export function AttachMenu({
         </DropdownMenuContent>
       </DropdownMenu>
       {options.map((o, i) => (
-        <input
+        <Input
+          unstyled
           key={o.label}
           ref={(el) => {
             inputs.current[i] = el

@@ -3,6 +3,7 @@ import { FileTextIcon, Loader2Icon, SendIcon, Settings2Icon, ZapIcon } from 'luc
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '#/components/ui/button'
+import { Textarea } from '#/components/ui/textarea'
 import { useAccess } from '#/features/team'
 import { isApiError } from '#/lib/api'
 import { cn } from '#/lib/utils'
@@ -266,14 +267,15 @@ export function Composer({
           <>
             <span className="text-xs text-muted-foreground">Quick replies:</span>
             {quickReplies.slice(0, 4).map((r) => (
-              <button
+              <Button
+                variant="unstyled"
                 key={r.id}
                 type="button"
                 onClick={() => replaceAll(r.body)}
                 className="h-7 rounded-full border px-2.5 text-xs font-semibold hover:bg-muted"
               >
                 {r.title}
-              </button>
+              </Button>
             ))}
           </>
         )}
@@ -295,7 +297,8 @@ export function Composer({
               .filter((m) => m.id !== me.id)
               .slice(0, 3)
               .map((m) => (
-                <button
+                <Button
+                  variant="unstyled"
                   key={m.id}
                   type="button"
                   onClick={() => {
@@ -306,7 +309,7 @@ export function Composer({
                   className="h-7 rounded-full border border-warning/40 px-2.5 text-xs font-semibold text-warning hover:bg-warning-soft"
                 >
                   @{firstName(m.name)}
-                </button>
+                </Button>
               ))}
           </>
         )}
@@ -365,7 +368,8 @@ export function Composer({
           )}
         >
           <span className="sr-only">{isNote ? 'Private note' : 'Message'}</span>
-          <textarea
+          <Textarea
+            unstyled
             ref={input}
             rows={2}
             value={text}
@@ -454,7 +458,8 @@ function ModeTab({
   children: React.ReactNode
 }) {
   return (
-    <button
+    <Button
+      variant="unstyled"
       type="button"
       role="tab"
       aria-selected={selected}
@@ -466,6 +471,6 @@ function ModeTab({
       )}
     >
       {children}
-    </button>
+    </Button>
   )
 }

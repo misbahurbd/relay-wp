@@ -6,7 +6,23 @@
     "node": ">=24"
   },
   "scripts": {
+    "bootstrap": "task setup",
     "dev": "task dev",
+    "dev:api": "task dev:api",
+    "dev:web": "task dev:web",
+    "dev:crm": "task dev:crm",
+    "services:up": "task up",
+    "services:down": "task down",
+    "migrate": "task migrate:up",
+    "migrate:down": "task migrate:down",
+    "migrate:status": "task migrate:status",
+    "migrate:new": "task migrate:new --",
+    "seed": "task dev:seed",
+    "gen": "task gen",
+    "build": "task build",
+    "lint": "task lint",
+    "fmt": "task fmt",
+    "test": "task test",
     "check": "biome check .",
     "check:fix": "biome check --write .",
     "typecheck": "pnpm -r typecheck"

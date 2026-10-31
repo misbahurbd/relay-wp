@@ -168,14 +168,15 @@ export function VerifyEmailCode({ email }: { email: string }) {
           ) : (
             <p>
               Didn’t get it?{' '}
-              <button
+              <Button
+                variant="unstyled"
                 type="button"
                 className="font-bold text-brand-text underline-offset-4 hover:underline"
                 disabled={resend.isPending}
                 onClick={() => resend.mutate({ body: { email } }, { onSuccess: restart })}
               >
                 Send a new code
-              </button>
+              </Button>
             </p>
           )}
           {resend.isSuccess && left > 0 && (

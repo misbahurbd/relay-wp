@@ -80,23 +80,25 @@ export function PaymentDetailsCard({
 
       <div className="flex flex-wrap gap-x-5 gap-y-2 text-[13px] font-bold">
         {canManage && (
-          <button
+          <Button
+            variant="unstyled"
             type="button"
             className="text-brand-text hover:underline disabled:opacity-50"
             disabled={portal.isPending}
             onClick={openPortal}
           >
             + Add backup payment method
-          </button>
+          </Button>
         )}
         {canPay && profile.isSuccess && (
-          <button
+          <Button
+            variant="unstyled"
             type="button"
             className="text-brand-text hover:underline"
             onClick={() => setEditing(true)}
           >
             {profile.data ? 'Edit billing details' : 'Add billing details'}
-          </button>
+          </Button>
         )}
       </div>
 

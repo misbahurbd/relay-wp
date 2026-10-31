@@ -1,5 +1,7 @@
 import { CheckIcon, Loader2Icon, PlusIcon, SearchIcon } from 'lucide-react'
 import { type ReactNode, useId, useState } from 'react'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '#/components/ui/popover'
 import { cn } from '#/lib/utils'
 import { tagNameSchema } from '../../schemas/contacts.schema'
@@ -80,7 +82,8 @@ export function TagPicker({
         >
           <SearchIcon className="size-4" aria-hidden="true" />
           <span className="sr-only">{`Search ${label.toLowerCase()}`}</span>
-          <input
+          <Input
+            unstyled
             id={inputId}
             value={q}
             onChange={(e) => {
@@ -104,7 +107,8 @@ export function TagPicker({
             const on = selectedIds.includes(t.id)
             return (
               <li key={t.id}>
-                <button
+                <Button
+                  variant="unstyled"
                   type="button"
                   aria-pressed={multi ? on : undefined}
                   onClick={() => pick({ id: t.id, name: t.name })}
@@ -118,7 +122,7 @@ export function TagPicker({
                   <span className="text-xs text-muted-foreground tabular-nums">
                     {t.contact_count.toLocaleString()}
                   </span>
-                </button>
+                </Button>
               </li>
             )
           })}
@@ -127,7 +131,8 @@ export function TagPicker({
           )}
         </ul>
         {onCreate && term && !exact && (
-          <button
+          <Button
+            variant="unstyled"
             type="button"
             onClick={() => void create()}
             disabled={creating}
@@ -139,7 +144,7 @@ export function TagPicker({
               <PlusIcon className="size-4" aria-hidden="true" />
             )}
             <span className="truncate">Create “{q.trim()}”</span>
-          </button>
+          </Button>
         )}
         {error && (
           <p role="alert" className="px-2 text-[13px] text-destructive">

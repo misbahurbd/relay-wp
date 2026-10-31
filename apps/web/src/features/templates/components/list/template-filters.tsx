@@ -1,5 +1,6 @@
 import { SearchIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { cn } from '#/lib/utils'
 import { CATEGORIES, STATUS_TABS } from '../../schemas/templates.schema'
@@ -40,7 +41,8 @@ export function TemplateFilters({
           const on = filter.status === t.value
           const count = counts?.[COUNT_KEY[t.value ?? 'all'] as keyof TemplateCounts]
           return (
-            <button
+            <Button
+              variant="unstyled"
               key={t.label}
               type="button"
               aria-pressed={on}
@@ -58,7 +60,7 @@ export function TemplateFilters({
                   {count}
                 </span>
               )}
-            </button>
+            </Button>
           )
         })}
       </fieldset>
@@ -68,7 +70,8 @@ export function TemplateFilters({
         {[{ value: undefined, label: 'All categories' }, ...CATEGORIES].map((c) => {
           const on = filter.category === c.value
           return (
-            <button
+            <Button
+              variant="unstyled"
               key={c.label}
               type="button"
               aria-pressed={on}
@@ -81,7 +84,7 @@ export function TemplateFilters({
               )}
             >
               {c.label}
-            </button>
+            </Button>
           )
         })}
       </fieldset>

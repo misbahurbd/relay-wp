@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Trash2Icon } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { Button } from '#/components/ui/button'
 import { errorMessage } from '#/lib/api'
 import { useCreateApiKey, useRevokeApiKey } from '../../api/integrations.mutations'
 import { apiKeysQueryOptions } from '../../api/integrations.queries'
@@ -92,14 +93,15 @@ export function KeyAppDialog({
                 <span className="text-xs text-muted-foreground">
                   {k.last_used_at ? `Used ${relativeTime(k.last_used_at)}` : 'Never used'}
                 </span>
-                <button
+                <Button
+                  variant="unstyled"
                   type="button"
                   onClick={() => onRevoke(k.id)}
                   aria-label={`Revoke key ending ${k.last4}`}
                   className="flex size-8 items-center justify-center rounded-lg text-destructive hover:bg-destructive-soft"
                 >
                   <Trash2Icon className="size-4" aria-hidden="true" />
-                </button>
+                </Button>
               </li>
             ))}
           </ul>

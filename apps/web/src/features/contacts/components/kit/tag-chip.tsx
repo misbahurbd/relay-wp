@@ -1,4 +1,5 @@
 import { XIcon } from 'lucide-react'
+import { Button } from '#/components/ui/button'
 import { cn } from '#/lib/utils'
 
 /** A tag label; with onRemove it gets a remove button. */
@@ -20,14 +21,15 @@ export function TagChip({
     >
       {name}
       {onRemove && (
-        <button
+        <Button
+          variant="unstyled"
           type="button"
           aria-label={`Remove tag ${name}`}
           onClick={onRemove}
           className="-mr-1 flex size-5 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
         >
           <XIcon className="size-3" aria-hidden="true" />
-        </button>
+        </Button>
       )}
     </span>
   )

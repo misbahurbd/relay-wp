@@ -1,3 +1,5 @@
+import { Input } from '#/components/ui/input'
+import { Textarea } from '#/components/ui/textarea'
 import { AddRow, controlClass, Fld, Select } from '../kit/field'
 import type { FormProps } from './automation-drawer'
 
@@ -20,7 +22,8 @@ export function KeywordForm({ settings, errors, onChange }: FormProps) {
               error={errors[`rules[${i}].keywords`]}
               className="flex-[2_1_180px]"
             >
-              <input
+              <Input
+                unstyled
                 className={controlClass}
                 placeholder="e.g. price, cost"
                 value={r.keywords}
@@ -35,7 +38,8 @@ export function KeywordForm({ settings, errors, onChange }: FormProps) {
             </Fld>
           </div>
           <Fld label="Reply with" error={errors[`rules[${i}].reply`]}>
-            <textarea
+            <Textarea
+              unstyled
               className={controlClass}
               rows={2}
               placeholder="Type the automatic reply"

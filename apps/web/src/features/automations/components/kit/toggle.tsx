@@ -1,3 +1,4 @@
+import { Button } from '#/components/ui/button'
 import { cn } from '#/lib/utils'
 
 /** The design's pill switch (aria-pressed button). Small is the drawer's day switch. */
@@ -17,7 +18,8 @@ export function Toggle({
   small?: boolean
 }) {
   return (
-    <button
+    <Button
+      variant="unstyled"
       type="button"
       aria-pressed={on}
       aria-label={label}
@@ -36,6 +38,6 @@ export function Toggle({
           small ? 'size-[18px]' : 'size-[22px]',
         )}
       />
-    </button>
+    </Button>
   )
 }
