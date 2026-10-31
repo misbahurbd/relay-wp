@@ -83,7 +83,7 @@ func New(pool *pgxpool.Pool, tokens TokenIssuer, queue Enqueuer, profiles Profil
 	if len(cfg.EmailCodeKey) != 32 {
 		return nil, errors.New("auth: EMAIL_CODE_KEY must be 32 bytes")
 	}
-	dummy, err := hashPassword("not-a-real-password-Aa1!")
+	dummy, err := HashPassword("not-a-real-password-Aa1!")
 	if err != nil {
 		return nil, err
 	}

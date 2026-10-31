@@ -37,6 +37,7 @@ Never create a new top-level folder, a new folder under `apps/*/` or `internal/`
 | App shell (sidebar, topbar)                                                 | `apps/web/src/components/layout/`                                                                |
 | Generic React hook used by 2+ features                                      | `apps/web/src/hooks/`                                                                            |
 | Client setup (API client, query client, env)                                | `apps/web/src/lib/`                                                                              |
+| Local sample data for a feature (`task dev:seed`)                           | `apps/api/internal/app/seed_dev.go`                                                              |
 | Architecture decision                                                       | `docs/adr/NNNN-title.md`                                                                         |
 
 A new feature starts with only the files it needs. Do not create empty placeholder files.
@@ -181,6 +182,7 @@ Then check your change against sections 1 and 2:
 - [ ] No workspace ID in an API path or a web page URL (`grep -rn 'workspaceId}' apps/api/internal --include='*.go'` and `grep -rn '/w/' apps/web/src --include='*.tsx'` find none).
 - [ ] No `SELECT *` or `RETURNING *` in any query (`grep -rn '\*' --include='*.sql' apps/api/internal` finds none).
 - [ ] No password or token hash appears in a model, DTO, response or log line.
+- [ ] A new feature, table or plan resource has sample data in `apps/api/internal/app/seed_dev.go`, so `task dev:seed` still shows it working. Run the seed twice on a fresh database: the second run must add nothing.
 
 ---
 

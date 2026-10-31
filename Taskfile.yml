@@ -92,6 +92,12 @@ tasks:
     cmds:
       - pnpm dev
 
+  dev:seed:
+    desc: Fill the local database with CRM staff, plans and sample tenants
+    dir: "{{.API_DIR}}"
+    cmds:
+      - go run ./cmd/relay dev seed
+
   # --- Build ---
   build:
     desc: Build API, web and CRM

@@ -32,7 +32,7 @@ func TestCheckPasswordRules(t *testing.T) {
 }
 
 func TestHashAndVerify(t *testing.T) {
-	h, err := hashPassword("Str0ng!pass")
+	h, err := HashPassword("Str0ng!pass")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func TestHashAndVerify(t *testing.T) {
 		t.Errorf("wrong password: ok=%v err=%v", ok, err)
 	}
 
-	h2, _ := hashPassword("Str0ng!pass")
+	h2, _ := HashPassword("Str0ng!pass")
 	if h == h2 {
 		t.Error("two hashes of the same password must differ (random salt)")
 	}

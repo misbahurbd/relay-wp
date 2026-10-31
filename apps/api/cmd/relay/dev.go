@@ -15,13 +15,22 @@ import (
 
 // runDev holds local-development helpers. They refuse to run outside development.
 //
+//	relay dev seed                        CRM staff, plans and sample tenants
 //	relay dev seed-inbox <workspace-id>   sample WhatsApp chats for the inbox
 func runDev(ctx context.Context, cfg config.Config, log *slog.Logger, args []string, out io.Writer) error {
 	if !cfg.IsDevelopment() {
 		return errors.New("dev commands run only with APP_ENV=development")
 	}
+	if len(args) == 1 && args[0] == "seed" {
+		a, err := app.New(ctx, cfg, log, app.ModeWorker)
+		if err != nil {
+			return err
+		}
+		defer a.Close()
+		return a.Seed(ctx, out)
+	}
 	if len(args) != 2 || args[0] != "seed-inbox" {
-		return errors.New("usage: relay dev seed-inbox <workspace-id>")
+		return errors.New("usage: relay dev seed | relay dev seed-inbox <workspace-id>")
 	}
 	workspaceID, err := uuid.Parse(args[1])
 	if err != nil {

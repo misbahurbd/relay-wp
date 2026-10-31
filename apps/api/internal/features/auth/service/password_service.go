@@ -161,7 +161,7 @@ func (s *Service) newPasswordHash(ctx context.Context, pw string) (string, error
 			return "", model.ErrBreachedPassword.WithDetails(apperr.Detail{Field: "password", Message: model.ErrBreachedPassword.Message})
 		}
 	}
-	return hashPassword(pw)
+	return HashPassword(pw)
 }
 
 // SetPassword adds a password to an account that signs in only with providers.

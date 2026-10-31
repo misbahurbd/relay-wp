@@ -68,7 +68,7 @@ func (s *Service) Login(ctx context.Context, rawEmail, password string, meta mod
 	err = database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
 		r := repository.NewRepository(tx)
 		if rehash {
-			if h, err := hashPassword(password); err == nil {
+			if h, err := HashPassword(password); err == nil {
 				if err := r.SetPasswordHash(ctx, gen.SetPasswordHashParams{ID: user.ID, PasswordHash: &h}); err != nil {
 					return fmt.Errorf("upgrade password hash: %w", err)
 				}

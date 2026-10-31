@@ -65,8 +65,8 @@ func checkPasswordRules(pw string) []apperr.Detail {
 	return d
 }
 
-// hashPassword returns an encoded argon2id hash: $argon2id$v=19$m=…,t=…,p=…$salt$key.
-func hashPassword(pw string) (string, error) {
+// HashPassword returns an encoded argon2id hash: $argon2id$v=19$m=…,t=…,p=…$salt$key.
+func HashPassword(pw string) (string, error) {
 	salt := make([]byte, argonSaltLen)
 	if _, err := rand.Read(salt); err != nil {
 		return "", fmt.Errorf("password salt: %w", err)
