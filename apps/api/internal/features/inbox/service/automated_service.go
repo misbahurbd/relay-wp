@@ -6,11 +6,13 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/riverqueue/river"
 
 	"github.com/misbahurbd/relay-wp/apps/api/db/gen"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/inbox/model"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/inbox/repository"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/database"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/queue"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/shared/authctx"
 )
 
@@ -39,88 +41,101 @@ func (s *Service) AutomationConversation(ctx context.Context, workspaceID, id uu
 	return out, nil
 }
 
-// SendAutomated queues what an automation wrote, in tx, so it commits with the
-// run. It has no author, needs a contact who hasn't opted out and, for text, an
-// open window, and leaves the chat waiting for a person. Without a conversation
-// it uses the contact's latest, or starts one.
-func (s *Service) SendAutomated(ctx context.Context, tx pgx.Tx, in model.AutomatedText) error {
+// SendAutomated queues what an automation or a broadcast wrote, in tx, so it
+// commits with the run or recipient, and returns the new message's ID. It has
+// no author, needs a contact who hasn't opted out and, for text, an open
+// window, and leaves the chat waiting for a person. Without a conversation it
+// uses the contact's chat on in.ChannelID, else the latest, or starts one.
+func (s *Service) SendAutomated(ctx context.Context, tx pgx.Tx, in model.AutomatedText) (uuid.UUID, error) {
 	// The engine commits tx to record a failed run, so a failed send must not
 	// leave the chat it opened behind.
-	if err := pgx.BeginFunc(ctx, tx, func(sp pgx.Tx) error { return s.sendAutomated(ctx, sp, in) }); err != nil {
-		return fmt.Errorf("send automated: %w", err)
+	var id uuid.UUID
+	if err := pgx.BeginFunc(ctx, tx, func(sp pgx.Tx) error {
+		var err error
+		id, err = s.sendAutomated(ctx, sp, in)
+		return err
+	}); err != nil {
+		return uuid.Nil, fmt.Errorf("send automated: %w", err)
 	}
-	return nil
+	return id, nil
 }
 
-func (s *Service) sendAutomated(ctx context.Context, tx pgx.Tx, in model.AutomatedText) error {
+func (s *Service) sendAutomated(ctx context.Context, tx pgx.Tx, in model.AutomatedText) (uuid.UUID, error) {
 	r := repository.NewRepository(tx)
 	ws := in.WorkspaceID
 	convID, err := s.automationConversation(ctx, r, in)
 	if err != nil {
-		return err
+		return uuid.Nil, err
 	}
 	c, err := r.LockConversation(ctx, gen.LockConversationParams{WorkspaceID: ws, ID: convID})
 	if err != nil {
-		return fmt.Errorf("lock conversation: %w", err)
+		return uuid.Nil, fmt.Errorf("lock conversation: %w", err)
 	}
 	info, err := r.AutomationConversation(ctx, gen.AutomationConversationParams{WorkspaceID: ws, ID: convID})
 	if err != nil {
-		return fmt.Errorf("automation conversation: %w", err)
+		return uuid.Nil, fmt.Errorf("automation conversation: %w", err)
 	}
 	if info.OptIn == "out" {
-		return model.ErrContactOptedOut
+		return uuid.Nil, model.ErrContactOptedOut
 	}
 	ch, ok := s.channel(c.ChannelType)
 	if !ok {
-		return model.ErrChannelUnavailable
+		return uuid.Nil, model.ErrChannelUnavailable
 	}
 	caps, now := ch.Capabilities(), s.now()
 	out := outbound{msgType: model.TypeText, body: in.Text}
 	if in.TemplateID != nil {
 		if !caps.Templates {
-			return model.ErrTemplatesUnsupported
+			return uuid.Nil, model.ErrTemplatesUnsupported
 		}
 		out, err = s.checkTemplate(ctx, authctx.Access{WorkspaceID: ws}, caps, model.SendInput{
-			Type: model.SendTemplate, TemplateID: in.TemplateID, Params: model.TemplateParams{Body: in.Params},
+			Type: model.SendTemplate, TemplateID: in.TemplateID, Params: model.TemplateParams{HeaderText: in.HeaderText, Body: in.Params},
 		})
 		if err != nil {
-			return err
+			return uuid.Nil, err
 		}
 	} else if !windowOpen(caps, c.WindowExpiresAt, now) {
-		return model.ErrWindowClosed
+		return uuid.Nil, model.ErrWindowClosed
 	}
 	id, err := newID()
 	if err != nil {
-		return err
+		return uuid.Nil, err
 	}
 	raw, err := encodeContent(out.content)
 	if err != nil {
-		return err
+		return uuid.Nil, err
 	}
 	if err := r.InsertAutomatedMessage(ctx, gen.InsertAutomatedMessageParams{
 		ID: id, WorkspaceID: ws, ConversationID: convID, Type: out.msgType, Body: out.body, Content: raw,
-		AutomationRunID: &in.RunID, CreatedAt: now,
+		AutomationRunID: in.RunID, CreatedAt: now,
 	}); err != nil {
-		return fmt.Errorf("insert automated message: %w", err)
+		return uuid.Nil, fmt.Errorf("insert automated message: %w", err)
 	}
 	row, err := r.TouchAutomated(ctx, gen.TouchAutomatedParams{
 		At: now, Preview: preview(out.msgType, out.body), ToPending: out.template != nil, WorkspaceID: ws, ID: convID,
 	})
 	if err != nil {
-		return fmt.Errorf("touch conversation: %w", err)
+		return uuid.Nil, fmt.Errorf("touch conversation: %w", err)
 	}
 	if err := s.deps.Contacts.SetLastMessage(ctx, tx, ws, c.ContactID, now); err != nil {
-		return err
+		return uuid.Nil, err
 	}
-	if _, err := s.queue.InsertTx(ctx, tx, model.SendArgs{WorkspaceID: ws, MessageID: id}, nil); err != nil {
-		return fmt.Errorf("enqueue send: %w", err)
+	var opts *river.InsertOpts
+	if in.Bulk {
+		opts = &river.InsertOpts{Queue: queue.Bulk}
 	}
-	return signal(ctx, tx, ws, model.SignalMessage, convID, row.TeamID, row.AssigneeID, row.ChannelType, row.ChannelID)
+	if _, err := s.queue.InsertTx(ctx, tx, model.SendArgs{WorkspaceID: ws, MessageID: id}, opts); err != nil {
+		return uuid.Nil, fmt.Errorf("enqueue send: %w", err)
+	}
+	return id, signal(ctx, tx, ws, model.SignalMessage, convID, row.TeamID, row.AssigneeID, row.ChannelType, row.ChannelID)
 }
 
 func (s *Service) automationConversation(ctx context.Context, r repository.Repository, in model.AutomatedText) (uuid.UUID, error) {
 	if in.ConversationID != nil {
 		return *in.ConversationID, nil
+	}
+	if in.ChannelID != nil {
+		return s.channelConversation(ctx, r, in)
 	}
 	id, err := r.LatestContactConversation(ctx, gen.LatestContactConversationParams{WorkspaceID: in.WorkspaceID, ContactID: *in.ContactID})
 	if err == nil {
@@ -136,11 +151,34 @@ func (s *Service) automationConversation(ctx context.Context, r repository.Repos
 	if !ok {
 		return uuid.Nil, model.ErrChannelUnavailable
 	}
-	if id, err = newID(); err != nil {
+	return startConversation(ctx, r, in, channelType, channelID)
+}
+
+// channelConversation is the contact's WhatsApp chat on in.ChannelID, started when there is none.
+func (s *Service) channelConversation(ctx context.Context, r repository.Repository, in model.AutomatedText) (uuid.UUID, error) {
+	id, err := r.ChannelContactConversation(ctx, gen.ChannelContactConversationParams{
+		WorkspaceID: in.WorkspaceID, ContactID: *in.ContactID, ChannelType: model.ChannelWhatsApp, ChannelID: *in.ChannelID,
+	})
+	if err == nil {
+		return id, nil
+	}
+	if !repository.IsNoRows(err) {
+		return uuid.Nil, fmt.Errorf("channel conversation: %w", err)
+	}
+	return startConversation(ctx, r, in, model.ChannelWhatsApp, *in.ChannelID)
+}
+
+func startConversation(ctx context.Context, r repository.Repository, in model.AutomatedText, channelType string, channelID uuid.UUID) (uuid.UUID, error) {
+	id, err := newID()
+	if err != nil {
 		return uuid.Nil, err
 	}
+	source := in.Source
+	if source == "" {
+		source = model.SourceAutomation
+	}
 	id, err = r.InsertAutomationConversation(ctx, gen.InsertAutomationConversationParams{
-		ID: id, WorkspaceID: in.WorkspaceID, ContactID: *in.ContactID, ChannelType: channelType, ChannelID: channelID,
+		ID: id, WorkspaceID: in.WorkspaceID, ContactID: *in.ContactID, ChannelType: channelType, ChannelID: channelID, Source: source,
 	})
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("start conversation: %w", err)

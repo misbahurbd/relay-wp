@@ -56,7 +56,7 @@ type InboxConversationDTO struct {
 	Contact              InboxContactDTO `json:"contact"`
 	Channel              InboxChannelDTO `json:"channel" doc:"The channel account the chat is on"`
 	Status               string          `json:"status" enum:"open,pending,closed"`
-	Source               string          `json:"source" enum:"organic,ctwa_ad,template"`
+	Source               string          `json:"source" enum:"organic,ctwa_ad,template,automation,broadcast"`
 	TeamID               *uuid.UUID      `json:"team_id"`
 	Assignee             *InboxPersonDTO `json:"assignee"`
 	LastMessageAt        time.Time       `json:"last_message_at"`

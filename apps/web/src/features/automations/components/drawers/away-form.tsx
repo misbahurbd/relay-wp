@@ -22,13 +22,11 @@ export function AwayForm({ settings, errors, onChange, firstSave }: FormProps) {
   return (
     <>
       <Fld label="Timezone" error={errors.timezone}>
-        <Select value={s.timezone} onChange={(e) => set({ timezone: e.target.value })}>
-          {timezones(s.timezone).map((z) => (
-            <option key={z} value={z}>
-              {z}
-            </option>
-          ))}
-        </Select>
+        <Select
+          value={s.timezone}
+          onValueChange={(timezone) => set({ timezone })}
+          options={timezones(s.timezone).map((z) => ({ value: z, label: z }))}
+        />
       </Fld>
       <div className="flex flex-col gap-2">
         <span className="text-[13px] font-bold">Working hours</span>

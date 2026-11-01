@@ -1,5 +1,12 @@
 import { Link } from '@tanstack/react-router'
-import { EyeIcon, FileTextIcon, MoreVerticalIcon, PencilIcon, Trash2Icon } from 'lucide-react'
+import {
+  EyeIcon,
+  FileTextIcon,
+  MegaphoneIcon,
+  MoreVerticalIcon,
+  PencilIcon,
+  Trash2Icon,
+} from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '#/components/ui/button'
 import {
@@ -22,6 +29,7 @@ export function TemplateTable({
   loading,
   canEdit,
   canDelete,
+  canBroadcast,
   empty,
   onDelete,
 }: {
@@ -29,6 +37,8 @@ export function TemplateTable({
   loading: boolean
   canEdit: boolean
   canDelete: boolean
+  /** Approved templates get "Use in broadcast". */
+  canBroadcast: boolean
   empty: ReactNode
   onDelete: (t: Template) => void
 }) {
@@ -72,6 +82,7 @@ export function TemplateTable({
               template={t}
               canEdit={canEdit && !isFrozen(t)}
               canDelete={canDelete}
+              canBroadcast={canBroadcast && t.status === 'approved'}
               onDelete={() => onDelete(t)}
             />
           ))}
@@ -92,11 +103,13 @@ function Row({
   template: t,
   canEdit,
   canDelete,
+  canBroadcast,
   onDelete,
 }: {
   template: Template
   canEdit: boolean
   canDelete: boolean
+  canBroadcast: boolean
   onDelete: () => void
 }) {
   const link = {
@@ -166,6 +179,14 @@ function Row({
                   {canEdit ? 'Edit' : 'View'}
                 </Link>
               </DropdownMenuItem>
+              {canBroadcast && (
+                <DropdownMenuItem asChild>
+                  <Link to="/broadcasts/new" search={{ template: t.id }}>
+                    <MegaphoneIcon aria-hidden="true" />
+                    Use in broadcast
+                  </Link>
+                </DropdownMenuItem>
+              )}
               {canDelete && (
                 <DropdownMenuItem variant="destructive" onSelect={onDelete}>
                   <Trash2Icon aria-hidden="true" />

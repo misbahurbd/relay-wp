@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from 'react'
 import { toast } from 'sonner'
 import { Input } from '#/components/ui/input'
-import { NativeSelect } from '#/components/ui/native-select'
+import { OptionSelect } from '#/components/ui/option-select'
 import { errorMessage } from '#/lib/api'
 import { cn } from '#/lib/utils'
 import {
@@ -14,7 +14,7 @@ import { COLORS, ROUTING, TONE, teamSchema } from '../../schemas/team.schema'
 import type { Member, RoleColor, Team, TeamInput } from '../../types'
 import { PersonAvatar } from '../kit/avatar'
 import { Btn } from '../kit/btn'
-import { ErrorText, inputClass, selectClass } from '../kit/field'
+import { ErrorText, inputClass } from '../kit/field'
 import { Modal } from '../kit/modal'
 import { SectionLabel } from '../kit/panel'
 import { RadioOption } from '../kit/radio'
@@ -147,38 +147,31 @@ export function TeamDialog({
             <label htmlFor="team-number" className="text-[13px] font-bold">
               WhatsApp number
             </label>
-            <NativeSelect
-              unstyled
+            <OptionSelect
               id="team-number"
-              className={selectClass}
+              className="bg-muted"
               value={numberId}
-              onChange={(e) => setNumberId(e.target.value)}
-            >
-              <option value="">Any number</option>
-              {numbers.map((n) => (
-                <option key={n.id} value={n.id}>
-                  {n.verified_name} ({n.display_phone_number})
-                </option>
-              ))}
-            </NativeSelect>
+              onValueChange={setNumberId}
+              options={[
+                { value: '', label: 'Any number' },
+                ...numbers.map((n) => ({
+                  value: n.id,
+                  label: `${n.verified_name} (${n.display_phone_number})`,
+                })),
+              ]}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="team-routing" className="text-[13px] font-bold">
               Routing
             </label>
-            <NativeSelect
-              unstyled
+            <OptionSelect
               id="team-routing"
-              className={selectClass}
+              className="bg-muted"
               value={routing}
-              onChange={(e) => setRouting(e.target.value as typeof routing)}
-            >
-              {ROUTING.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </NativeSelect>
+              onValueChange={(v) => setRouting(v as typeof routing)}
+              options={ROUTING.map((r) => ({ value: r.value, label: r.label }))}
+            />
           </div>
         </div>
         <div className="flex flex-col gap-2">

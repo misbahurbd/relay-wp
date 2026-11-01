@@ -2,7 +2,7 @@
 
 import { type Client, type ClientMeta, formDataBodySerializer, type Options as Options2, type RequestResult, type ServerSentEventsResult, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { AcceptInvitationData, AcceptInvitationErrors, AcceptInvitationResponses, AddInboxNoteData, AddInboxNoteErrors, AddInboxNoteResponses, AddMemberOverrideData, AddMemberOverrideErrors, AddMemberOverrideResponses, AdminCreateDiscountData, AdminCreateDiscountErrors, AdminCreateDiscountResponses, AdminCreateInstallmentOfferData, AdminCreateInstallmentOfferErrors, AdminCreateInstallmentOfferResponses, AdminCreatePlanData, AdminCreatePlanErrors, AdminCreatePlanResponses, AdminCreatePriceData, AdminCreatePriceErrors, AdminCreatePriceResponses, AdminCreateProviderPriceData, AdminCreateProviderPriceErrors, AdminCreateProviderPriceResponses, AdminDeactivateDiscountData, AdminDeactivateDiscountErrors, AdminDeactivateDiscountResponses, AdminDeactivateInstallmentOfferData, AdminDeactivateInstallmentOfferErrors, AdminDeactivateInstallmentOfferResponses, AdminDeactivatePlanData, AdminDeactivatePlanErrors, AdminDeactivatePlanResponses, AdminDeactivatePriceData, AdminDeactivatePriceErrors, AdminDeactivatePriceResponses, AdminDeactivateProviderPriceData, AdminDeactivateProviderPriceErrors, AdminDeactivateProviderPriceResponses, AdminEndGrantData, AdminEndGrantErrors, AdminEndGrantResponses, AdminGetCatalogData, AdminGetCatalogErrors, AdminGetCatalogResponses, AdminGrantPlanData, AdminGrantPlanErrors, AdminGrantPlanResponses, AdminListDiscountsData, AdminListDiscountsErrors, AdminListDiscountsResponses, AdminListWorkspacesData, AdminListWorkspacesErrors, AdminListWorkspacesResponses, AdminRestoreGrantData, AdminRestoreGrantErrors, AdminRestoreGrantResponses, AdminSetGrantOverridesData, AdminSetGrantOverridesErrors, AdminSetGrantOverridesResponses, AdminUpdatePlanData, AdminUpdatePlanErrors, AdminUpdatePlanResponses, AssignInboxConversationData, AssignInboxConversationErrors, AssignInboxConversationResponses, AuthorizeGoogleSheetsData, AuthorizeGoogleSheetsErrors, AuthorizeGoogleSheetsResponses, AuthorizeShopifyData, AuthorizeShopifyErrors, AuthorizeShopifyResponses, AuthorizeWoocommerceData, AuthorizeWoocommerceErrors, AuthorizeWoocommerceResponses, BulkContactsData, BulkContactsErrors, BulkContactsResponses, CancelPendingSubscriptionChangeData, CancelPendingSubscriptionChangeErrors, CancelPendingSubscriptionChangeResponses, CancelSubscriptionData, CancelSubscriptionErrors, CancelSubscriptionResponses, ChangeMemberRoleData, ChangeMemberRoleErrors, ChangeMemberRoleResponses, ChangePasswordData, ChangePasswordErrors, ChangePasswordResponses, ChangeSubscriptionData, ChangeSubscriptionErrors, ChangeSubscriptionResponses, CompleteOnboardingData, CompleteOnboardingErrors, CompleteOnboardingResponses, CompleteTestCheckoutData, CompleteTestCheckoutErrors, CompleteTestCheckoutResponses, ConnectIntegrationData, ConnectIntegrationErrors, ConnectIntegrationResponses, ConnectWhatsappData, ConnectWhatsappErrors, ConnectWhatsappResponses, CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, CreateCheckoutSessionData, CreateCheckoutSessionErrors, CreateCheckoutSessionResponses, CreateContactData, CreateContactErrors, CreateContactResponses, CreateContactTagData, CreateContactTagErrors, CreateContactTagResponses, CreateInboxQuickReplyData, CreateInboxQuickReplyErrors, CreateInboxQuickReplyResponses, CreateInvitationsData, CreateInvitationsErrors, CreateInvitationsResponses, CreatePortalSessionData, CreatePortalSessionErrors, CreatePortalSessionResponses, CreateRoleData, CreateRoleErrors, CreateRoleResponses, CreateTeamData, CreateTeamErrors, CreateTeamResponses, CreateTemplateData, CreateTemplateErrors, CreateTemplateResponses, CreateWebhookData, CreateWebhookErrors, CreateWebhookResponses, CreateWorkspaceData, CreateWorkspaceErrors, CreateWorkspaceResponses, DeleteContactData, DeleteContactErrors, DeleteContactResponses, DeleteInboxQuickReplyData, DeleteInboxQuickReplyErrors, DeleteInboxQuickReplyResponses, DeleteRoleData, DeleteRoleErrors, DeleteRoleResponses, DeleteTeamData, DeleteTeamErrors, DeleteTeamResponses, DeleteTemplateData, DeleteTemplateErrors, DeleteTemplateResponses, DeleteWebhookData, DeleteWebhookErrors, DeleteWebhookResponses, DisconnectIntegrationData, DisconnectIntegrationErrors, DisconnectIntegrationResponses, DownloadContactImportSkippedData, DownloadContactImportSkippedErrors, DownloadContactImportSkippedResponses, ExportContactsData, ExportContactsErrors, ExportContactsResponses, FacebookDataDeletionData, FacebookDataDeletionErrors, FacebookDataDeletionResponses, ForgotPasswordData, ForgotPasswordErrors, ForgotPasswordResponses, GetAccessLogSummaryData, GetAccessLogSummaryErrors, GetAccessLogSummaryResponses, GetBillingOverviewData, GetBillingOverviewErrors, GetBillingOverviewResponses, GetBillingProfileData, GetBillingProfileErrors, GetBillingProfileResponses, GetCheckoutSessionData, GetCheckoutSessionErrors, GetCheckoutSessionResponses, GetContactData, GetContactErrors, GetContactImportData, GetContactImportErrors, GetContactImportResponses, GetContactResponses, GetContactsSummaryData, GetContactsSummaryErrors, GetContactsSummaryResponses, GetCurrentOrderData, GetCurrentOrderErrors, GetCurrentOrderResponses, GetInboxConversationData, GetInboxConversationErrors, GetInboxConversationResponses, GetInboxMediaData, GetInboxMediaErrors, GetInboxMediaResponses, GetIntegrationsData, GetIntegrationsErrors, GetIntegrationsResponses, GetInvoiceData, GetInvoiceErrors, GetInvoiceResponses, GetMeData, GetMeErrors, GetMemberData, GetMemberErrors, GetMemberResponses, GetMeResponses, GetMyAccessData, GetMyAccessErrors, GetMyAccessResponses, GetOnboardingData, GetOnboardingErrors, GetOnboardingResponses, GetOrderData, GetOrderErrors, GetOrderResponses, GetPaymentMethodData, GetPaymentMethodErrors, GetPaymentMethodResponses, GetSeatsData, GetSeatsErrors, GetSeatsResponses, GetSubscriptionData, GetSubscriptionErrors, GetSubscriptionResponses, GetTemplateData, GetTemplateErrors, GetTemplateResponses, GetTestMessageData, GetTestMessageErrors, GetTestMessageResponses, GetWebhookSecretData, GetWebhookSecretErrors, GetWebhookSecretResponses, GetWhatsappNumberData, GetWhatsappNumberErrors, GetWhatsappNumberResponses, GetWorkspaceData, GetWorkspaceErrors, GetWorkspaceResponses, GoogleSheetsCallbackData, GoogleSheetsCallbackErrors, GoogleSheetsCallbackResponses, HealthData, HealthErrors, HealthResponses, InviteSignupData, InviteSignupErrors, InviteSignupResponses, LeaveWorkspaceData, LeaveWorkspaceErrors, LeaveWorkspaceResponses, ListAccessLogData, ListAccessLogErrors, ListAccessLogResponses, ListApiKeysData, ListApiKeysErrors, ListApiKeysResponses, ListAuthEventsData, ListAuthEventsErrors, ListAuthEventsResponses, ListAutomationsData, ListAutomationsErrors, ListAutomationsResponses, ListBillingPlansData, ListBillingPlansErrors, ListBillingPlansResponses, ListBillingResourcesData, ListBillingResourcesErrors, ListBillingResourcesResponses, ListContactsData, ListContactsErrors, ListContactsResponses, ListContactTagsData, ListContactTagsErrors, ListContactTagsResponses, ListIdentitiesData, ListIdentitiesErrors, ListIdentitiesResponses, ListInboxConversationsData, ListInboxConversationsErrors, ListInboxConversationsResponses, ListInboxMentionsData, ListInboxMentionsErrors, ListInboxMentionsResponses, ListInboxMessagesData, ListInboxMessagesErrors, ListInboxMessagesResponses, ListInboxQuickRepliesData, ListInboxQuickRepliesErrors, ListInboxQuickRepliesResponses, ListInboxTemplatesData, ListInboxTemplatesErrors, ListInboxTemplatesResponses, ListInvitationsData, ListInvitationsErrors, ListInvitationsResponses, ListInvoicesData, ListInvoicesErrors, ListInvoicesResponses, ListMembersData, ListMembersErrors, ListMembersResponses, ListOauthProvidersData, ListOauthProvidersErrors, ListOauthProvidersResponses, ListPermissionsData, ListPermissionsErrors, ListPermissionsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListTeamsData, ListTeamsErrors, ListTeamsResponses, ListTemplatesData, ListTemplatesErrors, ListTemplatesResponses, ListWebhookDeliveriesData, ListWebhookDeliveriesErrors, ListWebhookDeliveriesResponses, ListWebhookEventsData, ListWebhookEventsErrors, ListWebhookEventsResponses, ListWebhooksData, ListWebhooksErrors, ListWebhooksResponses, ListWhatsappNumbersData, ListWhatsappNumbersErrors, ListWhatsappNumbersResponses, ListWorkspacesData, ListWorkspacesErrors, ListWorkspacesResponses, LoginData, LoginErrors, LoginResponses, LogoutAllData, LogoutAllErrors, LogoutAllResponses, LogoutData, LogoutErrors, LogoutResponses, MarkInboxMentionsSeenData, MarkInboxMentionsSeenErrors, MarkInboxMentionsSeenResponses, OauthCallbackData, OauthCallbackErrors, OauthCallbackResponses, OauthCompleteData, OauthCompleteErrors, OauthCompleteResponses, OauthCompleteVerifyData, OauthCompleteVerifyErrors, OauthCompleteVerifyResponses, OauthLinkData, OauthLinkErrors, OauthLinkResponses, OauthStartData, OauthStartErrors, OauthStartResponses, OauthTokenData, OauthTokenErrors, OauthTokenResponses, PayInstallmentData, PayInstallmentErrors, PayInstallmentResponses, PaymentWebhookData, PaymentWebhookErrors, PaymentWebhookResponses, PreviewContactImportData, PreviewContactImportErrors, PreviewContactImportResponses, PreviewDiscountData, PreviewDiscountErrors, PreviewDiscountResponses, PreviewInvitationData, PreviewInvitationErrors, PreviewInvitationResponses, PreviewMemberRoleData, PreviewMemberRoleErrors, PreviewMemberRoleResponses, PreviewRoleData, PreviewRoleErrors, PreviewRoleResponses, PreviewSubscriptionChangeData, PreviewSubscriptionChangeErrors, PreviewSubscriptionChangeResponses, QuoteOrderData, QuoteOrderErrors, QuoteOrderResponses, ReactInboxMessageData, ReactInboxMessageErrors, ReactInboxMessageResponses, ReadInboxConversationData, ReadInboxConversationErrors, ReadInboxConversationResponses, ReadyData, ReadyErrors, ReadyResponses, RedeliverWebhookData, RedeliverWebhookErrors, RedeliverWebhookResponses, RefreshTokenData, RefreshTokenErrors, RefreshTokenResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RequestInvitationRenewalData, RequestInvitationRenewalErrors, RequestInvitationRenewalResponses, ResendInvitationData, ResendInvitationErrors, ResendInvitationResponses, ResendVerificationData, ResendVerificationErrors, ResendVerificationResponses, ResetPasswordData, ResetPasswordErrors, ResetPasswordResponses, ResetRoleData, ResetRoleErrors, ResetRoleResponses, RestoreMemberData, RestoreMemberErrors, RestoreMemberResponses, ResumeOrderData, ResumeOrderErrors, ResumeOrderResponses, ResumeSubscriptionData, ResumeSubscriptionErrors, ResumeSubscriptionResponses, RevokeApiKeyData, RevokeApiKeyErrors, RevokeApiKeyResponses, RevokeInvitationData, RevokeInvitationErrors, RevokeInvitationResponses, RevokeMemberOverrideData, RevokeMemberOverrideErrors, RevokeMemberOverrideResponses, RevokeSessionData, RevokeSessionErrors, RevokeSessionResponses, RollApiKeyData, RollApiKeyErrors, RollApiKeyResponses, RotateWebhookSecretData, RotateWebhookSecretErrors, RotateWebhookSecretResponses, SaveAutomationData, SaveAutomationErrors, SaveAutomationResponses, SaveBusinessData, SaveBusinessErrors, SaveBusinessResponses, SendInboxMessageData, SendInboxMessageErrors, SendInboxMessageResponses, SendTestMessageData, SendTestMessageErrors, SendTestMessageResponses, SendWebhookTestData, SendWebhookTestErrors, SendWebhookTestResponses, SetAutomationEnabledData, SetAutomationEnabledErrors, SetAutomationEnabledResponses, SetAvailabilityData, SetAvailabilityErrors, SetAvailabilityResponses, SetContactImportMappingData, SetContactImportMappingErrors, SetContactImportMappingResponses, SetInboxConversationStatusData, SetInboxConversationStatusErrors, SetInboxConversationStatusResponses, SetPasswordData, SetPasswordErrors, SetPasswordResponses, SetTeamMembersData, SetTeamMembersErrors, SetTeamMembersResponses, ShopifyCallbackData, ShopifyCallbackErrors, ShopifyCallbackResponses, ShopifyOrderWebhookData, ShopifyOrderWebhookErrors, ShopifyOrderWebhookResponses, ShopifyPrivacyWebhookData, ShopifyPrivacyWebhookErrors, ShopifyPrivacyWebhookResponses, SignupData, SignupErrors, SignupResponses, SkipWhatsappData, SkipWhatsappErrors, SkipWhatsappResponses, StartContactImportData, StartContactImportErrors, StartContactImportResponses, StreamInboxEventsData, StreamInboxEventsErrors, StreamInboxEventsResponse, StreamInboxEventsResponses, SubmitTemplateData, SubmitTemplateErrors, SubmitTemplateResponses, SuspendMemberData, SuspendMemberErrors, SuspendMemberResponses, SyncTemplatesData, SyncTemplatesErrors, SyncTemplatesResponses, TestIntegrationData, TestIntegrationErrors, TestIntegrationResponses, UnlinkIdentityData, UnlinkIdentityErrors, UnlinkIdentityResponses, UpdateBillingProfileData, UpdateBillingProfileErrors, UpdateBillingProfileResponses, UpdateContactData, UpdateContactErrors, UpdateContactResponses, UpdateInboxQuickReplyData, UpdateInboxQuickReplyErrors, UpdateInboxQuickReplyResponses, UpdateMemberAccessData, UpdateMemberAccessErrors, UpdateMemberAccessResponses, UpdateOnboardingMemberData, UpdateOnboardingMemberErrors, UpdateOnboardingMemberResponses, UpdatePreferencesData, UpdatePreferencesErrors, UpdatePreferencesResponses, UpdateProfileData, UpdateProfileErrors, UpdateProfileResponses, UpdateRoleData, UpdateRoleErrors, UpdateRoleResponses, UpdateTeamData, UpdateTeamErrors, UpdateTeamResponses, UpdateTemplateData, UpdateTemplateErrors, UpdateTemplateResponses, UpdateWebhookData, UpdateWebhookErrors, UpdateWebhookResponses, UploadContactImportData, UploadContactImportErrors, UploadContactImportResponses, UploadInboxMediaData, UploadInboxMediaErrors, UploadInboxMediaResponses, UploadTemplateHeaderSampleData, UploadTemplateHeaderSampleErrors, UploadTemplateHeaderSampleResponses, VerifyEmailCodeData, VerifyEmailCodeErrors, VerifyEmailCodeResponses, VerifyEmailData, VerifyEmailErrors, VerifyEmailResponses, WhatsappSignupConfigData, WhatsappSignupConfigErrors, WhatsappSignupConfigResponses, WhatsappWebhookData, WhatsappWebhookErrors, WhatsappWebhookResponses, WhatsappWebhookVerifyData, WhatsappWebhookVerifyErrors, WhatsappWebhookVerifyResponses, WoocommerceCallbackData, WoocommerceCallbackErrors, WoocommerceCallbackResponses, WoocommerceOrderWebhookData, WoocommerceOrderWebhookErrors, WoocommerceOrderWebhookResponses } from './types.gen';
+import type { AcceptInvitationData, AcceptInvitationErrors, AcceptInvitationResponses, AddInboxNoteData, AddInboxNoteErrors, AddInboxNoteResponses, AddMemberOverrideData, AddMemberOverrideErrors, AddMemberOverrideResponses, AdminCreateDiscountData, AdminCreateDiscountErrors, AdminCreateDiscountResponses, AdminCreateInstallmentOfferData, AdminCreateInstallmentOfferErrors, AdminCreateInstallmentOfferResponses, AdminCreatePlanData, AdminCreatePlanErrors, AdminCreatePlanResponses, AdminCreatePriceData, AdminCreatePriceErrors, AdminCreatePriceResponses, AdminCreateProviderPriceData, AdminCreateProviderPriceErrors, AdminCreateProviderPriceResponses, AdminDeactivateDiscountData, AdminDeactivateDiscountErrors, AdminDeactivateDiscountResponses, AdminDeactivateInstallmentOfferData, AdminDeactivateInstallmentOfferErrors, AdminDeactivateInstallmentOfferResponses, AdminDeactivatePlanData, AdminDeactivatePlanErrors, AdminDeactivatePlanResponses, AdminDeactivatePriceData, AdminDeactivatePriceErrors, AdminDeactivatePriceResponses, AdminDeactivateProviderPriceData, AdminDeactivateProviderPriceErrors, AdminDeactivateProviderPriceResponses, AdminEndGrantData, AdminEndGrantErrors, AdminEndGrantResponses, AdminGetCatalogData, AdminGetCatalogErrors, AdminGetCatalogResponses, AdminGrantPlanData, AdminGrantPlanErrors, AdminGrantPlanResponses, AdminListDiscountsData, AdminListDiscountsErrors, AdminListDiscountsResponses, AdminListWorkspacesData, AdminListWorkspacesErrors, AdminListWorkspacesResponses, AdminRestoreGrantData, AdminRestoreGrantErrors, AdminRestoreGrantResponses, AdminSetGrantOverridesData, AdminSetGrantOverridesErrors, AdminSetGrantOverridesResponses, AdminUpdatePlanData, AdminUpdatePlanErrors, AdminUpdatePlanResponses, AssignInboxConversationData, AssignInboxConversationErrors, AssignInboxConversationResponses, AuthorizeGoogleSheetsData, AuthorizeGoogleSheetsErrors, AuthorizeGoogleSheetsResponses, AuthorizeShopifyData, AuthorizeShopifyErrors, AuthorizeShopifyResponses, AuthorizeWoocommerceData, AuthorizeWoocommerceErrors, AuthorizeWoocommerceResponses, BulkContactsData, BulkContactsErrors, BulkContactsResponses, CancelBroadcastData, CancelBroadcastErrors, CancelBroadcastResponses, CancelPendingSubscriptionChangeData, CancelPendingSubscriptionChangeErrors, CancelPendingSubscriptionChangeResponses, CancelSubscriptionData, CancelSubscriptionErrors, CancelSubscriptionResponses, ChangeMemberRoleData, ChangeMemberRoleErrors, ChangeMemberRoleResponses, ChangePasswordData, ChangePasswordErrors, ChangePasswordResponses, ChangeSubscriptionData, ChangeSubscriptionErrors, ChangeSubscriptionResponses, CompleteOnboardingData, CompleteOnboardingErrors, CompleteOnboardingResponses, CompleteTestCheckoutData, CompleteTestCheckoutErrors, CompleteTestCheckoutResponses, ConnectIntegrationData, ConnectIntegrationErrors, ConnectIntegrationResponses, ConnectWhatsappData, ConnectWhatsappErrors, ConnectWhatsappResponses, CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, CreateBroadcastData, CreateBroadcastErrors, CreateBroadcastResponses, CreateCheckoutSessionData, CreateCheckoutSessionErrors, CreateCheckoutSessionResponses, CreateContactData, CreateContactErrors, CreateContactResponses, CreateContactSegmentData, CreateContactSegmentErrors, CreateContactSegmentResponses, CreateContactTagData, CreateContactTagErrors, CreateContactTagResponses, CreateInboxQuickReplyData, CreateInboxQuickReplyErrors, CreateInboxQuickReplyResponses, CreateInvitationsData, CreateInvitationsErrors, CreateInvitationsResponses, CreatePortalSessionData, CreatePortalSessionErrors, CreatePortalSessionResponses, CreateRoleData, CreateRoleErrors, CreateRoleResponses, CreateTeamData, CreateTeamErrors, CreateTeamResponses, CreateTemplateData, CreateTemplateErrors, CreateTemplateResponses, CreateWebhookData, CreateWebhookErrors, CreateWebhookResponses, CreateWorkspaceData, CreateWorkspaceErrors, CreateWorkspaceResponses, DeleteBroadcastData, DeleteBroadcastErrors, DeleteBroadcastResponses, DeleteContactData, DeleteContactErrors, DeleteContactResponses, DeleteContactSegmentData, DeleteContactSegmentErrors, DeleteContactSegmentResponses, DeleteInboxQuickReplyData, DeleteInboxQuickReplyErrors, DeleteInboxQuickReplyResponses, DeleteRoleData, DeleteRoleErrors, DeleteRoleResponses, DeleteTeamData, DeleteTeamErrors, DeleteTeamResponses, DeleteTemplateData, DeleteTemplateErrors, DeleteTemplateResponses, DeleteWebhookData, DeleteWebhookErrors, DeleteWebhookResponses, DisconnectIntegrationData, DisconnectIntegrationErrors, DisconnectIntegrationResponses, DownloadContactImportSkippedData, DownloadContactImportSkippedErrors, DownloadContactImportSkippedResponses, DuplicateBroadcastData, DuplicateBroadcastErrors, DuplicateBroadcastResponses, ExportContactsData, ExportContactsErrors, ExportContactsResponses, FacebookDataDeletionData, FacebookDataDeletionErrors, FacebookDataDeletionResponses, ForgotPasswordData, ForgotPasswordErrors, ForgotPasswordResponses, GetAccessLogSummaryData, GetAccessLogSummaryErrors, GetAccessLogSummaryResponses, GetBillingOverviewData, GetBillingOverviewErrors, GetBillingOverviewResponses, GetBillingProfileData, GetBillingProfileErrors, GetBillingProfileResponses, GetBillingUsageData, GetBillingUsageErrors, GetBillingUsageResponses, GetBroadcastData, GetBroadcastErrors, GetBroadcastResponses, GetCheckoutSessionData, GetCheckoutSessionErrors, GetCheckoutSessionResponses, GetContactData, GetContactErrors, GetContactImportData, GetContactImportErrors, GetContactImportResponses, GetContactResponses, GetContactSegmentData, GetContactSegmentErrors, GetContactSegmentResponses, GetContactsSummaryData, GetContactsSummaryErrors, GetContactsSummaryResponses, GetCurrentOrderData, GetCurrentOrderErrors, GetCurrentOrderResponses, GetInboxConversationData, GetInboxConversationErrors, GetInboxConversationResponses, GetInboxMediaData, GetInboxMediaErrors, GetInboxMediaResponses, GetIntegrationsData, GetIntegrationsErrors, GetIntegrationsResponses, GetInvoiceData, GetInvoiceErrors, GetInvoiceResponses, GetMeData, GetMeErrors, GetMemberData, GetMemberErrors, GetMemberResponses, GetMeResponses, GetMyAccessData, GetMyAccessErrors, GetMyAccessResponses, GetOnboardingData, GetOnboardingErrors, GetOnboardingResponses, GetOrderData, GetOrderErrors, GetOrderResponses, GetPaymentMethodData, GetPaymentMethodErrors, GetPaymentMethodResponses, GetSeatsData, GetSeatsErrors, GetSeatsResponses, GetSubscriptionData, GetSubscriptionErrors, GetSubscriptionResponses, GetTemplateData, GetTemplateErrors, GetTemplateResponses, GetTestMessageData, GetTestMessageErrors, GetTestMessageResponses, GetWebhookSecretData, GetWebhookSecretErrors, GetWebhookSecretResponses, GetWhatsappNumberData, GetWhatsappNumberErrors, GetWhatsappNumberResponses, GetWorkspaceData, GetWorkspaceErrors, GetWorkspaceResponses, GoogleSheetsCallbackData, GoogleSheetsCallbackErrors, GoogleSheetsCallbackResponses, HealthData, HealthErrors, HealthResponses, InviteSignupData, InviteSignupErrors, InviteSignupResponses, LeaveWorkspaceData, LeaveWorkspaceErrors, LeaveWorkspaceResponses, ListAccessLogData, ListAccessLogErrors, ListAccessLogResponses, ListApiKeysData, ListApiKeysErrors, ListApiKeysResponses, ListAuthEventsData, ListAuthEventsErrors, ListAuthEventsResponses, ListAutomationsData, ListAutomationsErrors, ListAutomationsResponses, ListBillingPlansData, ListBillingPlansErrors, ListBillingPlansResponses, ListBillingResourcesData, ListBillingResourcesErrors, ListBillingResourcesResponses, ListBroadcastRecipientsData, ListBroadcastRecipientsErrors, ListBroadcastRecipientsResponses, ListBroadcastsData, ListBroadcastsErrors, ListBroadcastsResponses, ListContactsData, ListContactSegmentsData, ListContactSegmentsErrors, ListContactSegmentsResponses, ListContactsErrors, ListContactsResponses, ListContactTagsData, ListContactTagsErrors, ListContactTagsResponses, ListIdentitiesData, ListIdentitiesErrors, ListIdentitiesResponses, ListInboxConversationsData, ListInboxConversationsErrors, ListInboxConversationsResponses, ListInboxMentionsData, ListInboxMentionsErrors, ListInboxMentionsResponses, ListInboxMessagesData, ListInboxMessagesErrors, ListInboxMessagesResponses, ListInboxQuickRepliesData, ListInboxQuickRepliesErrors, ListInboxQuickRepliesResponses, ListInboxTemplatesData, ListInboxTemplatesErrors, ListInboxTemplatesResponses, ListInvitationsData, ListInvitationsErrors, ListInvitationsResponses, ListInvoicesData, ListInvoicesErrors, ListInvoicesResponses, ListMembersData, ListMembersErrors, ListMembersResponses, ListOauthProvidersData, ListOauthProvidersErrors, ListOauthProvidersResponses, ListPermissionsData, ListPermissionsErrors, ListPermissionsResponses, ListRolesData, ListRolesErrors, ListRolesResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListTeamsData, ListTeamsErrors, ListTeamsResponses, ListTemplatesData, ListTemplatesErrors, ListTemplatesResponses, ListWebhookDeliveriesData, ListWebhookDeliveriesErrors, ListWebhookDeliveriesResponses, ListWebhookEventsData, ListWebhookEventsErrors, ListWebhookEventsResponses, ListWebhooksData, ListWebhooksErrors, ListWebhooksResponses, ListWhatsappNumbersData, ListWhatsappNumbersErrors, ListWhatsappNumbersResponses, ListWorkspacesData, ListWorkspacesErrors, ListWorkspacesResponses, LoginData, LoginErrors, LoginResponses, LogoutAllData, LogoutAllErrors, LogoutAllResponses, LogoutData, LogoutErrors, LogoutResponses, MarkInboxMentionsSeenData, MarkInboxMentionsSeenErrors, MarkInboxMentionsSeenResponses, OauthCallbackData, OauthCallbackErrors, OauthCallbackResponses, OauthCompleteData, OauthCompleteErrors, OauthCompleteResponses, OauthCompleteVerifyData, OauthCompleteVerifyErrors, OauthCompleteVerifyResponses, OauthLinkData, OauthLinkErrors, OauthLinkResponses, OauthStartData, OauthStartErrors, OauthStartResponses, OauthTokenData, OauthTokenErrors, OauthTokenResponses, PayInstallmentData, PayInstallmentErrors, PayInstallmentResponses, PaymentWebhookData, PaymentWebhookErrors, PaymentWebhookResponses, PreviewBroadcastAudienceData, PreviewBroadcastAudienceErrors, PreviewBroadcastAudienceResponses, PreviewContactImportData, PreviewContactImportErrors, PreviewContactImportResponses, PreviewContactSegmentData, PreviewContactSegmentErrors, PreviewContactSegmentResponses, PreviewDiscountData, PreviewDiscountErrors, PreviewDiscountResponses, PreviewInvitationData, PreviewInvitationErrors, PreviewInvitationResponses, PreviewMemberRoleData, PreviewMemberRoleErrors, PreviewMemberRoleResponses, PreviewRoleData, PreviewRoleErrors, PreviewRoleResponses, PreviewSubscriptionChangeData, PreviewSubscriptionChangeErrors, PreviewSubscriptionChangeResponses, QuoteOrderData, QuoteOrderErrors, QuoteOrderResponses, ReactInboxMessageData, ReactInboxMessageErrors, ReactInboxMessageResponses, ReadInboxConversationData, ReadInboxConversationErrors, ReadInboxConversationResponses, ReadyData, ReadyErrors, ReadyResponses, RedeliverWebhookData, RedeliverWebhookErrors, RedeliverWebhookResponses, RefreshTokenData, RefreshTokenErrors, RefreshTokenResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RequestInvitationRenewalData, RequestInvitationRenewalErrors, RequestInvitationRenewalResponses, ResendInvitationData, ResendInvitationErrors, ResendInvitationResponses, ResendVerificationData, ResendVerificationErrors, ResendVerificationResponses, ResetPasswordData, ResetPasswordErrors, ResetPasswordResponses, ResetRoleData, ResetRoleErrors, ResetRoleResponses, RestoreMemberData, RestoreMemberErrors, RestoreMemberResponses, ResumeOrderData, ResumeOrderErrors, ResumeOrderResponses, ResumeSubscriptionData, ResumeSubscriptionErrors, ResumeSubscriptionResponses, RevokeApiKeyData, RevokeApiKeyErrors, RevokeApiKeyResponses, RevokeInvitationData, RevokeInvitationErrors, RevokeInvitationResponses, RevokeMemberOverrideData, RevokeMemberOverrideErrors, RevokeMemberOverrideResponses, RevokeSessionData, RevokeSessionErrors, RevokeSessionResponses, RollApiKeyData, RollApiKeyErrors, RollApiKeyResponses, RotateWebhookSecretData, RotateWebhookSecretErrors, RotateWebhookSecretResponses, SaveAutomationData, SaveAutomationErrors, SaveAutomationResponses, SaveBusinessData, SaveBusinessErrors, SaveBusinessResponses, SendBroadcastData, SendBroadcastErrors, SendBroadcastResponses, SendInboxMessageData, SendInboxMessageErrors, SendInboxMessageResponses, SendTestMessageData, SendTestMessageErrors, SendTestMessageResponses, SendWebhookTestData, SendWebhookTestErrors, SendWebhookTestResponses, SetAutomationEnabledData, SetAutomationEnabledErrors, SetAutomationEnabledResponses, SetAvailabilityData, SetAvailabilityErrors, SetAvailabilityResponses, SetContactImportMappingData, SetContactImportMappingErrors, SetContactImportMappingResponses, SetInboxConversationStatusData, SetInboxConversationStatusErrors, SetInboxConversationStatusResponses, SetPasswordData, SetPasswordErrors, SetPasswordResponses, SetTeamMembersData, SetTeamMembersErrors, SetTeamMembersResponses, ShopifyCallbackData, ShopifyCallbackErrors, ShopifyCallbackResponses, ShopifyOrderWebhookData, ShopifyOrderWebhookErrors, ShopifyOrderWebhookResponses, ShopifyPrivacyWebhookData, ShopifyPrivacyWebhookErrors, ShopifyPrivacyWebhookResponses, SignupData, SignupErrors, SignupResponses, SkipWhatsappData, SkipWhatsappErrors, SkipWhatsappResponses, StartContactImportData, StartContactImportErrors, StartContactImportResponses, StreamInboxEventsData, StreamInboxEventsErrors, StreamInboxEventsResponse, StreamInboxEventsResponses, SubmitTemplateData, SubmitTemplateErrors, SubmitTemplateResponses, SuspendMemberData, SuspendMemberErrors, SuspendMemberResponses, SyncTemplatesData, SyncTemplatesErrors, SyncTemplatesResponses, TestIntegrationData, TestIntegrationErrors, TestIntegrationResponses, UnlinkIdentityData, UnlinkIdentityErrors, UnlinkIdentityResponses, UpdateBillingProfileData, UpdateBillingProfileErrors, UpdateBillingProfileResponses, UpdateBroadcastData, UpdateBroadcastErrors, UpdateBroadcastResponses, UpdateContactData, UpdateContactErrors, UpdateContactResponses, UpdateContactSegmentData, UpdateContactSegmentErrors, UpdateContactSegmentResponses, UpdateInboxQuickReplyData, UpdateInboxQuickReplyErrors, UpdateInboxQuickReplyResponses, UpdateMemberAccessData, UpdateMemberAccessErrors, UpdateMemberAccessResponses, UpdateOnboardingMemberData, UpdateOnboardingMemberErrors, UpdateOnboardingMemberResponses, UpdatePreferencesData, UpdatePreferencesErrors, UpdatePreferencesResponses, UpdateProfileData, UpdateProfileErrors, UpdateProfileResponses, UpdateRoleData, UpdateRoleErrors, UpdateRoleResponses, UpdateTeamData, UpdateTeamErrors, UpdateTeamResponses, UpdateTemplateData, UpdateTemplateErrors, UpdateTemplateResponses, UpdateWebhookData, UpdateWebhookErrors, UpdateWebhookResponses, UploadContactImportData, UploadContactImportErrors, UploadContactImportResponses, UploadInboxMediaData, UploadInboxMediaErrors, UploadInboxMediaResponses, UploadTemplateHeaderSampleData, UploadTemplateHeaderSampleErrors, UploadTemplateHeaderSampleResponses, VerifyEmailCodeData, VerifyEmailCodeErrors, VerifyEmailCodeResponses, VerifyEmailData, VerifyEmailErrors, VerifyEmailResponses, WhatsappSignupConfigData, WhatsappSignupConfigErrors, WhatsappSignupConfigResponses, WhatsappWebhookData, WhatsappWebhookErrors, WhatsappWebhookResponses, WhatsappWebhookVerifyData, WhatsappWebhookVerifyErrors, WhatsappWebhookVerifyResponses, WoocommerceCallbackData, WoocommerceCallbackErrors, WoocommerceCallbackResponses, WoocommerceOrderWebhookData, WoocommerceOrderWebhookErrors, WoocommerceOrderWebhookResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -1230,6 +1230,255 @@ export const resumeSubscription = <ThrowOnError extends boolean = false>(options
         }],
     url: '/v1/workspace/billing/subscription/resume',
     ...options
+});
+
+/**
+ * This month's use of each monthly plan resource (ADR 0008)
+ */
+export const getBillingUsage = <ThrowOnError extends boolean = false>(options: Options<GetBillingUsageData, ThrowOnError>): RequestResult<GetBillingUsageResponses, GetBillingUsageErrors, ThrowOnError> => (options.client ?? client).get<GetBillingUsageResponses, GetBillingUsageErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/billing/usage',
+    ...options
+});
+
+/**
+ * Broadcasts, newest first, with delivery counts
+ */
+export const listBroadcasts = <ThrowOnError extends boolean = false>(options: Options<ListBroadcastsData, ThrowOnError>): RequestResult<ListBroadcastsResponses, ListBroadcastsErrors, ThrowOnError> => (options.client ?? client).get<ListBroadcastsResponses, ListBroadcastsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/broadcasts',
+    ...options
+});
+
+/**
+ * Save a new draft
+ */
+export const createBroadcast = <ThrowOnError extends boolean = false>(options: Options<CreateBroadcastData, ThrowOnError>): RequestResult<CreateBroadcastResponses, CreateBroadcastErrors, ThrowOnError> => (options.client ?? client).post<CreateBroadcastResponses, CreateBroadcastErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/broadcasts',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * How many opted-in contacts an audience reaches
+ */
+export const previewBroadcastAudience = <ThrowOnError extends boolean = false>(options: Options<PreviewBroadcastAudienceData, ThrowOnError>): RequestResult<PreviewBroadcastAudienceResponses, PreviewBroadcastAudienceErrors, ThrowOnError> => (options.client ?? client).post<PreviewBroadcastAudienceResponses, PreviewBroadcastAudienceErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/broadcasts/audience-preview',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete a draft
+ */
+export const deleteBroadcast = <ThrowOnError extends boolean = false>(options: Options<DeleteBroadcastData, ThrowOnError>): RequestResult<DeleteBroadcastResponses, DeleteBroadcastErrors, ThrowOnError> => (options.client ?? client).delete<DeleteBroadcastResponses, DeleteBroadcastErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/broadcasts/{broadcastId}',
+    ...options
+});
+
+/**
+ * One broadcast and its report
+ */
+export const getBroadcast = <ThrowOnError extends boolean = false>(options: Options<GetBroadcastData, ThrowOnError>): RequestResult<GetBroadcastResponses, GetBroadcastErrors, ThrowOnError> => (options.client ?? client).get<GetBroadcastResponses, GetBroadcastErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/broadcasts/{broadcastId}',
+    ...options
+});
+
+/**
+ * Replace a draft or scheduled broadcast's content
+ */
+export const updateBroadcast = <ThrowOnError extends boolean = false>(options: Options<UpdateBroadcastData, ThrowOnError>): RequestResult<UpdateBroadcastResponses, UpdateBroadcastErrors, ThrowOnError> => (options.client ?? client).put<UpdateBroadcastResponses, UpdateBroadcastErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/broadcasts/{broadcastId}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Stop a scheduled or sending broadcast; messages already queued still go
+ */
+export const cancelBroadcast = <ThrowOnError extends boolean = false>(options: Options<CancelBroadcastData, ThrowOnError>): RequestResult<CancelBroadcastResponses, CancelBroadcastErrors, ThrowOnError> => (options.client ?? client).post<CancelBroadcastResponses, CancelBroadcastErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/broadcasts/{broadcastId}/cancel',
+    ...options
+});
+
+/**
+ * Copy a broadcast into a new draft
+ */
+export const duplicateBroadcast = <ThrowOnError extends boolean = false>(options: Options<DuplicateBroadcastData, ThrowOnError>): RequestResult<DuplicateBroadcastResponses, DuplicateBroadcastErrors, ThrowOnError> => (options.client ?? client).post<DuplicateBroadcastResponses, DuplicateBroadcastErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/broadcasts/{broadcastId}/duplicate',
+    ...options
+});
+
+/**
+ * Who a broadcast went to, and what happened
+ */
+export const listBroadcastRecipients = <ThrowOnError extends boolean = false>(options: Options<ListBroadcastRecipientsData, ThrowOnError>): RequestResult<ListBroadcastRecipientsResponses, ListBroadcastRecipientsErrors, ThrowOnError> => (options.client ?? client).get<ListBroadcastRecipientsResponses, ListBroadcastRecipientsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/broadcasts/{broadcastId}/recipients',
+    ...options
+});
+
+/**
+ * Send a draft now or schedule it; on a scheduled one, move the time or send now
+ */
+export const sendBroadcast = <ThrowOnError extends boolean = false>(options: Options<SendBroadcastData, ThrowOnError>): RequestResult<SendBroadcastResponses, SendBroadcastErrors, ThrowOnError> => (options.client ?? client).post<SendBroadcastResponses, SendBroadcastErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/broadcasts/{broadcastId}/send',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Segments by name, each with who matches it now
+ */
+export const listContactSegments = <ThrowOnError extends boolean = false>(options: Options<ListContactSegmentsData, ThrowOnError>): RequestResult<ListContactSegmentsResponses, ListContactSegmentsErrors, ThrowOnError> => (options.client ?? client).get<ListContactSegmentsResponses, ListContactSegmentsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/contact-segments',
+    ...options
+});
+
+/**
+ * Save a segment
+ */
+export const createContactSegment = <ThrowOnError extends boolean = false>(options: Options<CreateContactSegmentData, ThrowOnError>): RequestResult<CreateContactSegmentResponses, CreateContactSegmentErrors, ThrowOnError> => (options.client ?? client).post<CreateContactSegmentResponses, CreateContactSegmentErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/contact-segments',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Who rules match right now, before saving
+ */
+export const previewContactSegment = <ThrowOnError extends boolean = false>(options: Options<PreviewContactSegmentData, ThrowOnError>): RequestResult<PreviewContactSegmentResponses, PreviewContactSegmentErrors, ThrowOnError> => (options.client ?? client).post<PreviewContactSegmentResponses, PreviewContactSegmentErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/contact-segments/preview',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete a segment; its contacts stay
+ */
+export const deleteContactSegment = <ThrowOnError extends boolean = false>(options: Options<DeleteContactSegmentData, ThrowOnError>): RequestResult<DeleteContactSegmentResponses, DeleteContactSegmentErrors, ThrowOnError> => (options.client ?? client).delete<DeleteContactSegmentResponses, DeleteContactSegmentErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/contact-segments/{segmentId}',
+    ...options
+});
+
+/**
+ * One segment with who matches it now
+ */
+export const getContactSegment = <ThrowOnError extends boolean = false>(options: Options<GetContactSegmentData, ThrowOnError>): RequestResult<GetContactSegmentResponses, GetContactSegmentErrors, ThrowOnError> => (options.client ?? client).get<GetContactSegmentResponses, GetContactSegmentErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/contact-segments/{segmentId}',
+    ...options
+});
+
+/**
+ * Replace a segment's name, description and rules
+ */
+export const updateContactSegment = <ThrowOnError extends boolean = false>(options: Options<UpdateContactSegmentData, ThrowOnError>): RequestResult<UpdateContactSegmentResponses, UpdateContactSegmentErrors, ThrowOnError> => (options.client ?? client).put<UpdateContactSegmentResponses, UpdateContactSegmentErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'relay_access',
+            type: 'apiKey'
+        }],
+    url: '/v1/workspace/contact-segments/{segmentId}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });
 
 /**

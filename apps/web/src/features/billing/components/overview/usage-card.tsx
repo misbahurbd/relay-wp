@@ -2,7 +2,11 @@ import { useQuery } from '@tanstack/react-query'
 import { Badge } from '#/components/ui/badge'
 import { Skeleton } from '#/components/ui/skeleton'
 import { usagePreviewQueryOptions } from '../../api/billing.preview'
-import { numbersUsageQueryOptions, seatsUsageQueryOptions } from '../../api/billing.queries'
+import {
+  monthlyUsageQueryOptions,
+  numbersUsageQueryOptions,
+  seatsUsageQueryOptions,
+} from '../../api/billing.queries'
 import { useBillingPreview } from '../../hooks/use-billing-preview'
 import type { Overview, UsageRow } from '../../types'
 import { formatDate } from '../kit/format'
@@ -13,8 +17,8 @@ import { Section, SectionHeader } from '../kit/section'
 const DAY = 24 * 60 * 60 * 1000
 
 /**
- * How much of each plan limit the workspace uses. Seats and WhatsApp numbers are real; contacts,
- * flows, broadcasts and API calls are a preview until Relay counts them.
+ * How much of each plan limit the workspace uses. Seats, WhatsApp numbers and broadcasts are real;
+ * contacts, flows and API calls are a preview until Relay counts them.
  */
 export function UsageCard({
   workspaceId,
@@ -28,12 +32,15 @@ export function UsageCard({
   const preview = useBillingPreview()
   const seats = useQuery(seatsUsageQueryOptions(workspaceId))
   const numbers = useQuery(numbersUsageQueryOptions(workspaceId))
+  const monthly = useQuery(monthlyUsageQueryOptions(workspaceId))
+  const broadcasts = monthly.data?.broadcasts
   const samples = useQuery({ ...usagePreviewQueryOptions(workspaceId), enabled: preview })
   const limits = overview.plan.limits
   const seatLimit = seats.data?.limit ?? limits.members
   const hot = [
     seats.data && almostFull(seats.data.used, seatLimit),
     numbers.data !== undefined && almostFull(numbers.data, limits.whatsapp_numbers),
+    broadcasts && almostFull(broadcasts.used, broadcasts.limit),
   ].filter(Boolean).length
   const sample = (key: string) => samples.data?.find((r) => r.key === key)
 
@@ -46,6 +53,14 @@ export function UsageCard({
       state={numbers}
       used={numbers.data}
       limit={limits.whatsapp_numbers}
+    />
+  )
+  const broadcastsRow = (
+    <Live
+      label="Broadcasts this month"
+      state={monthly}
+      used={broadcasts?.used}
+      limit={broadcasts?.limit ?? limits.broadcasts}
     />
   )
 
@@ -69,7 +84,7 @@ export function UsageCard({
             <Sample row={sample('contacts')} />
             {seatsRow}
             <Sample row={sample('chatbot_flows')} />
-            <Sample row={sample('broadcasts_per_month')} />
+            {broadcastsRow}
             <Sample row={sample('api_calls_per_month')} />
             {numbersRow}
           </>
@@ -77,6 +92,7 @@ export function UsageCard({
           <>
             {seatsRow}
             {numbersRow}
+            {broadcastsRow}
           </>
         )}
       </div>

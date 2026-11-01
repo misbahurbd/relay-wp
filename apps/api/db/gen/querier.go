@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
@@ -46,11 +47,25 @@ type Querier interface {
 	AdvanceMessageStatus(ctx context.Context, arg AdvanceMessageStatusParams) ([]AdvanceMessageStatusRow, error)
 	AdvanceRun(ctx context.Context, arg AdvanceRunParams) error
 	AssignContacts(ctx context.Context, arg AssignContactsParams) (int64, error)
+	// ---------- Audience ----------
+	// A contact is in the audience when @everyone is set, or it has any of @tag_ids, or
+	// it is one of @contact_ids (segment and list members, resolved by the
+	// service). Only opted-in contacts get it; with @skip_recent, neither do
+	// those sent a marketing template since @recent_since.
+	// Who matches, how many of them opted in, and how many of those the
+	// recent-marketing rule leaves out.
+	AudienceCount(ctx context.Context, arg AudienceCountParams) (AudienceCountRow, error)
 	// What automations need to know before they speak. last_agent_at is the epoch
 	// when no person has written here.
 	AutomationConversation(ctx context.Context, arg AutomationConversationParams) (AutomationConversationRow, error)
+	// Messages Meta accepted: a broadcast that reached anyone activates the workspace.
+	BroadcastSentCount(ctx context.Context, arg BroadcastSentCountParams) (int32, error)
+	// ---------- Reports ----------
+	BroadcastStats(ctx context.Context, arg BroadcastStatsParams) (BroadcastStatsRow, error)
+	BroadcastStatus(ctx context.Context, arg BroadcastStatusParams) (BroadcastStatusRow, error)
 	BumpAccessVersions(ctx context.Context, arg BumpAccessVersionsParams) error
 	BumpReminderCount(ctx context.Context, workspaceID uuid.UUID) error
+	CancelBroadcast(ctx context.Context, arg CancelBroadcastParams) (pgtype.Date, error)
 	// The order came before any reminder went.
 	CancelCartRun(ctx context.Context, arg CancelCartRunParams) error
 	CancelContactRuns(ctx context.Context, arg CancelContactRunsParams) error
@@ -58,16 +73,28 @@ type Querier interface {
 	// An upgraded or refunded order: what is still open will never be collected.
 	CancelOpenInstallments(ctx context.Context, arg CancelOpenInstallmentsParams) (int64, error)
 	CancelSubscriptionNow(ctx context.Context, arg CancelSubscriptionNowParams) (int64, error)
+	// The contact's chat on one number: a broadcast sends from the number it chose.
+	ChannelContactConversation(ctx context.Context, arg ChannelContactConversationParams) (uuid.UUID, error)
+	// ---------- Sending ----------
+	// The next pending recipients, locked so a second batch job skips them. The
+	// contact's current attributes fill variables; a deleted contact has none.
+	ClaimRecipients(ctx context.Context, arg ClaimRecipientsParams) ([]ClaimRecipientsRow, error)
 	// A due run, locked; another worker holding it means nothing to do here.
 	ClaimRun(ctx context.Context, arg ClaimRunParams) (ClaimRunRow, error)
 	ClearContactTags(ctx context.Context, arg ClearContactTagsParams) error
 	ClearUnread(ctx context.Context, arg ClearUnreadParams) (ClearUnreadRow, error)
+	CompleteBroadcast(ctx context.Context, arg CompleteBroadcastParams) (CompleteBroadcastRow, error)
 	CompleteOnboarding(ctx context.Context, workspaceID uuid.UUID) error
 	// Atomically marks a valid token used and returns who it belongs to.
 	ConsumeEmailToken(ctx context.Context, arg ConsumeEmailTokenParams) (ConsumeEmailTokenRow, error)
 	// Single use: the row is deleted as it is read. Secrets are needed here to finish the exchange.
 	ConsumeOAuthFlow(ctx context.Context, arg ConsumeOAuthFlowParams) (ConsumeOAuthFlowRow, error)
 	ConsumePendingOAuthFlow(ctx context.Context, arg ConsumePendingOAuthFlowParams) (ConsumePendingOAuthFlowRow, error)
+	// ---------- Usage counters: monthly plan resources (ADR 0008) ----------
+	// Adds n to this month's count unless that would pass the cap; a cap below 0 is
+	// unlimited. No row back means the cap is reached. The caller refuses an n
+	// larger than the cap itself, since a first insert isn't checked.
+	ConsumeUsage(ctx context.Context, arg ConsumeUsageParams) (int32, error)
 	// Every custom-field key among the matching contacts, for the export's columns.
 	ContactAttributeKeys(ctx context.Context, arg ContactAttributeKeysParams) ([]string, error)
 	ContactConsent(ctx context.Context, arg ContactConsentParams) (ContactConsentRow, error)
@@ -86,6 +113,7 @@ type Querier interface {
 	// Wrong passwords for one email (metadata.key) since @since and since its last
 	// successful sign-in: from this IP, and from anywhere.
 	CountPasswordFailures(ctx context.Context, arg CountPasswordFailuresParams) (CountPasswordFailuresRow, error)
+	CountQueued(ctx context.Context, arg CountQueuedParams) (int32, error)
 	// Codes sent to a user lately: resends are capped per account, not just per IP.
 	CountRecentEmailCodes(ctx context.Context, arg CountRecentEmailCodesParams) (int32, error)
 	CountRecentReplies(ctx context.Context, arg CountRecentRepliesParams) (int64, error)
@@ -174,6 +202,7 @@ type Querier interface {
 	DeactivateProviderPrice(ctx context.Context, providerPriceID uuid.UUID) (int64, error)
 	DeleteCommerceEvents(ctx context.Context, connectionID uuid.UUID) error
 	DeleteContacts(ctx context.Context, arg DeleteContactsParams) (int64, error)
+	DeleteDraft(ctx context.Context, arg DeleteDraftParams) (int64, error)
 	DeleteEndedSessions(ctx context.Context) (int64, error)
 	DeleteExpiredEmailCodes(ctx context.Context) (int64, error)
 	DeleteExpiredEmailTokens(ctx context.Context) (int64, error)
@@ -191,6 +220,7 @@ type Querier interface {
 	DeleteOldDeliveries(ctx context.Context, before time.Time) (int64, error)
 	DeleteQuickReply(ctx context.Context, arg DeleteQuickReplyParams) (int64, error)
 	DeleteRole(ctx context.Context, arg DeleteRoleParams) (int64, error)
+	DeleteSegment(ctx context.Context, arg DeleteSegmentParams) (int64, error)
 	DeleteTeam(ctx context.Context, arg DeleteTeamParams) (int64, error)
 	DeleteTemplate(ctx context.Context, arg DeleteTemplateParams) error
 	// A password reset proves who owns the email: identities whose provider never
@@ -202,6 +232,10 @@ type Querier interface {
 	DisconnectWhatsAppAccount(ctx context.Context, arg DisconnectWhatsAppAccountParams) error
 	// A paused drip holds its runs where they are.
 	DueRuns(ctx context.Context, arg DueRunsParams) ([]DueRunsRow, error)
+	// ---------- The tick (every workspace) ----------
+	// Scheduled broadcasts whose time has come, and sends whose start job hasn't
+	// taken the audience a minute on (a reschedule or "send now" left it waiting).
+	DueToStart(ctx context.Context, arg DueToStartParams) ([]DueToStartRow, error)
 	EndGrant(ctx context.Context, arg EndGrantParams) (int64, error)
 	EnrolDrip(ctx context.Context, arg EnrolDripParams) error
 	// Returns the workspace's customer row for provider, creating it on first use.
@@ -215,8 +249,12 @@ type Querier interface {
 	// The provider keeps the checkout payable longer than our default.
 	ExtendCheckoutSession(ctx context.Context, arg ExtendCheckoutSessionParams) (int64, error)
 	ExtendSession(ctx context.Context, arg ExtendSessionParams) error
+	FailBroadcast(ctx context.Context, arg FailBroadcastParams) (int64, error)
 	// Members with 3+ failed sign-ins in the window. Reads auth_events directly, never secrets.
 	FailedLoginAlerts(ctx context.Context, arg FailedLoginAlertsParams) ([]FailedLoginAlertsRow, error)
+	// Why recipients didn't get it, most common first: Meta's error for a failed
+	// send, else the reason the broadcast skipped or failed them.
+	FailureReasons(ctx context.Context, arg FailureReasonsParams) ([]FailureReasonsRow, error)
 	// Webhooks only: our checkout_sessions.id, sent to the provider as its
 	// reference, is how an event finds its workspace. Never look one up by email.
 	FindCheckoutSessionWorkspace(ctx context.Context, arg FindCheckoutSessionWorkspaceParams) (uuid.UUID, error)
@@ -232,6 +270,8 @@ type Querier interface {
 	FinishCheckoutSession(ctx context.Context, arg FinishCheckoutSessionParams) (int64, error)
 	FinishContactImport(ctx context.Context, arg FinishContactImportParams) error
 	FinishRun(ctx context.Context, arg FinishRunParams) error
+	// Sending broadcasts with every recipient handled and no message still waiting to go.
+	FinishedSending(ctx context.Context) ([]FinishedSendingRow, error)
 	// The one lookup without a workspace: the key is how the workspace is found.
 	// RequireWorkspace then checks the creator's current access there.
 	GetAPIKeyByHash(ctx context.Context, tokenHash []byte) (GetAPIKeyByHashRow, error)
@@ -253,6 +293,7 @@ type Querier interface {
 	GetBillingCustomer(ctx context.Context, arg GetBillingCustomerParams) (GetBillingCustomerRow, error)
 	// ---------- Billing profiles (personal data: never logged) ----------
 	GetBillingProfile(ctx context.Context, workspaceID uuid.UUID) (GetBillingProfileRow, error)
+	GetBroadcast(ctx context.Context, arg GetBroadcastParams) (GetBroadcastRow, error)
 	// The provider customer whose card pays next: the live subscription's, else
 	// the live lifetime deal's, else the newest one the provider knows. The card
 	// itself stays at the provider.
@@ -323,6 +364,7 @@ type Querier interface {
 	// Locks the token row so two concurrent refreshes can't both rotate it.
 	GetRefreshTokenForUpdate(ctx context.Context, tokenHash []byte) (GetRefreshTokenForUpdateRow, error)
 	GetRole(ctx context.Context, arg GetRoleParams) (GetRoleRow, error)
+	GetSegment(ctx context.Context, arg GetSegmentParams) (GetSegmentRow, error)
 	// When this session last proved who it is (password or social sign-in), for sensitive actions.
 	GetSessionAuthenticatedAt(ctx context.Context, arg GetSessionAuthenticatedAtParams) (time.Time, error)
 	GetSubscription(ctx context.Context, arg GetSubscriptionParams) (GetSubscriptionRow, error)
@@ -351,6 +393,8 @@ type Querier interface {
 	InsertAutomatedMessage(ctx context.Context, arg InsertAutomatedMessageParams) error
 	// A chat a template starts: no window until the customer writes back.
 	InsertAutomationConversation(ctx context.Context, arg InsertAutomationConversationParams) (uuid.UUID, error)
+	// ---------- Broadcasts ----------
+	InsertBroadcast(ctx context.Context, arg InsertBroadcastParams) error
 	// A delivery already stored inserts nothing and returns no row.
 	InsertCommerceEvent(ctx context.Context, arg InsertCommerceEventParams) ([]string, error)
 	// Links a sender to a contact. A concurrent link of the same sender wins; the
@@ -372,6 +416,7 @@ type Querier interface {
 	InsertPaymentEvent(ctx context.Context, arg InsertPaymentEventParams) (uuid.UUID, error)
 	// A dedupe key already stored inserts nothing and returns no row.
 	InsertRun(ctx context.Context, arg InsertRunParams) ([]uuid.UUID, error)
+	InsertSegment(ctx context.Context, arg InsertSegmentParams) error
 	InvalidateEmailCodes(ctx context.Context, arg InvalidateEmailCodesParams) error
 	InvalidateEmailTokens(ctx context.Context, arg InvalidateEmailTokensParams) error
 	InvitationNumberIDs(ctx context.Context, invitationID uuid.UUID) ([]uuid.UUID, error)
@@ -405,6 +450,8 @@ type Querier interface {
 	ListAppRenewalsDue(ctx context.Context, arg ListAppRenewalsDueParams) ([]ListAppRenewalsDueRow, error)
 	ListAuthEvents(ctx context.Context, userID *uuid.UUID) ([]ListAuthEventsRow, error)
 	ListAutomations(ctx context.Context, workspaceID uuid.UUID) ([]ListAutomationsRow, error)
+	// Newest first, with each broadcast's delivery counts.
+	ListBroadcasts(ctx context.Context, arg ListBroadcastsParams) ([]ListBroadcastsRow, error)
 	// ---------- Connections ----------
 	ListConnections(ctx context.Context, workspaceID uuid.UUID) ([]ListConnectionsRow, error)
 	// ---------- Tags ----------
@@ -460,10 +507,14 @@ type Querier interface {
 	ListPlanCacheDrift(ctx context.Context, arg ListPlanCacheDriftParams) ([]ListPlanCacheDriftRow, error)
 	// ---------- Quick replies (docs/PHASE-7-INBOX.md F8) ----------
 	ListQuickReplies(ctx context.Context, workspaceID uuid.UUID) ([]ListQuickRepliesRow, error)
+	ListRecipients(ctx context.Context, arg ListRecipientsParams) ([]ListRecipientsRow, error)
 	// The provider's products for active recurring prices: what a mirrored coupon applies to.
 	ListRecurringExternalPriceIDs(ctx context.Context, provider string) ([]string, error)
 	// ---------- Roles ----------
 	ListRoles(ctx context.Context, workspaceID uuid.UUID) ([]ListRolesRow, error)
+	// ---------- Segments (ADR 0014) ----------
+	// Who matches a segment is compiled from its rules in segments_match.go.
+	ListSegments(ctx context.Context, workspaceID uuid.UUID) ([]ListSegmentsRow, error)
 	// Job only (all workspaces): events still unprocessed long after they arrived.
 	ListStuckPaymentEvents(ctx context.Context, arg ListStuckPaymentEventsParams) ([]ListStuckPaymentEventsRow, error)
 	ListSubscribedEndpoints(ctx context.Context, arg ListSubscribedEndpointsParams) ([]uuid.UUID, error)
@@ -473,6 +524,8 @@ type Querier interface {
 	ListTeams(ctx context.Context, workspaceID uuid.UUID) ([]ListTeamsRow, error)
 	// Newest first. Cursor: the id of the last row of the previous page (UUIDv7 sorts by time).
 	ListTemplates(ctx context.Context, arg ListTemplatesParams) ([]ListTemplatesRow, error)
+	// Every resource the workspace used in the month that started at period_start.
+	ListUsage(ctx context.Context, arg ListUsageParams) ([]ListUsageRow, error)
 	// Cursor: (created_at, id) of the last row of the previous page.
 	ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]ListWebhookDeliveriesRow, error)
 	// ---------- Webhook endpoints ----------
@@ -480,6 +533,7 @@ type Querier interface {
 	ListWhatsAppNumbers(ctx context.Context, workspaceID uuid.UUID) ([]ListWhatsAppNumbersRow, error)
 	// The support view of a workspace's webhook events, newest first.
 	ListWorkspacePaymentEvents(ctx context.Context, arg ListWorkspacePaymentEventsParams) ([]ListWorkspacePaymentEventsRow, error)
+	LockBroadcast(ctx context.Context, arg LockBroadcastParams) (LockBroadcastRow, error)
 	LockCheckoutSession(ctx context.Context, arg LockCheckoutSessionParams) (LockCheckoutSessionRow, error)
 	LockContact(ctx context.Context, arg LockContactParams) (LockContactRow, error)
 	// Serializes adding contacts in one workspace, so two adds can't both pass the plan's cap.
@@ -540,12 +594,15 @@ type Querier interface {
 	// The checkout failed or expired: free the reservation and give the use back,
 	// in one statement so redeemed_count never drifts.
 	ReleaseDiscount(ctx context.Context, arg ReleaseDiscountParams) (int64, error)
+	// Gives back n of what was consumed in the month that started at period_start.
+	ReleaseUsage(ctx context.Context, arg ReleaseUsageParams) (int64, error)
 	RemoveContactTagLinks(ctx context.Context, arg RemoveContactTagLinksParams) (int64, error)
 	// A payment arrived for a failed or expired session: it completes after all.
 	ReopenCheckoutSession(ctx context.Context, arg ReopenCheckoutSessionParams) (int64, error)
 	// Chats whose snooze has ended, a batch at a time, across workspaces.
 	ReopenSnoozed(ctx context.Context, arg ReopenSnoozedParams) ([]ReopenSnoozedRow, error)
 	RequestInvitationRenewal(ctx context.Context, invitationID uuid.UUID) (int64, error)
+	Reschedule(ctx context.Context, arg RescheduleParams) error
 	ResendInvitation(ctx context.Context, arg ResendInvitationParams) error
 	// One statement: the conditional bump of redeemed_count takes the discount's
 	// row lock, so max_redemptions holds however many checkouts race for it.
@@ -570,6 +627,10 @@ type Querier interface {
 	RoleBits(ctx context.Context, roleID uuid.UUID) (int64, error)
 	RunStats(ctx context.Context, arg RunStatsParams) ([]RunStatsRow, error)
 	SaveAutomationSettings(ctx context.Context, arg SaveAutomationSettingsParams) (SaveAutomationSettingsRow, error)
+	ScheduleBroadcast(ctx context.Context, arg ScheduleBroadcastParams) error
+	// The rules of the given segments, for resolving a broadcast's audience.
+	SegmentRules(ctx context.Context, arg SegmentRulesParams) ([]SegmentRulesRow, error)
+	SendBroadcastNow(ctx context.Context, arg SendBroadcastNowParams) error
 	SetAssignee(ctx context.Context, arg SetAssigneeParams) (SetAssigneeRow, error)
 	// settings is only used when the kind has no row yet.
 	SetAutomationEnabled(ctx context.Context, arg SetAutomationEnabledParams) (SetAutomationEnabledRow, error)
@@ -611,9 +672,12 @@ type Querier interface {
 	SetPaymentEventWorkspace(ctx context.Context, arg SetPaymentEventWorkspaceParams) (int64, error)
 	// One side's reaction on a message; an empty emoji removes it.
 	SetReaction(ctx context.Context, arg SetReactionParams) ([]SetReactionRow, error)
+	SetRecipientOutcome(ctx context.Context, arg SetRecipientOutcomeParams) error
+	SetRecipientQueued(ctx context.Context, arg SetRecipientQueuedParams) error
 	SetRefundStatus(ctx context.Context, arg SetRefundStatusParams) (int64, error)
 	// Replaces the role's permissions with @keys.
 	SetRolePermissions(ctx context.Context, arg SetRolePermissionsParams) error
+	SetSnapshot(ctx context.Context, arg SetSnapshotParams) error
 	SetSubscriptionCancelAtPeriodEnd(ctx context.Context, arg SetSubscriptionCancelAtPeriodEndParams) (int64, error)
 	SetSubscriptionDiscount(ctx context.Context, arg SetSubscriptionDiscountParams) (int64, error)
 	SetSubscriptionExternalID(ctx context.Context, arg SetSubscriptionExternalIDParams) (int64, error)
@@ -634,7 +698,13 @@ type Querier interface {
 	SetWorkspacePlanCache(ctx context.Context, arg SetWorkspacePlanCacheParams) (int64, error)
 	// Resuming moves every date on by the time paused, so nobody gets a burst.
 	ShiftDripRuns(ctx context.Context, arg ShiftDripRunsParams) error
+	SkipPending(ctx context.Context, arg SkipPendingParams) error
 	SkipWhatsAppStep(ctx context.Context, workspaceID uuid.UUID) error
+	// Takes the audience once, when sending starts.
+	SnapshotRecipients(ctx context.Context, arg SnapshotRecipientsParams) (int64, error)
+	StalledSending(ctx context.Context, before time.Time) ([]StalledSendingRow, error)
+	// Moves a due broadcast to sending, once: no row once its audience is taken or it was cancelled.
+	StartBroadcast(ctx context.Context, arg StartBroadcastParams) ([]byte, error)
 	StartContactImport(ctx context.Context, arg StartContactImportParams) (int64, error)
 	// Pending and succeeded refunds; never more than the invoice total.
 	SumInvoiceRefunds(ctx context.Context, arg SumInvoiceRefundsParams) (int64, error)
@@ -654,6 +724,7 @@ type Querier interface {
 	// moves it to pending (AD-6).
 	TouchOutbound(ctx context.Context, arg TouchOutboundParams) (TouchOutboundRow, error)
 	TouchWorkspaceMember(ctx context.Context, arg TouchWorkspaceMemberParams) error
+	UpdateBroadcast(ctx context.Context, arg UpdateBroadcastParams) error
 	UpdateContact(ctx context.Context, arg UpdateContactParams) error
 	UpdateNumberNameStatus(ctx context.Context, arg UpdateNumberNameStatusParams) error
 	UpdateNumberProfile(ctx context.Context, arg UpdateNumberProfileParams) error
@@ -665,6 +736,7 @@ type Querier interface {
 	UpdateProfile(ctx context.Context, arg UpdateProfileParams) error
 	UpdateQuickReply(ctx context.Context, arg UpdateQuickReplyParams) (UpdateQuickReplyRow, error)
 	UpdateRole(ctx context.Context, arg UpdateRoleParams) error
+	UpdateSegment(ctx context.Context, arg UpdateSegmentParams) (int64, error)
 	UpdateTeam(ctx context.Context, arg UpdateTeamParams) (int64, error)
 	// Only while editable: a template Meta is reviewing (or has paused or disabled) can't change.
 	UpdateTemplate(ctx context.Context, arg UpdateTemplateParams) (int64, error)

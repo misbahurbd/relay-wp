@@ -29,13 +29,11 @@ export function OrderForm({ workspaceId, settings, errors, onChange }: FormProps
   return (
     <>
       <Fld label="Trigger" error={errors.trigger}>
-        <Select value={s.trigger} onChange={(e) => set({ trigger: e.target.value })}>
-          {ORDER_TRIGGERS.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </Select>
+        <Select
+          value={s.trigger}
+          onValueChange={(trigger) => set({ trigger })}
+          options={ORDER_TRIGGERS.map((t) => ({ value: t.value, label: t.label }))}
+        />
       </Fld>
       <Fld label="Template" error={errors.template_id}>
         <TemplateSelect templates={templates} value={s.template_id} onChange={pick} />

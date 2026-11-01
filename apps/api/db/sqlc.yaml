@@ -15,6 +15,7 @@ sql:
       - ../internal/features/integrations/repository/
       - ../internal/features/inbox/repository/
       - ../internal/features/automations/repository/
+      - ../internal/features/broadcasts/repository/
     gen:
       go:
         package: gen

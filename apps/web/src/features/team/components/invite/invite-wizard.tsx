@@ -13,7 +13,7 @@ import { type ClipboardEvent, type KeyboardEvent, useRef, useState } from 'react
 import { toast } from 'sonner'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
-import { NativeSelect } from '#/components/ui/native-select'
+import { OptionSelect } from '#/components/ui/option-select'
 import { Skeleton } from '#/components/ui/skeleton'
 import { Textarea } from '#/components/ui/textarea'
 import { numbersQueryOptions } from '#/features/onboarding'
@@ -30,7 +30,7 @@ import { EXPIRIES, GROUPS, PERMISSION_HINTS, parseEmails, SCOPES } from '../../s
 import type { ChatScope, Invitation, Permission, Role } from '../../types'
 import { PersonAvatar } from '../kit/avatar'
 import { Btn } from '../kit/btn'
-import { ErrorText, selectClass } from '../kit/field'
+import { ErrorText } from '../kit/field'
 import { formatShortDate } from '../kit/format'
 import { SectionLabel } from '../kit/panel'
 import { Pill } from '../kit/pill'
@@ -412,18 +412,12 @@ export function InviteWizard({ workspaceId }: { workspaceId: string }) {
                   <div className="flex flex-wrap gap-3.5">
                     <label className="flex flex-[1_1_200px] flex-col gap-1.5">
                       <span className="text-[13px] font-bold">Invite link expires after</span>
-                      <NativeSelect
-                        unstyled
-                        className={selectClass}
+                      <OptionSelect
+                        className="bg-muted"
                         value={expiry}
-                        onChange={(e) => setExpiry(e.target.value as Expiry)}
-                      >
-                        {EXPIRIES.map((x) => (
-                          <option key={x.value} value={x.value}>
-                            {x.label}
-                          </option>
-                        ))}
-                      </NativeSelect>
+                        onValueChange={(v) => setExpiry(v as Expiry)}
+                        options={EXPIRIES.map((x) => ({ value: x.value, label: x.label }))}
+                      />
                     </label>
                     <label className="flex min-h-11 flex-[1_1_240px] cursor-pointer items-center gap-2.5 self-end text-[13px]">
                       <Input

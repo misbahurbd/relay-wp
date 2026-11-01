@@ -21,7 +21,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
-import { NativeSelect } from '#/components/ui/native-select'
+import { OptionSelect } from '#/components/ui/option-select'
 import { Skeleton } from '#/components/ui/skeleton'
 import { errorMessage } from '#/lib/api'
 import { cn } from '#/lib/utils'
@@ -50,7 +50,7 @@ import {
 import type { ChatScope, Permission, Role, RoleChange, RoleColor } from '../../types'
 import { PersonAvatar } from '../kit/avatar'
 import { Btn } from '../kit/btn'
-import { ErrorText, inputClass, selectClass } from '../kit/field'
+import { ErrorText, inputClass } from '../kit/field'
 import { formatDateTime } from '../kit/format'
 import { describeLog } from '../kit/log-format'
 import { Modal } from '../kit/modal'
@@ -565,21 +565,17 @@ function Editor({
           {creating && (
             <label className="flex min-w-[220px] flex-col gap-1.5">
               <span className="text-[13px] font-bold">Duplicate from</span>
-              <NativeSelect
-                unstyled
-                className={selectClass}
+              <OptionSelect
+                className="bg-muted"
                 value={d.copyFrom}
-                onChange={(e) => startFrom(e.target.value)}
-              >
-                <option value="">Start from scratch (no access)</option>
-                {roles
-                  .filter((r) => r.system_key !== 'owner')
-                  .map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                    </option>
-                  ))}
-              </NativeSelect>
+                onValueChange={startFrom}
+                options={[
+                  { value: '', label: 'Start from scratch (no access)' },
+                  ...roles
+                    .filter((r) => r.system_key !== 'owner')
+                    .map((r) => ({ value: r.id, label: r.name })),
+                ]}
+              />
             </label>
           )}
           {role && editable && !owner && (
@@ -989,24 +985,18 @@ function DeleteRole({
     >
       <label className="flex flex-col gap-1.5">
         <span className="text-[13px] font-bold">Move its members and pending invites to</span>
-        <NativeSelect
-          unstyled
-          className={selectClass}
+        <OptionSelect
+          className="bg-muted"
           value={moveTo}
           aria-invalid={!!error}
           aria-describedby="move-help"
-          onChange={(e) => {
-            setMoveTo(e.target.value)
+          onValueChange={(v) => {
+            setMoveTo(v)
             setError(undefined)
           }}
-        >
-          <option value="">Choose a role…</option>
-          {targets.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.name}
-            </option>
-          ))}
-        </NativeSelect>
+          placeholder="Choose a role…"
+          options={targets.map((r) => ({ value: r.id, label: r.name }))}
+        />
         <span id="move-help" className="text-xs text-muted-foreground">
           Required. Nobody is left without a role.
         </span>

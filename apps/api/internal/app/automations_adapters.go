@@ -41,8 +41,8 @@ func (i automationsInbox) Conversation(ctx context.Context, workspaceID, convers
 }
 
 func (i automationsInbox) SendAutomated(ctx context.Context, tx pgx.Tx, in automationsmodel.AutomatedSend) error {
-	err := i.inbox.SendAutomated(ctx, tx, inboxmodel.AutomatedText{
-		WorkspaceID: in.WorkspaceID, ConversationID: in.ConversationID, ContactID: in.ContactID, RunID: in.RunID,
+	_, err := i.inbox.SendAutomated(ctx, tx, inboxmodel.AutomatedText{
+		WorkspaceID: in.WorkspaceID, ConversationID: in.ConversationID, ContactID: in.ContactID, RunID: &in.RunID,
 		Text: in.Text, TemplateID: in.TemplateID, Params: in.Params,
 	})
 	switch {

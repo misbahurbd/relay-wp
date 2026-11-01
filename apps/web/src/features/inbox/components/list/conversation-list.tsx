@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Alert, AlertDescription } from '#/components/ui/alert'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
-import { NativeSelect } from '#/components/ui/native-select'
+import { OptionSelect } from '#/components/ui/option-select'
 import { Skeleton } from '#/components/ui/skeleton'
 import { useDebouncedValue } from '#/hooks/use-debounced-value'
 import { errorMessage } from '#/lib/api'
@@ -75,15 +75,16 @@ export function ConversationList({
           <h1 className="text-xl font-extrabold tracking-tight">Inbox</h1>
           <label className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
             Sort
-            <NativeSelect
-              unstyled
+            <OptionSelect
+              size="sm"
               value={filter.sort}
-              onChange={(e) => onFilterChange({ ...filter, sort: e.target.value as InboxSort })}
-              className="h-9 rounded-md border border-input bg-card px-2 text-xs font-bold text-foreground"
-            >
-              <option value="newest">Newest</option>
-              <option value="waiting">Waiting longest</option>
-            </NativeSelect>
+              onValueChange={(v) => onFilterChange({ ...filter, sort: v as InboxSort })}
+              options={[
+                { value: 'newest', label: 'Newest' },
+                { value: 'waiting', label: 'Waiting longest' },
+              ]}
+              className="w-auto text-xs font-bold text-foreground"
+            />
           </label>
         </div>
         <label className="flex h-10 items-center gap-2 rounded-md border border-input bg-muted px-3 text-muted-foreground">

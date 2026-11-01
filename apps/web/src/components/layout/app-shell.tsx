@@ -53,6 +53,7 @@ type NavItem = {
     | '/'
     | '/inbox'
     | '/contacts'
+    | '/broadcasts'
     | '/templates'
     | '/automations'
     | '/integrations'
@@ -64,7 +65,7 @@ const NAV: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboardIcon, to: '/' },
   { id: 'inbox', label: 'Inbox', icon: InboxIcon, to: '/inbox' },
   { id: 'contacts', label: 'Contacts', icon: ContactIcon, to: '/contacts' },
-  { id: 'broadcasts', label: 'Broadcasts', icon: MegaphoneIcon },
+  { id: 'broadcasts', label: 'Broadcasts', icon: MegaphoneIcon, to: '/broadcasts' },
   { id: 'templates', label: 'Templates', icon: FileTextIcon, to: '/templates' },
   { id: 'chatbots', label: 'Chatbots', icon: BotIcon },
   { id: 'automations', label: 'Automations', icon: WorkflowIcon, to: '/automations' },

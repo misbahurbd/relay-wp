@@ -17,7 +17,13 @@ const OPT_IN = {
   pending: { label: 'Marketing opt-in pending', tone: 'bg-warning-soft text-warning' },
 }
 
-const SOURCE = { organic: 'Messaged first', ctwa_ad: 'Click-to-WhatsApp ad', template: 'Template' }
+const SOURCE = {
+  organic: 'Messaged first',
+  ctwa_ad: 'Click-to-WhatsApp ad',
+  template: 'Template',
+  automation: 'Automation',
+  broadcast: 'Broadcast',
+}
 
 /**
  * "Customer details" (F11): who the customer is, who has the chat, and the contact's tags and

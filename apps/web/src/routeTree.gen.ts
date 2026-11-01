@@ -28,7 +28,11 @@ import { Route as AppWorkspaceShellBillingIndexRouteImport } from './routes/_app
 import { Route as AppWorkspaceShellBillingCheckoutRouteImport } from './routes/_app/_workspace/_shell/billing/checkout'
 import { Route as AppWorkspaceShellBillingPlansRouteImport } from './routes/_app/_workspace/_shell/billing/plans'
 import { Route as AppWorkspaceShellBillingSpendingRouteImport } from './routes/_app/_workspace/_shell/billing/spending'
+import { Route as AppWorkspaceShellBroadcastsIndexRouteImport } from './routes/_app/_workspace/_shell/broadcasts/index'
+import { Route as AppWorkspaceShellBroadcastsBroadcastIdRouteImport } from './routes/_app/_workspace/_shell/broadcasts/$broadcastId'
+import { Route as AppWorkspaceShellBroadcastsNewRouteImport } from './routes/_app/_workspace/_shell/broadcasts/new'
 import { Route as AppWorkspaceShellContactsIndexRouteImport } from './routes/_app/_workspace/_shell/contacts/index'
+import { Route as AppWorkspaceShellContactsSegmentsRouteImport } from './routes/_app/_workspace/_shell/contacts/segments'
 import { Route as AppWorkspaceShellInboxIndexRouteImport } from './routes/_app/_workspace/_shell/inbox/index'
 import { Route as AppWorkspaceShellIntegrationsIndexRouteImport } from './routes/_app/_workspace/_shell/integrations/index'
 import { Route as AppWorkspaceShellTeamIndexRouteImport } from './routes/_app/_workspace/_shell/team/index'
@@ -136,10 +140,34 @@ const AppWorkspaceShellBillingSpendingRoute =
     path: '/billing/spending',
     getParentRoute: () => AppWorkspaceShellRoute,
   } as any)
+const AppWorkspaceShellBroadcastsIndexRoute =
+  AppWorkspaceShellBroadcastsIndexRouteImport.update({
+    id: '/broadcasts/',
+    path: '/broadcasts/',
+    getParentRoute: () => AppWorkspaceShellRoute,
+  } as any)
+const AppWorkspaceShellBroadcastsBroadcastIdRoute =
+  AppWorkspaceShellBroadcastsBroadcastIdRouteImport.update({
+    id: '/broadcasts/$broadcastId',
+    path: '/broadcasts/$broadcastId',
+    getParentRoute: () => AppWorkspaceShellRoute,
+  } as any)
+const AppWorkspaceShellBroadcastsNewRoute =
+  AppWorkspaceShellBroadcastsNewRouteImport.update({
+    id: '/broadcasts/new',
+    path: '/broadcasts/new',
+    getParentRoute: () => AppWorkspaceShellRoute,
+  } as any)
 const AppWorkspaceShellContactsIndexRoute =
   AppWorkspaceShellContactsIndexRouteImport.update({
     id: '/contacts/',
     path: '/contacts/',
+    getParentRoute: () => AppWorkspaceShellRoute,
+  } as any)
+const AppWorkspaceShellContactsSegmentsRoute =
+  AppWorkspaceShellContactsSegmentsRouteImport.update({
+    id: '/contacts/segments',
+    path: '/contacts/segments',
     getParentRoute: () => AppWorkspaceShellRoute,
   } as any)
 const AppWorkspaceShellInboxIndexRoute =
@@ -217,6 +245,9 @@ export interface FileRoutesByFullPath {
   '/billing/checkout': typeof AppWorkspaceShellBillingCheckoutRoute
   '/billing/plans': typeof AppWorkspaceShellBillingPlansRoute
   '/billing/spending': typeof AppWorkspaceShellBillingSpendingRoute
+  '/broadcasts/$broadcastId': typeof AppWorkspaceShellBroadcastsBroadcastIdRoute
+  '/broadcasts/new': typeof AppWorkspaceShellBroadcastsNewRoute
+  '/contacts/segments': typeof AppWorkspaceShellContactsSegmentsRoute
   '/team/invite': typeof AppWorkspaceShellTeamInviteRoute
   '/team/log': typeof AppWorkspaceShellTeamLogRoute
   '/team/roles': typeof AppWorkspaceShellTeamRolesRoute
@@ -224,6 +255,7 @@ export interface FileRoutesByFullPath {
   '/templates/new': typeof AppWorkspaceShellTemplatesNewRoute
   '/automations/': typeof AppWorkspaceShellAutomationsIndexRoute
   '/billing/': typeof AppWorkspaceShellBillingIndexRoute
+  '/broadcasts/': typeof AppWorkspaceShellBroadcastsIndexRoute
   '/contacts/': typeof AppWorkspaceShellContactsIndexRoute
   '/inbox/': typeof AppWorkspaceShellInboxIndexRoute
   '/integrations/': typeof AppWorkspaceShellIntegrationsIndexRoute
@@ -245,6 +277,9 @@ export interface FileRoutesByTo {
   '/billing/checkout': typeof AppWorkspaceShellBillingCheckoutRoute
   '/billing/plans': typeof AppWorkspaceShellBillingPlansRoute
   '/billing/spending': typeof AppWorkspaceShellBillingSpendingRoute
+  '/broadcasts/$broadcastId': typeof AppWorkspaceShellBroadcastsBroadcastIdRoute
+  '/broadcasts/new': typeof AppWorkspaceShellBroadcastsNewRoute
+  '/contacts/segments': typeof AppWorkspaceShellContactsSegmentsRoute
   '/team/invite': typeof AppWorkspaceShellTeamInviteRoute
   '/team/log': typeof AppWorkspaceShellTeamLogRoute
   '/team/roles': typeof AppWorkspaceShellTeamRolesRoute
@@ -252,6 +287,7 @@ export interface FileRoutesByTo {
   '/templates/new': typeof AppWorkspaceShellTemplatesNewRoute
   '/automations': typeof AppWorkspaceShellAutomationsIndexRoute
   '/billing': typeof AppWorkspaceShellBillingIndexRoute
+  '/broadcasts': typeof AppWorkspaceShellBroadcastsIndexRoute
   '/contacts': typeof AppWorkspaceShellContactsIndexRoute
   '/inbox': typeof AppWorkspaceShellInboxIndexRoute
   '/integrations': typeof AppWorkspaceShellIntegrationsIndexRoute
@@ -278,6 +314,9 @@ export interface FileRoutesById {
   '/_app/_workspace/_shell/billing/checkout': typeof AppWorkspaceShellBillingCheckoutRoute
   '/_app/_workspace/_shell/billing/plans': typeof AppWorkspaceShellBillingPlansRoute
   '/_app/_workspace/_shell/billing/spending': typeof AppWorkspaceShellBillingSpendingRoute
+  '/_app/_workspace/_shell/broadcasts/$broadcastId': typeof AppWorkspaceShellBroadcastsBroadcastIdRoute
+  '/_app/_workspace/_shell/broadcasts/new': typeof AppWorkspaceShellBroadcastsNewRoute
+  '/_app/_workspace/_shell/contacts/segments': typeof AppWorkspaceShellContactsSegmentsRoute
   '/_app/_workspace/_shell/team/invite': typeof AppWorkspaceShellTeamInviteRoute
   '/_app/_workspace/_shell/team/log': typeof AppWorkspaceShellTeamLogRoute
   '/_app/_workspace/_shell/team/roles': typeof AppWorkspaceShellTeamRolesRoute
@@ -285,6 +324,7 @@ export interface FileRoutesById {
   '/_app/_workspace/_shell/templates/new': typeof AppWorkspaceShellTemplatesNewRoute
   '/_app/_workspace/_shell/automations/': typeof AppWorkspaceShellAutomationsIndexRoute
   '/_app/_workspace/_shell/billing/': typeof AppWorkspaceShellBillingIndexRoute
+  '/_app/_workspace/_shell/broadcasts/': typeof AppWorkspaceShellBroadcastsIndexRoute
   '/_app/_workspace/_shell/contacts/': typeof AppWorkspaceShellContactsIndexRoute
   '/_app/_workspace/_shell/inbox/': typeof AppWorkspaceShellInboxIndexRoute
   '/_app/_workspace/_shell/integrations/': typeof AppWorkspaceShellIntegrationsIndexRoute
@@ -308,6 +348,9 @@ export interface FileRouteTypes {
     | '/billing/checkout'
     | '/billing/plans'
     | '/billing/spending'
+    | '/broadcasts/$broadcastId'
+    | '/broadcasts/new'
+    | '/contacts/segments'
     | '/team/invite'
     | '/team/log'
     | '/team/roles'
@@ -315,6 +358,7 @@ export interface FileRouteTypes {
     | '/templates/new'
     | '/automations/'
     | '/billing/'
+    | '/broadcasts/'
     | '/contacts/'
     | '/inbox/'
     | '/integrations/'
@@ -336,6 +380,9 @@ export interface FileRouteTypes {
     | '/billing/checkout'
     | '/billing/plans'
     | '/billing/spending'
+    | '/broadcasts/$broadcastId'
+    | '/broadcasts/new'
+    | '/contacts/segments'
     | '/team/invite'
     | '/team/log'
     | '/team/roles'
@@ -343,6 +390,7 @@ export interface FileRouteTypes {
     | '/templates/new'
     | '/automations'
     | '/billing'
+    | '/broadcasts'
     | '/contacts'
     | '/inbox'
     | '/integrations'
@@ -368,6 +416,9 @@ export interface FileRouteTypes {
     | '/_app/_workspace/_shell/billing/checkout'
     | '/_app/_workspace/_shell/billing/plans'
     | '/_app/_workspace/_shell/billing/spending'
+    | '/_app/_workspace/_shell/broadcasts/$broadcastId'
+    | '/_app/_workspace/_shell/broadcasts/new'
+    | '/_app/_workspace/_shell/contacts/segments'
     | '/_app/_workspace/_shell/team/invite'
     | '/_app/_workspace/_shell/team/log'
     | '/_app/_workspace/_shell/team/roles'
@@ -375,6 +426,7 @@ export interface FileRouteTypes {
     | '/_app/_workspace/_shell/templates/new'
     | '/_app/_workspace/_shell/automations/'
     | '/_app/_workspace/_shell/billing/'
+    | '/_app/_workspace/_shell/broadcasts/'
     | '/_app/_workspace/_shell/contacts/'
     | '/_app/_workspace/_shell/inbox/'
     | '/_app/_workspace/_shell/integrations/'
@@ -525,11 +577,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspaceShellBillingSpendingRouteImport
       parentRoute: typeof AppWorkspaceShellRoute
     }
+    '/_app/_workspace/_shell/broadcasts/': {
+      id: '/_app/_workspace/_shell/broadcasts/'
+      path: '/broadcasts'
+      fullPath: '/broadcasts/'
+      preLoaderRoute: typeof AppWorkspaceShellBroadcastsIndexRouteImport
+      parentRoute: typeof AppWorkspaceShellRoute
+    }
+    '/_app/_workspace/_shell/broadcasts/$broadcastId': {
+      id: '/_app/_workspace/_shell/broadcasts/$broadcastId'
+      path: '/broadcasts/$broadcastId'
+      fullPath: '/broadcasts/$broadcastId'
+      preLoaderRoute: typeof AppWorkspaceShellBroadcastsBroadcastIdRouteImport
+      parentRoute: typeof AppWorkspaceShellRoute
+    }
+    '/_app/_workspace/_shell/broadcasts/new': {
+      id: '/_app/_workspace/_shell/broadcasts/new'
+      path: '/broadcasts/new'
+      fullPath: '/broadcasts/new'
+      preLoaderRoute: typeof AppWorkspaceShellBroadcastsNewRouteImport
+      parentRoute: typeof AppWorkspaceShellRoute
+    }
     '/_app/_workspace/_shell/contacts/': {
       id: '/_app/_workspace/_shell/contacts/'
       path: '/contacts'
       fullPath: '/contacts/'
       preLoaderRoute: typeof AppWorkspaceShellContactsIndexRouteImport
+      parentRoute: typeof AppWorkspaceShellRoute
+    }
+    '/_app/_workspace/_shell/contacts/segments': {
+      id: '/_app/_workspace/_shell/contacts/segments'
+      path: '/contacts/segments'
+      fullPath: '/contacts/segments'
+      preLoaderRoute: typeof AppWorkspaceShellContactsSegmentsRouteImport
       parentRoute: typeof AppWorkspaceShellRoute
     }
     '/_app/_workspace/_shell/inbox/': {
@@ -610,6 +690,9 @@ interface AppWorkspaceShellRouteChildren {
   AppWorkspaceShellBillingCheckoutRoute: typeof AppWorkspaceShellBillingCheckoutRoute
   AppWorkspaceShellBillingPlansRoute: typeof AppWorkspaceShellBillingPlansRoute
   AppWorkspaceShellBillingSpendingRoute: typeof AppWorkspaceShellBillingSpendingRoute
+  AppWorkspaceShellBroadcastsBroadcastIdRoute: typeof AppWorkspaceShellBroadcastsBroadcastIdRoute
+  AppWorkspaceShellBroadcastsNewRoute: typeof AppWorkspaceShellBroadcastsNewRoute
+  AppWorkspaceShellContactsSegmentsRoute: typeof AppWorkspaceShellContactsSegmentsRoute
   AppWorkspaceShellTeamInviteRoute: typeof AppWorkspaceShellTeamInviteRoute
   AppWorkspaceShellTeamLogRoute: typeof AppWorkspaceShellTeamLogRoute
   AppWorkspaceShellTeamRolesRoute: typeof AppWorkspaceShellTeamRolesRoute
@@ -617,6 +700,7 @@ interface AppWorkspaceShellRouteChildren {
   AppWorkspaceShellTemplatesNewRoute: typeof AppWorkspaceShellTemplatesNewRoute
   AppWorkspaceShellAutomationsIndexRoute: typeof AppWorkspaceShellAutomationsIndexRoute
   AppWorkspaceShellBillingIndexRoute: typeof AppWorkspaceShellBillingIndexRoute
+  AppWorkspaceShellBroadcastsIndexRoute: typeof AppWorkspaceShellBroadcastsIndexRoute
   AppWorkspaceShellContactsIndexRoute: typeof AppWorkspaceShellContactsIndexRoute
   AppWorkspaceShellInboxIndexRoute: typeof AppWorkspaceShellInboxIndexRoute
   AppWorkspaceShellIntegrationsIndexRoute: typeof AppWorkspaceShellIntegrationsIndexRoute
@@ -630,6 +714,11 @@ const AppWorkspaceShellRouteChildren: AppWorkspaceShellRouteChildren = {
   AppWorkspaceShellBillingCheckoutRoute: AppWorkspaceShellBillingCheckoutRoute,
   AppWorkspaceShellBillingPlansRoute: AppWorkspaceShellBillingPlansRoute,
   AppWorkspaceShellBillingSpendingRoute: AppWorkspaceShellBillingSpendingRoute,
+  AppWorkspaceShellBroadcastsBroadcastIdRoute:
+    AppWorkspaceShellBroadcastsBroadcastIdRoute,
+  AppWorkspaceShellBroadcastsNewRoute: AppWorkspaceShellBroadcastsNewRoute,
+  AppWorkspaceShellContactsSegmentsRoute:
+    AppWorkspaceShellContactsSegmentsRoute,
   AppWorkspaceShellTeamInviteRoute: AppWorkspaceShellTeamInviteRoute,
   AppWorkspaceShellTeamLogRoute: AppWorkspaceShellTeamLogRoute,
   AppWorkspaceShellTeamRolesRoute: AppWorkspaceShellTeamRolesRoute,
@@ -639,6 +728,7 @@ const AppWorkspaceShellRouteChildren: AppWorkspaceShellRouteChildren = {
   AppWorkspaceShellAutomationsIndexRoute:
     AppWorkspaceShellAutomationsIndexRoute,
   AppWorkspaceShellBillingIndexRoute: AppWorkspaceShellBillingIndexRoute,
+  AppWorkspaceShellBroadcastsIndexRoute: AppWorkspaceShellBroadcastsIndexRoute,
   AppWorkspaceShellContactsIndexRoute: AppWorkspaceShellContactsIndexRoute,
   AppWorkspaceShellInboxIndexRoute: AppWorkspaceShellInboxIndexRoute,
   AppWorkspaceShellIntegrationsIndexRoute:

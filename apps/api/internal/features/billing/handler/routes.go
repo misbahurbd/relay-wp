@@ -52,6 +52,8 @@ func Register(api huma.API, h *Handler, g Guards, security []map[string][]string
 
 	huma.Register(api, ws("get-billing-overview", http.MethodGet, "",
 		"The current plan, subscription and lifetime deal", ok, view), h.overview)
+	huma.Register(api, ws("get-billing-usage", http.MethodGet, "/usage",
+		"This month's use of each monthly plan resource (ADR 0008)", ok, view), h.usage)
 
 	huma.Register(api, ws("create-checkout-session", http.MethodPost, "/checkout-sessions",
 		"Start a checkout for a price (subscription or lifetime deal)", created, pay), h.createCheckout)

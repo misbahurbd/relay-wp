@@ -25,6 +25,7 @@ import (
 	authservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/auth/service"
 	automationsservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/automations/service"
 	billingservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/service"
+	broadcastsservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/broadcasts/service"
 	contactsservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/contacts/service"
 	inboxservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/inbox/service"
 	integrationsservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/integrations/service"
@@ -83,6 +84,7 @@ type App struct {
 	contacts     *contactsservice.Service
 	templates    *templatesservice.Service
 	automations  *automationsservice.Service
+	broadcasts   *broadcastsservice.Service
 	integrations *integrationsservice.Service
 	inbox        *inboxservice.Service
 	// live fans inbox signals out to SSE streams; API processes only.
@@ -133,7 +135,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger, mode Mode) (_
 	if mode == ModeAPI {
 		queueWorkers = nil // insert-only: the API enqueues, workers run elsewhere
 	}
-	if a.queue, err = queue.New(a.directDB, queueWorkers, cfg.Queue.MaxWorkers, log); err != nil {
+	if a.queue, err = queue.New(a.directDB, queueWorkers, cfg.Queue.MaxWorkers, cfg.Queue.BulkMaxWorkers, log); err != nil {
 		return nil, err
 	}
 	if err := a.buildFeatures(); err != nil {
@@ -164,6 +166,7 @@ func (a *App) buildFeatures() (err error) {
 	// Templates reach Meta through whatsapp, and hear its status webhooks (AD-9).
 	a.templates = templatesservice.New(a.db, metaTemplates{wa: a.whatsapp}, a.storage)
 	a.automations = automationsservice.New(a.db, a.queue)
+	a.broadcasts = broadcastsservice.New(a.db, a.queue, a.log)
 	a.whatsapp.SetTemplateStatusSink(a.templates)
 	if err := a.buildBilling(); err != nil {
 		return err
@@ -277,6 +280,11 @@ func (a *App) buildInbox() {
 	a.contacts.SetTagListener(a.automations)
 	a.automations.Connect(automationsservice.Deps{
 		Inbox: automationsInbox{inbox: a.inbox}, Contacts: automationsContacts{a.contacts}, Plans: a.billing,
+	})
+	a.broadcasts.Connect(broadcastsservice.Deps{
+		Inbox: broadcastsInbox{inbox: a.inbox}, Templates: broadcastsTemplates{templates: a.templates},
+		Numbers: broadcastsNumbers{wa: a.whatsapp}, Segments: broadcastsSegments{contacts: a.contacts},
+		Usage: a.billing, Events: a.integrations, Activation: a.directory,
 	})
 	if a.mode != ModeWorker && a.directDB != nil {
 		a.live = realtime.New(a.directDB, a.log, realtime.InboxChannel)

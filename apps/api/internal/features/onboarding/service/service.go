@@ -170,10 +170,11 @@ func (s *Service) Get(ctx context.Context, workspaceID, userID uuid.UUID) (model
 		Checklist: []model.ChecklistItem{
 			{ID: "account", Done: true},
 			{ID: "whatsapp", Done: connected},
-			// Done once the Templates, Contacts, Broadcasts and Team features exist.
+			// Done once the Templates, Contacts and Team features exist.
 			{ID: "template"},
 			{ID: "contacts"},
-			{ID: "broadcast"},
+			// A broadcast or inbox reply reached a real customer (docs/PHASE-3-ONBOARDING.md).
+			{ID: "broadcast", Done: activated},
 			{ID: "team"},
 		},
 		TourSeen:        member.TourSeenAt != nil,

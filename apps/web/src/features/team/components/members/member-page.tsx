@@ -15,7 +15,7 @@ import { type FormEvent, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
-import { NativeSelect } from '#/components/ui/native-select'
+import { OptionSelect } from '#/components/ui/option-select'
 import { Skeleton } from '#/components/ui/skeleton'
 import { numbersQueryOptions } from '#/features/onboarding'
 import { errorMessage } from '#/lib/api'
@@ -41,7 +41,7 @@ import { LOG_ACTIONS, SCOPES, TONE } from '../../schemas/team.schema'
 import type { ChatScope, MemberDetail, Override, Permission, Role, Team } from '../../types'
 import { PersonAvatar } from '../kit/avatar'
 import { Btn } from '../kit/btn'
-import { ErrorText, inputClass, selectClass } from '../kit/field'
+import { ErrorText, inputClass } from '../kit/field'
 import { formatDate, formatDateTime, formatShortDate, relativeTime } from '../kit/format'
 import { describeLog } from '../kit/log-format'
 import { Modal } from '../kit/modal'
@@ -614,18 +614,11 @@ function ExtraCard({
           <div className="flex flex-wrap gap-3">
             <label className="flex flex-[1_1_280px] flex-col gap-1.5">
               <span className="text-[13px] font-bold">Permission</span>
-              <NativeSelect
-                unstyled
-                className={cn(selectClass, 'bg-card')}
+              <OptionSelect
                 value={selected}
-                onChange={(e) => setKey(e.target.value)}
-              >
-                {choices.map((p) => (
-                  <option key={p.key} value={p.key}>
-                    {p.label}
-                  </option>
-                ))}
-              </NativeSelect>
+                onValueChange={setKey}
+                options={choices.map((p) => ({ value: p.key, label: p.label }))}
+              />
             </label>
             <label className="flex flex-[1_1_180px] flex-col gap-1.5">
               <span className="text-[13px] font-bold">

@@ -20,15 +20,10 @@ export function WelcomeForm({ settings, errors, onChange }: FormProps) {
       </Fld>
       <Fld label="When to send" error={errors.delay_minutes}>
         <Select
-          value={s.delay_minutes}
-          onChange={(e) => set({ delay_minutes: Number(e.target.value) })}
-        >
-          {WELCOME_DELAYS.map((d) => (
-            <option key={d.value} value={d.value}>
-              {d.label}
-            </option>
-          ))}
-        </Select>
+          value={String(s.delay_minutes)}
+          onValueChange={(v) => set({ delay_minutes: Number(v) })}
+          options={WELCOME_DELAYS.map((d) => ({ value: String(d.value), label: d.label }))}
+        />
       </Fld>
       <Check checked={s.first_time_only} onChange={(first_time_only) => set({ first_time_only })}>
         Only send to first-time contacts

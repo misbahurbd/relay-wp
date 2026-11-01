@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -282,7 +284,28 @@ func (s *seeder) tenant(t seedTenant) error {
 	// The sample chats are history, not customers waiting for a first reply.
 	s.exec(`DELETE FROM river_job WHERE kind = 'automations_inbound' AND state = 'available' AND args::text LIKE '%' || $1 || '%'`, ws.String())
 	s.automations(ws, owner, t, templates, tags)
+	s.segments(ws, owner)
+	s.broadcasts(ws, owner, templates, tags)
 	return s.err
+}
+
+// segments adds two saved segments, so the Segments tab and the broadcast
+// audience have something to show (ADR 0014).
+func (s *seeder) segments(ws, owner uuid.UUID) {
+	for _, seg := range []struct{ key, name, desc, rules string }{
+		{
+			"active", "Active this month", "Opted in and wrote to us in the last 30 days",
+			`{"groups":[{"match":"all","conditions":[{"field":"opt_in","op":"is","value":"in"},{"field":"last_message","op":"within","value":"30"}]}]}`,
+		},
+		{
+			"quiet", "Gone quiet", "No message for more than 30 days",
+			`{"groups":[{"match":"all","conditions":[{"field":"last_message","op":"over","value":"30"}]}]}`,
+		},
+	} {
+		s.exec(`INSERT INTO contact_segments (id, workspace_id, name, description, rules, created_by)
+			VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING`,
+			seedID("segment", ws.String(), seg.key), ws, seg.name, seg.desc, seg.rules, owner)
+	}
 }
 
 // plan moves the workspace to a catalog plan by a manual grant, as staff would.
@@ -390,4 +413,109 @@ func (s *seeder) automations(ws, owner uuid.UUID, t seedTenant, templates, tags 
 			return
 		}
 	}
+}
+
+// broadcasts adds one sent broadcast with a report, one scheduled and one
+// draft, and counts the plan units they used (ADR 0013).
+func (s *seeder) broadcasts(ws, owner uuid.UUID, templates, tags map[string]uuid.UUID) {
+	if s.err != nil {
+		return
+	}
+	number := devChannelID(ws)
+	picks, welcome := templates["welcome_series_2"], templates["welcome_series_1"]
+	nameVar := `{"body":[{"source":"name","value":"","fallback":"there"}]}`
+	sent := seedID("broadcast", ws.String(), "popular-picks")
+	var exists bool
+	if err := s.a.db.QueryRow(s.ctx, `SELECT EXISTS (SELECT 1 FROM broadcasts WHERE id = $1)`, sent).Scan(&exists); err != nil {
+		s.err = fmt.Errorf("seed broadcasts: %w", err)
+		return
+	}
+	if !exists {
+		s.sentBroadcast(ws, owner, sent, number, picks, nameVar)
+	}
+	s.exec(`INSERT INTO broadcasts (id, workspace_id, name, number_id, template_id, audience, variables, status, scheduled_at, usage_period, created_by)
+		VALUES ($1, $2, 'Weekend flash sale', $3, $4, '{"all":true,"tag_ids":[]}', $5, 'scheduled', now() + interval '3 days',
+		        date_trunc('month', now() AT TIME ZONE 'UTC')::date, $6) ON CONFLICT DO NOTHING`,
+		seedID("broadcast", ws.String(), "weekend-sale"), ws, number, welcome, nameVar, owner)
+	audience := `{"all":true,"tag_ids":[]}`
+	if names := slices.Sorted(maps.Keys(tags)); len(names) > 0 {
+		audience = `{"tag_ids":["` + tags[names[0]].String() + `"]}`
+	}
+	s.exec(`INSERT INTO broadcasts (id, workspace_id, name, number_id, template_id, audience, variables, created_by)
+		VALUES ($1, $2, 'Eid greetings', $3, $4, $5, $6, $7) ON CONFLICT DO NOTHING`,
+		seedID("broadcast", ws.String(), "eid"), ws, number, welcome, audience, nameVar, owner)
+	s.exec(`INSERT INTO usage_counters (workspace_id, resource, period_start, used)
+		SELECT workspace_id, 'broadcasts', usage_period, count(*) FROM broadcasts
+		WHERE workspace_id = $1 AND usage_period IS NOT NULL GROUP BY workspace_id, usage_period
+		ON CONFLICT DO NOTHING`, ws)
+}
+
+// sentBroadcast is a broadcast sent three days ago to every opted-in contact,
+// with its chats, messages and a spread of delivery statuses for the report.
+func (s *seeder) sentBroadcast(ws, owner, id, number, template uuid.UUID, variables string) {
+	at := time.Now().UTC().Add(-72 * time.Hour).Truncate(time.Second)
+	rows, err := s.a.db.Query(s.ctx, `SELECT id, name, phone FROM contacts WHERE workspace_id = $1 AND opt_in = 'in' ORDER BY id`, ws)
+	if err != nil {
+		s.err = fmt.Errorf("seed broadcast audience: %w", err)
+		return
+	}
+	type contact struct {
+		id          uuid.UUID
+		name, phone string
+	}
+	var audience []contact
+	for rows.Next() {
+		var c contact
+		if err := rows.Scan(&c.id, &c.name, &c.phone); err != nil {
+			rows.Close()
+			s.err = fmt.Errorf("seed broadcast audience: %w", err)
+			return
+		}
+		audience = append(audience, c)
+	}
+	rows.Close()
+	s.exec(`INSERT INTO broadcasts (id, workspace_id, name, number_id, template_id, audience, variables, status, started_at,
+		snapshot_at, completed_at, recipients_total, usage_period, created_by, created_at)
+		VALUES ($1, $2, 'Popular picks', $3, $4, '{"all":true,"tag_ids":[]}', $5, 'completed', $6, $6, $6::timestamptz + interval '10 minutes',
+		        $7, date_trunc('month', $6::timestamptz AT TIME ZONE 'UTC')::date, $8, $6::timestamptz - interval '1 hour')`,
+		id, ws, number, template, variables, at, len(audience), owner)
+	for i, c := range audience {
+		name := c.name
+		if strings.TrimSpace(name) == "" {
+			name = "there"
+		}
+		statuses := []string{"failed", "sent", "sent", "delivered", "delivered", "delivered", "read", "read", "read", "read"}
+		status := statuses[i%len(statuses)]
+		var errCode, errTitle *string
+		if status == "failed" {
+			code, title := "131026", "Message undeliverable"
+			errCode, errTitle = &code, &title
+		}
+		msgID := uuidAt(at.Add(time.Duration(i) * time.Second))
+		content := fmt.Sprintf(`{"template":{"id":%q,"name":"welcome_series_2","language":"en","category":"marketing","params":{"body":[%q]}}}`,
+			template, name)
+		s.exec(`INSERT INTO conversations (id, workspace_id, contact_id, channel_type, channel_id, source, last_message_direction,
+			last_message_at, last_message_preview, status)
+			VALUES ($1, $2, $3, 'whatsapp', $4, 'broadcast', 'out', $5, $6, 'closed')
+			ON CONFLICT (workspace_id, contact_id, channel_type, channel_id) DO NOTHING`,
+			uuidAt(at), ws, c.id, number, at, "Hi "+name+", here are this week's popular picks.")
+		s.exec(`INSERT INTO messages (id, workspace_id, conversation_id, direction, type, body, content, external_id, status,
+			error_code, error_title, created_at, status_at)
+			SELECT $1, $2, id, 'out', 'template', $3, $4, $5, $6, $7, $8, $9, $9::timestamptz + interval '2 minutes'
+			FROM conversations WHERE workspace_id = $2 AND contact_id = $10 AND channel_type = 'whatsapp' AND channel_id = $11`,
+			msgID, ws, "Hi "+name+", here are this week's popular picks.", content, "seed-broadcast-"+msgID.String(),
+			status, errCode, errTitle, at, c.id, number)
+		s.exec(`INSERT INTO broadcast_recipients (workspace_id, broadcast_id, contact_id, phone, name, state, message_id, queued_at)
+			VALUES ($1, $2, $3, $4, $5, 'queued', $6, $7)`, ws, id, c.id, c.phone, c.name, msgID, at)
+	}
+}
+
+// uuidAt is a fresh UUIDv7 whose time is t, so a backdated message sorts where it was sent.
+func uuidAt(t time.Time) uuid.UUID {
+	id := uuid.Must(uuid.NewV7())
+	ms := uint64(t.UnixMilli()) //nolint:gosec // a time after 1970
+	for i := range 6 {
+		id[i] = byte(ms >> (40 - 8*i)) //nolint:gosec // keeps the low byte on purpose
+	}
+	return id
 }

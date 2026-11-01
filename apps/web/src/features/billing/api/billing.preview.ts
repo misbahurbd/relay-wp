@@ -30,13 +30,6 @@ export const usagePreviewQueryOptions = (workspaceId: string) =>
     queryKey: billingKeys.preview(workspaceId, 'usage'),
     queryFn: sample<UsageRow[]>([
       { key: 'contacts', label: 'Contacts', used: 8640, limit: 10000, preview: true },
-      {
-        key: 'broadcasts_per_month',
-        label: 'Broadcasts this month',
-        used: 21,
-        limit: 30,
-        preview: true,
-      },
       { key: 'chatbot_flows', label: 'Chatbot flows', used: 4, limit: 10, preview: true },
       {
         key: 'api_calls_per_month',

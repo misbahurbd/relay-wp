@@ -122,6 +122,31 @@ func (q *Queries) AutomationConversation(ctx context.Context, arg AutomationConv
 	return i, err
 }
 
+const channelContactConversation = `-- name: ChannelContactConversation :one
+SELECT id FROM conversations
+WHERE workspace_id = $1 AND contact_id = $2 AND channel_type = $3 AND channel_id = $4
+`
+
+type ChannelContactConversationParams struct {
+	WorkspaceID uuid.UUID
+	ContactID   uuid.UUID
+	ChannelType string
+	ChannelID   uuid.UUID
+}
+
+// The contact's chat on one number: a broadcast sends from the number it chose.
+func (q *Queries) ChannelContactConversation(ctx context.Context, arg ChannelContactConversationParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, channelContactConversation,
+		arg.WorkspaceID,
+		arg.ContactID,
+		arg.ChannelType,
+		arg.ChannelID,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getMessage = `-- name: GetMessage :one
 SELECT m.id, m.conversation_id, m.direction, m.kind, m.type, m.body, m.content, m.external_id, m.status
 FROM messages m
@@ -327,7 +352,7 @@ func (q *Queries) InsertAutomatedMessage(ctx context.Context, arg InsertAutomate
 
 const insertAutomationConversation = `-- name: InsertAutomationConversation :one
 INSERT INTO conversations (id, workspace_id, contact_id, channel_type, channel_id, source, last_message_direction)
-VALUES ($1, $2, $3, $4, $5, 'automation', 'out')
+VALUES ($1, $2, $3, $4, $5, $6, 'out')
 ON CONFLICT (workspace_id, contact_id, channel_type, channel_id) DO UPDATE SET updated_at = now()
 RETURNING id
 `
@@ -338,6 +363,7 @@ type InsertAutomationConversationParams struct {
 	ContactID   uuid.UUID
 	ChannelType string
 	ChannelID   uuid.UUID
+	Source      string
 }
 
 // A chat a template starts: no window until the customer writes back.
@@ -348,6 +374,7 @@ func (q *Queries) InsertAutomationConversation(ctx context.Context, arg InsertAu
 		arg.ContactID,
 		arg.ChannelType,
 		arg.ChannelID,
+		arg.Source,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)

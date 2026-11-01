@@ -19,15 +19,10 @@ export function CartForm({ workspaceId, settings, errors, onChange }: FormProps)
     <>
       <Fld label="Send reminder" error={errors.delay_minutes}>
         <Select
-          value={s.delay_minutes}
-          onChange={(e) => set({ delay_minutes: Number(e.target.value) })}
-        >
-          {CART_DELAYS.map((d) => (
-            <option key={d.value} value={d.value}>
-              {d.label}
-            </option>
-          ))}
-        </Select>
+          value={String(s.delay_minutes)}
+          onValueChange={(v) => set({ delay_minutes: Number(v) })}
+          options={CART_DELAYS.map((d) => ({ value: String(d.value), label: d.label }))}
+        />
       </Fld>
       <Fld label="Template" error={errors.template_id}>
         <TemplateSelect templates={templates} value={s.template_id} onChange={pick} />

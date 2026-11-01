@@ -68,6 +68,20 @@ func Register(api huma.API, h *Handler, g Guards, security []map[string][]string
 	huma.Register(api, ws("create-contact-tag", http.MethodPost, "/contact-tags",
 		"Create a tag, or get the one with this name", created, edit), h.createTag)
 
+	// Segments (ADR 0014): saved rules that group contacts on their own.
+	huma.Register(api, ws("list-contact-segments", http.MethodGet, "/contact-segments",
+		"Segments by name, each with who matches it now", ok, view), h.listSegments)
+	huma.Register(api, ws("create-contact-segment", http.MethodPost, "/contact-segments",
+		"Save a segment", created, edit), h.createSegment)
+	huma.Register(api, ws("preview-contact-segment", http.MethodPost, "/contact-segments/preview",
+		"Who rules match right now, before saving", ok, view), h.previewSegment)
+	huma.Register(api, ws("get-contact-segment", http.MethodGet, "/contact-segments/{segmentId}",
+		"One segment with who matches it now", ok, view), h.getSegment)
+	huma.Register(api, ws("update-contact-segment", http.MethodPut, "/contact-segments/{segmentId}",
+		"Replace a segment's name, description and rules", ok, edit), h.updateSegment)
+	huma.Register(api, ws("delete-contact-segment", http.MethodDelete, "/contact-segments/{segmentId}",
+		"Delete a segment; its contacts stay", none, edit), h.deleteSegment)
+
 	upload := ws("upload-contact-import", http.MethodPost, "/contacts/imports",
 		"Upload a .csv or .xlsx file to import", created, imp)
 	upload.MaxBodyBytes = model.MaxImportBytes + 1<<20 // room for the multipart envelope
