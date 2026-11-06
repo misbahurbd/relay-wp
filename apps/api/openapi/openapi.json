@@ -875,6 +875,11 @@
             "format": "int64",
             "type": "integer"
           },
+          "no_phone": {
+            "description": "Opted-in contacts left out because they have no phone, only a WhatsApp username",
+            "format": "int64",
+            "type": "integer"
+          },
           "recent": {
             "description": "Opted-in contacts sent marketing in the last 24 hours; not in included when the audience skips them",
             "format": "int64",
@@ -889,6 +894,7 @@
         "required": [
           "included",
           "left_out",
+          "no_phone",
           "recent",
           "tier_limit"
         ],
@@ -2251,14 +2257,14 @@
             "type": "string"
           },
           "phone": {
-            "description": "E.164, for example +447700900412",
+            "description": "E.164, for example +447700900412; empty for a WhatsApp user who wrote with a username and no visible number",
             "examples": [
               "+447700900412"
             ],
             "type": "string"
           },
           "phone_display": {
-            "description": "International format for display",
+            "description": "International format for display; empty when phone is",
             "examples": [
               "+44 7700 900412"
             ],
@@ -2285,6 +2291,13 @@
           "updated_at": {
             "format": "date-time",
             "type": "string"
+          },
+          "whatsapp_username": {
+            "description": "WhatsApp username, when the contact has one",
+            "examples": [
+              "grace.hopper"
+            ],
+            "type": "string"
           }
         },
         "required": [
@@ -2292,6 +2305,7 @@
           "name",
           "phone",
           "phone_display",
+          "whatsapp_username",
           "email",
           "opt_in",
           "source",
@@ -2368,14 +2382,14 @@
             ]
           },
           "phone": {
-            "description": "E.164, for example +447700900412",
+            "description": "E.164, for example +447700900412; empty for a WhatsApp user who wrote with a username and no visible number",
             "examples": [
               "+447700900412"
             ],
             "type": "string"
           },
           "phone_display": {
-            "description": "International format for display",
+            "description": "International format for display; empty when phone is",
             "examples": [
               "+44 7700 900412"
             ],
@@ -2402,6 +2416,13 @@
           "updated_at": {
             "format": "date-time",
             "type": "string"
+          },
+          "whatsapp_username": {
+            "description": "WhatsApp username, when the contact has one",
+            "examples": [
+              "grace.hopper"
+            ],
+            "type": "string"
           }
         },
         "required": [
@@ -2412,6 +2433,7 @@
           "name",
           "phone",
           "phone_display",
+          "whatsapp_username",
           "email",
           "opt_in",
           "source",
@@ -3968,9 +3990,16 @@
             "type": "string"
           },
           "phone": {
-            "description": "E.164",
+            "description": "E.164; empty when the customer wrote with a WhatsApp username and no visible number",
             "examples": [
               "+447700900412"
+            ],
+            "type": "string"
+          },
+          "username": {
+            "description": "The customer's WhatsApp username, when they have one",
+            "examples": [
+              "grace.hopper"
             ],
             "type": "string"
           }
@@ -3978,7 +4007,8 @@
         "required": [
           "id",
           "name",
-          "phone"
+          "phone",
+          "username"
         ],
         "type": "object"
       },

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -13,41 +14,74 @@ import (
 	"github.com/misbahurbd/relay-wp/apps/api/db/gen"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/contacts/model"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/contacts/repository"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/database"
 )
 
 // maxExternalIDLen matches contact_identities.external_id's check.
 const maxExternalIDLen = 128
 
-// FindOrCreateByIdentity returns the contact a channel's sender is (ADR 0010),
-// and whether it was created now. A known identity wins, so a later edit of the
-// contact's phone doesn't lose the chat. An unknown sender with a phone links to
-// the contact with that phone, or creates one (source inbox, opt-in pending); a
-// sender without a phone fails with ErrIdentityNeedsPhone until contacts may
-// have no phone. Concurrent calls for one new sender agree on one contact and
-// one identity. For features/inbox, through an interface it declares.
-func (s *Service) FindOrCreateByIdentity(ctx context.Context, workspaceID uuid.UUID, channelType, externalID, name, phone string) (model.Contact, bool, error) {
-	channelType, externalID = strings.TrimSpace(channelType), strings.TrimSpace(externalID)
-	if channelType == "" || externalID == "" || len(externalID) > maxExternalIDLen {
+// FindOrCreateByIdentity returns the contact a channel's sender is (ADR 0010,
+// ADR 0015), and whether it was created now. It looks the sender up by their
+// channel ID, then by their phone as an identity, then by the contact with that
+// phone; a new sender becomes a contact (source inbox, opt-in pending), without
+// a phone when the channel gave none. Missing links are added: the channel ID
+// to the contact found, and the phone to a contact that had none. A known
+// identity wins, so a later edit of the contact's phone doesn't lose the chat.
+// Concurrent calls for one new sender agree on one contact and one identity.
+// For features/inbox, through an interface it declares.
+func (s *Service) FindOrCreateByIdentity(ctx context.Context, workspaceID uuid.UUID, in model.Sender) (model.Contact, bool, error) {
+	in.ChannelType, in.ExternalID = strings.TrimSpace(in.ChannelType), strings.TrimSpace(in.ExternalID)
+	if in.ChannelType == "" || in.ExternalID == "" || len(in.ExternalID) > maxExternalIDLen {
 		return model.Contact{}, false, model.ErrInvalidIdentity
 	}
+	in.Handle = strings.TrimSpace(in.Handle)
+	if len(in.Handle) > maxExternalIDLen {
+		in.Handle = ""
+	}
+	var phone string
+	if strings.TrimSpace(in.Phone) != "" {
+		e164, ok := NormalizePhone(in.Phone)
+		if !ok {
+			return model.Contact{}, false, model.ErrInvalidPhone
+		}
+		phone = e164
+	}
 	r := repository.NewRepository(s.pool)
-	key := gen.ContactIDByIdentityParams{WorkspaceID: workspaceID, ChannelType: channelType, ExternalID: externalID}
+	key := gen.ContactIDByIdentityParams{WorkspaceID: workspaceID, ChannelType: in.ChannelType, ExternalID: in.ExternalID}
+
 	id, err := r.ContactIDByIdentity(ctx, key)
 	switch {
 	case err == nil:
+		if err := s.refreshIdentity(ctx, r, workspaceID, id, in, phone); err != nil {
+			return model.Contact{}, false, err
+		}
 		return s.inboxContact(ctx, workspaceID, id, false)
 	case !repository.IsNoRows(err):
 		return model.Contact{}, false, fmt.Errorf("contact by identity: %w", err)
 	}
-	if strings.TrimSpace(phone) == "" {
-		return model.Contact{}, false, model.ErrIdentityNeedsPhone
+
+	var contactID uuid.UUID
+	created := false
+	if phone != "" && phone != in.ExternalID {
+		// The same sender wrote before from their phone alone.
+		contactID, err = r.ContactIDByIdentity(ctx, gen.ContactIDByIdentityParams{
+			WorkspaceID: workspaceID, ChannelType: in.ChannelType, ExternalID: phone,
+		})
+		if err != nil && !repository.IsNoRows(err) {
+			return model.Contact{}, false, fmt.Errorf("contact by phone identity: %w", err)
+		}
 	}
-	contactID, created, err := s.findOrCreateByPhone(ctx, r, workspaceID, phone, name)
-	if err != nil {
-		return model.Contact{}, false, err
+	switch {
+	case contactID != uuid.Nil:
+	case phone != "":
+		if contactID, created, err = s.findOrCreateByPhone(ctx, r, workspaceID, phone, in.Name); err != nil {
+			return model.Contact{}, false, err
+		}
+	default:
+		return s.createWithoutPhone(ctx, workspaceID, in)
 	}
-	if err := r.InsertContactIdentity(ctx, gen.InsertContactIdentityParams{
-		WorkspaceID: workspaceID, ContactID: contactID, ChannelType: channelType, ExternalID: externalID,
+	if _, err := r.InsertContactIdentity(ctx, gen.InsertContactIdentityParams{
+		WorkspaceID: workspaceID, ContactID: contactID, ChannelType: in.ChannelType, ExternalID: in.ExternalID, Handle: in.Handle,
 	}); err != nil {
 		return model.Contact{}, false, fmt.Errorf("insert contact identity: %w", err)
 	}
@@ -58,6 +92,69 @@ func (s *Service) FindOrCreateByIdentity(ctx context.Context, workspaceID uuid.U
 	}
 	return s.inboxContact(ctx, workspaceID, linked, created && linked == contactID)
 }
+
+// refreshIdentity keeps a known sender's handle current and gives their
+// contact the phone the channel now reveals, when it had none.
+func (s *Service) refreshIdentity(ctx context.Context, r repository.Repository, workspaceID, contactID uuid.UUID, in model.Sender, phone string) error {
+	if err := r.SetContactIdentityHandle(ctx, gen.SetContactIdentityHandleParams{
+		WorkspaceID: workspaceID, ChannelType: in.ChannelType, ExternalID: in.ExternalID, Handle: in.Handle,
+	}); err != nil {
+		return fmt.Errorf("set identity handle: %w", err)
+	}
+	if phone == "" {
+		return nil
+	}
+	_, err := r.FillContactPhone(ctx, gen.FillContactPhoneParams{WorkspaceID: workspaceID, ID: contactID, Phone: phone})
+	if err != nil && !repository.IsUnique(err, repository.PhoneConstraint) {
+		return fmt.Errorf("fill contact phone: %w", err)
+	}
+	return nil
+}
+
+// createWithoutPhone adds a sender the channel gave no phone for, and links
+// their identity, in one transaction. A concurrent call that links the sender
+// first wins: this one rolls back and returns that contact.
+func (s *Service) createWithoutPhone(ctx context.Context, workspaceID uuid.UUID, in model.Sender) (model.Contact, bool, error) {
+	name := strings.TrimSpace(in.Name)
+	if utf8.RuneCountInString(name) > model.MaxNameLen {
+		name = string([]rune(name)[:model.MaxNameLen])
+	}
+	id, err := uuid.NewV7()
+	if err != nil {
+		return model.Contact{}, false, fmt.Errorf("contact id: %w", err)
+	}
+	created := false
+	err = database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+		r := repository.NewRepository(tx)
+		if _, err := r.InsertInboxContact(ctx, gen.InsertInboxContactParams{ID: id, WorkspaceID: workspaceID, Name: name, Phone: ""}); err != nil {
+			return fmt.Errorf("insert inbox contact: %w", err)
+		}
+		n, err := r.InsertContactIdentity(ctx, gen.InsertContactIdentityParams{
+			WorkspaceID: workspaceID, ContactID: id, ChannelType: in.ChannelType, ExternalID: in.ExternalID, Handle: in.Handle,
+		})
+		if err != nil {
+			return fmt.Errorf("insert contact identity: %w", err)
+		}
+		if n == 0 {
+			return errIdentityTaken
+		}
+		created = true
+		return nil
+	})
+	if err != nil && !errors.Is(err, errIdentityTaken) {
+		return model.Contact{}, false, err
+	}
+	linked, err := repository.NewRepository(s.pool).ContactIDByIdentity(ctx, gen.ContactIDByIdentityParams{
+		WorkspaceID: workspaceID, ChannelType: in.ChannelType, ExternalID: in.ExternalID,
+	})
+	if err != nil {
+		return model.Contact{}, false, fmt.Errorf("contact by identity: %w", err)
+	}
+	return s.inboxContact(ctx, workspaceID, linked, created)
+}
+
+// errIdentityTaken rolls back a phone-less contact whose sender another call linked first.
+var errIdentityTaken = errors.New("contacts: identity linked concurrently")
 
 // findOrCreateByPhone returns the contact with this phone, creating it when the
 // customer is new. Two concurrent calls for one phone: one inserts, both read it.

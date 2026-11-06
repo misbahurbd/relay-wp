@@ -720,11 +720,68 @@ func TestInboxSenderIdentityLinksContact(t *testing.T) {
 	}
 }
 
+// A customer with a WhatsApp username whose number Meta withholds (ADR 0015)
+// reaches the inbox, is found by username, and gets replies by user ID; once
+// Meta sends their phone too, replies go to the phone.
+func TestInboxUserIDSender(t *testing.T) {
+	v := newInboxEnv(t)
+	owner, base := v.owner, v.base+"/inbox"
+	const userID = "BD.2294857751239750"
+	deliver := func(wamid, from, text string) {
+		t.Helper()
+		err := inboxSink{inbox: v.e.a.inbox}.InboundMessage(context.Background(), whatsappmodel.InboundMessage{
+			WorkspaceID: v.wsID, NumberID: v.numberID, PhoneNumberID: "pn", WAMID: wamid, From: from, UserID: userID,
+			Username: "shakil.cse", ProfileName: "Shakil Ahmed", Timestamp: time.Now().UTC(), Type: "text", Text: text,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	deliver("wamid.uid.1", "", "hello")
+	conv := v.only(t, owner, "tab=open")
+	c := conv["contact"].(map[string]any)
+	if c["phone"] != "" || c["username"] != "shakil.cse" || c["name"] != "Shakil Ahmed" {
+		t.Fatalf("contact: %v", c)
+	}
+	if found := v.only(t, owner, "tab=open&q=shakil.c"); found["id"] != conv["id"] {
+		t.Fatalf("search by username: %v", found)
+	}
+	contact := owner.do("GET", v.base+"/contacts/"+c["id"].(string), nil)
+	expect(t, contact, http.StatusOK)
+	if contact.body["phone"] != "" || contact.body["whatsapp_username"] != "shakil.cse" {
+		t.Fatalf("contact detail: %v", contact.body)
+	}
+	// Saving the phone-less contact without a phone keeps it so.
+	expect(t, owner.do("PATCH", v.base+"/contacts/"+c["id"].(string), map[string]any{"name": "Shakil", "phone": ""}), http.StatusOK)
+
+	expect(t, owner.do("POST", base+"/conversations/"+conv["id"].(string)+"/messages",
+		map[string]any{"type": "text", "text": "Hi Shakil"}), http.StatusCreated)
+	v.runSends(false)
+	if got := v.channel.last(); got != "text:"+userID+":Hi Shakil" {
+		t.Fatalf("channel got %q", got)
+	}
+
+	// Meta now sends the phone as well: same chat, and the phone is used.
+	phone := v.phone()
+	deliver("wamid.uid.2", phone, "it's me again")
+	again := v.only(t, owner, "tab=open")
+	if again["id"] != conv["id"] || again["contact"].(map[string]any)["phone"] != phone {
+		t.Fatalf("with the phone: %v", again)
+	}
+	expect(t, owner.do("POST", base+"/conversations/"+conv["id"].(string)+"/messages",
+		map[string]any{"type": "text", "text": "Got it"}), http.StatusCreated)
+	v.runSends(false)
+	if got := v.channel.last(); got != "text:"+phone+":Got it" {
+		t.Fatalf("channel got %q", got)
+	}
+}
+
 func TestSeedInboxForLocalDevelopment(t *testing.T) {
 	v := newInboxEnv(t)
 	v.e.a.cfg.AppEnv = "development" // seeding refuses to run anywhere else
 	n, err := v.e.a.SeedInbox(t.Context(), v.wsID)
-	if err != nil || n != 7 {
+	if err != nil || n != 8 {
 		t.Fatalf("seed: %d, %v", n, err)
 	}
 	// Seeding again stores nothing new.
@@ -733,7 +790,7 @@ func TestSeedInboxForLocalDevelopment(t *testing.T) {
 	}
 	r := v.owner.do("GET", v.base+"/inbox/conversations?tab=open", nil)
 	expect(t, r, http.StatusOK)
-	if got := len(items(r)); got != 6 {
+	if got := len(items(r)); got != 7 {
 		t.Fatalf("open chats: %d\n%s", got, r.raw)
 	}
 	// Lucía's two messages are one chat with 2 unread; Jonas's window has closed.

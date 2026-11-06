@@ -208,7 +208,7 @@ func (s *Service) counts(ctx context.Context, r repository.Repository, a authctx
 func toConversation(row gen.ListConversationsWaitingRow) model.Conversation {
 	return model.Conversation{
 		ID:      row.ID,
-		Contact: model.ContactRef{ID: row.ContactID, Name: row.ContactName, Phone: row.ContactPhone},
+		Contact: model.ContactRef{ID: row.ContactID, Name: row.ContactName, Phone: row.ContactPhone, Username: row.ContactUsername},
 		Channel: model.ChannelRef{Type: row.ChannelType, ID: row.ChannelID},
 		Status:  row.Status, Source: row.Source, TeamID: row.TeamID,
 		Assignee:      person(row.AssigneeID, row.AssigneeDisplayName, row.AssigneeFirstName, row.AssigneeLastName, row.AssigneeEmail),
@@ -261,7 +261,7 @@ func (s *Service) get(ctx context.Context, db database.DBTX, a authctx.Access, i
 	d := model.ConversationDetail{
 		Conversation: model.Conversation{
 			ID:      row.ID,
-			Contact: model.ContactRef{ID: row.ContactID, Name: row.ContactName, Phone: row.ContactPhone},
+			Contact: model.ContactRef{ID: row.ContactID, Name: row.ContactName, Phone: row.ContactPhone, Username: row.ContactUsername},
 			Channel: model.ChannelRef{Type: row.ChannelType, ID: row.ChannelID},
 			Status:  row.Status, Source: row.Source, TeamID: row.TeamID,
 			Assignee:      person(row.AssigneeID, row.AssigneeDisplayName, row.AssigneeFirstName, row.AssigneeLastName, row.AssigneeEmail),

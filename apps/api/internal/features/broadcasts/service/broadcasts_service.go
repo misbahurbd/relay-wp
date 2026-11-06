@@ -243,7 +243,9 @@ func (s *Service) countAudience(ctx context.Context, workspaceID uuid.UUID, a mo
 	if err != nil {
 		return model.AudienceCount{}, fmt.Errorf("count audience: %w", err)
 	}
-	c := model.AudienceCount{Included: int(r.OptedIn), LeftOut: int(r.Matched - r.OptedIn), Recent: int(r.Recent)}
+	c := model.AudienceCount{
+		Included: int(r.OptedIn - r.NoPhone), LeftOut: int(r.Matched - r.OptedIn), NoPhone: int(r.NoPhone), Recent: int(r.Recent),
+	}
 	if a.SkipRecentMarketing {
 		c.Included -= c.Recent
 	}

@@ -275,6 +275,10 @@ export type AudienceOutputBody = {
      */
     left_out: number;
     /**
+     * Opted-in contacts left out because they have no phone, only a WhatsApp username
+     */
+    no_phone: number;
+    /**
      * Opted-in contacts sent marketing in the last 24 hours; not in included when the audience skips them
      */
     recent: number;
@@ -733,16 +737,20 @@ export type ContactDto = {
     name: string;
     opt_in: 'in' | 'out' | 'pending';
     /**
-     * E.164, for example +447700900412
+     * E.164, for example +447700900412; empty for a WhatsApp user who wrote with a username and no visible number
      */
     phone: string;
     /**
-     * International format for display
+     * International format for display; empty when phone is
      */
     phone_display: string;
     source: 'manual' | 'import' | 'inbox' | 'api';
     tags: Array<TagRefDto> | null;
     updated_at: string;
+    /**
+     * WhatsApp username, when the contact has one
+     */
+    whatsapp_username: string;
 };
 
 export type ContactDetailDto = {
@@ -763,16 +771,20 @@ export type ContactDetailDto = {
     opt_in_at: string | null;
     opt_in_source: string | null;
     /**
-     * E.164, for example +447700900412
+     * E.164, for example +447700900412; empty for a WhatsApp user who wrote with a username and no visible number
      */
     phone: string;
     /**
-     * International format for display
+     * International format for display; empty when phone is
      */
     phone_display: string;
     source: 'manual' | 'import' | 'inbox' | 'api';
     tags: Array<TagRefDto> | null;
     updated_at: string;
+    /**
+     * WhatsApp username, when the contact has one
+     */
+    whatsapp_username: string;
 };
 
 export type ContactsOutputBody = {
@@ -1277,9 +1289,13 @@ export type InboxContactDto = {
      */
     name: string;
     /**
-     * E.164
+     * E.164; empty when the customer wrote with a WhatsApp username and no visible number
      */
     phone: string;
+    /**
+     * The customer's WhatsApp username, when they have one
+     */
+    username: string;
 };
 
 export type InboxContentDto = {

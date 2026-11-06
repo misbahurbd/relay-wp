@@ -81,7 +81,7 @@ func (h *Handler) previewAudience(ctx context.Context, in *dto.AudienceInput) (*
 		return nil, err
 	}
 	out := &dto.AudienceOutput{}
-	out.Body.Included, out.Body.LeftOut, out.Body.Recent, out.Body.TierLimit = c.Included, c.LeftOut, c.Recent, c.TierLimit
+	out.Body.Included, out.Body.LeftOut, out.Body.NoPhone, out.Body.Recent, out.Body.TierLimit = c.Included, c.LeftOut, c.NoPhone, c.Recent, c.TierLimit
 	return out, nil
 }
 

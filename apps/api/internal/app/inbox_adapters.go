@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	contactsmodel "github.com/misbahurbd/relay-wp/apps/api/internal/features/contacts/model"
 	contactsservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/contacts/service"
 	inboxmodel "github.com/misbahurbd/relay-wp/apps/api/internal/features/inbox/model"
 	inboxservice "github.com/misbahurbd/relay-wp/apps/api/internal/features/inbox/service"
@@ -51,15 +52,25 @@ func (a *App) inboxChannels() inboxservice.Channels {
 
 // inboxSink hears whatsapp's parsed webhooks and hands them to the inbox in its
 // own, channel-neutral types: the channel is the number, the message's external
-// ID is its wamid, and the sender's is their E.164 phone.
+// ID is its wamid, and the sender's is their WhatsApp user ID, or their E.164
+// phone on a webhook without one (ADR 0015).
 type inboxSink struct{ inbox *inboxservice.Service }
 
 var _ whatsappservice.InboundSink = inboxSink{}
 
+// whatsappSender is who wrote a WhatsApp message, as the inbox identifies them.
+func whatsappSender(m whatsappmodel.InboundMessage) inboxmodel.Sender {
+	id := m.UserID
+	if id == "" {
+		id = m.From
+	}
+	return inboxmodel.Sender{ExternalID: id, Phone: m.From, Handle: m.Username, Name: m.ProfileName}
+}
+
 func (s inboxSink) InboundMessage(ctx context.Context, m whatsappmodel.InboundMessage) error {
 	in := inboxmodel.Inbound{
 		WorkspaceID: m.WorkspaceID, ChannelType: inboxmodel.ChannelWhatsApp, ChannelID: m.NumberID, ExternalID: m.WAMID,
-		Sender:    inboxmodel.Sender{ExternalID: m.From, Phone: m.From, Name: m.ProfileName},
+		Sender:    whatsappSender(m),
 		Timestamp: m.Timestamp, Type: m.Type, Text: m.Text, Contacts: m.Contacts, ContextExternalID: m.ContextWAMID,
 	}
 	if m.Media != nil {
@@ -205,8 +216,10 @@ type inboxContacts struct{ contacts *contactsservice.Service }
 
 var _ inboxservice.ContactDirectory = inboxContacts{}
 
-func (c inboxContacts) FindOrCreateByIdentity(ctx context.Context, ws uuid.UUID, channelType, externalID, name, phone string) (inboxmodel.Contact, bool, error) {
-	got, created, err := c.contacts.FindOrCreateByIdentity(ctx, ws, channelType, externalID, name, phone)
+func (c inboxContacts) FindOrCreateByIdentity(ctx context.Context, ws uuid.UUID, channelType string, s inboxmodel.Sender) (inboxmodel.Contact, bool, error) {
+	got, created, err := c.contacts.FindOrCreateByIdentity(ctx, ws, contactsmodel.Sender{
+		ChannelType: channelType, ExternalID: s.ExternalID, Phone: s.Phone, Handle: s.Handle, Name: s.Name,
+	})
 	if err != nil {
 		return inboxmodel.Contact{}, false, err
 	}

@@ -3,8 +3,12 @@
 
 -- name: ListContacts :many
 -- Cursor: id of the last row of the previous page (ids are UUIDv7, so id DESC is newest first).
-SELECT c.id, c.name, c.phone, c.email, c.opt_in, c.source, c.language, c.assigned_to,
+SELECT c.id, c.name, COALESCE(c.phone, '')::text AS phone, c.email, c.opt_in, c.source, c.language, c.assigned_to,
        c.last_message_at, c.created_at, c.updated_at,
+       COALESCE((SELECT ci.handle FROM contact_identities ci
+                 WHERE ci.workspace_id = c.workspace_id AND ci.contact_id = c.id
+                   AND ci.channel_type = 'whatsapp' AND ci.handle <> ''
+                 ORDER BY ci.created_at DESC LIMIT 1), '')::text AS whatsapp_username,
        u.email AS assigned_email, p.display_name AS assigned_display_name,
        p.first_name AS assigned_first_name, p.last_name AS assigned_last_name
 FROM contacts c
@@ -16,7 +20,10 @@ WHERE c.workspace_id = @workspace_id
         SELECT 1 FROM contact_tag_links l WHERE l.contact_id = c.id AND l.tag_id = sqlc.narg(tag_id)))
   AND (sqlc.narg(query)::text IS NULL OR c.name ILIKE '%' || sqlc.narg(query) || '%'
        OR c.email::text ILIKE '%' || sqlc.narg(query) || '%'
-       OR (sqlc.narg(phone_query)::text IS NOT NULL AND c.phone LIKE '%' || sqlc.narg(phone_query) || '%'))
+       OR (sqlc.narg(phone_query)::text IS NOT NULL AND c.phone LIKE '%' || sqlc.narg(phone_query) || '%')
+       OR EXISTS (SELECT 1 FROM contact_identities ci
+                  WHERE ci.workspace_id = c.workspace_id AND ci.contact_id = c.id
+                    AND ci.handle ILIKE '%' || sqlc.narg(query) || '%'))
   AND (sqlc.narg(message_after)::timestamptz IS NULL OR c.last_message_at >= sqlc.narg(message_after))
   AND (sqlc.narg(message_before)::timestamptz IS NULL OR c.last_message_at < sqlc.narg(message_before))
   AND (sqlc.narg(after_id)::uuid IS NULL OR c.id < sqlc.narg(after_id))
@@ -32,13 +39,16 @@ WHERE c.workspace_id = @workspace_id
         SELECT 1 FROM contact_tag_links l WHERE l.contact_id = c.id AND l.tag_id = sqlc.narg(tag_id)))
   AND (sqlc.narg(query)::text IS NULL OR c.name ILIKE '%' || sqlc.narg(query) || '%'
        OR c.email::text ILIKE '%' || sqlc.narg(query) || '%'
-       OR (sqlc.narg(phone_query)::text IS NOT NULL AND c.phone LIKE '%' || sqlc.narg(phone_query) || '%'))
+       OR (sqlc.narg(phone_query)::text IS NOT NULL AND c.phone LIKE '%' || sqlc.narg(phone_query) || '%')
+       OR EXISTS (SELECT 1 FROM contact_identities ci
+                  WHERE ci.workspace_id = c.workspace_id AND ci.contact_id = c.id
+                    AND ci.handle ILIKE '%' || sqlc.narg(query) || '%'))
   AND (sqlc.narg(message_after)::timestamptz IS NULL OR c.last_message_at >= sqlc.narg(message_after))
   AND (sqlc.narg(message_before)::timestamptz IS NULL OR c.last_message_at < sqlc.narg(message_before));
 
 -- name: ExportContacts :many
 -- One page of the export, with tag names joined and the custom fields.
-SELECT c.id, c.name, c.phone, c.email, c.opt_in, c.source, c.language, c.attributes, c.created_at,
+SELECT c.id, c.name, COALESCE(c.phone, '')::text AS phone, c.email, c.opt_in, c.source, c.language, c.attributes, c.created_at,
        COALESCE((SELECT string_agg(t.name::text, ', ' ORDER BY t.name)
                  FROM contact_tag_links l JOIN contact_tags t ON t.id = l.tag_id
                  WHERE l.contact_id = c.id), '')::text AS tags
@@ -49,7 +59,10 @@ WHERE c.workspace_id = @workspace_id
         SELECT 1 FROM contact_tag_links l WHERE l.contact_id = c.id AND l.tag_id = sqlc.narg(tag_id)))
   AND (sqlc.narg(query)::text IS NULL OR c.name ILIKE '%' || sqlc.narg(query) || '%'
        OR c.email::text ILIKE '%' || sqlc.narg(query) || '%'
-       OR (sqlc.narg(phone_query)::text IS NOT NULL AND c.phone LIKE '%' || sqlc.narg(phone_query) || '%'))
+       OR (sqlc.narg(phone_query)::text IS NOT NULL AND c.phone LIKE '%' || sqlc.narg(phone_query) || '%')
+       OR EXISTS (SELECT 1 FROM contact_identities ci
+                  WHERE ci.workspace_id = c.workspace_id AND ci.contact_id = c.id
+                    AND ci.handle ILIKE '%' || sqlc.narg(query) || '%'))
   AND (sqlc.narg(message_after)::timestamptz IS NULL OR c.last_message_at >= sqlc.narg(message_after))
   AND (sqlc.narg(message_before)::timestamptz IS NULL OR c.last_message_at < sqlc.narg(message_before))
   AND (sqlc.narg(after_id)::uuid IS NULL OR c.id < sqlc.narg(after_id))
@@ -66,7 +79,10 @@ WHERE c.workspace_id = @workspace_id
         SELECT 1 FROM contact_tag_links l WHERE l.contact_id = c.id AND l.tag_id = sqlc.narg(tag_id)))
   AND (sqlc.narg(query)::text IS NULL OR c.name ILIKE '%' || sqlc.narg(query) || '%'
        OR c.email::text ILIKE '%' || sqlc.narg(query) || '%'
-       OR (sqlc.narg(phone_query)::text IS NOT NULL AND c.phone LIKE '%' || sqlc.narg(phone_query) || '%'))
+       OR (sqlc.narg(phone_query)::text IS NOT NULL AND c.phone LIKE '%' || sqlc.narg(phone_query) || '%')
+       OR EXISTS (SELECT 1 FROM contact_identities ci
+                  WHERE ci.workspace_id = c.workspace_id AND ci.contact_id = c.id
+                    AND ci.handle ILIKE '%' || sqlc.narg(query) || '%'))
   AND (sqlc.narg(message_after)::timestamptz IS NULL OR c.last_message_at >= sqlc.narg(message_after))
   AND (sqlc.narg(message_before)::timestamptz IS NULL OR c.last_message_at < sqlc.narg(message_before))
 ORDER BY 1;
@@ -84,8 +100,12 @@ WHERE l.workspace_id = @workspace_id AND l.contact_id = ANY(@contact_ids::uuid[]
 ORDER BY t.name;
 
 -- name: GetContact :one
-SELECT c.id, c.name, c.phone, c.email, c.opt_in, c.opt_in_source, c.opt_in_at, c.source, c.language,
+SELECT c.id, c.name, COALESCE(c.phone, '')::text AS phone, c.email, c.opt_in, c.opt_in_source, c.opt_in_at, c.source, c.language,
        c.attributes, c.assigned_to, c.last_message_at, c.created_at, c.updated_at,
+       COALESCE((SELECT ci.handle FROM contact_identities ci
+                 WHERE ci.workspace_id = c.workspace_id AND ci.contact_id = c.id
+                   AND ci.channel_type = 'whatsapp' AND ci.handle <> ''
+                 ORDER BY ci.created_at DESC LIMIT 1), '')::text AS whatsapp_username,
        u.email AS assigned_email, p.display_name AS assigned_display_name,
        p.first_name AS assigned_first_name, p.last_name AS assigned_last_name
 FROM contacts c
@@ -94,18 +114,18 @@ LEFT JOIN user_profiles p ON p.user_id = c.assigned_to
 WHERE c.workspace_id = @workspace_id AND c.id = @id;
 
 -- name: LockContact :one
-SELECT c.name, c.phone, c.email, c.opt_in, c.opt_in_source, c.opt_in_at, c.language, c.attributes
+SELECT c.name, COALESCE(c.phone, '')::text AS phone, c.email, c.opt_in, c.opt_in_source, c.opt_in_at, c.language, c.attributes
 FROM contacts c
 WHERE c.workspace_id = @workspace_id AND c.id = @id
 FOR UPDATE;
 
 -- name: CreateContact :exec
 INSERT INTO contacts (id, workspace_id, name, phone, email, opt_in, opt_in_source, opt_in_at, source, language, attributes)
-VALUES (@id, @workspace_id, @name, @phone, @email, @opt_in, @opt_in_source, @opt_in_at, @source, @language, @attributes);
+VALUES (@id, @workspace_id, @name, sqlc.arg(phone)::text, @email, @opt_in, @opt_in_source, @opt_in_at, @source, @language, @attributes);
 
 -- name: UpdateContact :exec
 UPDATE contacts
-SET name = @name, phone = @phone, email = @email, opt_in = @opt_in, opt_in_source = @opt_in_source,
+SET name = @name, phone = NULLIF(sqlc.arg(phone)::text, ''), email = @email, opt_in = @opt_in, opt_in_source = @opt_in_source,
     opt_in_at = @opt_in_at, language = @language, attributes = @attributes
 WHERE workspace_id = @workspace_id AND id = @id;
 
@@ -138,7 +158,7 @@ DELETE FROM contact_tag_links
 WHERE workspace_id = @workspace_id AND contact_id = @contact_id;
 
 -- name: ExistingContactPhones :many
-SELECT c.phone, c.opt_in
+SELECT c.phone::text AS phone, c.opt_in
 FROM contacts c
 WHERE c.workspace_id = @workspace_id AND c.phone = ANY(@phones::text[]);
 
@@ -157,7 +177,7 @@ SET name          = CASE WHEN EXCLUDED.name <> '' THEN EXCLUDED.name ELSE contac
     opt_in        = CASE WHEN contacts.opt_in = 'pending' THEN 'in' ELSE contacts.opt_in END,
     opt_in_source = CASE WHEN contacts.opt_in = 'pending' THEN 'import' ELSE contacts.opt_in_source END,
     opt_in_at     = CASE WHEN contacts.opt_in = 'pending' THEN now() ELSE contacts.opt_in_at END
-RETURNING id, phone, (xmax = 0)::boolean AS inserted;
+RETURNING id, phone::text AS phone, (xmax = 0)::boolean AS inserted;
 
 -- name: LockContactCap :exec
 -- Serializes adding contacts in one workspace, so two adds can't both pass the plan's cap.
@@ -171,15 +191,16 @@ SELECT count(*) FROM contacts WHERE workspace_id = @workspace_id;
 -- name: InsertInboxContact :many
 -- A customer who wrote in. Nothing happens when the phone is already a contact,
 -- so concurrent webhooks create it once; the row comes back only when inserted.
+-- A sender known only by a channel ID (ADR 0015) has no phone (empty here).
 INSERT INTO contacts (id, workspace_id, name, phone, source)
-VALUES (@id, @workspace_id, @name, @phone, 'inbox')
+VALUES (@id, @workspace_id, @name, NULLIF(sqlc.arg(phone)::text, ''), 'inbox')
 ON CONFLICT (workspace_id, phone) DO NOTHING
 RETURNING id;
 
 -- name: ContactIDByPhone :one
 SELECT c.id
 FROM contacts c
-WHERE c.workspace_id = @workspace_id AND c.phone = @phone;
+WHERE c.workspace_id = @workspace_id AND c.phone = sqlc.arg(phone)::text;
 
 -- name: SetContactLastMessage :exec
 UPDATE contacts
@@ -192,12 +213,27 @@ SELECT ci.contact_id
 FROM contact_identities ci
 WHERE ci.workspace_id = @workspace_id AND ci.channel_type = @channel_type AND ci.external_id = @external_id;
 
--- name: InsertContactIdentity :exec
--- Links a sender to a contact. A concurrent link of the same sender wins; the
--- caller reads the identity back.
+-- name: InsertContactIdentity :execrows
+-- Links a sender to a contact. A concurrent link of the same sender wins (0
+-- rows); the caller reads the identity back.
 INSERT INTO contact_identities (workspace_id, contact_id, channel_type, external_id, handle)
 VALUES (@workspace_id, @contact_id, @channel_type, @external_id, @handle)
 ON CONFLICT (workspace_id, channel_type, external_id) DO NOTHING;
+
+-- name: SetContactIdentityHandle :exec
+-- Keeps the sender's handle (a WhatsApp username) current; an empty one keeps the old.
+UPDATE contact_identities
+SET handle = @handle
+WHERE workspace_id = @workspace_id AND channel_type = @channel_type AND external_id = @external_id
+  AND @handle::text <> '' AND handle <> @handle::text;
+
+-- name: FillContactPhone :execrows
+-- Gives a contact without a phone the one its channel just revealed (ADR 0015),
+-- unless another contact already has that phone.
+UPDATE contacts c
+SET phone = sqlc.arg(phone)::text
+WHERE c.workspace_id = @workspace_id AND c.id = @id AND c.phone IS NULL
+  AND NOT EXISTS (SELECT 1 FROM contacts o WHERE o.workspace_id = c.workspace_id AND o.phone = sqlc.arg(phone)::text);
 
 -- name: SetContactOptOut :execrows
 UPDATE contacts

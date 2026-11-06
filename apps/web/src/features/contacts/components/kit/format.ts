@@ -37,3 +37,11 @@ export function formatBytes(bytes: number) {
 
 export const plural = (n: number, one: string, many = `${one}s`) =>
   `${formatNumber(n)} ${n === 1 ? one : many}`
+
+/**
+ * The line that identifies a contact: their phone, else their WhatsApp @username when the inbox
+ * added them without a visible number (ADR 0015).
+ */
+export function contactSubtitle(c: { phone_display: string; whatsapp_username: string }) {
+  return c.phone_display || (c.whatsapp_username ? `@${c.whatsapp_username}` : '')
+}

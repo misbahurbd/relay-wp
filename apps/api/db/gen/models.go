@@ -212,7 +212,7 @@ type Contact struct {
 	ID            uuid.UUID
 	WorkspaceID   uuid.UUID
 	Name          string
-	Phone         string
+	Phone         *string
 	Email         *string
 	OptIn         string
 	OptInSource   *string

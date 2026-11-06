@@ -3,7 +3,12 @@ import { ContactDetails } from '#/features/contacts'
 import { useAccess } from '#/features/team'
 import { cn } from '#/lib/utils'
 import { useConversationActions } from '../../hooks/use-conversation-actions'
-import { CHANNEL_COPY, channelAccount } from '../../schemas/inbox.schema'
+import {
+  CHANNEL_COPY,
+  channelAccount,
+  contactHandle,
+  contactName,
+} from '../../schemas/inbox.schema'
 import type { ConversationDetail, Member } from '../../types'
 import { AssignMenu } from '../kit/assign-menu'
 import { Avatar } from '../kit/avatar'
@@ -44,7 +49,7 @@ export function CustomerPanel({
 }) {
   const { can } = useAccess(workspaceId)
   const actions = useConversationActions(workspaceId, c, me)
-  const name = c.contact.name || c.contact.phone
+  const name = contactName(c.contact)
   const optIn = OPT_IN[c.contact_opt_in]
   const assignee = c.assignee
     ? c.assignee.id === me.id
@@ -78,7 +83,7 @@ export function CustomerPanel({
         <Avatar name={name} seed={c.contact.id} size="lg" />
         <div className="flex flex-col leading-tight">
           <span className="text-[17px] font-extrabold break-words">{name}</span>
-          <span className="text-muted-foreground tabular-nums">{c.contact.phone}</span>
+          <span className="text-muted-foreground tabular-nums">{contactHandle(c.contact)}</span>
         </div>
         <span
           className={cn(

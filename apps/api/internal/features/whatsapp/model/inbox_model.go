@@ -18,8 +18,13 @@ type InboundMessage struct {
 	NumberID      uuid.UUID
 	PhoneNumberID string
 	WAMID         string
-	// From is the customer's number in E.164 (with +); ProfileName is their WhatsApp name.
+	// From is the customer's number in E.164 (with +), empty when Meta withheld
+	// it; UserID is their business-scoped user ID (ADR 0015), empty on webhooks
+	// from before user IDs. Username and ProfileName are their WhatsApp handle
+	// and name.
 	From        string
+	UserID      string
+	Username    string
 	ProfileName string
 	Timestamp   time.Time
 	// Type is Meta's message type: text, image, video, audio, document, sticker,

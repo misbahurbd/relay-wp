@@ -1,14 +1,15 @@
 -- ---------- Audience ----------
 -- A contact is in the audience when @everyone is set, or it has any of @tag_ids, or
 -- it is one of @contact_ids (segment and list members, resolved by the
--- service). Only opted-in contacts get it; with @skip_recent, neither do
--- those sent a marketing template since @recent_since.
+-- service). Only opted-in contacts with a phone get it (a WhatsApp user known
+-- only by user ID is left out, ADR 0015); with @skip_recent, neither do those
+-- sent a marketing template since @recent_since.
 
 -- name: AudienceCount :one
--- Who matches, how many of them opted in, and how many of those the
--- recent-marketing rule leaves out.
+-- Who matches, how many of them opted in, how many of those have no phone, and
+-- how many with a phone the recent-marketing rule leaves out.
 WITH matched AS (
-    SELECT c.opt_in,
+    SELECT c.opt_in, c.phone IS NOT NULL AS has_phone,
            EXISTS (SELECT 1 FROM conversations cv JOIN messages m ON m.conversation_id = cv.id
                    WHERE cv.workspace_id = c.workspace_id AND cv.contact_id = c.id AND m.direction = 'out'
                      AND m.type = 'template' AND m.content -> 'template' ->> 'category' = 'marketing'
@@ -22,15 +23,16 @@ WITH matched AS (
 )
 SELECT count(*)::int                                                        AS matched,
        count(*) FILTER (WHERE opt_in = 'in')::int                             AS opted_in,
-       count(*) FILTER (WHERE opt_in = 'in' AND recent)::int                  AS recent
+       count(*) FILTER (WHERE opt_in = 'in' AND NOT has_phone)::int          AS no_phone,
+       count(*) FILTER (WHERE opt_in = 'in' AND has_phone AND recent)::int    AS recent
 FROM matched;
 
 -- name: SnapshotRecipients :execrows
 -- Takes the audience once, when sending starts.
 INSERT INTO broadcast_recipients (workspace_id, broadcast_id, contact_id, phone, name)
-SELECT c.workspace_id, @broadcast_id, c.id, c.phone, c.name
+SELECT c.workspace_id, @broadcast_id, c.id, c.phone::text, c.name
 FROM contacts c
-WHERE c.workspace_id = @workspace_id AND c.opt_in = 'in'
+WHERE c.workspace_id = @workspace_id AND c.opt_in = 'in' AND c.phone IS NOT NULL
   AND (@everyone::boolean
        OR c.id = ANY(@contact_ids::uuid[])
        OR EXISTS (SELECT 1 FROM contact_tag_links l

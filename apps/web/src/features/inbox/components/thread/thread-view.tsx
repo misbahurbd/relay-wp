@@ -11,7 +11,7 @@ import { useMarkRead } from '../../api/inbox.mutations'
 import { conversationQueryOptions, membersQueryOptions } from '../../api/inbox.queries'
 import { useLiveConnected } from '../../hooks/use-live-status'
 import { useNow } from '../../hooks/use-now'
-import { CHANNEL_COPY } from '../../schemas/inbox.schema'
+import { CHANNEL_COPY, contactName } from '../../schemas/inbox.schema'
 import type { Message } from '../../types'
 import { Composer } from '../composer/composer'
 import { windowState } from '../kit/window'
@@ -76,7 +76,7 @@ export function ThreadView({
 
   const conversation = detail.data
   const win = windowState(conversation, now)
-  const name = conversation.contact.name || conversation.contact.phone
+  const name = contactName(conversation.contact)
   const panel = (className: string) => (
     <CustomerPanel
       workspaceId={workspaceId}

@@ -9,9 +9,10 @@ import (
 )
 
 type InboxContactDTO struct {
-	ID    uuid.UUID `json:"id"`
-	Name  string    `json:"name" doc:"Empty when the customer has no profile name; show the phone"`
-	Phone string    `json:"phone" doc:"E.164" example:"+447700900412"`
+	ID       uuid.UUID `json:"id"`
+	Name     string    `json:"name" doc:"Empty when the customer has no profile name; show the phone"`
+	Phone    string    `json:"phone" doc:"E.164; empty when the customer wrote with a WhatsApp username and no visible number" example:"+447700900412"`
+	Username string    `json:"username" doc:"The customer's WhatsApp username, when they have one" example:"grace.hopper"`
 }
 
 type InboxChannelDTO struct {
@@ -70,7 +71,7 @@ type InboxConversationDTO struct {
 
 func ToConversationDTO(c model.Conversation) InboxConversationDTO {
 	return InboxConversationDTO{
-		ID: c.ID, Contact: InboxContactDTO{ID: c.Contact.ID, Name: c.Contact.Name, Phone: c.Contact.Phone},
+		ID: c.ID, Contact: InboxContactDTO{ID: c.Contact.ID, Name: c.Contact.Name, Phone: c.Contact.Phone, Username: c.Contact.Username},
 		Channel: InboxChannelDTO(c.Channel), Status: c.Status, Source: c.Source, TeamID: c.TeamID, Assignee: toPerson(c.Assignee),
 		LastMessageAt: c.LastMessageAt, LastMessagePreview: c.LastMessagePreview,
 		LastMessageDirection: c.LastMessageDirection, WindowExpiresAt: c.WindowExpiresAt,

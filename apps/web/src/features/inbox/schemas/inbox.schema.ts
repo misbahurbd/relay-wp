@@ -100,6 +100,18 @@ export function channelHandle(channel: Channel) {
   return channel.handle || channel.name || DISCONNECTED_CHANNEL
 }
 
+type ContactLike = { name: string; phone: string; username: string }
+
+/** The customer's name, else their phone, else their WhatsApp @username (ADR 0015). */
+export function contactName(c: ContactLike) {
+  return c.name || c.phone || (c.username ? `@${c.username}` : 'WhatsApp user')
+}
+
+/** The line under the name: their phone, else their WhatsApp @username. */
+export function contactHandle(c: ContactLike) {
+  return c.phone || (c.username ? `@${c.username}` : '')
+}
+
 /** The channel's name and handle together, or "Disconnected channel". */
 export function channelAccount(channel: Channel) {
   return [channel.name, channel.handle].filter(Boolean).join(' · ') || DISCONNECTED_CHANNEL

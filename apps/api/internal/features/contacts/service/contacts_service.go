@@ -110,7 +110,8 @@ func (s *Service) List(ctx context.Context, workspaceID uuid.UUID, f model.Filte
 	for i, row := range rows {
 		ids[i] = row.ID
 		page.Items = append(page.Items, model.Contact{
-			ID: row.ID, Name: row.Name, Phone: row.Phone, PhoneDisplay: DisplayPhone(row.Phone), Email: row.Email,
+			ID: row.ID, Name: row.Name, Phone: row.Phone, PhoneDisplay: DisplayPhone(row.Phone), Username: row.WhatsappUsername,
+			Email: row.Email,
 			OptIn: row.OptIn, Source: row.Source, Language: row.Language, LastMessageAt: row.LastMessageAt,
 			CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt, Tags: []model.TagRef{},
 			AssignedTo: person(row.AssignedTo, row.AssignedDisplayName, row.AssignedFirstName, row.AssignedLastName, row.AssignedEmail),
@@ -192,7 +193,8 @@ func (s *Service) get(ctx context.Context, db database.DBTX, workspaceID, id uui
 	}
 	d := model.ContactDetail{
 		Contact: model.Contact{
-			ID: row.ID, Name: row.Name, Phone: row.Phone, PhoneDisplay: DisplayPhone(row.Phone), Email: row.Email,
+			ID: row.ID, Name: row.Name, Phone: row.Phone, PhoneDisplay: DisplayPhone(row.Phone), Username: row.WhatsappUsername,
+			Email: row.Email,
 			OptIn: row.OptIn, Source: row.Source, Language: row.Language, LastMessageAt: row.LastMessageAt,
 			CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt, Tags: []model.TagRef{},
 			AssignedTo: person(row.AssignedTo, row.AssignedDisplayName, row.AssignedFirstName, row.AssignedLastName, row.AssignedEmail),
@@ -222,7 +224,9 @@ type contactFields struct {
 // checkInput validates in onto base (the current values, or the defaults on create).
 func checkInput(in model.ContactInput, base contactFields) (contactFields, error) {
 	out := base
-	if in.Phone != nil {
+	// A contact the inbox added without a phone (ADR 0015) may stay without one.
+	keepNoPhone := in.Phone != nil && base.phone == "" && strings.TrimSpace(*in.Phone) == ""
+	if in.Phone != nil && !keepNoPhone {
 		phone, ok := NormalizePhone(*in.Phone)
 		if !ok {
 			return out, model.ErrInvalidPhone.WithDetails(apperr.Detail{Field: "body.phone", Message: "Not a valid phone number with a country code"})
@@ -366,7 +370,7 @@ func (s *Service) linkTags(ctx context.Context, db database.DBTX, workspaceID uu
 
 // Create adds a contact by hand.
 func (s *Service) Create(ctx context.Context, workspaceID uuid.UUID, in model.ContactInput) (model.ContactDetail, error) {
-	if in.Phone == nil {
+	if in.Phone == nil || strings.TrimSpace(*in.Phone) == "" {
 		return model.ContactDetail{}, model.ErrInvalidPhone.WithDetails(apperr.Detail{Field: "body.phone", Message: "Enter a phone number"})
 	}
 	f, err := checkInput(in, contactFields{optIn: model.OptInPending, attributes: []byte("{}")})

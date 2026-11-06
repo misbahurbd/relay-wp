@@ -108,9 +108,17 @@ export function SummaryPanel({
         <span className="text-xs text-muted-foreground">
           {empty
             ? 'Pick everyone, a tag or a list'
-            : count && count.left_out > 0
-              ? `Unique, opted-in contacts · ${formatCount(count.left_out)} not opted in left out`
-              : 'Unique, opted-in contacts'}
+            : [
+                'Unique, opted-in contacts',
+                count &&
+                  count.left_out > 0 &&
+                  `${formatCount(count.left_out)} not opted in left out`,
+                count &&
+                  count.no_phone > 0 &&
+                  `${formatCount(count.no_phone)} without a phone number left out`,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
         </span>
       </div>
 

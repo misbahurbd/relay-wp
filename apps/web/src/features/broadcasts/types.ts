@@ -34,6 +34,8 @@ export type BroadcastFilter = { status?: BroadcastStatus; q?: string }
 export type AudienceCount = {
   included: number
   left_out: number
+  /** Opted in, but known only by WhatsApp username (no phone), so left out. */
+  no_phone: number
   recent: number
   tier_limit: number
 }

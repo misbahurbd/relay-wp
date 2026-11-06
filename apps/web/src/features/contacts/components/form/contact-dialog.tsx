@@ -20,10 +20,12 @@ import {
   type ContactFormValues,
   contactFormSchema,
   LANGUAGES,
+  noPhoneContactFormSchema,
   OPT_IN_LABEL,
   OPT_INS,
 } from '../../schemas/contacts.schema'
 import type { ContactDetail, OptIn, TagRef } from '../../types'
+import { contactSubtitle } from '../kit/format'
 import { Modal } from '../kit/modal'
 import { TagChip } from '../kit/tag-chip'
 import { TagPicker } from '../kit/tag-picker'
@@ -65,7 +67,7 @@ export function ContactDialog({
       open={open}
       onClose={onClose}
       title={contact ? 'Edit contact' : 'Add contact'}
-      description={contact ? contact.phone_display : 'Add someone you can message on WhatsApp.'}
+      description={contact ? contactSubtitle(contact) : 'Add someone you can message on WhatsApp.'}
     >
       {open && (
         <ContactForm
@@ -97,6 +99,7 @@ function ContactForm({
   const formRef = useRef<HTMLFormElement>(null)
   const [server, setServer] = useState<ServerErrors>({})
   const [picked, setPicked] = useState<TagRef[]>(contact?.tags ?? [])
+  const schema = contact && !contact.phone ? noPhoneContactFormSchema : contactFormSchema
 
   const form = useForm({
     defaultValues: {
@@ -110,7 +113,7 @@ function ContactForm({
     validationLogic: revalidateLogic({ mode: 'blur', modeAfterSubmission: 'change' }),
     onSubmitInvalid: () => focusFirstInvalid(formRef.current),
     onSubmit: async ({ value }) => {
-      const v = contactFormSchema.parse(value)
+      const v = schema.parse(value)
       try {
         const saved = contact
           ? await update.mutateAsync({
@@ -156,8 +159,7 @@ function ContactForm({
     <form.Field
       name={name}
       validators={{
-        onDynamic: ({ value }) =>
-          contactFormSchema.shape[name].safeParse(value).error?.issues[0]?.message,
+        onDynamic: ({ value }) => schema.shape[name].safeParse(value).error?.issues[0]?.message,
       }}
     >
       {(field) => {

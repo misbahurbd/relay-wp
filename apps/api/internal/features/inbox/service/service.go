@@ -29,9 +29,9 @@ import (
 
 // ContactDirectory finds the customer a message is from. Implemented by features/contacts.
 type ContactDirectory interface {
-	// FindOrCreateByIdentity returns the contact a channel's sender is (ADR 0010):
-	// by its identity, else by phone, creating it (source inbox) if new.
-	FindOrCreateByIdentity(ctx context.Context, workspaceID uuid.UUID, channelType, externalID, name, phone string) (model.Contact, bool, error)
+	// FindOrCreateByIdentity returns the contact a channel's sender is (ADR 0010,
+	// ADR 0015): by its identity, else by phone, creating it (source inbox) if new.
+	FindOrCreateByIdentity(ctx context.Context, workspaceID uuid.UUID, channelType string, sender model.Sender) (model.Contact, bool, error)
 	// SetLastMessage records a message to or from the contact, in tx.
 	SetLastMessage(ctx context.Context, tx pgx.Tx, workspaceID, contactID uuid.UUID, at time.Time) error
 }

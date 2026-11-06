@@ -14,7 +14,7 @@ import type { ContactDetail, TagRef } from '../../types'
 import { ContactDialog } from '../form/contact-dialog'
 import { ContactAvatar } from '../kit/avatar'
 import { ConfirmDialog } from '../kit/confirm-dialog'
-import { formatDate } from '../kit/format'
+import { contactSubtitle, formatDate } from '../kit/format'
 import { OptInPill } from '../kit/opt-in-pill'
 import { TagChip } from '../kit/tag-chip'
 import { TagPicker } from '../kit/tag-picker'
@@ -177,7 +177,7 @@ function PanelBody({
           <ContactAvatar name={contact.name} seed={contact.id} size="lg" />
           <div className="flex flex-col leading-tight">
             <span className="text-[17px] font-extrabold break-words">{contact.name}</span>
-            <span className="text-muted-foreground tabular-nums">{contact.phone_display}</span>
+            <span className="text-muted-foreground tabular-nums">{contactSubtitle(contact)}</span>
           </div>
           <OptInPill value={contact.opt_in} />
         </div>

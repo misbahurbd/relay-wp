@@ -19,9 +19,10 @@ const (
 
 // ContactRef is the conversation's customer.
 type ContactRef struct {
-	ID    uuid.UUID
-	Name  string
-	Phone string // E.164
+	ID       uuid.UUID
+	Name     string
+	Phone    string // E.164; empty when WhatsApp withheld it (ADR 0015)
+	Username string // WhatsApp username, if any
 }
 
 // ChannelRef is the channel account a conversation is on (ADR 0010).

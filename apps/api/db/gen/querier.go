@@ -50,10 +50,11 @@ type Querier interface {
 	// ---------- Audience ----------
 	// A contact is in the audience when @everyone is set, or it has any of @tag_ids, or
 	// it is one of @contact_ids (segment and list members, resolved by the
-	// service). Only opted-in contacts get it; with @skip_recent, neither do
-	// those sent a marketing template since @recent_since.
-	// Who matches, how many of them opted in, and how many of those the
-	// recent-marketing rule leaves out.
+	// service). Only opted-in contacts with a phone get it (a WhatsApp user known
+	// only by user ID is left out, ADR 0015); with @skip_recent, neither do those
+	// sent a marketing template since @recent_since.
+	// Who matches, how many of them opted in, how many of those have no phone, and
+	// how many with a phone the recent-marketing rule leaves out.
 	AudienceCount(ctx context.Context, arg AudienceCountParams) (AudienceCountRow, error)
 	// What automations need to know before they speak. last_agent_at is the epoch
 	// when no person has written here.
@@ -255,6 +256,9 @@ type Querier interface {
 	// Why recipients didn't get it, most common first: Meta's error for a failed
 	// send, else the reason the broadcast skipped or failed them.
 	FailureReasons(ctx context.Context, arg FailureReasonsParams) ([]FailureReasonsRow, error)
+	// Gives a contact without a phone the one its channel just revealed (ADR 0015),
+	// unless another contact already has that phone.
+	FillContactPhone(ctx context.Context, arg FillContactPhoneParams) (int64, error)
 	// Webhooks only: our checkout_sessions.id, sent to the provider as its
 	// reference, is how an event finds its workspace. Never look one up by email.
 	FindCheckoutSessionWorkspace(ctx context.Context, arg FindCheckoutSessionWorkspaceParams) (uuid.UUID, error)
@@ -337,8 +341,10 @@ type Querier interface {
 	GetMemberState(ctx context.Context, arg GetMemberStateParams) (GetMemberStateRow, error)
 	GetMessage(ctx context.Context, arg GetMessageParams) (GetMessageRow, error)
 	// What the send job needs: the message, where it goes and the external ID it
-	// quotes. The recipient is the contact's newest identity on the chat's channel
-	// (the address the customer last wrote from), else their phone.
+	// quotes. On WhatsApp the recipient is the contact's newest phone identity
+	// (the number the customer last wrote from), else their phone, else their user
+	// ID when Meta gave no phone (ADR 0015); phones start with "+". On other
+	// channels it is the contact's newest identity there, else their phone.
 	GetMessageToSend(ctx context.Context, arg GetMessageToSendParams) (GetMessageToSendRow, error)
 	// The only query that reads registration_pin.
 	GetNumberPin(ctx context.Context, arg GetNumberPinParams) ([]byte, error)
@@ -397,12 +403,13 @@ type Querier interface {
 	InsertBroadcast(ctx context.Context, arg InsertBroadcastParams) error
 	// A delivery already stored inserts nothing and returns no row.
 	InsertCommerceEvent(ctx context.Context, arg InsertCommerceEventParams) ([]string, error)
-	// Links a sender to a contact. A concurrent link of the same sender wins; the
-	// caller reads the identity back.
-	InsertContactIdentity(ctx context.Context, arg InsertContactIdentityParams) error
+	// Links a sender to a contact. A concurrent link of the same sender wins (0
+	// rows); the caller reads the identity back.
+	InsertContactIdentity(ctx context.Context, arg InsertContactIdentityParams) (int64, error)
 	// ---------- Inbox (docs/PHASE-7-INBOX.md F1) ----------
 	// A customer who wrote in. Nothing happens when the phone is already a contact,
 	// so concurrent webhooks create it once; the row comes back only when inserted.
+	// A sender known only by a channel ID (ADR 0015) has no phone (empty here).
 	InsertInboxContact(ctx context.Context, arg InsertInboxContactParams) ([]uuid.UUID, error)
 	InsertLimitChange(ctx context.Context, arg InsertLimitChangeParams) error
 	// ---------- Messages (docs/PHASE-7-INBOX.md AD-3 to AD-7) ----------
@@ -637,6 +644,8 @@ type Querier interface {
 	SetAvailability(ctx context.Context, arg SetAvailabilityParams) error
 	SetBillingCustomerExternalID(ctx context.Context, arg SetBillingCustomerExternalIDParams) (int64, error)
 	SetCheckoutSessionExternalID(ctx context.Context, arg SetCheckoutSessionExternalIDParams) (int64, error)
+	// Keeps the sender's handle (a WhatsApp username) current; an empty one keeps the old.
+	SetContactIdentityHandle(ctx context.Context, arg SetContactIdentityHandleParams) error
 	// Mapping can change until the import starts.
 	SetContactImportMapping(ctx context.Context, arg SetContactImportMappingParams) (int64, error)
 	SetContactLastMessage(ctx context.Context, arg SetContactLastMessageParams) error

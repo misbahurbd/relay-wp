@@ -118,6 +118,10 @@ func (a *App) SeedInbox(ctx context.Context, workspaceID uuid.UUID) (int, error)
 			m.Referral = &inboxmodel.Referral{SourceType: "ad", SourceID: "120208", Headline: "Winter collection"}
 		}},
 		{"jonas-1", "Jonas Weber", "+4915112345678", "Thanks, the package arrived 👍", 30 * time.Hour, nil},
+		// A customer with a WhatsApp username whose number Meta withheld (ADR 0015).
+		{"aisha-1", "Aisha Rahman", "", "Hi, is the linen shirt available in white?", 90 * time.Minute, func(m *inboxmodel.Inbound) {
+			m.Sender = inboxmodel.Sender{ExternalID: "BD.4821930011223344", Handle: "aisha.rahman", Name: "Aisha Rahman"}
+		}},
 	}
 	added := 0
 	for _, s := range samples {

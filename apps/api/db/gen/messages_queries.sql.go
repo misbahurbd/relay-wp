@@ -192,9 +192,16 @@ SELECT m.id, m.conversation_id, m.type, m.body, m.content, m.status, m.external_
        r.external_id AS reply_external_id, c.channel_type, c.channel_id,
        COALESCE((SELECT ci.external_id FROM contact_identities ci
                  WHERE ci.workspace_id = c.workspace_id AND ci.contact_id = c.contact_id
+                   AND ci.channel_type = c.channel_type AND ci.external_id LIKE '+%'
+                 ORDER BY ci.created_at DESC
+                 LIMIT 1),
+                CASE WHEN c.channel_type = 'whatsapp' THEN ct.phone END,
+                (SELECT ci.external_id FROM contact_identities ci
+                 WHERE ci.workspace_id = c.workspace_id AND ci.contact_id = c.contact_id
                    AND ci.channel_type = c.channel_type
                  ORDER BY ci.created_at DESC
-                 LIMIT 1), ct.phone)::text AS recipient
+                 LIMIT 1),
+                ct.phone)::text AS recipient
 FROM messages m
 JOIN conversations c ON c.id = m.conversation_id
 JOIN contacts ct ON ct.id = c.contact_id
@@ -222,8 +229,10 @@ type GetMessageToSendRow struct {
 }
 
 // What the send job needs: the message, where it goes and the external ID it
-// quotes. The recipient is the contact's newest identity on the chat's channel
-// (the address the customer last wrote from), else their phone.
+// quotes. On WhatsApp the recipient is the contact's newest phone identity
+// (the number the customer last wrote from), else their phone, else their user
+// ID when Meta gave no phone (ADR 0015); phones start with "+". On other
+// channels it is the contact's newest identity there, else their phone.
 func (q *Queries) GetMessageToSend(ctx context.Context, arg GetMessageToSendParams) (GetMessageToSendRow, error) {
 	row := q.db.QueryRow(ctx, getMessageToSend, arg.WorkspaceID, arg.ID)
 	var i GetMessageToSendRow

@@ -454,7 +454,7 @@ func (s *seeder) broadcasts(ws, owner uuid.UUID, templates, tags map[string]uuid
 // with its chats, messages and a spread of delivery statuses for the report.
 func (s *seeder) sentBroadcast(ws, owner, id, number, template uuid.UUID, variables string) {
 	at := time.Now().UTC().Add(-72 * time.Hour).Truncate(time.Second)
-	rows, err := s.a.db.Query(s.ctx, `SELECT id, name, phone FROM contacts WHERE workspace_id = $1 AND opt_in = 'in' ORDER BY id`, ws)
+	rows, err := s.a.db.Query(s.ctx, `SELECT id, name, phone FROM contacts WHERE workspace_id = $1 AND opt_in = 'in' AND phone IS NOT NULL ORDER BY id`, ws)
 	if err != nil {
 		s.err = fmt.Errorf("seed broadcast audience: %w", err)
 		return

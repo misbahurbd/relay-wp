@@ -10,7 +10,7 @@ ON CONFLICT DO NOTHING;
 -- A member's newest mentions with the note and its chat; the service drops chats
 -- the member can no longer see.
 SELECT im.message_id, im.conversation_id, im.seen_at, im.created_at, m.body, m.author_id,
-       c.team_id, c.assignee_id, c.channel_type, c.channel_id, ct.name AS contact_name, ct.phone AS contact_phone,
+       c.team_id, c.assignee_id, c.channel_type, c.channel_id, ct.name AS contact_name, COALESCE(ct.phone, '')::text AS contact_phone,
        u.email AS author_email, p.display_name AS author_display_name,
        p.first_name AS author_first_name, p.last_name AS author_last_name
 FROM inbox_mentions im

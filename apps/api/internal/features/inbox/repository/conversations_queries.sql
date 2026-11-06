@@ -10,7 +10,11 @@
 SELECT c.id, c.contact_id, c.channel_type, c.channel_id, c.status, c.team_id, c.assignee_id, c.source,
        c.last_message_at, c.last_message_preview, c.last_message_direction, c.window_expires_at,
        c.unread_count, c.waiting_since, c.snoozed_until,
-       ct.name AS contact_name, ct.phone AS contact_phone,
+       ct.name AS contact_name, COALESCE(ct.phone, '')::text AS contact_phone,
+       COALESCE((SELECT ci.handle FROM contact_identities ci
+                 WHERE ci.workspace_id = ct.workspace_id AND ci.contact_id = ct.id
+                   AND ci.channel_type = 'whatsapp' AND ci.handle <> ''
+                 ORDER BY ci.created_at DESC LIMIT 1), '')::text AS contact_username,
        u.email AS assignee_email, p.display_name AS assignee_display_name,
        p.first_name AS assignee_first_name, p.last_name AS assignee_last_name
 FROM conversations c
@@ -28,7 +32,10 @@ WHERE c.workspace_id = @workspace_id
        OR c.channel_id = ANY(sqlc.narg(number_ids)::uuid[]))
   AND (sqlc.narg(query)::text IS NULL OR c.last_message_preview ILIKE '%' || sqlc.narg(query) || '%'
        OR ct.name ILIKE '%' || sqlc.narg(query) || '%'
-       OR (sqlc.narg(phone_query)::text IS NOT NULL AND ct.phone LIKE '%' || sqlc.narg(phone_query) || '%'))
+       OR (sqlc.narg(phone_query)::text IS NOT NULL AND ct.phone LIKE '%' || sqlc.narg(phone_query) || '%')
+       OR EXISTS (SELECT 1 FROM contact_identities ci
+                  WHERE ci.workspace_id = ct.workspace_id AND ci.contact_id = ct.id
+                    AND ci.handle ILIKE '%' || sqlc.narg(query) || '%'))
   AND (sqlc.narg(after_at)::timestamptz IS NULL
        OR (c.last_message_at, c.id) < (sqlc.narg(after_at)::timestamptz, @after_id::uuid))
 ORDER BY c.last_message_at DESC, c.id DESC
@@ -41,7 +48,11 @@ LIMIT @page_size;
 SELECT c.id, c.contact_id, c.channel_type, c.channel_id, c.status, c.team_id, c.assignee_id, c.source,
        c.last_message_at, c.last_message_preview, c.last_message_direction, c.window_expires_at,
        c.unread_count, c.waiting_since, c.snoozed_until,
-       ct.name AS contact_name, ct.phone AS contact_phone,
+       ct.name AS contact_name, COALESCE(ct.phone, '')::text AS contact_phone,
+       COALESCE((SELECT ci.handle FROM contact_identities ci
+                 WHERE ci.workspace_id = ct.workspace_id AND ci.contact_id = ct.id
+                   AND ci.channel_type = 'whatsapp' AND ci.handle <> ''
+                 ORDER BY ci.created_at DESC LIMIT 1), '')::text AS contact_username,
        u.email AS assignee_email, p.display_name AS assignee_display_name,
        p.first_name AS assignee_first_name, p.last_name AS assignee_last_name
 FROM conversations c
@@ -59,7 +70,10 @@ WHERE c.workspace_id = @workspace_id
        OR c.channel_id = ANY(sqlc.narg(number_ids)::uuid[]))
   AND (sqlc.narg(query)::text IS NULL OR c.last_message_preview ILIKE '%' || sqlc.narg(query) || '%'
        OR ct.name ILIKE '%' || sqlc.narg(query) || '%'
-       OR (sqlc.narg(phone_query)::text IS NOT NULL AND ct.phone LIKE '%' || sqlc.narg(phone_query) || '%'))
+       OR (sqlc.narg(phone_query)::text IS NOT NULL AND ct.phone LIKE '%' || sqlc.narg(phone_query) || '%')
+       OR EXISTS (SELECT 1 FROM contact_identities ci
+                  WHERE ci.workspace_id = ct.workspace_id AND ci.contact_id = ct.id
+                    AND ci.handle ILIKE '%' || sqlc.narg(query) || '%'))
   AND (NOT @has_cursor::boolean
        OR (sqlc.narg(after_at)::timestamptz IS NOT NULL
            AND (c.waiting_since IS NULL OR (c.waiting_since, c.id) > (sqlc.narg(after_at)::timestamptz, @after_id::uuid)))
@@ -86,7 +100,11 @@ WHERE c.workspace_id = @workspace_id
 SELECT c.id, c.contact_id, c.channel_type, c.channel_id, c.status, c.team_id, c.assignee_id, c.source,
        c.last_message_at, c.last_message_preview, c.last_message_direction, c.last_inbound_at,
        c.window_expires_at, c.unread_count, c.waiting_since, c.snoozed_until, c.closed_at, c.created_at,
-       ct.name AS contact_name, ct.phone AS contact_phone, ct.opt_in AS contact_opt_in,
+       ct.name AS contact_name, COALESCE(ct.phone, '')::text AS contact_phone,
+       COALESCE((SELECT ci.handle FROM contact_identities ci
+                 WHERE ci.workspace_id = ct.workspace_id AND ci.contact_id = ct.id
+                   AND ci.channel_type = 'whatsapp' AND ci.handle <> ''
+                 ORDER BY ci.created_at DESC LIMIT 1), '')::text AS contact_username, ct.opt_in AS contact_opt_in,
        t.name AS team_name,
        u.email AS assignee_email, p.display_name AS assignee_display_name,
        p.first_name AS assignee_first_name, p.last_name AS assignee_last_name,
