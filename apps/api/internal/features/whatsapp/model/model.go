@@ -107,5 +107,14 @@ func Digits(s string) string { return nonDigits.ReplaceAllString(s, "") }
 
 var nonDigits = regexp.MustCompile(`[^0-9]`)
 
+// userIDPattern is a business-scoped user ID: a two-letter country code, a
+// period, then letters and digits ("US.13491208655302741918", or a parent ID
+// such as "US.ENT.11815799212886844830").
+var userIDPattern = regexp.MustCompile(`^[A-Z]{2}\.[A-Za-z0-9.]{1,128}$`)
+
+// IsUserID reports whether s is a WhatsApp business-scoped user ID rather than
+// a phone number (ADR 0015). Meta needs it back exactly as it sent it.
+func IsUserID(s string) bool { return userIDPattern.MatchString(s) }
+
 // PlanResourceNumbers is the billing resource that caps connected numbers (ADR 0008).
 const PlanResourceNumbers = "whatsapp_numbers"

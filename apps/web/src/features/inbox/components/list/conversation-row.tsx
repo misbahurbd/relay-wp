@@ -1,7 +1,7 @@
 import { CheckCheckIcon } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import { cn } from '#/lib/utils'
-import { CHANNEL_COPY, channelHandle } from '../../schemas/inbox.schema'
+import { CHANNEL_COPY, channelHandle, contactName } from '../../schemas/inbox.schema'
 import type { Conversation } from '../../types'
 import { Avatar } from '../kit/avatar'
 import { ChannelIcon } from '../kit/channel-badge'
@@ -27,7 +27,7 @@ export function ConversationRow({
   selected: boolean
   onSelect: () => void
 }) {
-  const name = c.contact.name || c.contact.phone
+  const name = contactName(c.contact)
   const unread = c.unread_count > 0
   const lastOut = c.last_message_direction === 'out'
   // An agent's reply clears waiting_since; an automated one leaves the customer waiting.

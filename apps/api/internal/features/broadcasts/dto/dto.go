@@ -229,6 +229,7 @@ type AudienceOutput struct {
 	Body struct {
 		Included  int `json:"included" doc:"Opted-in contacts who will get it"`
 		LeftOut   int `json:"left_out" doc:"Contacts that match but are pending or opted out"`
+		NoPhone   int `json:"no_phone" doc:"Opted-in contacts left out because they have no phone, only a WhatsApp username"`
 		Recent    int `json:"recent" doc:"Opted-in contacts sent marketing in the last 24 hours; not in included when the audience skips them"`
 		TierLimit int `json:"tier_limit" doc:"The number's Meta limit on new customers a day; 0 when unknown or unlimited"`
 	}

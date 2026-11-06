@@ -73,10 +73,13 @@ type Inbound struct {
 
 // Sender is who wrote an inbound message.
 type Sender struct {
-	// ExternalID is the sender's ID on the channel (the E.164 phone on WhatsApp).
+	// ExternalID is the sender's ID on the channel: on WhatsApp the user ID, or
+	// the E.164 phone when Meta sent no user ID (ADR 0015).
 	ExternalID string
 	// Phone is the sender's E.164 number when the channel has one.
 	Phone string
+	// Handle is the sender's username on the channel, if any.
+	Handle string
 	// Name is the sender's profile name on the channel.
 	Name string
 }

@@ -115,7 +115,7 @@ func (r Repository) SegmentSample(ctx context.Context, workspaceID uuid.UUID, ru
 		return nil, err
 	}
 	lim := args.add(int32(min(limit, 100))) //nolint:gosec // capped
-	rows, err := r.db.Query(ctx, `SELECT c.id, c.name, c.phone, c.opt_in FROM contacts c
+	rows, err := r.db.Query(ctx, `SELECT c.id, c.name, COALESCE(c.phone, ''), c.opt_in FROM contacts c
 		WHERE c.workspace_id = $1 AND `+where+` ORDER BY c.last_message_at DESC NULLS LAST, c.id DESC LIMIT `+lim, args...)
 	if err != nil {
 		return nil, fmt.Errorf("sample segment: %w", err)

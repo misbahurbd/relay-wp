@@ -22,8 +22,9 @@ type TagRefDTO struct {
 type ContactDTO struct {
 	ID            uuid.UUID   `json:"id"`
 	Name          string      `json:"name"`
-	Phone         string      `json:"phone" doc:"E.164, for example +447700900412" example:"+447700900412"`
-	PhoneDisplay  string      `json:"phone_display" doc:"International format for display" example:"+44 7700 900412"`
+	Phone         string      `json:"phone" doc:"E.164, for example +447700900412; empty for a WhatsApp user who wrote with a username and no visible number" example:"+447700900412"`
+	PhoneDisplay  string      `json:"phone_display" doc:"International format for display; empty when phone is" example:"+44 7700 900412"`
+	Username      string      `json:"whatsapp_username" doc:"WhatsApp username, when the contact has one" example:"grace.hopper"`
 	Email         *string     `json:"email"`
 	OptIn         string      `json:"opt_in" enum:"in,out,pending"`
 	Source        string      `json:"source" enum:"manual,import,inbox,api"`
@@ -37,7 +38,7 @@ type ContactDTO struct {
 
 func ToContactDTO(c model.Contact) ContactDTO {
 	d := ContactDTO{
-		ID: c.ID, Name: c.Name, Phone: c.Phone, PhoneDisplay: c.PhoneDisplay, Email: c.Email, OptIn: c.OptIn,
+		ID: c.ID, Name: c.Name, Phone: c.Phone, PhoneDisplay: c.PhoneDisplay, Username: c.Username, Email: c.Email, OptIn: c.OptIn,
 		Source: c.Source, Language: c.Language, LastMessageAt: c.LastMessageAt, CreatedAt: c.CreatedAt,
 		UpdatedAt: c.UpdatedAt, Tags: make([]TagRefDTO, len(c.Tags)),
 	}

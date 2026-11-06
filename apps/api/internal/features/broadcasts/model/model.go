@@ -161,9 +161,10 @@ type ListFilter struct {
 // AudienceCount is how many contacts a broadcast would reach.
 type AudienceCount struct {
 	// Included opted in and will get it; LeftOut match but are pending or opted
-	// out; Recent opted in but got marketing in the last day, and are skipped
-	// when the audience asks (they are not in Included then).
-	Included, LeftOut, Recent int
+	// out; NoPhone opted in but have no phone, only a WhatsApp user ID (ADR
+	// 0015), and are left out; Recent opted in but got marketing in the last
+	// day, and are skipped when the audience asks (they are not in Included then).
+	Included, LeftOut, NoPhone, Recent int
 	// TierLimit is the number's Meta limit on new customers a day, 0 when unknown or unlimited.
 	TierLimit int
 }

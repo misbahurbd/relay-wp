@@ -1,6 +1,7 @@
 import { toast } from 'sonner'
 import { errorMessage } from '#/lib/api'
 import { useAssign, useSetStatus } from '../api/inbox.mutations'
+import { contactName } from '../schemas/inbox.schema'
 import type { ConversationDetail, Member } from '../types'
 
 const UNDO_MS = 5_000
@@ -17,7 +18,7 @@ export function useConversationActions(
   const assignMutation = useAssign(workspaceId)
   const statusMutation = useSetStatus(workspaceId)
   const id = conversation.id
-  const name = conversation.contact.name || conversation.contact.phone
+  const name = contactName(conversation.contact)
   const onError = (e: unknown) => toast.error(errorMessage(e))
 
   const restore = (prev: ConversationDetail['status']) =>

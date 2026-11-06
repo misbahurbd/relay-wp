@@ -60,6 +60,14 @@ func TestSendMessagePayloads(t *testing.T) {
 			  "text":{"body":"Hi there","preview_url":true},"context":{"message_id":"wamid.IN1"}}`,
 		},
 		{
+			"text to a user ID goes as recipient (ADR 0015)",
+			func(g *Graph) (string, error) {
+				return g.SendText(t.Context(), "tok", "1001", "BD.2294857751239750", "Hi there", "")
+			},
+			`{"messaging_product":"whatsapp","recipient_type":"individual","recipient":"BD.2294857751239750","type":"text",
+			  "text":{"body":"Hi there","preview_url":true}}`,
+		},
+		{
 			"document with filename",
 			func(g *Graph) (string, error) {
 				return g.SendMedia(t.Context(), "tok", "1001", "+14155550142",

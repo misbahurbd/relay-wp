@@ -6,7 +6,7 @@ import { cn } from '#/lib/utils'
 import { SOURCE_LABEL } from '../../schemas/contacts.schema'
 import type { Contact } from '../../types'
 import { ContactAvatar } from '../kit/avatar'
-import { lastMessageLabel } from '../kit/format'
+import { contactSubtitle, lastMessageLabel } from '../kit/format'
 import { OptInPill } from '../kit/opt-in-pill'
 import { TagChip } from '../kit/tag-chip'
 
@@ -134,7 +134,9 @@ export function ContactsTable({
                         </span>
                       </Button>
                     </td>
-                    <td className={cn(td, 'whitespace-nowrap tabular-nums')}>{c.phone_display}</td>
+                    <td className={cn(td, 'whitespace-nowrap tabular-nums')}>
+                      {contactSubtitle(c)}
+                    </td>
                     <td className={td}>
                       <div className="flex flex-wrap gap-1">
                         {c.tags.slice(0, MAX_TAGS).map((t) => (

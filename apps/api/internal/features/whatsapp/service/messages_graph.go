@@ -27,12 +27,18 @@ const MaxMediaBytes = 100 << 20
 const mediaTimeout = 5 * time.Minute
 
 // sendMessage posts one Cloud API message from phoneNumberID to to and returns its wamid.
+// to is a phone number, or a business-scoped user ID when the customer's phone
+// is unknown (ADR 0015), which Meta takes as "recipient" instead of "to".
 // msg holds the type-specific fields.
 func (g *Graph) sendMessage(ctx context.Context, token, phoneNumberID, to string, msg map[string]any) (string, error) {
 	body := map[string]any{
 		"messaging_product": "whatsapp",
 		"recipient_type":    "individual",
-		"to":                model.Digits(to),
+	}
+	if model.IsUserID(to) {
+		body["recipient"] = to
+	} else {
+		body["to"] = model.Digits(to)
 	}
 	maps.Copy(body, msg)
 	var out struct {

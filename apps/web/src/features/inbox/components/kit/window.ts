@@ -1,4 +1,4 @@
-import { CHANNEL_COPY } from '../../schemas/inbox.schema'
+import { CHANNEL_COPY, contactName } from '../../schemas/inbox.schema'
 import type { ConversationDetail } from '../../types'
 import { firstName, formatDuration, windowLeft } from './format'
 
@@ -9,7 +9,7 @@ const URGENT_PCT = 25
  * template. `limited` is false on a channel without a window (window_hours 0): always open.
  */
 export function windowState(c: ConversationDetail, now: number) {
-  const first = firstName(c.contact.name || c.contact.phone)
+  const first = firstName(contactName(c.contact))
   const hours = c.capabilities.window_hours
   const templates = c.capabilities.templates
   const label = `${hours}-hour window`

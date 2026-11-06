@@ -185,3 +185,65 @@ func TestHandleMessagesUnknownNumber(t *testing.T) {
 		t.Fatalf("test messages still get their statuses: %d checks", tested)
 	}
 }
+
+// Meta's three sender shapes since usernames (ADR 0015): phone only (before user
+// IDs), user ID and phone, and user ID alone when Meta withholds the phone.
+func TestParseInboundSenders(t *testing.T) {
+	tests := []struct {
+		name, value                         string
+		from, userID, username, profileName string
+	}{
+		{
+			"phone only",
+			`{"contacts":[{"profile":{"name":"Daniel"},"wa_id":"14155550142"}],
+			  "messages":[{"from":"14155550142","id":"wamid.1","timestamp":"1761800000","type":"text","text":{"body":"hi"}}]}`,
+			"+14155550142", "", "", "Daniel",
+		},
+		{
+			"user ID and phone",
+			`{"contacts":[{"profile":{"name":"Daniel","username":"dan.b"},"wa_id":"14155550142","user_id":"US.13491208655302741918"}],
+			  "messages":[{"from":"14155550142","from_user_id":"US.13491208655302741918","id":"wamid.2","timestamp":"1761800000","type":"text","text":{"body":"hi"}}]}`,
+			"+14155550142", "US.13491208655302741918", "dan.b", "Daniel",
+		},
+		{
+			"user ID alone",
+			`{"contacts":[{"profile":{"name":"Shakil Ahmed","username":"shakil.cse"},"user_id":"BD.2294857751239750"}],
+			  "messages":[{"from_user_id":"BD.2294857751239750","id":"wamid.3","timestamp":"1793979916","type":"text","text":{"body":"hello"}}]}`,
+			"", "BD.2294857751239750", "shakil.cse", "Shakil Ahmed",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var v messagesValue
+			if err := json.Unmarshal([]byte(tt.value), &v); err != nil {
+				t.Fatal(err)
+			}
+			m, err := parseInbound(v.Messages[0], v)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if m.From != tt.from || m.UserID != tt.userID || m.Username != tt.username || m.ProfileName != tt.profileName || m.Text != "hello" && m.Text != "hi" {
+				t.Fatalf("got from=%q user=%q username=%q name=%q text=%q", m.From, m.UserID, m.Username, m.ProfileName, m.Text)
+			}
+		})
+	}
+
+	var v messagesValue
+	if err := json.Unmarshal([]byte(`{"messages":[{"id":"wamid.4","type":"text","text":{"body":"?"}}]}`), &v); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := parseInbound(v.Messages[0], v); err == nil {
+		t.Fatal("a message without from or from_user_id must fail")
+	}
+}
+
+func TestIsUserID(t *testing.T) {
+	for s, want := range map[string]bool{
+		"BD.2294857751239750": true, "US.ENT.11815799212886844830": true,
+		"+8801792073383": false, "8801792073383": false, "": false, "bd.123": false, "BD.": false,
+	} {
+		if got := model.IsUserID(s); got != want {
+			t.Errorf("IsUserID(%q) = %v", s, got)
+		}
+	}
+}

@@ -15,7 +15,7 @@ import {
 } from '#/components/ui/dropdown-menu'
 import { useAccess } from '#/features/team'
 import { useConversationActions } from '../../hooks/use-conversation-actions'
-import { CHANNEL_COPY, STATUS_LABEL } from '../../schemas/inbox.schema'
+import { CHANNEL_COPY, contactHandle, contactName, STATUS_LABEL } from '../../schemas/inbox.schema'
 import type { ConversationDetail, Member } from '../../types'
 import { AssignMenu } from '../kit/assign-menu'
 import { Avatar } from '../kit/avatar'
@@ -44,7 +44,7 @@ export function ThreadHeader({
   const actions = useConversationActions(workspaceId, c, me)
   const canReassign = can('inbox.close_reassign')
   const mine = c.assignee?.id === me.id
-  const name = c.contact.name || c.contact.phone
+  const name = contactName(c.contact)
   const snoozed = c.status === 'pending' && c.snoozed_until
 
   return (
@@ -66,7 +66,7 @@ export function ThreadHeader({
         </span>
         <span className="truncate text-xs text-muted-foreground">
           <span className="sm:hidden">{CHANNEL_COPY[c.channel.type].label} · </span>
-          {c.contact.phone} · {STATUS_LABEL[c.status]}
+          {[contactHandle(c.contact), STATUS_LABEL[c.status]].filter(Boolean).join(' · ')}
           {snoozed && ` · Snoozed until ${formatWhen(snoozed, now)}`}
         </span>
       </div>

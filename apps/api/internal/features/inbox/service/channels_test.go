@@ -69,7 +69,7 @@ func (f *fakeChannel) FetchMedia(context.Context, uuid.UUID, uuid.UUID, string) 
 // fakeContacts resolves every sender to one contact.
 type fakeContacts struct{ id uuid.UUID }
 
-func (c fakeContacts) FindOrCreateByIdentity(context.Context, uuid.UUID, string, string, string, string) (model.Contact, bool, error) {
+func (c fakeContacts) FindOrCreateByIdentity(context.Context, uuid.UUID, string, model.Sender) (model.Contact, bool, error) {
 	return model.Contact{ID: c.id}, false, nil
 }
 

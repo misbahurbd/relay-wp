@@ -34,12 +34,26 @@ const (
 	MaxPageLimit     = 100
 )
 
+// Sender is who wrote to the workspace on a channel (ADR 0010, ADR 0015).
+type Sender struct {
+	ChannelType string
+	// ExternalID is the sender's ID on the channel: a WhatsApp user ID, or the
+	// E.164 phone when the channel has nothing else.
+	ExternalID string
+	// Phone is the sender's number, when the channel gave one.
+	Phone string
+	// Handle is the sender's username on the channel, if any.
+	Handle string
+	Name   string
+}
+
 // Contact is one row of the contacts list.
 type Contact struct {
 	ID            uuid.UUID
 	Name          string
-	Phone         string // E.164
+	Phone         string // E.164; empty for a WhatsApp user known only by user ID (ADR 0015)
 	PhoneDisplay  string // international format, for people
+	Username      string // WhatsApp username, when the contact has one
 	Email         *string
 	OptIn         string
 	Source        string

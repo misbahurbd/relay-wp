@@ -98,7 +98,11 @@ const getConversation = `-- name: GetConversation :one
 SELECT c.id, c.contact_id, c.channel_type, c.channel_id, c.status, c.team_id, c.assignee_id, c.source,
        c.last_message_at, c.last_message_preview, c.last_message_direction, c.last_inbound_at,
        c.window_expires_at, c.unread_count, c.waiting_since, c.snoozed_until, c.closed_at, c.created_at,
-       ct.name AS contact_name, ct.phone AS contact_phone, ct.opt_in AS contact_opt_in,
+       ct.name AS contact_name, COALESCE(ct.phone, '')::text AS contact_phone,
+       COALESCE((SELECT ci.handle FROM contact_identities ci
+                 WHERE ci.workspace_id = ct.workspace_id AND ci.contact_id = ct.id
+                   AND ci.channel_type = 'whatsapp' AND ci.handle <> ''
+                 ORDER BY ci.created_at DESC LIMIT 1), '')::text AS contact_username, ct.opt_in AS contact_opt_in,
        t.name AS team_name,
        u.email AS assignee_email, p.display_name AS assignee_display_name,
        p.first_name AS assignee_first_name, p.last_name AS assignee_last_name,
@@ -140,6 +144,7 @@ type GetConversationRow struct {
 	CreatedAt            time.Time
 	ContactName          string
 	ContactPhone         string
+	ContactUsername      string
 	ContactOptIn         string
 	TeamName             *string
 	AssigneeEmail        *string
@@ -173,6 +178,7 @@ func (q *Queries) GetConversation(ctx context.Context, arg GetConversationParams
 		&i.CreatedAt,
 		&i.ContactName,
 		&i.ContactPhone,
+		&i.ContactUsername,
 		&i.ContactOptIn,
 		&i.TeamName,
 		&i.AssigneeEmail,
@@ -189,7 +195,11 @@ const listConversationsNewest = `-- name: ListConversationsNewest :many
 SELECT c.id, c.contact_id, c.channel_type, c.channel_id, c.status, c.team_id, c.assignee_id, c.source,
        c.last_message_at, c.last_message_preview, c.last_message_direction, c.window_expires_at,
        c.unread_count, c.waiting_since, c.snoozed_until,
-       ct.name AS contact_name, ct.phone AS contact_phone,
+       ct.name AS contact_name, COALESCE(ct.phone, '')::text AS contact_phone,
+       COALESCE((SELECT ci.handle FROM contact_identities ci
+                 WHERE ci.workspace_id = ct.workspace_id AND ci.contact_id = ct.id
+                   AND ci.channel_type = 'whatsapp' AND ci.handle <> ''
+                 ORDER BY ci.created_at DESC LIMIT 1), '')::text AS contact_username,
        u.email AS assignee_email, p.display_name AS assignee_display_name,
        p.first_name AS assignee_first_name, p.last_name AS assignee_last_name
 FROM conversations c
@@ -207,7 +217,10 @@ WHERE c.workspace_id = $1
        OR c.channel_id = ANY($7::uuid[]))
   AND ($8::text IS NULL OR c.last_message_preview ILIKE '%' || $8 || '%'
        OR ct.name ILIKE '%' || $8 || '%'
-       OR ($9::text IS NOT NULL AND ct.phone LIKE '%' || $9 || '%'))
+       OR ($9::text IS NOT NULL AND ct.phone LIKE '%' || $9 || '%')
+       OR EXISTS (SELECT 1 FROM contact_identities ci
+                  WHERE ci.workspace_id = ct.workspace_id AND ci.contact_id = ct.id
+                    AND ci.handle ILIKE '%' || $8 || '%'))
   AND ($10::timestamptz IS NULL
        OR (c.last_message_at, c.id) < ($10::timestamptz, $11::uuid))
 ORDER BY c.last_message_at DESC, c.id DESC
@@ -247,6 +260,7 @@ type ListConversationsNewestRow struct {
 	SnoozedUntil         *time.Time
 	ContactName          string
 	ContactPhone         string
+	ContactUsername      string
 	AssigneeEmail        *string
 	AssigneeDisplayName  *string
 	AssigneeFirstName    *string
@@ -300,6 +314,7 @@ func (q *Queries) ListConversationsNewest(ctx context.Context, arg ListConversat
 			&i.SnoozedUntil,
 			&i.ContactName,
 			&i.ContactPhone,
+			&i.ContactUsername,
 			&i.AssigneeEmail,
 			&i.AssigneeDisplayName,
 			&i.AssigneeFirstName,
@@ -319,7 +334,11 @@ const listConversationsWaiting = `-- name: ListConversationsWaiting :many
 SELECT c.id, c.contact_id, c.channel_type, c.channel_id, c.status, c.team_id, c.assignee_id, c.source,
        c.last_message_at, c.last_message_preview, c.last_message_direction, c.window_expires_at,
        c.unread_count, c.waiting_since, c.snoozed_until,
-       ct.name AS contact_name, ct.phone AS contact_phone,
+       ct.name AS contact_name, COALESCE(ct.phone, '')::text AS contact_phone,
+       COALESCE((SELECT ci.handle FROM contact_identities ci
+                 WHERE ci.workspace_id = ct.workspace_id AND ci.contact_id = ct.id
+                   AND ci.channel_type = 'whatsapp' AND ci.handle <> ''
+                 ORDER BY ci.created_at DESC LIMIT 1), '')::text AS contact_username,
        u.email AS assignee_email, p.display_name AS assignee_display_name,
        p.first_name AS assignee_first_name, p.last_name AS assignee_last_name
 FROM conversations c
@@ -337,7 +356,10 @@ WHERE c.workspace_id = $1
        OR c.channel_id = ANY($7::uuid[]))
   AND ($8::text IS NULL OR c.last_message_preview ILIKE '%' || $8 || '%'
        OR ct.name ILIKE '%' || $8 || '%'
-       OR ($9::text IS NOT NULL AND ct.phone LIKE '%' || $9 || '%'))
+       OR ($9::text IS NOT NULL AND ct.phone LIKE '%' || $9 || '%')
+       OR EXISTS (SELECT 1 FROM contact_identities ci
+                  WHERE ci.workspace_id = ct.workspace_id AND ci.contact_id = ct.id
+                    AND ci.handle ILIKE '%' || $8 || '%'))
   AND (NOT $10::boolean
        OR ($11::timestamptz IS NOT NULL
            AND (c.waiting_since IS NULL OR (c.waiting_since, c.id) > ($11::timestamptz, $12::uuid)))
@@ -380,6 +402,7 @@ type ListConversationsWaitingRow struct {
 	SnoozedUntil         *time.Time
 	ContactName          string
 	ContactPhone         string
+	ContactUsername      string
 	AssigneeEmail        *string
 	AssigneeDisplayName  *string
 	AssigneeFirstName    *string
@@ -430,6 +453,7 @@ func (q *Queries) ListConversationsWaiting(ctx context.Context, arg ListConversa
 			&i.SnoozedUntil,
 			&i.ContactName,
 			&i.ContactPhone,
+			&i.ContactUsername,
 			&i.AssigneeEmail,
 			&i.AssigneeDisplayName,
 			&i.AssigneeFirstName,

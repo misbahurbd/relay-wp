@@ -99,7 +99,10 @@ WHERE c.workspace_id = $1
         SELECT 1 FROM contact_tag_links l WHERE l.contact_id = c.id AND l.tag_id = $3))
   AND ($4::text IS NULL OR c.name ILIKE '%' || $4 || '%'
        OR c.email::text ILIKE '%' || $4 || '%'
-       OR ($5::text IS NOT NULL AND c.phone LIKE '%' || $5 || '%'))
+       OR ($5::text IS NOT NULL AND c.phone LIKE '%' || $5 || '%')
+       OR EXISTS (SELECT 1 FROM contact_identities ci
+                  WHERE ci.workspace_id = c.workspace_id AND ci.contact_id = c.id
+                    AND ci.handle ILIKE '%' || $4 || '%'))
   AND ($6::timestamptz IS NULL OR c.last_message_at >= $6)
   AND ($7::timestamptz IS NULL OR c.last_message_at < $7)
 ORDER BY 1
@@ -188,7 +191,7 @@ func (q *Queries) ContactIDByIdentity(ctx context.Context, arg ContactIDByIdenti
 const contactIDByPhone = `-- name: ContactIDByPhone :one
 SELECT c.id
 FROM contacts c
-WHERE c.workspace_id = $1 AND c.phone = $2
+WHERE c.workspace_id = $1 AND c.phone = $2::text
 `
 
 type ContactIDByPhoneParams struct {
@@ -230,7 +233,10 @@ WHERE c.workspace_id = $1
         SELECT 1 FROM contact_tag_links l WHERE l.contact_id = c.id AND l.tag_id = $3))
   AND ($4::text IS NULL OR c.name ILIKE '%' || $4 || '%'
        OR c.email::text ILIKE '%' || $4 || '%'
-       OR ($5::text IS NOT NULL AND c.phone LIKE '%' || $5 || '%'))
+       OR ($5::text IS NOT NULL AND c.phone LIKE '%' || $5 || '%')
+       OR EXISTS (SELECT 1 FROM contact_identities ci
+                  WHERE ci.workspace_id = c.workspace_id AND ci.contact_id = c.id
+                    AND ci.handle ILIKE '%' || $4 || '%'))
   AND ($6::timestamptz IS NULL OR c.last_message_at >= $6)
   AND ($7::timestamptz IS NULL OR c.last_message_at < $7)
 `
@@ -273,7 +279,7 @@ func (q *Queries) CountWorkspaceContacts(ctx context.Context, workspaceID uuid.U
 
 const createContact = `-- name: CreateContact :exec
 INSERT INTO contacts (id, workspace_id, name, phone, email, opt_in, opt_in_source, opt_in_at, source, language, attributes)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+VALUES ($1, $2, $3, $4::text, $5, $6, $7, $8, $9, $10, $11)
 `
 
 type CreateContactParams struct {
@@ -326,7 +332,7 @@ func (q *Queries) DeleteContacts(ctx context.Context, arg DeleteContactsParams) 
 }
 
 const existingContactPhones = `-- name: ExistingContactPhones :many
-SELECT c.phone, c.opt_in
+SELECT c.phone::text AS phone, c.opt_in
 FROM contacts c
 WHERE c.workspace_id = $1 AND c.phone = ANY($2::text[])
 `
@@ -362,7 +368,7 @@ func (q *Queries) ExistingContactPhones(ctx context.Context, arg ExistingContact
 }
 
 const exportContacts = `-- name: ExportContacts :many
-SELECT c.id, c.name, c.phone, c.email, c.opt_in, c.source, c.language, c.attributes, c.created_at,
+SELECT c.id, c.name, COALESCE(c.phone, '')::text AS phone, c.email, c.opt_in, c.source, c.language, c.attributes, c.created_at,
        COALESCE((SELECT string_agg(t.name::text, ', ' ORDER BY t.name)
                  FROM contact_tag_links l JOIN contact_tags t ON t.id = l.tag_id
                  WHERE l.contact_id = c.id), '')::text AS tags
@@ -373,7 +379,10 @@ WHERE c.workspace_id = $1
         SELECT 1 FROM contact_tag_links l WHERE l.contact_id = c.id AND l.tag_id = $3))
   AND ($4::text IS NULL OR c.name ILIKE '%' || $4 || '%'
        OR c.email::text ILIKE '%' || $4 || '%'
-       OR ($5::text IS NOT NULL AND c.phone LIKE '%' || $5 || '%'))
+       OR ($5::text IS NOT NULL AND c.phone LIKE '%' || $5 || '%')
+       OR EXISTS (SELECT 1 FROM contact_identities ci
+                  WHERE ci.workspace_id = c.workspace_id AND ci.contact_id = c.id
+                    AND ci.handle ILIKE '%' || $4 || '%'))
   AND ($6::timestamptz IS NULL OR c.last_message_at >= $6)
   AND ($7::timestamptz IS NULL OR c.last_message_at < $7)
   AND ($8::uuid IS NULL OR c.id < $8)
@@ -448,9 +457,36 @@ func (q *Queries) ExportContacts(ctx context.Context, arg ExportContactsParams) 
 	return items, nil
 }
 
+const fillContactPhone = `-- name: FillContactPhone :execrows
+UPDATE contacts c
+SET phone = $1::text
+WHERE c.workspace_id = $2 AND c.id = $3 AND c.phone IS NULL
+  AND NOT EXISTS (SELECT 1 FROM contacts o WHERE o.workspace_id = c.workspace_id AND o.phone = $1::text)
+`
+
+type FillContactPhoneParams struct {
+	Phone       string
+	WorkspaceID uuid.UUID
+	ID          uuid.UUID
+}
+
+// Gives a contact without a phone the one its channel just revealed (ADR 0015),
+// unless another contact already has that phone.
+func (q *Queries) FillContactPhone(ctx context.Context, arg FillContactPhoneParams) (int64, error) {
+	result, err := q.db.Exec(ctx, fillContactPhone, arg.Phone, arg.WorkspaceID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getContact = `-- name: GetContact :one
-SELECT c.id, c.name, c.phone, c.email, c.opt_in, c.opt_in_source, c.opt_in_at, c.source, c.language,
+SELECT c.id, c.name, COALESCE(c.phone, '')::text AS phone, c.email, c.opt_in, c.opt_in_source, c.opt_in_at, c.source, c.language,
        c.attributes, c.assigned_to, c.last_message_at, c.created_at, c.updated_at,
+       COALESCE((SELECT ci.handle FROM contact_identities ci
+                 WHERE ci.workspace_id = c.workspace_id AND ci.contact_id = c.id
+                   AND ci.channel_type = 'whatsapp' AND ci.handle <> ''
+                 ORDER BY ci.created_at DESC LIMIT 1), '')::text AS whatsapp_username,
        u.email AS assigned_email, p.display_name AS assigned_display_name,
        p.first_name AS assigned_first_name, p.last_name AS assigned_last_name
 FROM contacts c
@@ -479,6 +515,7 @@ type GetContactRow struct {
 	LastMessageAt       *time.Time
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
+	WhatsappUsername    string
 	AssignedEmail       *string
 	AssignedDisplayName *string
 	AssignedFirstName   *string
@@ -503,6 +540,7 @@ func (q *Queries) GetContact(ctx context.Context, arg GetContactParams) (GetCont
 		&i.LastMessageAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.WhatsappUsername,
 		&i.AssignedEmail,
 		&i.AssignedDisplayName,
 		&i.AssignedFirstName,
@@ -511,7 +549,7 @@ func (q *Queries) GetContact(ctx context.Context, arg GetContactParams) (GetCont
 	return i, err
 }
 
-const insertContactIdentity = `-- name: InsertContactIdentity :exec
+const insertContactIdentity = `-- name: InsertContactIdentity :execrows
 INSERT INTO contact_identities (workspace_id, contact_id, channel_type, external_id, handle)
 VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT (workspace_id, channel_type, external_id) DO NOTHING
@@ -525,23 +563,26 @@ type InsertContactIdentityParams struct {
 	Handle      string
 }
 
-// Links a sender to a contact. A concurrent link of the same sender wins; the
-// caller reads the identity back.
-func (q *Queries) InsertContactIdentity(ctx context.Context, arg InsertContactIdentityParams) error {
-	_, err := q.db.Exec(ctx, insertContactIdentity,
+// Links a sender to a contact. A concurrent link of the same sender wins (0
+// rows); the caller reads the identity back.
+func (q *Queries) InsertContactIdentity(ctx context.Context, arg InsertContactIdentityParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertContactIdentity,
 		arg.WorkspaceID,
 		arg.ContactID,
 		arg.ChannelType,
 		arg.ExternalID,
 		arg.Handle,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const insertInboxContact = `-- name: InsertInboxContact :many
 
 INSERT INTO contacts (id, workspace_id, name, phone, source)
-VALUES ($1, $2, $3, $4, 'inbox')
+VALUES ($1, $2, $3, NULLIF($4::text, ''), 'inbox')
 ON CONFLICT (workspace_id, phone) DO NOTHING
 RETURNING id
 `
@@ -556,6 +597,7 @@ type InsertInboxContactParams struct {
 // ---------- Inbox (docs/PHASE-7-INBOX.md F1) ----------
 // A customer who wrote in. Nothing happens when the phone is already a contact,
 // so concurrent webhooks create it once; the row comes back only when inserted.
+// A sender known only by a channel ID (ADR 0015) has no phone (empty here).
 func (q *Queries) InsertInboxContact(ctx context.Context, arg InsertInboxContactParams) ([]uuid.UUID, error) {
 	rows, err := q.db.Query(ctx, insertInboxContact,
 		arg.ID,
@@ -583,8 +625,12 @@ func (q *Queries) InsertInboxContact(ctx context.Context, arg InsertInboxContact
 
 const listContacts = `-- name: ListContacts :many
 
-SELECT c.id, c.name, c.phone, c.email, c.opt_in, c.source, c.language, c.assigned_to,
+SELECT c.id, c.name, COALESCE(c.phone, '')::text AS phone, c.email, c.opt_in, c.source, c.language, c.assigned_to,
        c.last_message_at, c.created_at, c.updated_at,
+       COALESCE((SELECT ci.handle FROM contact_identities ci
+                 WHERE ci.workspace_id = c.workspace_id AND ci.contact_id = c.id
+                   AND ci.channel_type = 'whatsapp' AND ci.handle <> ''
+                 ORDER BY ci.created_at DESC LIMIT 1), '')::text AS whatsapp_username,
        u.email AS assigned_email, p.display_name AS assigned_display_name,
        p.first_name AS assigned_first_name, p.last_name AS assigned_last_name
 FROM contacts c
@@ -596,7 +642,10 @@ WHERE c.workspace_id = $1
         SELECT 1 FROM contact_tag_links l WHERE l.contact_id = c.id AND l.tag_id = $3))
   AND ($4::text IS NULL OR c.name ILIKE '%' || $4 || '%'
        OR c.email::text ILIKE '%' || $4 || '%'
-       OR ($5::text IS NOT NULL AND c.phone LIKE '%' || $5 || '%'))
+       OR ($5::text IS NOT NULL AND c.phone LIKE '%' || $5 || '%')
+       OR EXISTS (SELECT 1 FROM contact_identities ci
+                  WHERE ci.workspace_id = c.workspace_id AND ci.contact_id = c.id
+                    AND ci.handle ILIKE '%' || $4 || '%'))
   AND ($6::timestamptz IS NULL OR c.last_message_at >= $6)
   AND ($7::timestamptz IS NULL OR c.last_message_at < $7)
   AND ($8::uuid IS NULL OR c.id < $8)
@@ -628,6 +677,7 @@ type ListContactsRow struct {
 	LastMessageAt       *time.Time
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
+	WhatsappUsername    string
 	AssignedEmail       *string
 	AssignedDisplayName *string
 	AssignedFirstName   *string
@@ -668,6 +718,7 @@ func (q *Queries) ListContacts(ctx context.Context, arg ListContactsParams) ([]L
 			&i.LastMessageAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.WhatsappUsername,
 			&i.AssignedEmail,
 			&i.AssignedDisplayName,
 			&i.AssignedFirstName,
@@ -723,7 +774,7 @@ func (q *Queries) ListTagsOfContacts(ctx context.Context, arg ListTagsOfContacts
 }
 
 const lockContact = `-- name: LockContact :one
-SELECT c.name, c.phone, c.email, c.opt_in, c.opt_in_source, c.opt_in_at, c.language, c.attributes
+SELECT c.name, COALESCE(c.phone, '')::text AS phone, c.email, c.opt_in, c.opt_in_source, c.opt_in_at, c.language, c.attributes
 FROM contacts c
 WHERE c.workspace_id = $1 AND c.id = $2
 FOR UPDATE
@@ -790,6 +841,31 @@ func (q *Queries) RemoveContactTagLinks(ctx context.Context, arg RemoveContactTa
 	return result.RowsAffected(), nil
 }
 
+const setContactIdentityHandle = `-- name: SetContactIdentityHandle :exec
+UPDATE contact_identities
+SET handle = $1
+WHERE workspace_id = $2 AND channel_type = $3 AND external_id = $4
+  AND $1::text <> '' AND handle <> $1::text
+`
+
+type SetContactIdentityHandleParams struct {
+	Handle      string
+	WorkspaceID uuid.UUID
+	ChannelType string
+	ExternalID  string
+}
+
+// Keeps the sender's handle (a WhatsApp username) current; an empty one keeps the old.
+func (q *Queries) SetContactIdentityHandle(ctx context.Context, arg SetContactIdentityHandleParams) error {
+	_, err := q.db.Exec(ctx, setContactIdentityHandle,
+		arg.Handle,
+		arg.WorkspaceID,
+		arg.ChannelType,
+		arg.ExternalID,
+	)
+	return err
+}
+
 const setContactLastMessage = `-- name: SetContactLastMessage :exec
 UPDATE contacts
 SET last_message_at = GREATEST(last_message_at, $1::timestamptz)
@@ -829,7 +905,7 @@ func (q *Queries) SetContactOptOut(ctx context.Context, arg SetContactOptOutPara
 
 const updateContact = `-- name: UpdateContact :exec
 UPDATE contacts
-SET name = $1, phone = $2, email = $3, opt_in = $4, opt_in_source = $5,
+SET name = $1, phone = NULLIF($2::text, ''), email = $3, opt_in = $4, opt_in_source = $5,
     opt_in_at = $6, language = $7, attributes = $8
 WHERE workspace_id = $9 AND id = $10
 `
@@ -876,7 +952,7 @@ SET name          = CASE WHEN EXCLUDED.name <> '' THEN EXCLUDED.name ELSE contac
     opt_in        = CASE WHEN contacts.opt_in = 'pending' THEN 'in' ELSE contacts.opt_in END,
     opt_in_source = CASE WHEN contacts.opt_in = 'pending' THEN 'import' ELSE contacts.opt_in_source END,
     opt_in_at     = CASE WHEN contacts.opt_in = 'pending' THEN now() ELSE contacts.opt_in_at END
-RETURNING id, phone, (xmax = 0)::boolean AS inserted
+RETURNING id, phone::text AS phone, (xmax = 0)::boolean AS inserted
 `
 
 type UpsertImportedContactsParams struct {

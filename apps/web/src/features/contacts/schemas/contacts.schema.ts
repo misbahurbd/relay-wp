@@ -80,6 +80,14 @@ export const contactFormSchema = z.object({
 
 export type ContactFormValues = z.infer<typeof contactFormSchema>
 
+/**
+ * Editing a contact the inbox added from a WhatsApp username, without a phone (ADR 0015): the
+ * phone may stay empty.
+ */
+export const noPhoneContactFormSchema = contactFormSchema.extend({
+  phone: z.union([z.literal(''), contactFormSchema.shape.phone]),
+})
+
 // ---------- import (AD-5) ----------
 
 export const IMPORT_MAX_BYTES = 10 * 1024 * 1024

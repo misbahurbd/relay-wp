@@ -66,8 +66,7 @@ func (s *Service) InboundMessage(ctx context.Context, in model.Inbound) error {
 	if in.Type == model.TypeReaction {
 		return s.inboundReaction(ctx, in)
 	}
-	contact, _, err := s.deps.Contacts.FindOrCreateByIdentity(ctx, in.WorkspaceID, in.ChannelType, in.Sender.ExternalID,
-		in.Sender.Name, in.Sender.Phone)
+	contact, _, err := s.deps.Contacts.FindOrCreateByIdentity(ctx, in.WorkspaceID, in.ChannelType, in.Sender)
 	if err != nil {
 		return fmt.Errorf("inbox: find contact: %w", err)
 	}

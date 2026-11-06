@@ -3,8 +3,10 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,9 +22,12 @@ type messagesValue struct {
 		PhoneNumberID string `json:"phone_number_id"`
 	} `json:"metadata"`
 	Contacts []struct {
-		WaID    string `json:"wa_id"`
+		WaID string `json:"wa_id"`
+		// UserID is the business-scoped user ID (ADR 0015).
+		UserID  string `json:"user_id"`
 		Profile struct {
-			Name string `json:"name"`
+			Name     string `json:"name"`
+			Username string `json:"username"`
 		} `json:"profile"`
 	} `json:"contacts"`
 	Messages []json.RawMessage `json:"messages"`
@@ -34,7 +39,10 @@ type metaStatus struct {
 	Status      string `json:"status"`
 	Timestamp   string `json:"timestamp"`
 	RecipientID string `json:"recipient_id"`
-	Errors      []struct {
+	// RecipientUserID is the business-scoped user ID; recipient_id (the phone)
+	// is missing when Meta withheld it.
+	RecipientUserID string `json:"recipient_user_id"`
+	Errors          []struct {
 		Code  int    `json:"code"`
 		Title string `json:"title"`
 	} `json:"errors"`
@@ -56,11 +64,12 @@ type metaReply struct {
 
 // metaMessage is one entry of messages[] (Cloud API webhook reference).
 type metaMessage struct {
-	From      string `json:"from"`
-	ID        string `json:"id"`
-	Timestamp string `json:"timestamp"`
-	Type      string `json:"type"`
-	Text      *struct {
+	From       string `json:"from"`
+	FromUserID string `json:"from_user_id"`
+	ID         string `json:"id"`
+	Timestamp  string `json:"timestamp"`
+	Type       string `json:"type"`
+	Text       *struct {
 		Body string `json:"body"`
 	} `json:"text"`
 	Image    *metaMedia `json:"image"`
@@ -179,19 +188,27 @@ func parseInbound(raw json.RawMessage, v messagesValue) (model.InboundMessage, e
 	}
 	m := model.InboundMessage{
 		WAMID:     mm.ID,
-		From:      "+" + model.Digits(mm.From),
+		UserID:    strings.TrimSpace(mm.FromUserID),
 		Timestamp: unixTime(mm.Timestamp),
 		Type:      mm.Type,
 		Raw:       raw,
 	}
+	if d := model.Digits(mm.From); d != "" {
+		m.From = "+" + d
+	}
+	if m.From == "" && m.UserID == "" {
+		return model.InboundMessage{}, errors.New("decode message: no sender (neither from nor from_user_id)")
+	}
+	matched := false
 	for _, c := range v.Contacts {
-		if c.WaID == mm.From {
-			m.ProfileName = c.Profile.Name
+		if (m.UserID != "" && c.UserID == m.UserID) || (mm.From != "" && c.WaID == mm.From) {
+			m.ProfileName, m.Username, matched = c.Profile.Name, c.Profile.Username, true
+			break
 		}
 	}
-	if m.ProfileName == "" && len(v.Contacts) == 1 {
+	if !matched && len(v.Contacts) == 1 {
 		// wa_id can differ from "from" (e.g. Brazilian numbers gaining a 9).
-		m.ProfileName = v.Contacts[0].Profile.Name
+		m.ProfileName, m.Username = v.Contacts[0].Profile.Name, v.Contacts[0].Profile.Username
 	}
 	if mm.Context != nil {
 		m.ContextWAMID = mm.Context.ID
