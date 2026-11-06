@@ -133,8 +133,10 @@ function Wizard({
 
   const included = audience.data?.included ?? 0
   const tags = form.audience.tag_ids.length
+  // No one to send to (or not counted yet): the wizard stays on the audience step.
+  const noRecipients = empty || !audience.isSuccess || included === 0
   const blocked =
-    (step === 1 && (empty || (audience.isSuccess && included === 0))) ||
+    (step === 1 && noRecipients) ||
     (step === 2 && !template) ||
     (step === 3 && schedule.when === 'later' && (!schedule.date || !schedule.time))
   const tv = templateVariables(template)
@@ -244,7 +246,7 @@ function Wizard({
         </Alert>
       )}
 
-      <Stepper step={step} done={!!sent} onStep={setStep} />
+      <Stepper step={step} done={!!sent} maxStep={noRecipients ? 1 : 4} onStep={setStep} />
 
       {(editor.error || cancel.error || remove.error) && !sent && (
         <ActionError error={editor.error ?? cancel.error ?? remove.error} />
@@ -342,7 +344,12 @@ function Wizard({
                   </Button>
                 ) : (
                   <Button
-                    disabled={!!editor.busy || readOnly || (!!access && !can('broadcasts.send'))}
+                    disabled={
+                      !!editor.busy ||
+                      readOnly ||
+                      noRecipients ||
+                      (!!access && !can('broadcasts.send'))
+                    }
                     onClick={() => editor.send()}
                   >
                     {editor.busy
@@ -354,6 +361,12 @@ function Wizard({
                   </Button>
                 )}
               </div>
+              {step > 1 && audience.isSuccess && included === 0 && (
+                <p className="text-right text-[13px] text-destructive">
+                  No opted-in contacts match this audience. Go back to Audience and choose who gets
+                  it.
+                </p>
+              )}
               {step === 4 && access && !can('broadcasts.send') && (
                 <p className="text-right text-[13px] text-muted-foreground">
                   Your role can save drafts. Ask an owner or admin to send it.

@@ -4,14 +4,16 @@ import { cn } from '#/lib/utils'
 
 export const STEPS = ['Audience', 'Template', 'Schedule', 'Review & send'] as const
 
-/** "Step 1 · Audience" … as buttons: a done or current step can be revisited. */
+/** "Step 1 · Audience" … as buttons: a done or current step can be revisited; none past maxStep. */
 export function Stepper({
   step,
   done,
+  maxStep = STEPS.length,
   onStep,
 }: {
   step: number
   done: boolean
+  maxStep?: number
   onStep: (n: number) => void
 }) {
   return (
@@ -26,7 +28,7 @@ export function Stepper({
             variant="unstyled"
             type="button"
             aria-current={current ? 'step' : undefined}
-            disabled={done}
+            disabled={done || n > maxStep}
             onClick={() => onStep(n)}
             className={cn(
               'flex h-auto items-center justify-start gap-3 rounded-[14px] border bg-card px-3.5 py-3 text-left',
