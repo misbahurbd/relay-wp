@@ -514,6 +514,11 @@ func fillCreemEvent(ev *Event, env creemEnvelope) error {
 			}
 			if sub != nil {
 				p.ExternalSubscriptionID = sub.ID
+				if c.Order.Transaction.ID == "" && sub.lastTransactionID() != "" {
+					// subscription.paid records the first payment under its
+					// transaction too, so both must name the same one.
+					p.ExternalID = sub.lastTransactionID()
+				}
 			}
 			paid := ev.OccurredAt
 			p.PaidAt = &paid
@@ -537,7 +542,9 @@ func fillCreemEvent(ev *Event, env creemEnvelope) error {
 		switch t {
 		case "subscription.paid":
 			ev.Type = EventPaymentSucceeded
-			if s.LastTransaction != nil {
+			// Only an expanded transaction says what was paid. A bare ID records
+			// nothing: an invoice never guesses its amounts.
+			if s.LastTransaction.Expanded {
 				p := s.LastTransaction.payment()
 				p.ExternalCustomerID, p.ExternalSubscriptionID = sub.ExternalCustomerID, sub.ExternalID
 				if p.PaidAt == nil {
@@ -687,12 +694,42 @@ type creemSubscription struct {
 	Items    []struct {
 		ProductID string `json:"product_id"`
 	} `json:"items"`
-	Status             string            `json:"status"`
-	LastTransaction    *creemTransaction `json:"last_transaction"`
-	CurrentPeriodStart *time.Time        `json:"current_period_start_date"`
-	CurrentPeriodEnd   *time.Time        `json:"current_period_end_date"`
-	CanceledAt         *time.Time        `json:"canceled_at"`
-	Metadata           map[string]string `json:"metadata"`
+	Status             string              `json:"status"`
+	LastTransaction    creemTransactionRef `json:"last_transaction"`
+	LastTransactionID  string              `json:"last_transaction_id"`
+	CurrentPeriodStart *time.Time          `json:"current_period_start_date"`
+	CurrentPeriodEnd   *time.Time          `json:"current_period_end_date"`
+	CanceledAt         *time.Time          `json:"canceled_at"`
+	Metadata           map[string]string   `json:"metadata"`
+}
+
+// lastTransactionID is the subscription's latest transaction, expanded or not.
+func (s creemSubscription) lastTransactionID() string {
+	if s.LastTransaction.ID != "" {
+		return s.LastTransaction.ID
+	}
+	return s.LastTransactionID
+}
+
+// creemTransactionRef is a transaction Creem sends as an ID or as the
+// expanded object. Expanded says the amounts are there.
+type creemTransactionRef struct {
+	creemTransaction
+	Expanded bool
+}
+
+func (r *creemTransactionRef) UnmarshalJSON(b []byte) error {
+	if len(b) == 0 || string(b) == "null" {
+		return nil
+	}
+	if b[0] == '"' {
+		return json.Unmarshal(b, &r.ID) //nolint:wrapcheck // decoding a field; json.Unmarshal reports it
+	}
+	if err := json.Unmarshal(b, &r.creemTransaction); err != nil {
+		return err //nolint:wrapcheck // decoding a field; json.Unmarshal reports it
+	}
+	r.Expanded = true
+	return nil
 }
 
 // decodeCreemSubscription reads a subscription sent as an ID or an object.

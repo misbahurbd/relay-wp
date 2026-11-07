@@ -599,6 +599,71 @@ func TestCreemWebhookSubscriptionPaidWithInclusiveTax(t *testing.T) {
 	}
 }
 
+// editedCreemFixture is a fixture with edit applied to its object.
+func editedCreemFixture(t *testing.T, name string, edit func(obj map[string]any)) []byte {
+	t.Helper()
+	var env map[string]any
+	if err := json.Unmarshal(creemFixture(t, name), &env); err != nil {
+		t.Fatal(err)
+	}
+	edit(env["object"].(map[string]any))
+	b, err := json.Marshal(env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
+}
+
+// The first payment arrives as checkout.completed and as subscription.paid.
+// Both must name the same transaction, so its invoice is recorded once.
+func TestCreemCheckoutCompletedNamesTheTransactionSubscriptionPaidUses(t *testing.T) {
+	cases := []struct {
+		name string
+		edit func(order, sub map[string]any)
+		want string
+	}{
+		{"order transaction", func(_, _ map[string]any) {}, "tran_5yMaWzAl3jxuGJMCOrYWwk"},
+		{"subscription last_transaction_id", func(order, sub map[string]any) {
+			delete(order, "transaction")
+			sub["last_transaction_id"] = "tran_first"
+		}, "tran_first"},
+		{"subscription last_transaction object", func(order, sub map[string]any) {
+			delete(order, "transaction")
+			sub["last_transaction"] = map[string]any{"id": "tran_first", "amount_paid": 3158, "currency": "USD", "status": "paid"}
+		}, "tran_first"},
+		{"no transaction anywhere", func(order, _ map[string]any) { delete(order, "transaction") }, "ord_4aDwWXjMLpes4Kj4XqNnUA"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ev := parseCreemBody(t, editedCreemFixture(t, "checkout_completed", func(obj map[string]any) {
+				tc.edit(obj["order"].(map[string]any), obj["subscription"].(map[string]any))
+			}))
+			if ev.Payment == nil || ev.Payment.ExternalID != tc.want {
+				t.Fatalf("payment = %+v, want external id %s", ev.Payment, tc.want)
+			}
+		})
+	}
+}
+
+// A subscription.paid whose last_transaction isn't expanded still parses; it
+// records no payment, since only the expanded transaction says what was paid.
+func TestCreemSubscriptionPaidWithoutAnExpandedTransaction(t *testing.T) {
+	for name, edit := range map[string]func(map[string]any){
+		"id string": func(obj map[string]any) { obj["last_transaction"] = "tran_3e6Z6TzvHKdsjEgXnGDEp0" },
+		"id only":   func(obj map[string]any) { delete(obj, "last_transaction") },
+	} {
+		t.Run(name, func(t *testing.T) {
+			ev := parseCreemBody(t, editedCreemFixture(t, "subscription_paid", edit))
+			if ev.Type != EventPaymentSucceeded || ev.Payment != nil {
+				t.Errorf("event = %+v, payment = %+v; want payment.succeeded with no payment", ev, ev.Payment)
+			}
+			if ev.Subscription == nil || ev.Subscription.ExternalID != "sub_6pC2lNoI8ixy1kAoEqdhWl" {
+				t.Errorf("subscription = %+v", ev.Subscription)
+			}
+		})
+	}
+}
+
 func TestCreemWebhookSubscriptionChanges(t *testing.T) {
 	ev := parseCreemFixture(t, "subscription_scheduled_cancel")
 	if ev.Type != EventSubscriptionUpdated || ev.Subscription == nil ||
