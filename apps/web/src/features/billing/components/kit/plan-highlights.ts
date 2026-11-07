@@ -27,7 +27,7 @@ export type PlanSummary = {
   heading?: string
   /** What the plan adds over the previous one; all of `lines` on the first plan. */
   highlights: string[]
-  /** The plan's own marketing lines, shown after the highlights. */
+  /** The plan's own marketing lines, shown after the highlights. A line that repeats one of `lines` is left out. */
   extras: string[]
 }
 
@@ -71,6 +71,15 @@ export function planLines(resources: PlanResource[], limits: Record<string, numb
   })
 }
 
+function same(a: string, b: string) {
+  return a.trim().toLowerCase() === b.trim().toLowerCase()
+}
+
+/** Staff's own lines, minus any that only say again what the limits already say. */
+export function extrasOf(features: string[], lines: string[]) {
+  return features.map((f) => f.trim()).filter((f) => f !== '' && !lines.some((l) => same(f, l)))
+}
+
 /** Whether `value` is more than `before` of a resource: a higher cap, unlimited, or newly included. */
 function improves(r: PlanResource, value: number, before: number) {
   if (value === NOT_INCLUDED || value === before) return false
@@ -84,7 +93,7 @@ function summaryOf(
   resources: PlanResource[],
 ): PlanSummary {
   const lines = planLines(resources, plan.limits)
-  const extras = plan.features.map((f) => f.trim()).filter(Boolean)
+  const extras = extrasOf(plan.features, lines)
   if (!previous) return { lines, highlights: lines, extras }
   const highlights = resources.flatMap((r) => {
     const v = capOf(plan, r)

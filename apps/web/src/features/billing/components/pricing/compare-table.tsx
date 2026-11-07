@@ -31,10 +31,10 @@ export function CompareTable({ plans, matrix, currentPlanId, expanded }: Props) 
 
   const table = (
     <div id={panelId} className="overflow-hidden rounded-xl border bg-card">
-      <Table className="min-w-[560px] table-fixed">
+      <Table className="min-w-[540px] table-fixed">
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead className="sticky left-0 z-10 w-[180px] bg-card px-4 py-3 text-[13px] text-muted-foreground">
+            <TableHead className="sticky left-0 z-10 w-[124px] bg-card px-4 py-3 text-[13px] text-muted-foreground sm:w-[180px]">
               <span className="sr-only">Feature</span>
             </TableHead>
             {plans.map((plan) => (
@@ -63,14 +63,14 @@ export function CompareTable({ plans, matrix, currentPlanId, expanded }: Props) 
         </TableHeader>
         {matrix.map((group) => (
           <TableBody key={group.title}>
-            <TableRow className="border-b bg-muted/50 hover:bg-muted/50">
+            <TableRow className="bg-muted hover:bg-muted">
               <TableHead
                 scope="rowgroup"
-                colSpan={plans.length + 1}
-                className="sticky left-0 h-9 px-4 text-xs font-bold tracking-wide text-muted-foreground uppercase"
+                className="sticky left-0 z-10 h-9 bg-muted px-4 text-xs font-bold tracking-wide text-muted-foreground uppercase"
               >
                 {group.title}
               </TableHead>
+              <TableCell colSpan={plans.length} />
             </TableRow>
             {group.rows.map((row) => (
               <TableRow key={row.key} className="hover:bg-transparent">
