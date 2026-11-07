@@ -520,8 +520,6 @@ type Querier interface {
 	// ---------- Provider prices ----------
 	ListActiveProviderPrices(ctx context.Context) ([]ListActiveProviderPricesRow, error)
 	ListActiveSessions(ctx context.Context, userID uuid.UUID) ([]ListActiveSessionsRow, error)
-	// Job only (all workspaces): subscriptions Relay renews itself (SSLCommerz).
-	ListAppRenewalsDue(ctx context.Context, arg ListAppRenewalsDueParams) ([]ListAppRenewalsDueRow, error)
 	ListAuthEvents(ctx context.Context, userID *uuid.UUID) ([]ListAuthEventsRow, error)
 	ListAutomations(ctx context.Context, workspaceID uuid.UUID) ([]ListAutomationsRow, error)
 	// Newest first, with each broadcast's delivery counts.
@@ -553,8 +551,6 @@ type Querier interface {
 	// not-waiting part.
 	ListConversationsWaiting(ctx context.Context, arg ListConversationsWaitingParams) ([]ListConversationsWaitingRow, error)
 	ListDiscounts(ctx context.Context, activeOnly bool) ([]ListDiscountsRow, error)
-	// Job only (all workspaces): scheduled downgrades whose date has come.
-	ListDuePendingChanges(ctx context.Context, arg ListDuePendingChangesParams) ([]ListDuePendingChangesRow, error)
 	// Job only (all workspaces): card-less trials and staff grants that have reached their end.
 	ListExpiredGrants(ctx context.Context, arg ListExpiredGrantsParams) ([]ListExpiredGrantsRow, error)
 	ListIdentities(ctx context.Context, userID uuid.UUID) ([]ListIdentitiesRow, error)

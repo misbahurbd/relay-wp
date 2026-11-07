@@ -371,45 +371,6 @@ func (q *Queries) HasHadTrial(ctx context.Context, workspaceID uuid.UUID) (bool,
 	return exists, err
 }
 
-const listAppRenewalsDue = `-- name: ListAppRenewalsDue :many
-SELECT id, workspace_id
-FROM subscriptions
-WHERE renewal_mode = 'app' AND status IN ('active', 'past_due') AND current_period_end <= $1
-ORDER BY current_period_end
-LIMIT $2
-`
-
-type ListAppRenewalsDueParams struct {
-	Now     *time.Time
-	MaxRows int32
-}
-
-type ListAppRenewalsDueRow struct {
-	ID          uuid.UUID
-	WorkspaceID uuid.UUID
-}
-
-// Job only (all workspaces): subscriptions Relay renews itself (SSLCommerz).
-func (q *Queries) ListAppRenewalsDue(ctx context.Context, arg ListAppRenewalsDueParams) ([]ListAppRenewalsDueRow, error) {
-	rows, err := q.db.Query(ctx, listAppRenewalsDue, arg.Now, arg.MaxRows)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListAppRenewalsDueRow{}
-	for rows.Next() {
-		var i ListAppRenewalsDueRow
-		if err := rows.Scan(&i.ID, &i.WorkspaceID); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listCancelRefusedSubscriptions = `-- name: ListCancelRefusedSubscriptions :many
 SELECT id, workspace_id, provider, external_subscription_id
 FROM subscriptions
@@ -447,45 +408,6 @@ func (q *Queries) ListCancelRefusedSubscriptions(ctx context.Context, arg ListCa
 			&i.Provider,
 			&i.ExternalSubscriptionID,
 		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listDuePendingChanges = `-- name: ListDuePendingChanges :many
-SELECT id, workspace_id
-FROM subscriptions
-WHERE pending_change_at <= $1 AND status IN ('trialing', 'active', 'past_due')
-ORDER BY pending_change_at
-LIMIT $2
-`
-
-type ListDuePendingChangesParams struct {
-	Now     *time.Time
-	MaxRows int32
-}
-
-type ListDuePendingChangesRow struct {
-	ID          uuid.UUID
-	WorkspaceID uuid.UUID
-}
-
-// Job only (all workspaces): scheduled downgrades whose date has come.
-func (q *Queries) ListDuePendingChanges(ctx context.Context, arg ListDuePendingChangesParams) ([]ListDuePendingChangesRow, error) {
-	rows, err := q.db.Query(ctx, listDuePendingChanges, arg.Now, arg.MaxRows)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListDuePendingChangesRow{}
-	for rows.Next() {
-		var i ListDuePendingChangesRow
-		if err := rows.Scan(&i.ID, &i.WorkspaceID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

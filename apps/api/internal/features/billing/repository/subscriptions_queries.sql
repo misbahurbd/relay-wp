@@ -106,22 +106,6 @@ UPDATE subscriptions
 SET discount_id = sqlc.narg('discount_id'), discount_ends_at = sqlc.narg('discount_ends_at')
 WHERE workspace_id = @workspace_id AND id = @subscription_id;
 
--- name: ListDuePendingChanges :many
--- Job only (all workspaces): scheduled downgrades whose date has come.
-SELECT id, workspace_id
-FROM subscriptions
-WHERE pending_change_at <= @now AND status IN ('trialing', 'active', 'past_due')
-ORDER BY pending_change_at
-LIMIT @max_rows;
-
--- name: ListAppRenewalsDue :many
--- Job only (all workspaces): subscriptions Relay renews itself (SSLCommerz).
-SELECT id, workspace_id
-FROM subscriptions
-WHERE renewal_mode = 'app' AND status IN ('active', 'past_due') AND current_period_end <= @now
-ORDER BY current_period_end
-LIMIT @max_rows;
-
 -- name: ListPastDueGraceEnded :many
 -- Job only (all workspaces): past-due subscriptions whose grace has run out
 -- and whose current grant doesn't hold past_due yet, even if another cause
