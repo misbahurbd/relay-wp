@@ -158,6 +158,7 @@ type Querier interface {
 	CreateInvitation(ctx context.Context, arg CreateInvitationParams) error
 	// ---------- Invoices (kept forever) ----------
 	// ON CONFLICT: a replayed webhook for the same payment adds nothing; no row back.
+	// A paid invoice gets its number afterwards, in the same transaction (NextInvoiceSeq).
 	CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (uuid.UUID, error)
 	CreateOAuthFlow(ctx context.Context, arg CreateOAuthFlowParams) error
 	CreateOnboarding(ctx context.Context, arg CreateOnboardingParams) error
@@ -331,6 +332,9 @@ type Querier interface {
 	// The only query that reads token_hash (CLAUDE.md secrets rule).
 	GetInvitationByTokenHash(ctx context.Context, tokenHash []byte) (GetInvitationByTokenHashRow, error)
 	GetInvoice(ctx context.Context, arg GetInvoiceParams) (GetInvoiceRow, error)
+	// Everything the invoice PDF and its email show. The plan comes through the
+	// subscription's current price or the order's price.
+	GetInvoiceDocument(ctx context.Context, arg GetInvoiceDocumentParams) (GetInvoiceDocumentRow, error)
 	// The workspace's live subscription if it has one, else its most recent.
 	GetLatestSubscription(ctx context.Context, workspaceID uuid.UUID) (GetLatestSubscriptionRow, error)
 	// The subscription's newest invoice: refunding it in full ends the subscription.
@@ -564,6 +568,7 @@ type Querier interface {
 	MarkBusinessDone(ctx context.Context, workspaceID uuid.UUID) error
 	MarkEmailVerified(ctx context.Context, id uuid.UUID) error
 	MarkInstallmentPaid(ctx context.Context, arg MarkInstallmentPaidParams) (int64, error)
+	MarkInvoiceEmailed(ctx context.Context, arg MarkInvoiceEmailedParams) (int64, error)
 	// Every unseen mention of the member, or only the given notes' ones.
 	MarkMentionsSeen(ctx context.Context, arg MarkMentionsSeenParams) (int64, error)
 	MarkMessageFailed(ctx context.Context, arg MarkMessageFailedParams) ([]MarkMessageFailedRow, error)
@@ -580,6 +585,9 @@ type Querier interface {
 	MessageByExternalID(ctx context.Context, arg MessageByExternalIDParams) (MessageByExternalIDRow, error)
 	MoveRoleInvitations(ctx context.Context, arg MoveRoleInvitationsParams) error
 	MoveRoleMembers(ctx context.Context, arg MoveRoleMembersParams) ([]uuid.UUID, error)
+	// The year's next invoice number. The row lock holds until the transaction
+	// ends, so a rollback hands the same number to the next paid invoice: no gaps.
+	NextInvoiceSeq(ctx context.Context, year int32) (int32, error)
 	// A plan is never edited once sold: a new one with a used code is its next version.
 	NextPlanVersion(ctx context.Context, code string) (int32, error)
 	// Nulls payloads older than the cutoff, a batch at a time.
@@ -659,6 +667,8 @@ type Querier interface {
 	SetInstallmentReminderSent(ctx context.Context, arg SetInstallmentReminderSentParams) (int64, error)
 	// Any status but paid (MarkInstallmentPaid sets paid_at with it).
 	SetInstallmentStatus(ctx context.Context, arg SetInstallmentStatusParams) (int64, error)
+	SetInvoiceNumber(ctx context.Context, arg SetInvoiceNumberParams) (int64, error)
+	SetInvoicePDFKey(ctx context.Context, arg SetInvoicePDFKeyParams) (int64, error)
 	SetInvoiceStatus(ctx context.Context, arg SetInvoiceStatusParams) (int64, error)
 	// Replaces the member's numbers with those of @number_ids that belong to the workspace.
 	// Returns how many were kept, so the caller can spot foreign IDs.

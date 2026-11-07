@@ -144,7 +144,7 @@ func TestRunInstallmentsDue(t *testing.T) {
 		t.Errorf("reminder started %d checkouts, want none", len(h.paymentInputs))
 	}
 	msg := h.lastEmail()
-	if len(msg.To) != 1 || msg.To[0] != "billing@acme.test" || !strings.Contains(msg.Text, "USD 103.33") ||
+	if len(msg.To) != 1 || msg.To[0] != "billing@acme.test" || !strings.Contains(msg.Text, "$103.33") ||
 		!strings.Contains(msg.Text, "https://app.test/billing?workspace="+h.ws.String()) {
 		t.Errorf("reminder email %+v", msg)
 	}

@@ -454,7 +454,7 @@ func (f *Fake) CompleteCheckout(externalSessionID string) (Event, error) {
 		ExternalID: f.nextID("evt"), Type: EventCheckoutCompleted, ProviderType: "checkout.completed",
 		OccurredAt: now, Reference: &ref,
 		Payment: &Payment{
-			ExternalID: f.nextID("pay"), InvoiceNumber: f.nextID("inv"),
+			ExternalID:             f.nextID("pay"),
 			ExternalCustomerID:     fc.Checkout.ExternalCustomerID,
 			ExternalSubscriptionID: fc.Checkout.ExternalSubscriptionID,
 			ExternalScheduleID:     fc.Checkout.ExternalScheduleID,

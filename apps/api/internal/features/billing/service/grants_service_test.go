@@ -50,7 +50,7 @@ func newT3Env(t *testing.T) *t3Env {
 	}
 	e := &t3Env{
 		t: t, ctx: context.Background(), pool: pool, fake: fake,
-		svc:   New(pool, reg, nil, Config{AppBaseURL: "http://app.test"}, slog.New(slog.DiscardHandler)),
+		svc:   New(pool, reg, &recordingQueue{}, testDocuments(t), Config{AppBaseURL: "http://app.test"}, slog.New(slog.DiscardHandler)),
 		clock: time.Now().UTC().Truncate(time.Second),
 	}
 	e.svc.now = func() time.Time { return e.clock }

@@ -16,10 +16,12 @@ import (
 
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/handler"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/service"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/config"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/database/dbtest"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/httpx"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/middleware"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/payment"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/storage"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/shared/apperr"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/shared/authctx"
 )
@@ -53,7 +55,11 @@ func newEnv(t *testing.T, pool *pgxpool.Pool) *env {
 		t.Fatal(err)
 	}
 	e := &env{t: t, api: api, pool: pool, members: map[[2]uuid.UUID]authctx.Access{}, staff: map[uuid.UUID]bool{}}
-	svc := service.New(pool, payments, nil, service.Config{}, slog.Default())
+	store, err := storage.New(t.Context(), config.Storage{Driver: "memory"}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := service.New(pool, payments, nil, service.Documents{Storage: store}, service.Config{}, slog.Default())
 	handler.Register(api, handler.NewHandler(svc), handler.Guards{
 		Auth:   e.auth,
 		Member: middleware.RequireWorkspace(api, e),

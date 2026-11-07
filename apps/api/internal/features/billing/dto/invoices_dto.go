@@ -20,7 +20,7 @@ type InvoiceInput struct {
 
 type InvoiceDTO struct {
 	ID             uuid.UUID  `json:"id"`
-	Number         *string    `json:"number" doc:"The provider's invoice number"`
+	Number         *string    `json:"number" doc:"Relay's invoice number, e.g. RLY-2026-000001; paid invoices only"`
 	SubscriptionID *uuid.UUID `json:"subscription_id"`
 	OrderID        *uuid.UUID `json:"order_id"`
 	InstallmentID  *uuid.UUID `json:"installment_id"`
@@ -33,7 +33,7 @@ type InvoiceDTO struct {
 	Currency       string     `json:"currency"`
 	PeriodStart    *time.Time `json:"period_start"`
 	PeriodEnd      *time.Time `json:"period_end"`
-	ReceiptURL     *string    `json:"receipt_url"`
+	PDFURL         *string    `json:"pdf_url" doc:"Short-lived link that downloads the invoice PDF; null until it is ready"`
 	PaidAt         *time.Time `json:"paid_at"`
 	CreatedAt      time.Time  `json:"created_at"`
 	BillTo         *BillToDTO `json:"bill_to,omitempty" doc:"Billing details as they were when the invoice was issued; single invoice only"`
@@ -44,7 +44,7 @@ func ToInvoiceDTO(i model.Invoice) InvoiceDTO {
 		ID: i.ID, Number: i.Number, SubscriptionID: i.SubscriptionID, OrderID: i.OrderID, InstallmentID: i.InstallmentID,
 		Provider: string(i.Provider), Status: i.Status, SubtotalMinor: i.SubtotalMinor, DiscountMinor: i.DiscountMinor,
 		TaxMinor: i.TaxMinor, TotalMinor: i.TotalMinor, Currency: i.Currency, PeriodStart: i.PeriodStart,
-		PeriodEnd: i.PeriodEnd, ReceiptURL: i.ReceiptURL, PaidAt: i.PaidAt, CreatedAt: i.CreatedAt,
+		PeriodEnd: i.PeriodEnd, PDFURL: i.PDFURL, PaidAt: i.PaidAt, CreatedAt: i.CreatedAt,
 	}
 	if i.BillTo != nil {
 		b := BillToDTO(*i.BillTo)

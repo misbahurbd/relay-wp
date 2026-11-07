@@ -41,7 +41,7 @@ func TestReceiveWebhookRoute(t *testing.T) {
 		t.Fatal(err)
 	}
 	q := &countingQueue{}
-	svc := service.New(pool, reg, q, service.Config{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	svc := service.New(pool, reg, q, service.Documents{}, service.Config{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	_, api := humatest.New(t)
 	pass := func(ctx huma.Context, next func(huma.Context)) { next(ctx) }

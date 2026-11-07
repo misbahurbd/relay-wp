@@ -64,7 +64,7 @@ func newLTDHarness(t *testing.T, collection string) *ltdHarness {
 		t.Fatal(err)
 	}
 	queue := &recordingQueue{}
-	svc := New(pool, reg, queue, Config{AppBaseURL: "https://app.test"}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	svc := New(pool, reg, queue, testDocuments(t), Config{AppBaseURL: "https://app.test"}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	h := &ltdHarness{
 		t: t, ctx: ctx, pool: pool, r: repository.NewRepository(pool), fake: fake, queue: queue,
 		now:    time.Date(2026, time.January, 31, 12, 0, 0, 0, time.UTC),

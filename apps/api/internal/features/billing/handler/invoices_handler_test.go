@@ -17,7 +17,7 @@ const invoicesPath = "/v1/workspace/billing/invoices"
 // invoiceKeys is every field of dto.InvoiceDTO in a list; a single invoice adds bill_to.
 var invoiceKeys = []string{
 	"id", "number", "subscription_id", "order_id", "installment_id", "provider", "status", "subtotal_minor",
-	"discount_minor", "tax_minor", "total_minor", "currency", "period_start", "period_end", "receipt_url",
+	"discount_minor", "tax_minor", "total_minor", "currency", "period_start", "period_end", "pdf_url",
 	"paid_at", "created_at",
 }
 
@@ -141,6 +141,20 @@ func TestInvoice(t *testing.T) {
 	billTo := r.body["bill_to"].(map[string]any)
 	if billTo["legal_name"] != "Acme Ltd" || billTo["email"] != "billing@acme.test" {
 		t.Fatalf("bill_to %v, want the details stored on the invoice", billTo)
+	}
+	if r.body["pdf_url"] != nil {
+		t.Fatalf("pdf_url %v before the PDF is stored, want null", r.body["pdf_url"])
+	}
+
+	// Once the document job stores the PDF, the invoice links to it.
+	key := "invoices/" + ws.String() + "/" + ids[0].String() + ".pdf"
+	if _, err := e.pool.Exec(context.Background(), `UPDATE invoices SET pdf_key = $1 WHERE id = $2`, key, ids[0]); err != nil {
+		t.Fatal(err)
+	}
+	ready := m.do(http.MethodGet, invoicesPath+"/"+ids[0].String(), nil)
+	expect(t, ready, http.StatusOK)
+	if ready.body["pdf_url"] != "memory://"+key {
+		t.Fatalf("pdf_url %v, want a link to %s", ready.body["pdf_url"], key)
 	}
 
 	// Another workspace's invoice and an unknown ID look the same.

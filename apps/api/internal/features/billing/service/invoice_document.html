@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Invoice {{.Number}}</title>
+<style>
+  @page { size: A4; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 10pt; line-height: 1.5; color: #1f2328;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .muted { color: #656d76; }
+  .head { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 18pt; border-bottom: 1px solid #d0d7de; }
+  .seller-name { font-size: 15pt; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 4pt; }
+  .seller p, .bill-to p { margin: 0; }
+  .title { text-align: right; }
+  .title h1 { font-size: 24pt; font-weight: 700; margin: 0 0 6pt; letter-spacing: -0.02em; }
+  .meta { border-collapse: collapse; margin-left: auto; }
+  .meta td { padding: 1pt 0 1pt 14pt; text-align: right; }
+  .meta td:first-child { color: #656d76; }
+  .status { display: inline-block; padding: 1pt 7pt; border-radius: 9pt; background: #dafbe1; color: #116329; font-weight: 600; font-size: 9pt; }
+  .bill-to { margin: 22pt 0 26pt; }
+  .label { font-size: 8pt; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #656d76; margin: 0 0 4pt; }
+  .bill-to .name { font-weight: 600; }
+  table.lines { width: 100%; border-collapse: collapse; }
+  table.lines th { font-size: 8pt; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #656d76; text-align: left; padding: 0 0 6pt; border-bottom: 1px solid #d0d7de; }
+  table.lines td { padding: 10pt 0; border-bottom: 1px solid #eaeef2; vertical-align: top; }
+  table.lines .amount { text-align: right; white-space: nowrap; }
+  .totals { width: 46%; margin: 14pt 0 0 auto; border-collapse: collapse; }
+  .totals td { padding: 3pt 0; }
+  .totals td.amount { text-align: right; white-space: nowrap; }
+  .totals tr.total td { border-top: 1px solid #1f2328; padding-top: 8pt; font-size: 12pt; font-weight: 700; }
+  .paid { margin-top: 22pt; }
+  .foot { margin-top: 40pt; padding-top: 12pt; border-top: 1px solid #eaeef2; font-size: 8.5pt; color: #656d76; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <div class="seller">
+      <p class="seller-name">{{.Seller.Name}}</p>
+      {{range .Seller.AddressLines}}<p class="muted">{{.}}</p>{{end}}
+      {{with .Seller.Email}}<p class="muted">{{.}}</p>{{end}}
+      {{with .Seller.TaxID}}<p class="muted">Tax ID: {{.}}</p>{{end}}
+    </div>
+    <div class="title">
+      <h1>Invoice</h1>
+      <table class="meta">
+        <tr><td>Invoice number</td><td>{{.Number}}</td></tr>
+        <tr><td>Date of issue</td><td>{{.IssueDate}}</td></tr>
+        <tr><td>Status</td><td><span class="status">Paid</span></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="bill-to">
+    <p class="label">Bill to</p>
+    {{range $i, $line := .BillTo}}<p{{if eq $i 0}} class="name"{{end}}>{{$line}}</p>{{end}}
+  </div>
+
+  <table class="lines">
+    <thead><tr><th>Description</th><th class="amount">Amount</th></tr></thead>
+    <tbody><tr><td>{{.Description}}</td><td class="amount">{{.Subtotal}}</td></tr></tbody>
+  </table>
+
+  <table class="totals">
+    <tr><td class="muted">Subtotal</td><td class="amount">{{.Subtotal}}</td></tr>
+    {{with .Discount}}<tr><td class="muted">Discount</td><td class="amount">-{{.}}</td></tr>{{end}}
+    {{with .Tax}}<tr><td class="muted">Tax</td><td class="amount">{{.}}</td></tr>{{end}}
+    <tr class="total"><td>Total</td><td class="amount">{{.Total}}</td></tr>
+  </table>
+
+  <p class="paid">{{.Total}} paid on {{.IssueDate}}. Paid with card via {{.Provider}}.</p>
+
+  <div class="foot">Thank you for your business. Questions about this invoice? {{if .Seller.Email}}Write to {{.Seller.Email}}.{{else}}Reply to the receipt email.{{end}}</div>
+</body>
+</html>

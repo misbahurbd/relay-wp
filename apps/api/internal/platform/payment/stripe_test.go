@@ -668,10 +668,10 @@ func TestStripeWebhookFixtures(t *testing.T) {
 		}},
 		{"invoice_paid_subscription_create", EventCheckoutCompleted, true, func(t *testing.T, ev Event) {
 			p := ev.Payment
-			if p == nil || p.ExternalID != "pi_inv_1" || p.InvoiceNumber != "RELAY-0001" || p.ExternalSubscriptionID != "sub_1" ||
+			if p == nil || p.ExternalID != "pi_inv_1" || p.ExternalSubscriptionID != "sub_1" ||
 				p.ExternalScheduleID != "sub_sched_1" || p.SubtotalMinor != 2900 || p.DiscountMinor != 580 ||
 				p.TotalMinor != 2320 || p.TotalMinor != p.SubtotalMinor-p.DiscountMinor+p.TaxMinor ||
-				p.PeriodEnd == nil || p.PaidAt == nil || p.ReceiptURL == "" {
+				p.PeriodEnd == nil || p.PaidAt == nil {
 				t.Fatalf("payment = %+v", p)
 			}
 		}},

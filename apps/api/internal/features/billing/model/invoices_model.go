@@ -25,8 +25,9 @@ const InvoicePageSize = 25
 // Invoice is one charge: a subscription period, an order payment or an installment.
 // TotalMinor = SubtotalMinor - DiscountMinor + TaxMinor.
 type Invoice struct {
-	ID             uuid.UUID
-	Number         *string // the provider's number at launch (Q19)
+	ID uuid.UUID
+	// Number is Relay's (RLY-2026-000001), on paid invoices only (Q19).
+	Number         *string
 	SubscriptionID *uuid.UUID
 	OrderID        *uuid.UUID
 	InstallmentID  *uuid.UUID
@@ -39,9 +40,10 @@ type Invoice struct {
 	Currency       string
 	PeriodStart    *time.Time
 	PeriodEnd      *time.Time
-	ReceiptURL     *string
-	PaidAt         *time.Time
-	CreatedAt      time.Time
+	// PDFURL is a short-lived download link, once the invoice document is ready.
+	PDFURL    *string
+	PaidAt    *time.Time
+	CreatedAt time.Time
 	// BillTo is set on a single invoice, not in lists.
 	BillTo *BillTo
 }

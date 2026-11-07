@@ -766,10 +766,9 @@ func (g *stripeGateway) invoicePayment(
 	ctx context.Context, inv *stripe.Invoice, meta *stripe.InvoiceParentSubscriptionDetails,
 ) (*Payment, error) {
 	p := &Payment{
-		ExternalID: inv.ID, InvoiceNumber: inv.Number, ExternalCustomerID: stripeID(inv.Customer),
+		ExternalID: inv.ID, ExternalCustomerID: stripeID(inv.Customer),
 		ExternalSubscriptionID: meta.Subscription.ID, ExternalScheduleID: meta.Metadata[stripeMetaSchedule],
 		SubtotalMinor: inv.Subtotal, TotalMinor: inv.Total, Currency: strings.ToUpper(string(inv.Currency)),
-		ReceiptURL: inv.HostedInvoiceURL,
 	}
 	for _, d := range inv.TotalDiscountAmounts {
 		p.DiscountMinor += d.Amount

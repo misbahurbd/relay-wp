@@ -78,6 +78,8 @@ func newAuthEnv(t *testing.T) *authEnv {
 				EmailCodeKey: base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{7}, 32)), TermsVersion: "test",
 			},
 			Trial:    config.Trial{Plan: "growth"},
+			Invoices: config.Invoices{NumberPrefix: "RLY", SellerName: "Relay"},
+			PDF:      config.PDF{Renderer: "local"},
 			WhatsApp: testWhatsAppConfig(),
 		},
 		log: slog.Default(), db: pool, queue: q, oauth: fake.config(), graphURL: graph.srv.URL,

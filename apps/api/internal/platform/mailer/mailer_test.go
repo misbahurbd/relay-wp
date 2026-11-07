@@ -52,6 +52,7 @@ func TestSMTPSend(t *testing.T) {
 	}
 	err = m.Send(context.Background(), mailer.Message{
 		To: []string{"dev@relay.test"}, Subject: "Relay SMTP test", Text: "Plain body", HTML: "<p>HTML body</p>",
+		Attachments: []mailer.Attachment{{Filename: "RLY-TEST-000001.pdf", ContentType: "application/pdf", Data: []byte("%PDF-1.4 test\n%%EOF")}},
 	})
 	if err != nil {
 		t.Fatal(err)

@@ -5543,7 +5543,7 @@
             "type": "string"
           },
           "number": {
-            "description": "The provider's invoice number",
+            "description": "Relay's invoice number, e.g. RLY-2026-000001; paid invoices only",
             "type": [
               "string",
               "null"
@@ -5554,6 +5554,13 @@
           },
           "paid_at": {
             "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pdf_url": {
+            "description": "Short-lived link that downloads the invoice PDF; null until it is ready",
             "type": [
               "string",
               "null"
@@ -5581,12 +5588,6 @@
               "sslcommerz"
             ],
             "type": "string"
-          },
-          "receipt_url": {
-            "type": [
-              "string",
-              "null"
-            ]
           },
           "status": {
             "enum": [
@@ -5632,7 +5633,7 @@
           "currency",
           "period_start",
           "period_end",
-          "receipt_url",
+          "pdf_url",
           "paid_at",
           "created_at"
         ],

@@ -480,10 +480,16 @@ type Invoice struct {
 	BillTo            []byte
 	DiscountID        *uuid.UUID
 	DiscountMinor     int64
-	ReceiptUrl        *string
 	PaidAt            *time.Time
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
+	PdfKey            *string
+	EmailedAt         *time.Time
+}
+
+type InvoiceNumberCounter struct {
+	Year    int32
+	LastSeq int32
 }
 
 type LimitChange struct {

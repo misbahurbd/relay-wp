@@ -765,7 +765,7 @@ func (s *Service) activateSubscription(ctx context.Context, tx pgx.Tx, session m
 		// Relay worked the discount into the amount charged.
 		discountMinor = session.DiscountMinor
 	}
-	if _, err := createInvoice(ctx, r, ws, invoiceInput{
+	if _, err := s.createInvoice(ctx, tx, ws, invoiceInput{
 		Provider: session.Provider, SubscriptionID: &subID, CheckoutSessionID: &session.ID, Payment: p, Paid: true,
 		BillTo: billTo, DiscountID: session.DiscountID, DiscountMinor: discountMinor, Now: now,
 	}); err != nil {
@@ -853,9 +853,9 @@ type invoiceInput struct {
 	Now           time.Time
 }
 
-// createInvoice records a payment. False means the provider's payment is
-// already recorded (a replayed webhook).
-func createInvoice(ctx context.Context, r repository.Repository, workspaceID uuid.UUID, in invoiceInput) (bool, error) {
+// createInvoice records a payment in tx. False means the provider's payment
+// is already recorded (a replayed webhook).
+func (s *Service) createInvoice(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID, in invoiceInput) (bool, error) {
 	billTo, err := json.Marshal(in.BillTo)
 	if err != nil {
 		return false, fmt.Errorf("encode bill_to: %w", err)
@@ -880,22 +880,15 @@ func createInvoice(ctx context.Context, r repository.Repository, workspaceID uui
 			paidAt = &now
 		}
 	}
-	_, err = r.CreateInvoice(ctx, gen.CreateInvoiceParams{
-		WorkspaceID: workspaceID, Number: nilIfEmpty(p.InvoiceNumber), SubscriptionID: in.SubscriptionID,
+	return s.issueInvoice(ctx, tx, gen.CreateInvoiceParams{
+		WorkspaceID: workspaceID, SubscriptionID: in.SubscriptionID,
 		OrderID: in.OrderID, CheckoutSessionID: in.CheckoutSessionID, Provider: string(in.Provider),
 		ExternalPaymentID: nilIfEmpty(p.ExternalID), Status: status,
 		// total = subtotal - discount + tax always holds, whatever the provider rounded.
 		SubtotalMinor: p.TotalMinor - p.TaxMinor + discount, TaxMinor: p.TaxMinor, TotalMinor: p.TotalMinor,
 		Currency: p.Currency, PeriodStart: p.PeriodStart, PeriodEnd: p.PeriodEnd, BillTo: billTo,
-		DiscountID: discountID, DiscountMinor: discount, ReceiptUrl: nilIfEmpty(p.ReceiptURL), PaidAt: paidAt,
+		DiscountID: discountID, DiscountMinor: discount, PaidAt: paidAt,
 	})
-	if repository.IsNoRows(err) {
-		return false, nil
-	}
-	if err != nil {
-		return false, fmt.Errorf("create invoice: %w", err)
-	}
-	return true, nil
 }
 
 // setCustomerExternalID stores the provider's customer ID the first time it is seen.

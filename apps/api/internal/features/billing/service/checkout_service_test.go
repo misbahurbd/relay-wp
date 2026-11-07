@@ -186,9 +186,10 @@ func TestCompleteTestCheckoutGoesThroughTheWebhook(t *testing.T) {
 	if c, err := e.svc.CheckoutSession(e.ctx, e.ws, started.Session.ID); err != nil || c.Status != model.CheckoutCompleted {
 		t.Fatalf("session after the webhook: %+v, %v", c, err)
 	}
-	// Done once: a second call changes nothing.
-	if _, err := e.svc.CompleteTestCheckout(e.ctx, e.ws, started.Session.ID); err != nil || len(queue.all()) != 1 {
-		t.Errorf("second call: %v, %d jobs", err, len(queue.all()))
+	// Done once: a second call queues nothing (the webhook queued the invoice document).
+	queued := len(queue.all())
+	if _, err := e.svc.CompleteTestCheckout(e.ctx, e.ws, started.Session.ID); err != nil || len(queue.all()) != queued {
+		t.Errorf("second call: %v, %d jobs, want %d", err, len(queue.all()), queued)
 	}
 	if _, err := e.svc.CompleteTestCheckout(e.ctx, e.ws, uuid.New()); !errors.Is(err, model.ErrCheckoutNotFound) {
 		t.Errorf("unknown session: %v", err)

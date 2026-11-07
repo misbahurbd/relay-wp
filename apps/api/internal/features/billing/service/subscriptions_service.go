@@ -524,7 +524,7 @@ func (s *Service) ApplySubscriptionPayment(ctx context.Context, tx pgx.Tx, works
 		Provider: sub.Provider, SubscriptionID: &sub.ID, Payment: p, Paid: paid, BillTo: billTo, DiscountID: sub.DiscountID,
 		Now: s.now(),
 	}
-	if created, err := createInvoice(ctx, r, workspaceID, inv); err != nil || !created {
+	if created, err := s.createInvoice(ctx, tx, workspaceID, inv); err != nil || !created {
 		return err // a replayed payment adds nothing
 	}
 	if !paid || sub.Status == model.SubscriptionCanceled {

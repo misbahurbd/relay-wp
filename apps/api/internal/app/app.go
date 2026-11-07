@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -42,6 +43,7 @@ import (
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/mailer"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/middleware"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/payment"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/pdf"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/queue"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/realtime"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/storage"
@@ -92,6 +94,8 @@ type App struct {
 
 	// payments is the payment gateway registry; tests set it to fakes before New builds features.
 	payments *payment.Registry
+	// pdf renders invoice PDFs (PDF_RENDERER); tests may set a fake before New builds features.
+	pdf pdf.Renderer
 
 	// oauth overrides the provider config built from cfg; tests point it at a fake provider.
 	oauth *authservice.ProvidersConfig
@@ -252,8 +256,24 @@ func (a *App) buildBilling() error {
 	if a.log != nil {
 		a.log.Info("payment providers", "enabled", a.payments.Providers())
 	}
-	a.billing = billingservice.New(a.db, a.payments, a.queue, billingservice.Config{
-		AppBaseURL: a.cfg.AppBaseURL, TrialPlan: a.cfg.Trial.Plan,
+	if a.pdf == nil {
+		r, err := pdf.New(a.cfg.PDF)
+		if err != nil {
+			return err
+		}
+		a.pdf = r
+	}
+	inv := a.cfg.Invoices
+	if !invoicePrefix.MatchString(inv.NumberPrefix) {
+		return fmt.Errorf("INVOICE_NUMBER_PREFIX %q: want 1 to 10 capital letters or digits", inv.NumberPrefix)
+	}
+	a.billing = billingservice.New(a.db, a.payments, a.queue, billingservice.Documents{
+		Renderer: a.pdf, Storage: a.storage, Mailer: a.mailer,
+	}, billingservice.Config{
+		AppBaseURL: a.cfg.AppBaseURL, TrialPlan: a.cfg.Trial.Plan, InvoicePrefix: inv.NumberPrefix,
+		Seller: billingservice.Seller{
+			Name: inv.SellerName, AddressLines: addressLines(inv.SellerAddress), Email: inv.SellerEmail, TaxID: inv.SellerTaxID,
+		},
 	}, a.log)
 	a.team.SetPlanLimits(a.billing)
 	a.whatsapp.SetPlanLimits(a.billing)
@@ -261,6 +281,21 @@ func (a *App) buildBilling() error {
 	a.workspaces.SetBilling(deletionGuard{a.billing})
 	a.workspaces.SetTrials(a.billing)
 	return nil
+}
+
+// invoicePrefix is what INVOICE_NUMBER_PREFIX may be: it starts RLY-2026-000001.
+var invoicePrefix = regexp.MustCompile(`^[A-Z0-9]{1,10}$`)
+
+// addressLines splits INVOICE_SELLER_ADDRESS on literal "\n" (how a .env
+// file writes it) or real newlines, dropping blank lines.
+func addressLines(s string) []string {
+	var out []string
+	for l := range strings.SplitSeq(strings.ReplaceAll(s, `\n`, "\n"), "\n") {
+		if l = strings.TrimSpace(l); l != "" {
+			out = append(out, l)
+		}
+	}
+	return out
 }
 
 // buildInbox wires the inbox to whatsapp, contacts, templates, team and

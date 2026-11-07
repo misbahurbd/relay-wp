@@ -101,7 +101,7 @@ func newEventsEnv(t *testing.T) *eventsEnv {
 	q := &recordingQueue{}
 	return &eventsEnv{
 		t: t, ctx: context.Background(), pool: pool, fake: fake, queue: q, logs: logs,
-		svc: New(pool, reg, q, Config{}, log), repo: repository.NewRepository(pool), run: uuid.NewString()[:8],
+		svc: New(pool, reg, q, testDocuments(t), Config{}, log), repo: repository.NewRepository(pool), run: uuid.NewString()[:8],
 	}
 }
 

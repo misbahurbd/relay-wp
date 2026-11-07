@@ -28,6 +28,22 @@ func (w *ProcessPaymentEventWorker) Work(ctx context.Context, job *river.Job[mod
 	return w.svc.ProcessPaymentEvent(ctx, job.Args.PaymentEventID, job.Args.Event)
 }
 
+// InvoiceDocumentWorker works InvoiceDocumentArgs.
+type InvoiceDocumentWorker struct {
+	river.WorkerDefaults[model.InvoiceDocumentArgs]
+	svc *service.Service
+}
+
+// NewInvoiceDocumentWorker builds the worker.
+func NewInvoiceDocumentWorker(svc *service.Service) *InvoiceDocumentWorker {
+	return &InvoiceDocumentWorker{svc: svc}
+}
+
+// Work renders, stores and emails one invoice's PDF; each step runs once.
+func (w *InvoiceDocumentWorker) Work(ctx context.Context, job *river.Job[model.InvoiceDocumentArgs]) error {
+	return w.svc.DeliverInvoiceDocument(ctx, job.Args.WorkspaceID, job.Args.InvoiceID)
+}
+
 // InstallmentsDueWorker works InstallmentsDueArgs.
 type InstallmentsDueWorker struct {
 	river.WorkerDefaults[model.InstallmentsDueArgs]

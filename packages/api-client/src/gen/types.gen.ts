@@ -1798,15 +1798,18 @@ export type InvoiceDto = {
     id: string;
     installment_id: string;
     /**
-     * The provider's invoice number
+     * Relay's invoice number, e.g. RLY-2026-000001; paid invoices only
      */
     number: string | null;
     order_id: string;
     paid_at: string | null;
+    /**
+     * Short-lived link that downloads the invoice PDF; null until it is ready
+     */
+    pdf_url: string | null;
     period_end: string | null;
     period_start: string | null;
     provider: 'stripe' | 'creem' | 'paypal' | 'sslcommerz';
-    receipt_url: string | null;
     status: 'open' | 'paid' | 'failed' | 'void' | 'partially_refunded' | 'refunded' | 'disputed';
     subscription_id: string;
     subtotal_minor: number;

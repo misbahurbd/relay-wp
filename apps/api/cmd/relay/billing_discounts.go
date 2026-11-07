@@ -58,7 +58,7 @@ func runBilling(ctx context.Context, cfg config.Config, log *slog.Logger, args [
 }
 
 // newBillingService builds the billing service the way internal/app does,
-// without a job queue: these commands enqueue nothing.
+// without a job queue or invoice documents: these commands issue no invoices.
 func newBillingService(ctx context.Context, cfg config.Config, log *slog.Logger) (*billingservice.Service, func(), error) {
 	payments, err := payment.New(cfg.Payment, cfg.IsDevelopment())
 	if err != nil {
@@ -68,7 +68,7 @@ func newBillingService(ctx context.Context, cfg config.Config, log *slog.Logger)
 	if err != nil {
 		return nil, nil, fmt.Errorf("database: %w", err)
 	}
-	svc := billingservice.New(pool, payments, nil, billingservice.Config{AppBaseURL: cfg.AppBaseURL}, log)
+	svc := billingservice.New(pool, payments, nil, billingservice.Documents{}, billingservice.Config{AppBaseURL: cfg.AppBaseURL}, log)
 	return svc, pool.Close, nil
 }
 

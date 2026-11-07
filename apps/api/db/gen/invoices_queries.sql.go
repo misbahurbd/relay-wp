@@ -14,21 +14,19 @@ import (
 
 const createInvoice = `-- name: CreateInvoice :one
 
-INSERT INTO invoices (workspace_id, number, subscription_id, order_id, installment_id, checkout_session_id, provider,
+INSERT INTO invoices (workspace_id, subscription_id, order_id, installment_id, checkout_session_id, provider,
                       external_payment_id, status, subtotal_minor, tax_minor, total_minor, currency, period_start,
-                      period_end, bill_to, discount_id, discount_minor, receipt_url, paid_at)
+                      period_end, bill_to, discount_id, discount_minor, paid_at)
 VALUES ($1, $2, $3, $4,
-        $5, $6, $7, $8,
-        $9, $10, $11, $12, $13, $14,
-        $15, $16, $17, $18, $19,
-        $20)
+        $5, $6, $7, $8, $9,
+        $10, $11, $12, $13, $14, $15,
+        $16, $17, $18)
 ON CONFLICT (provider, external_payment_id) DO NOTHING
 RETURNING id
 `
 
 type CreateInvoiceParams struct {
 	WorkspaceID       uuid.UUID
-	Number            *string
 	SubscriptionID    *uuid.UUID
 	OrderID           *uuid.UUID
 	InstallmentID     *uuid.UUID
@@ -45,16 +43,15 @@ type CreateInvoiceParams struct {
 	BillTo            []byte
 	DiscountID        *uuid.UUID
 	DiscountMinor     int64
-	ReceiptUrl        *string
 	PaidAt            *time.Time
 }
 
 // ---------- Invoices (kept forever) ----------
 // ON CONFLICT: a replayed webhook for the same payment adds nothing; no row back.
+// A paid invoice gets its number afterwards, in the same transaction (NextInvoiceSeq).
 func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, createInvoice,
 		arg.WorkspaceID,
-		arg.Number,
 		arg.SubscriptionID,
 		arg.OrderID,
 		arg.InstallmentID,
@@ -71,7 +68,6 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (u
 		arg.BillTo,
 		arg.DiscountID,
 		arg.DiscountMinor,
-		arg.ReceiptUrl,
 		arg.PaidAt,
 	)
 	var id uuid.UUID
@@ -151,7 +147,7 @@ func (q *Queries) FindInvoiceByExternalPaymentID(ctx context.Context, arg FindIn
 
 const getInvoice = `-- name: GetInvoice :one
 SELECT id, number, subscription_id, order_id, installment_id, provider, status, subtotal_minor, tax_minor,
-       total_minor, currency, period_start, period_end, bill_to, discount_minor, receipt_url, paid_at, created_at
+       total_minor, currency, period_start, period_end, bill_to, discount_minor, pdf_key, paid_at, created_at
 FROM invoices
 WHERE workspace_id = $1 AND id = $2
 `
@@ -177,7 +173,7 @@ type GetInvoiceRow struct {
 	PeriodEnd      *time.Time
 	BillTo         []byte
 	DiscountMinor  int64
-	ReceiptUrl     *string
+	PdfKey         *string
 	PaidAt         *time.Time
 	CreatedAt      time.Time
 }
@@ -201,9 +197,88 @@ func (q *Queries) GetInvoice(ctx context.Context, arg GetInvoiceParams) (GetInvo
 		&i.PeriodEnd,
 		&i.BillTo,
 		&i.DiscountMinor,
-		&i.ReceiptUrl,
+		&i.PdfKey,
 		&i.PaidAt,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getInvoiceDocument = `-- name: GetInvoiceDocument :one
+SELECT i.id, i.number, i.provider, i.status, i.subtotal_minor, i.discount_minor, i.tax_minor, i.total_minor,
+       i.currency, i.period_start, i.period_end, i.bill_to, i.paid_at, i.pdf_key, i.emailed_at,
+       i.order_id, i.installment_id, w.name AS workspace_name, pl.name AS plan_name, pp.interval AS plan_interval,
+       inst.seq AS installment_seq,
+       (SELECT count(*) FROM installments c WHERE c.workspace_id = i.workspace_id AND c.order_id = i.order_id)::int
+           AS installment_count
+FROM invoices i
+JOIN workspaces w ON w.id = i.workspace_id
+LEFT JOIN subscriptions s ON s.id = i.subscription_id AND s.workspace_id = i.workspace_id
+LEFT JOIN orders o ON o.id = i.order_id AND o.workspace_id = i.workspace_id
+JOIN plan_prices pp ON pp.id = COALESCE(s.plan_price_id, o.plan_price_id)
+JOIN plans pl ON pl.id = pp.plan_id
+LEFT JOIN installments inst ON inst.id = i.installment_id AND inst.workspace_id = i.workspace_id
+WHERE i.workspace_id = $1 AND i.id = $2
+`
+
+type GetInvoiceDocumentParams struct {
+	WorkspaceID uuid.UUID
+	InvoiceID   uuid.UUID
+}
+
+type GetInvoiceDocumentRow struct {
+	ID               uuid.UUID
+	Number           *string
+	Provider         string
+	Status           string
+	SubtotalMinor    int64
+	DiscountMinor    int64
+	TaxMinor         int64
+	TotalMinor       int64
+	Currency         string
+	PeriodStart      *time.Time
+	PeriodEnd        *time.Time
+	BillTo           []byte
+	PaidAt           *time.Time
+	PdfKey           *string
+	EmailedAt        *time.Time
+	OrderID          *uuid.UUID
+	InstallmentID    *uuid.UUID
+	WorkspaceName    string
+	PlanName         string
+	PlanInterval     *string
+	InstallmentSeq   *int32
+	InstallmentCount int32
+}
+
+// Everything the invoice PDF and its email show. The plan comes through the
+// subscription's current price or the order's price.
+func (q *Queries) GetInvoiceDocument(ctx context.Context, arg GetInvoiceDocumentParams) (GetInvoiceDocumentRow, error) {
+	row := q.db.QueryRow(ctx, getInvoiceDocument, arg.WorkspaceID, arg.InvoiceID)
+	var i GetInvoiceDocumentRow
+	err := row.Scan(
+		&i.ID,
+		&i.Number,
+		&i.Provider,
+		&i.Status,
+		&i.SubtotalMinor,
+		&i.DiscountMinor,
+		&i.TaxMinor,
+		&i.TotalMinor,
+		&i.Currency,
+		&i.PeriodStart,
+		&i.PeriodEnd,
+		&i.BillTo,
+		&i.PaidAt,
+		&i.PdfKey,
+		&i.EmailedAt,
+		&i.OrderID,
+		&i.InstallmentID,
+		&i.WorkspaceName,
+		&i.PlanName,
+		&i.PlanInterval,
+		&i.InstallmentSeq,
+		&i.InstallmentCount,
 	)
 	return i, err
 }
@@ -259,7 +334,7 @@ func (q *Queries) GetOrderRefundTotals(ctx context.Context, arg GetOrderRefundTo
 
 const listInvoices = `-- name: ListInvoices :many
 SELECT id, number, subscription_id, order_id, installment_id, provider, status, subtotal_minor, tax_minor,
-       total_minor, currency, period_start, period_end, discount_minor, receipt_url, paid_at, created_at
+       total_minor, currency, period_start, period_end, discount_minor, pdf_key, paid_at, created_at
 FROM invoices
 WHERE workspace_id = $1
   AND ($2::timestamptz IS NULL
@@ -290,7 +365,7 @@ type ListInvoicesRow struct {
 	PeriodStart    *time.Time
 	PeriodEnd      *time.Time
 	DiscountMinor  int64
-	ReceiptUrl     *string
+	PdfKey         *string
 	PaidAt         *time.Time
 	CreatedAt      time.Time
 }
@@ -325,7 +400,7 @@ func (q *Queries) ListInvoices(ctx context.Context, arg ListInvoicesParams) ([]L
 			&i.PeriodStart,
 			&i.PeriodEnd,
 			&i.DiscountMinor,
-			&i.ReceiptUrl,
+			&i.PdfKey,
 			&i.PaidAt,
 			&i.CreatedAt,
 		); err != nil {
@@ -337,6 +412,82 @@ func (q *Queries) ListInvoices(ctx context.Context, arg ListInvoicesParams) ([]L
 		return nil, err
 	}
 	return items, nil
+}
+
+const markInvoiceEmailed = `-- name: MarkInvoiceEmailed :execrows
+UPDATE invoices
+SET emailed_at = $1
+WHERE workspace_id = $2 AND id = $3 AND emailed_at IS NULL
+`
+
+type MarkInvoiceEmailedParams struct {
+	EmailedAt   *time.Time
+	WorkspaceID uuid.UUID
+	InvoiceID   uuid.UUID
+}
+
+func (q *Queries) MarkInvoiceEmailed(ctx context.Context, arg MarkInvoiceEmailedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markInvoiceEmailed, arg.EmailedAt, arg.WorkspaceID, arg.InvoiceID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const nextInvoiceSeq = `-- name: NextInvoiceSeq :one
+INSERT INTO invoice_number_counters (year, last_seq)
+VALUES ($1, 1)
+ON CONFLICT (year) DO UPDATE SET last_seq = invoice_number_counters.last_seq + 1
+RETURNING last_seq
+`
+
+// The year's next invoice number. The row lock holds until the transaction
+// ends, so a rollback hands the same number to the next paid invoice: no gaps.
+func (q *Queries) NextInvoiceSeq(ctx context.Context, year int32) (int32, error) {
+	row := q.db.QueryRow(ctx, nextInvoiceSeq, year)
+	var last_seq int32
+	err := row.Scan(&last_seq)
+	return last_seq, err
+}
+
+const setInvoiceNumber = `-- name: SetInvoiceNumber :execrows
+UPDATE invoices
+SET number = $1
+WHERE workspace_id = $2 AND id = $3 AND number IS NULL
+`
+
+type SetInvoiceNumberParams struct {
+	Number      *string
+	WorkspaceID uuid.UUID
+	InvoiceID   uuid.UUID
+}
+
+func (q *Queries) SetInvoiceNumber(ctx context.Context, arg SetInvoiceNumberParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setInvoiceNumber, arg.Number, arg.WorkspaceID, arg.InvoiceID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setInvoicePDFKey = `-- name: SetInvoicePDFKey :execrows
+UPDATE invoices
+SET pdf_key = $1
+WHERE workspace_id = $2 AND id = $3 AND pdf_key IS NULL
+`
+
+type SetInvoicePDFKeyParams struct {
+	PdfKey      *string
+	WorkspaceID uuid.UUID
+	InvoiceID   uuid.UUID
+}
+
+func (q *Queries) SetInvoicePDFKey(ctx context.Context, arg SetInvoicePDFKeyParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setInvoicePDFKey, arg.PdfKey, arg.WorkspaceID, arg.InvoiceID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const setInvoiceStatus = `-- name: SetInvoiceStatus :execrows

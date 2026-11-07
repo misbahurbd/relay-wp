@@ -18,6 +18,19 @@ type ProcessPaymentEventArgs struct {
 // Kind is the job's stable name in the river_job table.
 func (ProcessPaymentEventArgs) Kind() string { return "billing_process_payment_event" }
 
+// InvoiceDocumentArgs renders a paid invoice's PDF, stores it and emails it
+// to the billing contact. It is enqueued with the invoice, in its transaction.
+type InvoiceDocumentArgs struct {
+	WorkspaceID uuid.UUID `json:"workspace_id"`
+	InvoiceID   uuid.UUID `json:"invoice_id"`
+}
+
+// Kind is the job's stable name in the river_job table.
+func (InvoiceDocumentArgs) Kind() string { return "billing_invoice_document" }
+
+// InsertOpts retries a failed render or send with River's backoff, for most of a day.
+func (InvoiceDocumentArgs) InsertOpts() river.InsertOpts { return river.InsertOpts{MaxAttempts: 12} }
+
 // InstallmentsDueArgs is the daily installments pass: mark due, remind,
 // mark overdue and suspend, default (Q2).
 type InstallmentsDueArgs struct{}
@@ -64,6 +77,7 @@ func (StuckPaymentEventsArgs) Kind() string { return "billing_stuck_payment_even
 // Ensure every job's args satisfy River's interface.
 var (
 	_ river.JobArgs = ProcessPaymentEventArgs{}
+	_ river.JobArgs = InvoiceDocumentArgs{}
 	_ river.JobArgs = InstallmentsDueArgs{}
 	_ river.JobArgs = ExpireTrialsArgs{}
 	_ river.JobArgs = ExpireCheckoutsArgs{}

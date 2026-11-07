@@ -457,9 +457,7 @@ func (e Event) LogValue() slog.Value {
 // units and TotalMinor = SubtotalMinor - DiscountMinor + TaxMinor.
 type Payment struct {
 	// ExternalID is stored in invoices.external_payment_id.
-	ExternalID string `json:"external_id"`
-	// InvoiceNumber is the provider's invoice number (Q19), if it issued one.
-	InvoiceNumber          string     `json:"invoice_number,omitempty"`
+	ExternalID             string     `json:"external_id"`
 	ExternalCustomerID     string     `json:"external_customer_id,omitempty"`
 	ExternalSubscriptionID string     `json:"external_subscription_id,omitempty"`
 	ExternalScheduleID     string     `json:"external_schedule_id,omitempty"`
@@ -470,7 +468,6 @@ type Payment struct {
 	Currency               string     `json:"currency"`
 	PeriodStart            *time.Time `json:"period_start,omitempty"`
 	PeriodEnd              *time.Time `json:"period_end,omitempty"`
-	ReceiptURL             string     `json:"receipt_url,omitempty"`
 	PaidAt                 *time.Time `json:"paid_at,omitempty"`
 	// Status is set for disputes: "won" or "lost" when closed.
 	Status string `json:"status,omitempty"`

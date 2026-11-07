@@ -305,7 +305,7 @@ func (l lifetimeDeals) completeOrderCheckout(ctx context.Context, tx pgx.Tx, wor
 			inst = &v
 		}
 		if (inst != nil && inst.Status == model.InstallmentPaid) || p.TotalMinor-p.TaxMinor > o.BalanceMinor() {
-			return l.refundDuplicate(ctx, tx, r, o, inst, &session.ID, p)
+			return l.refundDuplicate(ctx, tx, o, inst, &session.ID, p)
 		}
 		recorded, o, err := l.recordPayment(ctx, tx, r, o, inst, &session.ID, p)
 		if err != nil || !recorded {
@@ -404,7 +404,7 @@ func (l lifetimeDeals) startOrder(ctx context.Context, tx pgx.Tx, r repository.R
 // already recorded (a replayed webhook) records nothing and returns false.
 // Paying more than the balance is model.ErrOverpayment.
 func (l lifetimeDeals) recordPayment(ctx context.Context, tx pgx.Tx, r repository.Repository, o model.Order, inst *model.Installment, sessionID *uuid.UUID, p payment.Payment) (bool, model.Order, error) {
-	created, err := l.orderInvoice(ctx, tx, r, o, inst, sessionID, p)
+	created, err := l.orderInvoice(ctx, tx, o, inst, sessionID, p)
 	if err != nil || !created {
 		return false, o, err
 	}
@@ -441,8 +441,8 @@ func (l lifetimeDeals) recordPayment(ctx context.Context, tx pgx.Tx, r repositor
 // Pay windows open for one installment, or a balance settled meanwhile. The
 // money is recorded on its own invoice and refunded in full, so the webhook
 // never fails over it and the customer isn't charged twice.
-func (l lifetimeDeals) refundDuplicate(ctx context.Context, tx pgx.Tx, r repository.Repository, o model.Order, inst *model.Installment, sessionID *uuid.UUID, p payment.Payment) error {
-	created, err := l.orderInvoice(ctx, tx, r, o, inst, sessionID, p)
+func (l lifetimeDeals) refundDuplicate(ctx context.Context, tx pgx.Tx, o model.Order, inst *model.Installment, sessionID *uuid.UUID, p payment.Payment) error {
+	created, err := l.orderInvoice(ctx, tx, o, inst, sessionID, p)
 	if err != nil || !created {
 		return err
 	}
@@ -462,7 +462,7 @@ func (l lifetimeDeals) refundDuplicate(ctx context.Context, tx pgx.Tx, r reposit
 
 // orderInvoice issues the paid invoice for an order payment. False means the
 // provider's payment is already recorded (a replayed webhook).
-func (l lifetimeDeals) orderInvoice(ctx context.Context, tx pgx.Tx, r repository.Repository, o model.Order, inst *model.Installment, sessionID *uuid.UUID, p payment.Payment) (bool, error) {
+func (l lifetimeDeals) orderInvoice(ctx context.Context, tx pgx.Tx, o model.Order, inst *model.Installment, sessionID *uuid.UUID, p payment.Payment) (bool, error) {
 	billTo, err := l.t3.billTo(ctx, tx, o.WorkspaceID)
 	if err != nil {
 		return false, err
@@ -483,20 +483,13 @@ func (l lifetimeDeals) orderInvoice(ctx context.Context, tx pgx.Tx, r repository
 	if inst != nil {
 		installmentID = &inst.ID
 	}
-	_, err = r.CreateInvoice(ctx, gen.CreateInvoiceParams{
-		WorkspaceID: o.WorkspaceID, Number: nonEmpty(p.InvoiceNumber), OrderID: &o.ID, InstallmentID: installmentID,
+	return l.issueInvoice(ctx, tx, gen.CreateInvoiceParams{
+		WorkspaceID: o.WorkspaceID, OrderID: &o.ID, InstallmentID: installmentID,
 		CheckoutSessionID: sessionID, Provider: string(o.Provider), ExternalPaymentID: nonEmpty(p.ExternalID),
 		Status: model.InvoicePaid, SubtotalMinor: p.SubtotalMinor, TaxMinor: p.TaxMinor, TotalMinor: p.TotalMinor,
 		Currency: p.Currency, PeriodStart: p.PeriodStart, PeriodEnd: p.PeriodEnd, BillTo: rawBillTo,
-		DiscountID: discountID, DiscountMinor: p.DiscountMinor, ReceiptUrl: nonEmpty(p.ReceiptURL), PaidAt: &paidAt,
+		DiscountID: discountID, DiscountMinor: p.DiscountMinor, PaidAt: &paidAt,
 	})
-	if repository.IsNoRows(err) {
-		return false, nil
-	}
-	if err != nil {
-		return false, fmt.Errorf("create invoice: %w", err)
-	}
-	return true, nil
 }
 
 // settle brings a live order up to date after a later payment: paid once
@@ -595,8 +588,8 @@ func (l lifetimeDeals) stopSchedule(ctx context.Context, o model.Order) error {
 }
 
 // billingURL is the billing settings page of one workspace, for emails.
-func (l lifetimeDeals) billingURL(workspaceID uuid.UUID) string {
-	return l.cfg.AppBaseURL + "/billing?workspace=" + workspaceID.String()
+func (s *Service) billingURL(workspaceID uuid.UUID) string {
+	return s.cfg.AppBaseURL + "/billing?workspace=" + workspaceID.String()
 }
 
 // firstOpen is the earliest installment still to be paid, or nil.

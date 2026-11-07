@@ -21,7 +21,10 @@ import (
 	"github.com/riverqueue/river/rivertype"
 
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/model"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/mailer"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/payment"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/pdf"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/storage"
 )
 
 // Enqueuer inserts background jobs in a transaction.
@@ -39,6 +42,26 @@ type Config struct {
 	CheckoutTTL time.Duration
 	// EventPayloadTTL is how long payment_events.payload is kept.
 	EventPayloadTTL time.Duration
+	// InvoicePrefix starts Relay's invoice numbers (INVOICE_NUMBER_PREFIX).
+	InvoicePrefix string
+	// Seller is printed on every invoice.
+	Seller Seller
+}
+
+// Seller is who issues the invoice (INVOICE_SELLER_*).
+type Seller struct {
+	Name         string
+	AddressLines []string
+	Email        string
+	TaxID        string
+}
+
+// Documents renders, stores and emails invoice PDFs
+// (docs/adr/0016-invoice-pdf-renderer.md).
+type Documents struct {
+	Renderer pdf.Renderer
+	Storage  storage.Storage
+	Mailer   mailer.Mailer
 }
 
 // eventHandler applies one normalised webhook event inside the processing
@@ -50,6 +73,7 @@ type Service struct {
 	pool     *pgxpool.Pool
 	payments *payment.Registry
 	queue    Enqueuer
+	docs     Documents
 	cfg      Config
 	log      *slog.Logger
 	now      func() time.Time
@@ -59,15 +83,21 @@ type Service struct {
 }
 
 // New builds the service. payments may be empty: then nothing can be bought.
-func New(pool *pgxpool.Pool, payments *payment.Registry, queue Enqueuer, cfg Config, log *slog.Logger) *Service {
+func New(pool *pgxpool.Pool, payments *payment.Registry, queue Enqueuer, docs Documents, cfg Config, log *slog.Logger) *Service {
 	if cfg.CheckoutTTL == 0 {
 		cfg.CheckoutTTL = time.Hour
 	}
 	if cfg.EventPayloadTTL == 0 {
 		cfg.EventPayloadTTL = 90 * 24 * time.Hour
 	}
+	if cfg.InvoicePrefix == "" {
+		cfg.InvoicePrefix = "RLY"
+	}
+	if cfg.Seller.Name == "" {
+		cfg.Seller.Name = "Relay"
+	}
 	s := &Service{
-		pool: pool, payments: payments, queue: queue, cfg: cfg, log: log,
+		pool: pool, payments: payments, queue: queue, docs: docs, cfg: cfg, log: log,
 		now: func() time.Time { return time.Now().UTC() },
 	}
 	s.events = s.eventHandlers()
