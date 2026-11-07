@@ -7,8 +7,10 @@
 package repository
 
 import (
+	"context"
 	"errors"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -38,6 +40,26 @@ type Repository struct {
 // NewRepository wraps the sqlc queries for db, a pool or a transaction.
 func NewRepository(db database.DBTX) Repository {
 	return Repository{gen.New(db)}
+}
+
+// LockLiveSubscriptionWithin is LockLiveSubscription waiting at most wait
+// (a Postgres interval such as "2s") for the lock; IsLockTimeout tells the
+// wait ran out. Later locks in the transaction wait as long as they take.
+func (r Repository) LockLiveSubscriptionWithin(ctx context.Context, workspaceID uuid.UUID, wait string) (gen.LockLiveSubscriptionRow, error) {
+	if err := r.SetLockTimeout(ctx, wait); err != nil {
+		return gen.LockLiveSubscriptionRow{}, err
+	}
+	row, err := r.LockLiveSubscription(ctx, workspaceID)
+	if err != nil {
+		return row, err
+	}
+	return row, r.SetLockTimeout(ctx, "0")
+}
+
+// IsLockTimeout reports that a lock wasn't granted within the lock_timeout.
+func IsLockTimeout(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "55P03"
 }
 
 // IsNoRows reports whether err means the query matched no row.

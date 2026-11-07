@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -770,4 +771,90 @@ func TestRefusedProviderCancelIsRetried(t *testing.T) {
 	if outstanding {
 		t.Error("the subscription still shows a refused cancel after the provider took it")
 	}
+}
+
+// stalledChange is a provider that takes its time over ChangeSubscription:
+// it says when the call starts, then answers once released or once the
+// caller gives up.
+type stalledChange struct {
+	*payment.Fake
+	started chan struct{}
+	release chan struct{}
+}
+
+func (g stalledChange) ChangeSubscription(ctx context.Context, req payment.ChangeRequest) (payment.Subscription, error) {
+	g.started <- struct{}{}
+	select {
+	case <-g.release:
+	case <-ctx.Done():
+		return payment.Subscription{}, ctx.Err()
+	}
+	return g.Fake.ChangeSubscription(ctx, req)
+}
+
+// A second plan change while the first waits on the provider is refused at
+// once, instead of holding a pooled connection while it waits for the lock.
+func TestSecondPlanChangeIsRefusedWhileOneIsInProgress(t *testing.T) {
+	e := newT3Env(t)
+	basic := e.plan(t3PlanOpts{Monthly: 1000})
+	pro := e.plan(t3PlanOpts{Monthly: 3000})
+	big := e.plan(t3PlanOpts{Monthly: 5000})
+	sub := e.subscribe(basic.Monthly)
+	e.midPeriod(sub)
+	g := stalledChange{Fake: e.fake, started: make(chan struct{}, 2), release: make(chan struct{})}
+	reg, err := payment.NewRegistry(g)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.svc.payments = reg
+
+	first := make(chan error, 1)
+	go func() {
+		_, err := e.svc.ChangePlan(e.ctx, e.ws, e.user, pro.Monthly)
+		first <- err
+	}()
+	<-g.started
+	var once sync.Once
+	release := func() { once.Do(func() { close(g.release) }) }
+	time.AfterFunc(6*time.Second, release)
+	began := time.Now()
+	_, err = e.svc.ChangePlan(e.ctx, e.ws, e.user, big.Monthly)
+	waited := time.Since(began)
+	release()
+	if !errors.Is(err, model.ErrChangeInProgress) {
+		t.Fatalf("second change: %v, want ErrChangeInProgress", err)
+	}
+	if waited > 5*time.Second {
+		t.Errorf("second change waited %s for the lock", waited)
+	}
+	if err := <-first; err != nil {
+		t.Fatalf("first change: %v", err)
+	}
+	e.wantCache(e.ws, pro.Code)
+}
+
+// A provider that never answers doesn't keep the subscription locked: the
+// change gives up after providerCallTimeout and says the provider is down.
+func TestPlanChangeGivesUpOnAProviderThatNeverAnswers(t *testing.T) {
+	e := newT3Env(t)
+	basic := e.plan(t3PlanOpts{Monthly: 1000})
+	pro := e.plan(t3PlanOpts{Monthly: 3000})
+	sub := e.subscribe(basic.Monthly)
+	e.midPeriod(sub)
+	g := stalledChange{Fake: e.fake, started: make(chan struct{}, 1), release: make(chan struct{})}
+	reg, err := payment.NewRegistry(g)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.svc.payments = reg
+	defer func(d time.Duration) { providerCallTimeout = d }(providerCallTimeout)
+	providerCallTimeout = 200 * time.Millisecond
+	ctx, cancel := context.WithTimeout(e.ctx, 5*time.Second)
+	defer cancel()
+
+	_, err = e.svc.ChangePlan(ctx, e.ws, e.user, pro.Monthly)
+	if !errors.Is(err, model.ErrPaymentProviderDown) || ctx.Err() != nil {
+		t.Fatalf("change: %v (test deadline: %v), want ErrPaymentProviderDown within the provider bound", err, ctx.Err())
+	}
+	e.wantCache(e.ws, basic.Code)
 }

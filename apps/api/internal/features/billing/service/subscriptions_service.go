@@ -151,14 +151,19 @@ func prorate(amount int64, start, end, now time.Time) int64 {
 //
 // The subscription stays locked across the provider call: the upgrade's own
 // payment webhook locks it too (ApplySubscriptionPayment), so its invoice is
-// written after this change and names the new price.
+// written after this change and names the new price. The lock and the call
+// hold a pooled connection, so a second change waits briefly for the lock
+// (model.ErrChangeInProgress) and the call stops after providerCallTimeout.
 func (s *Service) ChangePlan(ctx context.Context, workspaceID, _, planPriceID uuid.UUID) (model.Subscription, error) {
 	var subID uuid.UUID
 	err := database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
 		r := repository.NewRepository(tx)
-		row, err := r.LockLiveSubscription(ctx, workspaceID)
+		row, err := r.LockLiveSubscriptionWithin(ctx, workspaceID, "2s")
 		if repository.IsNoRows(err) {
 			return model.ErrNoSubscription
+		}
+		if repository.IsLockTimeout(err) {
+			return model.ErrChangeInProgress
 		}
 		if err != nil {
 			return fmt.Errorf("lock live subscription: %w", err)
@@ -190,10 +195,12 @@ func (s *Service) ChangePlan(ctx context.Context, workspaceID, _, planPriceID uu
 		if err != nil {
 			return err
 		}
-		changed, err := g.ChangeSubscription(ctx, payment.ChangeRequest{
+		callCtx, cancel := context.WithTimeout(ctx, providerCallTimeout)
+		changed, err := g.ChangeSubscription(callCtx, payment.ChangeRequest{
 			ExternalSubscriptionID: extSub, ExternalPriceID: *pp.ExternalPriceID, ProrateNow: immediate,
 			IdempotencyKey: key,
 		})
+		cancel()
 		if err != nil {
 			return s.gatewayErr("change subscription", err)
 		}

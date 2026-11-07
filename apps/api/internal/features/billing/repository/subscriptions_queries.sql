@@ -41,6 +41,10 @@ FROM subscriptions
 WHERE workspace_id = @workspace_id AND status IN ('trialing', 'active', 'past_due')
 FOR UPDATE;
 
+-- name: SetLockTimeout :exec
+-- How long the transaction's next lock waits ('0' waits as long as it takes).
+SELECT set_config('lock_timeout', @lock_timeout::text, true);
+
 -- name: GetLatestSubscription :one
 -- The workspace's live subscription if it has one, else its most recent.
 SELECT id, workspace_id, plan_price_id, billing_customer_id, provider, external_subscription_id, renewal_mode, status,

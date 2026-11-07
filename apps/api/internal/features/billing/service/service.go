@@ -27,6 +27,11 @@ import (
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/storage"
 )
 
+// providerCallTimeout bounds a provider call made while a transaction holds
+// a pooled connection and row locks. Each HTTP request already stops at 20s,
+// but a call can be several requests with retries.
+var providerCallTimeout = 15 * time.Second
+
 // Enqueuer inserts background jobs in a transaction.
 type Enqueuer interface {
 	InsertTx(ctx context.Context, tx pgx.Tx, args river.JobArgs, opts *river.InsertOpts) (*rivertype.JobInsertResult, error)

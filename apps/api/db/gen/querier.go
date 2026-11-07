@@ -765,6 +765,8 @@ type Querier interface {
 	SetInvoiceNumber(ctx context.Context, arg SetInvoiceNumberParams) (int64, error)
 	SetInvoicePDFKey(ctx context.Context, arg SetInvoicePDFKeyParams) (int64, error)
 	SetInvoiceStatus(ctx context.Context, arg SetInvoiceStatusParams) (int64, error)
+	// How long the transaction's next lock waits ('0' waits as long as it takes).
+	SetLockTimeout(ctx context.Context, lockTimeout string) error
 	// Replaces the member's numbers with those of @number_ids that belong to the workspace.
 	// Returns how many were kept, so the caller can spot foreign IDs.
 	SetMemberNumbers(ctx context.Context, arg SetMemberNumbersParams) (int64, error)

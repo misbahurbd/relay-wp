@@ -811,6 +811,16 @@ func (q *Queries) MarkSubscriptionReconciled(ctx context.Context, arg MarkSubscr
 	return result.RowsAffected(), nil
 }
 
+const setLockTimeout = `-- name: SetLockTimeout :exec
+SELECT set_config('lock_timeout', $1::text, true)
+`
+
+// How long the transaction's next lock waits ('0' waits as long as it takes).
+func (q *Queries) SetLockTimeout(ctx context.Context, lockTimeout string) error {
+	_, err := q.db.Exec(ctx, setLockTimeout, lockTimeout)
+	return err
+}
+
 const setSubscriptionCancelAtPeriodEnd = `-- name: SetSubscriptionCancelAtPeriodEnd :execrows
 UPDATE subscriptions
 SET cancel_at_period_end = $1

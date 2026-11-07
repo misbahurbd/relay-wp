@@ -1054,7 +1054,7 @@ func (s *Service) gatewayErr(op string, err error) error {
 	switch {
 	case errors.Is(err, payment.ErrDeclined):
 		out = model.ErrPaymentProviderDeclined
-	case errors.Is(err, payment.ErrUnavailable):
+	case errors.Is(err, payment.ErrUnavailable), errors.Is(err, context.DeadlineExceeded):
 		out = model.ErrPaymentProviderDown
 	case errors.Is(err, payment.ErrUnsupported):
 		out = model.ErrChangeNotSupported

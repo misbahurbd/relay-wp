@@ -35,6 +35,7 @@ var (
 	ErrNotCanceling       = apperr.Conflict("not_canceling", "The subscription isn't set to cancel.")
 	ErrSubscriptionEnded  = apperr.Conflict("subscription_ended", "This subscription has ended.")
 	ErrChangeNotSupported = apperr.Conflict("change_not_supported", "This plan can't be changed online. Contact support.")
+	ErrChangeInProgress   = apperr.Conflict("change_in_progress", "A plan change is already in progress. Try again in a minute.")
 
 	// Orders and installments.
 	ErrNoOrder              = apperr.NotFound("order_not_found", "Order not found")
