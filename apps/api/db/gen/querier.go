@@ -549,6 +549,10 @@ type Querier interface {
 	LockContactCap(ctx context.Context, workspaceID uuid.UUID) error
 	LockConversation(ctx context.Context, arg LockConversationParams) (LockConversationRow, error)
 	LockCurrentGrant(ctx context.Context, workspaceID uuid.UUID) (LockCurrentGrantRow, error)
+	// Run before ReserveDiscount in the same transaction: ReserveDiscount counts
+	// the workspace's uses with its statement's snapshot, so a reservation that
+	// waited on another must start that statement after the other has committed.
+	LockDiscount(ctx context.Context, discountID uuid.UUID) error
 	LockInstallment(ctx context.Context, arg LockInstallmentParams) (LockInstallmentRow, error)
 	LockInvitation(ctx context.Context, arg LockInvitationParams) (LockInvitationRow, error)
 	// Webhooks only: refunds and disputes on one invoice apply one at a time.

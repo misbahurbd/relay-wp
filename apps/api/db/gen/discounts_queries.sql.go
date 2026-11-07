@@ -363,6 +363,18 @@ func (q *Queries) ListDiscounts(ctx context.Context, activeOnly bool) ([]ListDis
 	return items, nil
 }
 
+const lockDiscount = `-- name: LockDiscount :exec
+SELECT id FROM discounts WHERE id = $1 FOR UPDATE
+`
+
+// Run before ReserveDiscount in the same transaction: ReserveDiscount counts
+// the workspace's uses with its statement's snapshot, so a reservation that
+// waited on another must start that statement after the other has committed.
+func (q *Queries) LockDiscount(ctx context.Context, discountID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, lockDiscount, discountID)
+	return err
+}
+
 const reclaimDiscount = `-- name: ReclaimDiscount :execrows
 WITH bumped AS (
     UPDATE discounts d

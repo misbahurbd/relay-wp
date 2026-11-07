@@ -145,7 +145,11 @@ func amountOff(d model.Discount, base int64) int64 {
 // the repository's single-statement ReserveDiscount so max_redemptions holds
 // under concurrency. model.ErrDiscountUsedUp when nothing is left.
 func (s *Service) ReserveDiscount(ctx context.Context, tx pgx.Tx, workspaceID, sessionID uuid.UUID, d model.AppliedDiscount) error {
-	_, err := repository.NewRepository(tx).ReserveDiscount(ctx, gen.ReserveDiscountParams{
+	r := repository.NewRepository(tx)
+	if err := r.LockDiscount(ctx, d.Discount.ID); err != nil {
+		return fmt.Errorf("lock discount: %w", err)
+	}
+	_, err := r.ReserveDiscount(ctx, gen.ReserveDiscountParams{
 		WorkspaceID: workspaceID, CheckoutSessionID: sessionID, AmountMinor: d.DiscountMinor,
 		DiscountID: d.Discount.ID, Now: s.now(),
 	})

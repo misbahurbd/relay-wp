@@ -41,6 +41,12 @@ SELECT count(*)::int
 FROM discount_redemptions
 WHERE discount_id = @discount_id AND workspace_id = @workspace_id AND status <> 'released';
 
+-- name: LockDiscount :exec
+-- Run before ReserveDiscount in the same transaction: ReserveDiscount counts
+-- the workspace's uses with its statement's snapshot, so a reservation that
+-- waited on another must start that statement after the other has committed.
+SELECT id FROM discounts WHERE id = @discount_id FOR UPDATE;
+
 -- name: ReserveDiscount :one
 -- One statement: the conditional bump of redeemed_count takes the discount's
 -- row lock, so max_redemptions holds however many checkouts race for it.
