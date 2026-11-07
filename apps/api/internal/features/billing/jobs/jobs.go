@@ -195,6 +195,6 @@ func PeriodicJobs() []*river.PeriodicJob {
 		every(24*time.Hour, model.PlanCacheDriftArgs{}),
 		every(15*time.Minute, model.PastDueGraceArgs{}),
 		every(time.Hour, model.StuckPaymentEventsArgs{}),
-		every(time.Hour, model.InvoiceDocumentsSweepArgs{}),
+		every(15*time.Minute, model.InvoiceDocumentsSweepArgs{}),
 	}
 }

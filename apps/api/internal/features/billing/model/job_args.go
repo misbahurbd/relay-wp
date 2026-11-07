@@ -35,7 +35,7 @@ func (InvoiceDocumentArgs) InsertOpts() river.InsertOpts {
 }
 
 // InvoiceDocumentsSweepArgs queues the document job again for numbered
-// invoices still without a PDF a day after they were issued.
+// invoices still without a PDF ten minutes after they were issued.
 type InvoiceDocumentsSweepArgs struct{}
 
 // Kind is the job's stable name in the river_job table.

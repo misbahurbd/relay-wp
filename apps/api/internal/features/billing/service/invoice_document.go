@@ -100,13 +100,14 @@ func (s *Service) DeliverInvoiceDocument(ctx context.Context, workspaceID, invoi
 	return nil
 }
 
-// invoiceDocumentGrace is how long an invoice's own document job has before
-// the sweep queues another: longer than its 12 attempts take.
-const invoiceDocumentGrace = 24 * time.Hour
+// invoiceDocumentGrace is how long a new invoice's own document job has
+// before the sweep queues it. The job is unique by args, so a sweep can't add
+// a second job while the first is still waiting or retrying.
+const invoiceDocumentGrace = 10 * time.Minute
 
 // SweepInvoiceDocuments queues the document job for numbered invoices that
-// still have no PDF a day after they were issued, and returns how many.
-// Run hourly by the InvoiceDocumentsSweep worker.
+// still have no PDF ten minutes after they were issued, and returns how many.
+// Run every 15 minutes by the InvoiceDocumentsSweep worker.
 func (s *Service) SweepInvoiceDocuments(ctx context.Context) (int, error) {
 	rows, err := repository.NewRepository(s.pool).ListInvoicesWithoutPDF(ctx, gen.ListInvoicesWithoutPDFParams{
 		Before: s.now().Add(-invoiceDocumentGrace), MaxRows: jobBatch,

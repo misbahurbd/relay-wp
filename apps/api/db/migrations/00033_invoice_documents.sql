@@ -41,7 +41,7 @@ GROUP BY 1;
 
 ALTER TABLE invoices ADD CONSTRAINT invoices_number_key UNIQUE (number);
 
--- Past payments get their PDF from the hourly sweep, but no email: the
+-- Past payments get their PDF from the invoice document sweep, but no email: the
 -- customer was told about them long ago.
 UPDATE invoices SET emailed_at = COALESCE(paid_at, created_at) WHERE number IS NOT NULL;
 
