@@ -101,33 +101,39 @@ func (s *Service) DeliverInvoiceDocument(ctx context.Context, workspaceID, invoi
 }
 
 // invoiceDocumentGrace is how long a new invoice's own document job has
-// before the sweep queues it. The job is unique by args, so a sweep can't add
-// a second job while the first is still waiting or retrying.
+// before the sweep queues it.
 const invoiceDocumentGrace = 10 * time.Minute
 
-// SweepInvoiceDocuments queues the document job for numbered invoices that
-// still have no PDF ten minutes after they were issued, and returns how many.
-// Run every 15 minutes by the InvoiceDocumentsSweep worker.
+// SweepInvoiceDocuments queues the document job again for numbered invoices
+// whose PDF, or receipt email, is still undelivered ten minutes after they
+// were issued, and returns how many it claimed. Each invoice backs off between
+// sweeps (ClaimInvoicesToDeliver). The job is unique by args, so while an
+// earlier job for the invoice still waits or retries the sweep adds nothing,
+// and tries again after the backoff. Run every 15 minutes by the
+// InvoiceDocumentsSweep worker.
 func (s *Service) SweepInvoiceDocuments(ctx context.Context) (int, error) {
-	rows, err := repository.NewRepository(s.pool).ListInvoicesWithoutPDF(ctx, gen.ListInvoicesWithoutPDFParams{
-		Before: s.now().Add(-invoiceDocumentGrace), MaxRows: jobBatch,
-	})
-	if err != nil || len(rows) == 0 {
-		return 0, err
-	}
-	err = database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+	claimed := 0
+	err := database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+		now := s.now()
+		rows, err := repository.NewRepository(tx).ClaimInvoicesToDeliver(ctx, gen.ClaimInvoicesToDeliverParams{
+			Now: now, Before: now.Add(-invoiceDocumentGrace), MaxRows: jobBatch,
+		})
+		if err != nil {
+			return fmt.Errorf("claim invoices to deliver: %w", err)
+		}
 		for _, row := range rows {
 			args := model.InvoiceDocumentArgs{WorkspaceID: row.WorkspaceID, InvoiceID: row.ID}
 			if _, err := s.queue.InsertTx(ctx, tx, args, nil); err != nil {
 				return fmt.Errorf("enqueue invoice document: %w", err)
 			}
 		}
+		claimed = len(rows)
 		return nil
 	})
 	if err != nil {
 		return 0, err
 	}
-	return len(rows), nil
+	return claimed, nil
 }
 
 func (s *Service) renderInvoice(ctx context.Context, doc invoiceDoc) ([]byte, error) {
@@ -199,12 +205,12 @@ func invoiceDescription(row gen.GetInvoiceDocumentRow) string {
 			break
 		}
 		start, end := row.PeriodStart.UTC(), row.PeriodEnd.UTC()
-		// A proration is charged for part of a period, or for the difference
-		// between two prices over the current one (Creem reports the full
-		// period then), so its amount isn't the price's. Providers clamp month
-		// ends (Jan 31 → Feb 28), so the dates allow a few days.
+		// A proration is charged for part of a period, or inside a period an
+		// earlier invoice paid for (Creem reports the full period then). Its
+		// amount says nothing: a provider-side discount lowers a full period's
+		// too. Providers clamp month ends (Jan 31 → Feb 28), so the dates allow a few days.
 		drift := end.Sub(start.AddDate(years, months, 0))
-		if drift < -72*time.Hour || drift > 72*time.Hour || row.SubtotalMinor != row.PlanAmountMinor {
+		if drift < -72*time.Hour || drift > 72*time.Hour || row.Prorated {
 			parts = append(parts, "change of plan (prorated)")
 			break
 		}

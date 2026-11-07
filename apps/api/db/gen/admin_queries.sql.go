@@ -329,6 +329,55 @@ func (q *Queries) AdminWorkspaceExists(ctx context.Context, workspaceID uuid.UUI
 	return exists, err
 }
 
+const getActivePlanPriceInSlot = `-- name: GetActivePlanPriceInSlot :one
+SELECT id, amount_minor
+FROM plan_prices
+WHERE plan_id = $1 AND billing_type = $2 AND interval IS NOT DISTINCT FROM $3
+  AND currency = $4 AND is_active
+`
+
+type GetActivePlanPriceInSlotParams struct {
+	PlanID      uuid.UUID
+	BillingType string
+	Interval    *string
+	Currency    string
+}
+
+type GetActivePlanPriceInSlotRow struct {
+	ID          uuid.UUID
+	AmountMinor int64
+}
+
+// The price on sale in a plan's slot (billing type, interval, currency): there is at most one.
+func (q *Queries) GetActivePlanPriceInSlot(ctx context.Context, arg GetActivePlanPriceInSlotParams) (GetActivePlanPriceInSlotRow, error) {
+	row := q.db.QueryRow(ctx, getActivePlanPriceInSlot,
+		arg.PlanID,
+		arg.BillingType,
+		arg.Interval,
+		arg.Currency,
+	)
+	var i GetActivePlanPriceInSlotRow
+	err := row.Scan(&i.ID, &i.AmountMinor)
+	return i, err
+}
+
+const getPlanByPublishKey = `-- name: GetPlanByPublishKey :one
+SELECT id, code FROM plans WHERE publish_key = $1
+`
+
+type GetPlanByPublishKeyRow struct {
+	ID   uuid.UUID
+	Code string
+}
+
+// The plan an earlier try of the same CRM publish created.
+func (q *Queries) GetPlanByPublishKey(ctx context.Context, publishKey *uuid.UUID) (GetPlanByPublishKeyRow, error) {
+	row := q.db.QueryRow(ctx, getPlanByPublishKey, publishKey)
+	var i GetPlanByPublishKeyRow
+	err := row.Scan(&i.ID, &i.Code)
+	return i, err
+}
+
 const insertLimitChange = `-- name: InsertLimitChange :exec
 INSERT INTO limit_changes (plan_id, grant_id, changed_by, before, after, reason)
 VALUES ($1, $2, $3, $4, $5, $6)

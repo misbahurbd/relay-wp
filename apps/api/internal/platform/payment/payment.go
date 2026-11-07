@@ -86,6 +86,10 @@ type Gateway interface {
 	// subscriptions the provider renews. One-time payments never need one:
 	// Relay charges the reduced amount.
 	CreateCoupon(ctx context.Context, req CouponRequest) (Coupon, error)
+	// DeleteCoupon removes a coupon CreateCoupon made, once Relay no longer
+	// honours it, so nobody can type it into the provider's own checkout.
+	// A coupon already gone is no error.
+	DeleteCoupon(ctx context.Context, c Coupon) error
 	// CreatePrice creates the provider object a plan price sells through
 	// (provider_prices.external_price_id) and returns its ID.
 	CreatePrice(ctx context.Context, req PriceRequest) (string, error)
@@ -339,6 +343,10 @@ type CouponRequest struct {
 	// provider that scopes coupons to products (Creem). Empty means every
 	// active recurring product.
 	ExternalProductIDs []string
+	// ExpiresAt is when the code stops working; nil is never.
+	ExpiresAt *time.Time
+	// MaxRedemptions caps the code's uses on the provider; 0 is no cap.
+	MaxRedemptions int
 }
 
 // Coupon is a provider coupon; stored in provider_discounts.

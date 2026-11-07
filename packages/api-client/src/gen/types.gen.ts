@@ -927,6 +927,10 @@ export type CreatePlanInputBody = {
     };
     name: string;
     /**
+     * Chosen by the client once per publish: a retry with the same key returns the plan already created
+     */
+    publish_key?: string;
+    /**
      * Mark this as the plan the pricing table points people to
      */
     recommended?: boolean;

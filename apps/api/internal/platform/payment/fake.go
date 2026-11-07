@@ -35,18 +35,19 @@ type Fake struct {
 	provider Provider
 	secret   []byte
 
-	mu            sync.Mutex
-	caps          Capabilities
-	now           func() time.Time
-	seq           int
-	checkouts     map[string]FakeCheckout // by external session ID
-	byIdempotency map[string]string       // idempotency key → external session ID
-	subscriptions map[string]Subscription // by external ID
-	refunds       []Refund
-	coupons       []CouponRequest
-	prices        []PriceRequest
-	canceled      []string // canceled schedule IDs
-	failNext      error
+	mu             sync.Mutex
+	caps           Capabilities
+	now            func() time.Time
+	seq            int
+	checkouts      map[string]FakeCheckout // by external session ID
+	byIdempotency  map[string]string       // idempotency key → external session ID
+	subscriptions  map[string]Subscription // by external ID
+	refunds        []Refund
+	coupons        []CouponRequest
+	deletedCoupons []string
+	prices         []PriceRequest
+	canceled       []string // canceled schedule IDs
+	failNext       error
 	// adopt makes Change and Cancel accept subscriptions the fake hasn't seen, which
 	// local development needs: the database outlives the fake's memory across restarts.
 	adopt bool
@@ -319,7 +320,26 @@ func (f *Fake) CreateCoupon(_ context.Context, req CouponRequest) (Coupon, error
 		return Coupon{}, fmt.Errorf("fake: coupon needs a percent or an amount: %w", ErrInvalidRequest)
 	}
 	f.coupons = append(f.coupons, req)
-	return Coupon{ExternalCouponID: f.nextID("coupon")}, nil
+	id := f.nextID("coupon")
+	return Coupon{ExternalCouponID: id, ExternalPromotionCodeID: id}, nil
+}
+
+// DeleteCoupon implements Gateway.
+func (f *Fake) DeleteCoupon(_ context.Context, c Coupon) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.takeFailure(); err != nil {
+		return err
+	}
+	f.deletedCoupons = append(f.deletedCoupons, c.ExternalCouponID)
+	return nil
+}
+
+// DeletedCoupons returns the ExternalCouponID of every coupon deleted, oldest first.
+func (f *Fake) DeletedCoupons() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.deletedCoupons)
 }
 
 // CreatePrice implements Gateway.

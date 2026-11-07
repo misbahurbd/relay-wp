@@ -3,11 +3,13 @@ package service
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/model"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/database"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/payment"
 )
 
@@ -310,4 +312,85 @@ func TestOrderUnderProviderMinimumIsRefused(t *testing.T) {
 	if orders != 0 {
 		t.Fatalf("%d orders created, want none", orders)
 	}
+}
+
+// Creem gives one customer ID to every workspace paid for from one email: a
+// second workspace's checkout must still activate.
+func TestWorkspacesMayShareAProviderCustomer(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	shared := e.pay(e.checkout(p.Monthly, "")).Payment.ExternalCustomerID
+	if shared == "" {
+		t.Fatal("the fake named no customer")
+	}
+
+	e.ws = e.workspace()
+	if _, err := e.svc.UpdateProfile(e.ctx, e.ws, model.ProfileInput{LegalName: "Second", Email: "billing@acme.test"}); err != nil {
+		t.Fatal(err)
+	}
+	c := e.checkout(p.Monthly, "")
+	// Creem names the customer only once the checkout is paid.
+	e.exec(`UPDATE billing_customers SET external_customer_id = NULL WHERE workspace_id = $1`, e.ws)
+	ev, err := e.fake.CompleteCheckout(*c.Session.ExternalSessionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ev.Payment.ExternalCustomerID = shared
+	if err := database.WithTx(e.ctx, e.pool, func(tx pgx.Tx) error {
+		return e.svc.CompleteCheckout(e.ctx, tx, e.ws, c.Session.ID, ev)
+	}); err != nil {
+		t.Fatalf("second workspace's checkout: %v", err)
+	}
+	if sub, err := e.svc.Subscription(e.ctx, e.ws); err != nil || sub.Status != model.SubscriptionActive {
+		t.Fatalf("second workspace's subscription = %+v, %v", sub, err)
+	}
+}
+
+// A deactivated plan is off sale, every price of it included, while its
+// subscribers keep renewing.
+func TestDeactivatedPlanStopsSellingButKeepsRenewing(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	sub := e.subscribe(p.Monthly)
+	if err := e.svc.DeactivateCatalogRow(e.ctx, CatalogPlan, p.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	buyer := e.workspace()
+	if _, err := e.svc.UpdateProfile(e.ctx, buyer, model.ProfileInput{LegalName: "Buyer", Email: "buyer@acme.test"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.CreateCheckout(e.ctx, buyer, e.user, model.CheckoutInput{
+		PlanPriceID: p.Yearly, IdempotencyKey: uuid.NewString(),
+	}); !errors.Is(err, model.ErrPriceNotFound) {
+		t.Fatalf("checkout for a deactivated plan's price: %v, want ErrPriceNotFound", err)
+	}
+	if _, err := e.svc.PreviewChange(e.ctx, e.ws, p.Yearly); !errors.Is(err, model.ErrPriceNotFound) {
+		t.Fatalf("change to a deactivated plan's price: %v, want ErrPriceNotFound", err)
+	}
+
+	at := sub.CurrentPeriodEnd.Add(time.Minute)
+	end := at.AddDate(0, 1, 0)
+	e.inTx(func(tx pgx.Tx) error {
+		return e.svc.ApplySubscriptionPayment(e.ctx, tx, e.ws, sub.ID, payment.Payment{
+			ExternalID: "pay_" + uuid.NewString(), SubtotalMinor: 1000, TotalMinor: 1000, Currency: "USD",
+			PeriodStart: &at, PeriodEnd: &end, PaidAt: &at,
+		}, true)
+	})
+	if got, err := e.svc.Subscription(e.ctx, e.ws); err != nil || got.Status != model.SubscriptionActive {
+		t.Fatalf("subscriber after renewal = %+v, %v", got, err)
+	}
+	e.wantCache(e.ws, p.Code)
+}
+
+// Prices are sold as is (case 69): the database refuses to change one.
+func TestPlanPricesNeverChange(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	for _, set := range []string{"amount_minor = 2000", "currency = 'EUR'", "interval = 'year'"} {
+		if _, err := e.pool.Exec(e.ctx, `UPDATE plan_prices SET `+set+` WHERE id = $1`, p.Monthly); err == nil {
+			t.Errorf("SET %s was allowed", set)
+		}
+	}
+	e.exec(`UPDATE plan_prices SET is_active = false WHERE id = $1`, p.Monthly)
 }

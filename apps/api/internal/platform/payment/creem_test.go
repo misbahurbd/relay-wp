@@ -398,6 +398,46 @@ func TestCreemCreateCoupon(t *testing.T) {
 	}
 }
 
+// A Creem code can be typed into Creem's own checkout, so it carries Relay's
+// expiry, uses left and products.
+func TestCreemCouponCarriesRelaysLimits(t *testing.T) {
+	g, api := newCreemWithAPI(t)
+	api.handle("POST /v1/discounts", http.StatusOK, `{"id":"dis_3","code":"SPRING"}`)
+	expires := time.Date(2027, 3, 31, 23, 59, 59, 0, time.FixedZone("BDT", 6*3600))
+	if _, err := g.CreateCoupon(context.Background(), CouponRequest{
+		Code: "SPRING", PercentBps: 1000, Duration: "once", ExternalProductIDs: []string{"prod_growth"},
+		ExpiresAt: &expires, MaxRedemptions: 40,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	b := api.last().Body
+	if b["expiry_date"] != "2027-03-31T17:59:59Z" || b["max_redemptions"] != float64(40) {
+		t.Errorf("body = %v", b)
+	}
+	products, _ := b["applies_to_products"].([]any)
+	if len(products) != 1 || products[0] != "prod_growth" {
+		t.Errorf("applies_to_products = %v", products)
+	}
+}
+
+func TestCreemDeleteCoupon(t *testing.T) {
+	g, api := newCreemWithAPI(t)
+	api.handle("DELETE /v1/discounts/dis_3/delete", http.StatusOK, `{"id":"dis_3"}`)
+	if err := g.DeleteCoupon(context.Background(), Coupon{ExternalCouponID: "SPRING", ExternalPromotionCodeID: "dis_3"}); err != nil {
+		t.Fatal(err)
+	}
+	if c := api.last(); c.Method != http.MethodDelete || c.Path != "/v1/discounts/dis_3/delete" {
+		t.Errorf("call = %s %s", c.Method, c.Path)
+	}
+	if err := g.DeleteCoupon(context.Background(), Coupon{ExternalPromotionCodeID: "dis_gone"}); err != nil {
+		t.Errorf("a discount already gone: %v", err)
+	}
+	api.handle("DELETE /v1/discounts/dis_4/delete", http.StatusServiceUnavailable, `{}`)
+	if err := g.DeleteCoupon(context.Background(), Coupon{ExternalPromotionCodeID: "dis_4"}); !errors.Is(err, ErrUnavailable) {
+		t.Errorf("a failed delete: %v", err)
+	}
+}
+
 func TestCreemCreateFixedCoupon(t *testing.T) {
 	g, api := newCreemWithAPI(t)
 	api.handle("GET /v1/products/search", http.StatusOK,

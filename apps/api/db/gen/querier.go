@@ -76,6 +76,12 @@ type Querier interface {
 	CancelSubscriptionNow(ctx context.Context, arg CancelSubscriptionNowParams) (int64, error)
 	// The contact's chat on one number: a broadcast sends from the number it chose.
 	ChannelContactConversation(ctx context.Context, arg ChannelContactConversationParams) (uuid.UUID, error)
+	// Numbered invoices created before `before` whose PDF, or receipt email to a
+	// billing contact, is still undelivered: their document job ran out of
+	// attempts, or they predate invoice documents. Each claim counts a sweep and
+	// the next waits twice as long (15 minutes, then 30, up to a day), and
+	// the least recently swept go first, so failing invoices can't crowd out new ones.
+	ClaimInvoicesToDeliver(ctx context.Context, arg ClaimInvoicesToDeliverParams) ([]ClaimInvoicesToDeliverRow, error)
 	// ---------- Sending ----------
 	// The next pending recipients, locked so a second batch job skips them. The
 	// contact's current attributes fill variables; a deleted contact has none.
@@ -159,6 +165,9 @@ type Querier interface {
 	// ---------- Invoices (kept forever) ----------
 	// ON CONFLICT: a replayed webhook for the same payment adds nothing; no row back.
 	// A paid invoice gets its number afterwards, in the same transaction (NextInvoiceSeq).
+	// plan_price_id is what the payment bought: the checkout's price, else the
+	// order's, else the subscription's, or its scheduled downgrade when this
+	// period starts it (the renewal applies it next, in this transaction).
 	CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (uuid.UUID, error)
 	CreateOAuthFlow(ctx context.Context, arg CreateOAuthFlowParams) error
 	CreateOnboarding(ctx context.Context, arg CreateOnboardingParams) error
@@ -293,6 +302,8 @@ type Querier interface {
 	GetActiveAccountID(ctx context.Context, workspaceID uuid.UUID) (uuid.UUID, error)
 	// The only query that reads code_hash. Locks the row so concurrent tries count correctly.
 	GetActiveEmailCode(ctx context.Context, arg GetActiveEmailCodeParams) (GetActiveEmailCodeRow, error)
+	// The price on sale in a plan's slot (billing type, interval, currency): there is at most one.
+	GetActivePlanPriceInSlot(ctx context.Context, arg GetActivePlanPriceInSlotParams) (GetActivePlanPriceInSlotRow, error)
 	GetAutomation(ctx context.Context, arg GetAutomationParams) (GetAutomationRow, error)
 	// The "add your email" step of a social sign-up. Locks the row while a code is sent.
 	GetAwaitingOAuthFlow(ctx context.Context, completionTokenHash []byte) (GetAwaitingOAuthFlowRow, error)
@@ -333,8 +344,8 @@ type Querier interface {
 	GetInvitationByTokenHash(ctx context.Context, tokenHash []byte) (GetInvitationByTokenHashRow, error)
 	GetInvoice(ctx context.Context, arg GetInvoiceParams) (GetInvoiceRow, error)
 	// Everything the invoice PDF and its email show. The plan is the price the
-	// checkout sold, else the subscription's current price or the order's price;
-	// plan_amount_minor tells a full period's charge from a proration.
+	// invoice was paid for. A subscription invoice that starts inside a period an
+	// earlier one already paid for is a plan change (a proration).
 	GetInvoiceDocument(ctx context.Context, arg GetInvoiceDocumentParams) (GetInvoiceDocumentRow, error)
 	// The workspace's live subscription if it has one, else its most recent.
 	GetLatestSubscription(ctx context.Context, workspaceID uuid.UUID) (GetLatestSubscriptionRow, error)
@@ -368,6 +379,9 @@ type Querier interface {
 	GetPasswordHash(ctx context.Context, id uuid.UUID) (*string, error)
 	GetPaymentEvent(ctx context.Context, paymentEventID uuid.UUID) (GetPaymentEventRow, error)
 	GetPlan(ctx context.Context, planID uuid.UUID) (GetPlanRow, error)
+	// The plan an earlier try of the same CRM publish created.
+	GetPlanByPublishKey(ctx context.Context, publishKey *uuid.UUID) (GetPlanByPublishKeyRow, error)
+	// is_active: on sale, so the price and its plan are both active.
 	GetPlanPrice(ctx context.Context, planPriceID uuid.UUID) (GetPlanPriceRow, error)
 	GetProfile(ctx context.Context, userID uuid.UUID) (GetProfileRow, error)
 	// ---------- Provider coupons (subscriptions the provider renews) ----------
@@ -501,9 +515,6 @@ type Querier interface {
 	ListInvitations(ctx context.Context, workspaceID uuid.UUID) ([]ListInvitationsRow, error)
 	// Newest first. The cursor is the last row's (created_at, id); null starts at the top.
 	ListInvoices(ctx context.Context, arg ListInvoicesParams) ([]ListInvoicesRow, error)
-	// Numbered invoices created before @before that still have no PDF: their
-	// document job ran out of attempts, or they predate invoice documents.
-	ListInvoicesWithoutPDF(ctx context.Context, arg ListInvoicesWithoutPDFParams) ([]ListInvoicesWithoutPDFRow, error)
 	// ---------- Overrides ----------
 	ListMemberOverrides(ctx context.Context, arg ListMemberOverridesParams) ([]ListMemberOverridesRow, error)
 	ListMemberWorkspaces(ctx context.Context, userID uuid.UUID) ([]ListMemberWorkspacesRow, error)
@@ -525,8 +536,9 @@ type Querier interface {
 	// ---------- Quick replies (docs/PHASE-7-INBOX.md F8) ----------
 	ListQuickReplies(ctx context.Context, workspaceID uuid.UUID) ([]ListQuickRepliesRow, error)
 	ListRecipients(ctx context.Context, arg ListRecipientsParams) ([]ListRecipientsRow, error)
-	// The provider's products for active recurring prices: what a mirrored coupon applies to.
-	ListRecurringExternalPriceIDs(ctx context.Context, provider string) ([]string, error)
+	// The provider's products for active recurring prices, of one plan when
+	// plan_id is set: what a mirrored coupon applies to.
+	ListRecurringExternalPriceIDs(ctx context.Context, arg ListRecurringExternalPriceIDsParams) ([]string, error)
 	// ---------- Roles ----------
 	ListRoles(ctx context.Context, workspaceID uuid.UUID) ([]ListRolesRow, error)
 	// ---------- Segments (ADR 0014) ----------
@@ -541,6 +553,8 @@ type Querier interface {
 	ListTeams(ctx context.Context, workspaceID uuid.UUID) ([]ListTeamsRow, error)
 	// Newest first. Cursor: the id of the last row of the previous page (UUIDv7 sorts by time).
 	ListTemplates(ctx context.Context, arg ListTemplatesParams) ([]ListTemplatesRow, error)
+	// Retired mirrors still to delete on the provider: of one discount, or of one provider.
+	ListUndeletedRetiredProviderDiscounts(ctx context.Context, arg ListUndeletedRetiredProviderDiscountsParams) ([]ListUndeletedRetiredProviderDiscountsRow, error)
 	// Every resource the workspace used in the month that started at period_start.
 	ListUsage(ctx context.Context, arg ListUsageParams) ([]ListUsageRow, error)
 	// Cursor: (created_at, id) of the last row of the previous page.
@@ -580,6 +594,7 @@ type Querier interface {
 	MarkMessageSent(ctx context.Context, arg MarkMessageSentParams) ([]MarkMessageSentRow, error)
 	// No row changed means another worker already processed it.
 	MarkPaymentEventProcessed(ctx context.Context, arg MarkPaymentEventProcessedParams) (int64, error)
+	MarkProviderDiscountDeleted(ctx context.Context, providerDiscountID uuid.UUID) (int64, error)
 	// used_at comes from the service clock, which also checks the reuse grace window.
 	MarkRefreshTokenUsed(ctx context.Context, arg MarkRefreshTokenUsedParams) error
 	// Records the submission to the workspace's active WhatsApp account (the one submit used).

@@ -87,6 +87,9 @@ type PlanDetails struct {
 // NewPlan adds a plan. A code already in use publishes its next version.
 type NewPlan struct {
 	Code string
+	// PublishKey, when set, makes the call idempotent: a retry with the same
+	// key returns the plan the first call created.
+	PublishKey *uuid.UUID
 	PlanDetails
 }
 

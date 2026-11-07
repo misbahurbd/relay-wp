@@ -40,9 +40,9 @@ func (q *Queries) CreateInstallmentOffer(ctx context.Context, arg CreateInstallm
 
 const createPlan = `-- name: CreatePlan :one
 INSERT INTO plans (code, version, name, description, features, recommended, trial_days, trial_requires_card,
-                   limits, sort_order)
+                   limits, sort_order, publish_key)
 VALUES ($1, $2, $3, $4, COALESCE($5::text[], '{}'), $6, $7, $8,
-        $9, $10)
+        $9, $10, $11)
 RETURNING id
 `
 
@@ -57,6 +57,7 @@ type CreatePlanParams struct {
 	TrialRequiresCard bool
 	Limits            []byte
 	SortOrder         int32
+	PublishKey        *uuid.UUID
 }
 
 func (q *Queries) CreatePlan(ctx context.Context, arg CreatePlanParams) (uuid.UUID, error) {
@@ -71,6 +72,7 @@ func (q *Queries) CreatePlan(ctx context.Context, arg CreatePlanParams) (uuid.UU
 		arg.TrialRequiresCard,
 		arg.Limits,
 		arg.SortOrder,
+		arg.PublishKey,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -269,7 +271,8 @@ func (q *Queries) GetPlan(ctx context.Context, planID uuid.UUID) (GetPlanRow, er
 }
 
 const getPlanPrice = `-- name: GetPlanPrice :one
-SELECT pp.id, pp.plan_id, pp.billing_type, pp.interval, pp.currency, pp.amount_minor, pp.is_active,
+SELECT pp.id, pp.plan_id, pp.billing_type, pp.interval, pp.currency, pp.amount_minor,
+       (pp.is_active AND p.is_active)::bool AS is_active,
        p.code AS plan_code, p.name AS plan_name, p.trial_days, p.trial_requires_card
 FROM plan_prices pp
 JOIN plans p ON p.id = pp.plan_id
@@ -290,6 +293,7 @@ type GetPlanPriceRow struct {
 	TrialRequiresCard bool
 }
 
+// is_active: on sale, so the price and its plan are both active.
 func (q *Queries) GetPlanPrice(ctx context.Context, planPriceID uuid.UUID) (GetPlanPriceRow, error) {
 	row := q.db.QueryRow(ctx, getPlanPrice, planPriceID)
 	var i GetPlanPriceRow
@@ -546,12 +550,19 @@ FROM provider_prices pp
 JOIN plan_prices p ON p.id = pp.plan_price_id
 WHERE pp.provider = $1 AND pp.is_active AND pp.installment_offer_id IS NULL
   AND pp.external_price_id IS NOT NULL AND p.is_active AND p.billing_type = 'recurring'
+  AND ($2::uuid IS NULL OR p.plan_id = $2::uuid)
 ORDER BY pp.external_price_id
 `
 
-// The provider's products for active recurring prices: what a mirrored coupon applies to.
-func (q *Queries) ListRecurringExternalPriceIDs(ctx context.Context, provider string) ([]string, error) {
-	rows, err := q.db.Query(ctx, listRecurringExternalPriceIDs, provider)
+type ListRecurringExternalPriceIDsParams struct {
+	Provider string
+	PlanID   *uuid.UUID
+}
+
+// The provider's products for active recurring prices, of one plan when
+// plan_id is set: what a mirrored coupon applies to.
+func (q *Queries) ListRecurringExternalPriceIDs(ctx context.Context, arg ListRecurringExternalPriceIDsParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, listRecurringExternalPriceIDs, arg.Provider, arg.PlanID)
 	if err != nil {
 		return nil, err
 	}

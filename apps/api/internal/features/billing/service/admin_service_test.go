@@ -565,3 +565,54 @@ func TestAdminOfferLinkCreatesThePriceProduct(t *testing.T) {
 		t.Fatalf("a refused link still reached the provider: %d requests", n)
 	}
 }
+
+// A plan publish the CRM retries (a reload, a lost reply) finds what it
+// already created instead of adding a second version or price.
+func TestPlanPublishRetryCreatesNothingTwice(t *testing.T) {
+	e := newT3Env(t)
+	key := uuid.New()
+	in := model.NewPlan{Code: "pub_" + uuid.NewString()[:8], PublishKey: &key, PlanDetails: details("Publish")}
+	first, err := e.svc.CreatePlan(e.ctx, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	again, err := e.svc.CreatePlan(e.ctx, in)
+	if err != nil || again != first {
+		t.Fatalf("retried plan = %s, %v; want %s", again, err, first)
+	}
+	other := in
+	other.Code = "pub_" + uuid.NewString()[:8]
+	if _, err := e.svc.CreatePlan(e.ctx, other); !errors.Is(err, model.ErrCatalogDuplicate) {
+		t.Fatalf("same key, other plan: %v", err)
+	}
+
+	price := model.NewPrice{PlanID: first, BillingType: model.BillingRecurring, Interval: model.IntervalMonth, Currency: "USD", AmountMinor: 2900}
+	p1, err := e.svc.CreatePrice(e.ctx, price)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p2, err := e.svc.CreatePrice(e.ctx, price); err != nil || p2 != p1 {
+		t.Fatalf("retried price = %s, %v; want %s", p2, err, p1)
+	}
+	price.AmountMinor = 3900
+	if _, err := e.svc.CreatePrice(e.ctx, price); !errors.Is(err, model.ErrCatalogDuplicate) {
+		t.Fatalf("a different monthly price for the same plan: %v", err)
+	}
+}
+
+// Overrides are written only on the workspace's own grant.
+func TestSetGrantOverridesIsScopedToTheWorkspace(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 2900})
+	if err := e.svc.GrantPlanManually(e.ctx, model.ManualGrantInput{
+		WorkspaceID: e.ws, PlanID: p.ID, Reason: "comp", CreatedBy: e.user,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	n, err := repository.NewRepository(e.pool).SetGrantOverrides(e.ctx, gen.SetGrantOverridesParams{
+		WorkspaceID: e.workspace(), GrantID: e.grant(e.ws).ID, Overrides: []byte(`{"members": 99}`),
+	})
+	if err != nil || n != 0 {
+		t.Fatalf("another workspace changed the grant: %d rows, %v", n, err)
+	}
+}

@@ -13,9 +13,9 @@ WHERE id = @plan_id;
 
 -- name: CreatePlan :one
 INSERT INTO plans (code, version, name, description, features, recommended, trial_days, trial_requires_card,
-                   limits, sort_order)
+                   limits, sort_order, publish_key)
 VALUES (@code, @version, @name, @description, COALESCE(@features::text[], '{}'), @recommended, @trial_days, @trial_requires_card,
-        @limits, @sort_order)
+        @limits, @sort_order, sqlc.narg('publish_key'))
 RETURNING id;
 
 -- name: DeactivatePlan :execrows
@@ -43,7 +43,9 @@ WHERE pp.is_active AND p.is_active
 ORDER BY pp.plan_id, pp.billing_type DESC, pp.interval NULLS LAST, pp.currency;
 
 -- name: GetPlanPrice :one
-SELECT pp.id, pp.plan_id, pp.billing_type, pp.interval, pp.currency, pp.amount_minor, pp.is_active,
+-- is_active: on sale, so the price and its plan are both active.
+SELECT pp.id, pp.plan_id, pp.billing_type, pp.interval, pp.currency, pp.amount_minor,
+       (pp.is_active AND p.is_active)::bool AS is_active,
        p.code AS plan_code, p.name AS plan_name, p.trial_days, p.trial_requires_card
 FROM plan_prices pp
 JOIN plans p ON p.id = pp.plan_id
@@ -103,12 +105,14 @@ FROM provider_prices
 WHERE provider = @provider AND external_price_id = @external_price_id AND installment_offer_id IS NULL;
 
 -- name: ListRecurringExternalPriceIDs :many
--- The provider's products for active recurring prices: what a mirrored coupon applies to.
+-- The provider's products for active recurring prices, of one plan when
+-- plan_id is set: what a mirrored coupon applies to.
 SELECT pp.external_price_id::text AS external_price_id
 FROM provider_prices pp
 JOIN plan_prices p ON p.id = pp.plan_price_id
 WHERE pp.provider = @provider AND pp.is_active AND pp.installment_offer_id IS NULL
   AND pp.external_price_id IS NOT NULL AND p.is_active AND p.billing_type = 'recurring'
+  AND (sqlc.narg('plan_id')::uuid IS NULL OR p.plan_id = sqlc.narg('plan_id')::uuid)
 ORDER BY pp.external_price_id;
 
 -- name: CreateProviderPrice :one

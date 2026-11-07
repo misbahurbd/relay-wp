@@ -134,6 +134,18 @@ func (s *Service) CreatePlan(ctx context.Context, in model.NewPlan) (uuid.UUID, 
 	var id uuid.UUID
 	err = database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
 		r := repository.NewRepository(tx)
+		if in.PublishKey != nil {
+			prev, err := r.GetPlanByPublishKey(ctx, in.PublishKey)
+			switch {
+			case err == nil && prev.Code == code:
+				id = prev.ID
+				return nil
+			case err == nil:
+				return model.ErrCatalogDuplicate
+			case !repository.IsNoRows(err):
+				return fmt.Errorf("get plan by publish key: %w", err)
+			}
+		}
 		version, err := r.NextPlanVersion(ctx, code)
 		if err != nil {
 			return fmt.Errorf("next plan version: %w", err)
@@ -142,9 +154,13 @@ func (s *Service) CreatePlan(ctx context.Context, in model.NewPlan) (uuid.UUID, 
 			Code: code, Version: version, Name: d.Name, Description: d.Description, Features: d.Features,
 			Recommended: d.Recommended, TrialDays: int32(d.TrialDays), //nolint:gosec // range checked above
 			TrialRequiresCard: d.TrialRequiresCard, Limits: limits, SortOrder: int32(d.SortOrder), //nolint:gosec // a small display order
+			PublishKey: in.PublishKey,
 		})
 		return err
 	})
+	if errors.Is(err, model.ErrCatalogDuplicate) {
+		return uuid.Nil, err
+	}
 	return id, catalogErr("create plan", err)
 }
 
@@ -281,6 +297,15 @@ func (s *Service) CreatePrice(ctx context.Context, in model.NewPrice) (uuid.UUID
 	if repository.IsForeignKey(err) {
 		return uuid.Nil, model.ErrPlanNotFound
 	}
+	if repository.IsDuplicate(err) {
+		// The slot is taken. By this very price, it is a retried publish: return it.
+		cur, getErr := r.GetActivePlanPriceInSlot(ctx, gen.GetActivePlanPriceInSlotParams{
+			PlanID: params.PlanID, BillingType: params.BillingType, Interval: params.Interval, Currency: params.Currency,
+		})
+		if getErr == nil && cur.AmountMinor == params.AmountMinor {
+			return cur.ID, nil
+		}
+	}
 	return id, catalogErr("create price", err)
 }
 
@@ -375,13 +400,18 @@ func (s *Service) CreateProviderPrice(ctx context.Context, in model.NewProviderP
 	if repository.IsForeignKey(err) {
 		return uuid.Nil, model.ErrPriceNotFound
 	}
-	return id, catalogErr("create provider price", err)
+	if err != nil {
+		return uuid.Nil, catalogErr("create provider price", err)
+	}
+	// The link is saved; a coupon left on the provider is logged and deleted by a later retirement.
+	_ = s.deleteRetiredCoupons(ctx, gen.ListUndeletedRetiredProviderDiscountsParams{Provider: &in.Provider})
+	return id, nil
 }
 
 // retireCoupons retires the provider's mirrored coupons when a recurring price
 // gets a product on a provider whose coupons cover only the products they were
 // made for (Creem). The next checkout with each code mirrors it again, over
-// the current products.
+// the current products, and the old mirrors are deleted on the provider.
 func (s *Service) retireCoupons(ctx context.Context, r repository.Repository, in model.NewProviderPrice) error {
 	g, ok := s.payments.Get(payment.Provider(in.Provider))
 	if in.InstallmentOfferID != nil || !ok || !g.Capabilities().CouponsPerProduct {
@@ -668,7 +698,9 @@ func (s *Service) SetGrantOverrides(ctx context.Context, in model.GrantOverrides
 		if err != nil {
 			return fmt.Errorf("lock current grant: %w", err)
 		}
-		if _, err := r.SetGrantOverrides(ctx, gen.SetGrantOverridesParams{GrantID: g.ID, Overrides: after}); err != nil {
+		if _, err := r.SetGrantOverrides(ctx, gen.SetGrantOverridesParams{
+			Overrides: after, WorkspaceID: in.WorkspaceID, GrantID: g.ID,
+		}); err != nil {
 			return fmt.Errorf("set grant overrides: %w", err)
 		}
 		return r.InsertLimitChange(ctx, gen.InsertLimitChangeParams{

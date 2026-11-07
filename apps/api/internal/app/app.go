@@ -254,7 +254,7 @@ func (a *App) buildBilling() error {
 		a.payments = reg
 	}
 	if a.log != nil {
-		a.log.Info("payment providers", "enabled", a.payments.Providers())
+		a.log.Info("payment providers", "enabled", a.payments.Providers(), "modes", a.cfg.Payment.Modes())
 	}
 	if a.pdf == nil {
 		r, err := pdf.New(a.cfg.PDF)

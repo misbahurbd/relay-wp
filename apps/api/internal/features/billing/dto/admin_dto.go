@@ -134,13 +134,14 @@ func (b PlanDetailsBody) toModel() model.PlanDetails {
 
 type CreatePlanInput struct {
 	Body struct {
-		Code string `json:"code" minLength:"2" maxLength:"41" example:"growth" doc:"A code already in use publishes its next version"`
+		Code       string     `json:"code" minLength:"2" maxLength:"41" example:"growth" doc:"A code already in use publishes its next version"`
+		PublishKey *uuid.UUID `json:"publish_key,omitempty" doc:"Chosen by the client once per publish: a retry with the same key returns the plan already created"`
 		PlanDetailsBody
 	}
 }
 
 func (in *CreatePlanInput) ToModel() model.NewPlan {
-	return model.NewPlan{Code: in.Body.Code, PlanDetails: in.Body.toModel()}
+	return model.NewPlan{Code: in.Body.Code, PublishKey: in.Body.PublishKey, PlanDetails: in.Body.toModel()}
 }
 
 type UpdatePlanInput struct {

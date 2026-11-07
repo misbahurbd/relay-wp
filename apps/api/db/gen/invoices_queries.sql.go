@@ -12,15 +12,84 @@ import (
 	"github.com/google/uuid"
 )
 
+const claimInvoicesToDeliver = `-- name: ClaimInvoicesToDeliver :many
+WITH due AS (
+    SELECT x.id
+    FROM invoices x
+    WHERE x.number IS NOT NULL AND x.created_at < $2::timestamptz
+      AND (x.pdf_key IS NULL OR x.emailed_at IS NULL)
+      AND (x.pdf_key IS NULL OR COALESCE(x.bill_to ->> 'email', '') <> '')
+      AND (x.document_swept_at IS NULL
+           OR x.document_swept_at <= $1::timestamptz
+               - least(interval '15 minutes' * power(2, least(x.document_sweeps - 1, 7)), interval '1 day'))
+    ORDER BY x.document_swept_at NULLS FIRST, x.created_at, x.id
+    LIMIT $3
+    FOR UPDATE SKIP LOCKED
+)
+UPDATE invoices
+SET document_sweeps = document_sweeps + 1, document_swept_at = $1::timestamptz
+WHERE id IN (SELECT id FROM due)
+RETURNING id, workspace_id
+`
+
+type ClaimInvoicesToDeliverParams struct {
+	Now     time.Time
+	Before  time.Time
+	MaxRows int32
+}
+
+type ClaimInvoicesToDeliverRow struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+}
+
+// Numbered invoices created before `before` whose PDF, or receipt email to a
+// billing contact, is still undelivered: their document job ran out of
+// attempts, or they predate invoice documents. Each claim counts a sweep and
+// the next waits twice as long (15 minutes, then 30, up to a day), and
+// the least recently swept go first, so failing invoices can't crowd out new ones.
+func (q *Queries) ClaimInvoicesToDeliver(ctx context.Context, arg ClaimInvoicesToDeliverParams) ([]ClaimInvoicesToDeliverRow, error) {
+	rows, err := q.db.Query(ctx, claimInvoicesToDeliver, arg.Now, arg.Before, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ClaimInvoicesToDeliverRow{}
+	for rows.Next() {
+		var i ClaimInvoicesToDeliverRow
+		if err := rows.Scan(&i.ID, &i.WorkspaceID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const createInvoice = `-- name: CreateInvoice :one
 
 INSERT INTO invoices (workspace_id, subscription_id, order_id, installment_id, checkout_session_id, provider,
                       external_payment_id, status, subtotal_minor, tax_minor, total_minor, currency, period_start,
-                      period_end, bill_to, discount_id, discount_minor, paid_at)
+                      period_end, bill_to, discount_id, discount_minor, paid_at, plan_price_id)
 VALUES ($1, $2, $3, $4,
         $5, $6, $7, $8, $9,
         $10, $11, $12, $13, $14, $15,
-        $16, $17, $18)
+        $16, $17, $18,
+        COALESCE(
+            (SELECT cs.plan_price_id FROM checkout_sessions cs
+             WHERE cs.workspace_id = $1 AND cs.id = $5),
+            (SELECT o.plan_price_id FROM orders o
+             WHERE o.workspace_id = $1 AND o.id = $3),
+            (SELECT CASE
+                        WHEN s.pending_plan_price_id IS NOT NULL AND s.status <> 'canceled'
+                            AND s.pending_change_at <= COALESCE($13, now())
+                            THEN s.pending_plan_price_id
+                        ELSE s.plan_price_id
+                    END
+             FROM subscriptions s
+             WHERE s.workspace_id = $1 AND s.id = $2)))
 ON CONFLICT (provider, external_payment_id) DO NOTHING
 RETURNING id
 `
@@ -49,6 +118,9 @@ type CreateInvoiceParams struct {
 // ---------- Invoices (kept forever) ----------
 // ON CONFLICT: a replayed webhook for the same payment adds nothing; no row back.
 // A paid invoice gets its number afterwards, in the same transaction (NextInvoiceSeq).
+// plan_price_id is what the payment bought: the checkout's price, else the
+// order's, else the subscription's, or its scheduled downgrade when this
+// period starts it (the renewal applies it next, in this transaction).
 func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, createInvoice,
 		arg.WorkspaceID,
@@ -208,16 +280,17 @@ const getInvoiceDocument = `-- name: GetInvoiceDocument :one
 SELECT i.id, i.number, i.provider, i.status, i.subtotal_minor, i.discount_minor, i.tax_minor, i.total_minor,
        i.currency, i.period_start, i.period_end, i.bill_to, i.paid_at, i.pdf_key, i.emailed_at,
        i.order_id, i.installment_id, w.name AS workspace_name, pl.name AS plan_name, pp.interval AS plan_interval,
-       pp.amount_minor AS plan_amount_minor,
+       EXISTS (SELECT 1 FROM invoices prev
+               WHERE prev.workspace_id = i.workspace_id AND prev.subscription_id = i.subscription_id
+                 AND prev.id <> i.id AND prev.created_at <= i.created_at
+                 AND prev.status IN ('paid', 'partially_refunded', 'refunded', 'disputed')
+                 AND prev.period_start <= i.period_start AND i.period_start < prev.period_end) AS prorated,
        inst.seq AS installment_seq,
        (SELECT count(*) FROM installments c WHERE c.workspace_id = i.workspace_id AND c.order_id = i.order_id)::int
            AS installment_count
 FROM invoices i
 JOIN workspaces w ON w.id = i.workspace_id
-LEFT JOIN subscriptions s ON s.id = i.subscription_id AND s.workspace_id = i.workspace_id
-LEFT JOIN orders o ON o.id = i.order_id AND o.workspace_id = i.workspace_id
-LEFT JOIN checkout_sessions cs ON cs.id = i.checkout_session_id AND cs.workspace_id = i.workspace_id
-JOIN plan_prices pp ON pp.id = COALESCE(cs.plan_price_id, s.plan_price_id, o.plan_price_id)
+JOIN plan_prices pp ON pp.id = i.plan_price_id
 JOIN plans pl ON pl.id = pp.plan_id
 LEFT JOIN installments inst ON inst.id = i.installment_id AND inst.workspace_id = i.workspace_id
 WHERE i.workspace_id = $1 AND i.id = $2
@@ -249,14 +322,14 @@ type GetInvoiceDocumentRow struct {
 	WorkspaceName    string
 	PlanName         string
 	PlanInterval     *string
-	PlanAmountMinor  int64
+	Prorated         bool
 	InstallmentSeq   *int32
 	InstallmentCount int32
 }
 
 // Everything the invoice PDF and its email show. The plan is the price the
-// checkout sold, else the subscription's current price or the order's price;
-// plan_amount_minor tells a full period's charge from a proration.
+// invoice was paid for. A subscription invoice that starts inside a period an
+// earlier one already paid for is a plan change (a proration).
 func (q *Queries) GetInvoiceDocument(ctx context.Context, arg GetInvoiceDocumentParams) (GetInvoiceDocumentRow, error) {
 	row := q.db.QueryRow(ctx, getInvoiceDocument, arg.WorkspaceID, arg.InvoiceID)
 	var i GetInvoiceDocumentRow
@@ -281,7 +354,7 @@ func (q *Queries) GetInvoiceDocument(ctx context.Context, arg GetInvoiceDocument
 		&i.WorkspaceName,
 		&i.PlanName,
 		&i.PlanInterval,
-		&i.PlanAmountMinor,
+		&i.Prorated,
 		&i.InstallmentSeq,
 		&i.InstallmentCount,
 	)
@@ -409,46 +482,6 @@ func (q *Queries) ListInvoices(ctx context.Context, arg ListInvoicesParams) ([]L
 			&i.PaidAt,
 			&i.CreatedAt,
 		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listInvoicesWithoutPDF = `-- name: ListInvoicesWithoutPDF :many
-SELECT id, workspace_id
-FROM invoices
-WHERE number IS NOT NULL AND pdf_key IS NULL AND created_at < $1
-ORDER BY created_at, id
-LIMIT $2
-`
-
-type ListInvoicesWithoutPDFParams struct {
-	Before  time.Time
-	MaxRows int32
-}
-
-type ListInvoicesWithoutPDFRow struct {
-	ID          uuid.UUID
-	WorkspaceID uuid.UUID
-}
-
-// Numbered invoices created before @before that still have no PDF: their
-// document job ran out of attempts, or they predate invoice documents.
-func (q *Queries) ListInvoicesWithoutPDF(ctx context.Context, arg ListInvoicesWithoutPDFParams) ([]ListInvoicesWithoutPDFRow, error) {
-	rows, err := q.db.Query(ctx, listInvoicesWithoutPDF, arg.Before, arg.MaxRows)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListInvoicesWithoutPDFRow{}
-	for rows.Next() {
-		var i ListInvoicesWithoutPDFRow
-		if err := rows.Scan(&i.ID, &i.WorkspaceID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

@@ -485,6 +485,9 @@ type Invoice struct {
 	UpdatedAt         time.Time
 	PdfKey            *string
 	EmailedAt         *time.Time
+	PlanPriceID       *uuid.UUID
+	DocumentSweeps    int32
+	DocumentSweptAt   *time.Time
 }
 
 type InvoiceNumberCounter struct {
@@ -663,6 +666,7 @@ type Plan struct {
 	Description       string
 	Features          []string
 	Recommended       bool
+	PublishKey        *uuid.UUID
 }
 
 type PlanGrant struct {
@@ -705,6 +709,7 @@ type ProviderDiscount struct {
 	IsActive                bool
 	CreatedAt               time.Time
 	UpdatedAt               time.Time
+	DeletedOnProviderAt     *time.Time
 }
 
 type ProviderPrice struct {
