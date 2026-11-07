@@ -79,7 +79,7 @@ export function PaymentDetailsCard({
       </dl>
 
       <div className="flex flex-wrap gap-x-5 gap-y-2 text-[13px] font-bold">
-        {canManage && (
+        {canManage && method.data?.card_details && (
           <Button
             variant="unstyled"
             type="button"
