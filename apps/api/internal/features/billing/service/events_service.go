@@ -646,13 +646,14 @@ func (s *Service) stopDisputedBilling(ctx context.Context, repo repository.Repos
 // River retries a failing event for weeks; a day of failures already needs a person.
 const stuckEventAge = 24 * time.Hour
 
-// ReportStuckPaymentEvents logs an error for each webhook event still
+// ReportStuckPaymentEvents logs an error, once, for each webhook event still
 // unprocessed a day after it arrived, so alerting picks it up and support can
 // look at it (the event's job has been failing all that time). It returns how
 // many it found. Run by the StuckPaymentEvents worker. The payload is never read.
 func (s *Service) ReportStuckPaymentEvents(ctx context.Context) (int, error) {
-	rows, err := repository.NewRepository(s.pool).ListStuckPaymentEvents(ctx, gen.ListStuckPaymentEventsParams{
-		Before: s.now().Add(-stuckEventAge), MaxRows: jobBatch,
+	now := s.now()
+	rows, err := repository.NewRepository(s.pool).ClaimStuckPaymentEvents(ctx, gen.ClaimStuckPaymentEventsParams{
+		Now: &now, Before: now.Add(-stuckEventAge), MaxRows: jobBatch,
 	})
 	if err != nil {
 		return 0, fmt.Errorf("list stuck payment events: %w", err)

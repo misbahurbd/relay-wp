@@ -620,6 +620,31 @@ func TestPurgeEventPayloads(t *testing.T) {
 	}
 }
 
+// Each stuck event is reported once, not on every hourly run.
+func TestStuckEventIsReportedOnce(t *testing.T) {
+	e := newEventsEnv(t)
+	ev := refundEvent("pay_x", e.id("re_s"), 100, payment.RefundSucceeded)
+	e.receive(ev)
+	if _, err := e.pool.Exec(e.ctx, `UPDATE payment_events SET received_at = now() - interval '2 days'
+		WHERE provider = 'stripe' AND external_event_id = $1`, ev.ExternalID); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		if _, err := e.svc.ReportStuckPaymentEvents(e.ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	n := 0
+	for line := range strings.Lines(e.logs.String()) {
+		if strings.Contains(line, "still unprocessed") && strings.Contains(line, ev.ExternalID) {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Errorf("stuck event reported %d times, want once", n)
+	}
+}
+
 func TestCheckPlanCacheDrift(t *testing.T) {
 	e := newEventsEnv(t)
 	// The workspace caches "growth" but has no grant, so it is on free.

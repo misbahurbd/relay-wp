@@ -82,6 +82,9 @@ type Querier interface {
 	ClaimRecipients(ctx context.Context, arg ClaimRecipientsParams) ([]ClaimRecipientsRow, error)
 	// A due run, locked; another worker holding it means nothing to do here.
 	ClaimRun(ctx context.Context, arg ClaimRunParams) (ClaimRunRow, error)
+	// Job only (all workspaces): events still unprocessed long after they
+	// arrived and not reported yet, stamped as reported so each is reported once.
+	ClaimStuckPaymentEvents(ctx context.Context, arg ClaimStuckPaymentEventsParams) ([]ClaimStuckPaymentEventsRow, error)
 	ClearContactTags(ctx context.Context, arg ClearContactTagsParams) error
 	ClearUnread(ctx context.Context, arg ClearUnreadParams) (ClearUnreadRow, error)
 	CompleteBroadcast(ctx context.Context, arg CompleteBroadcastParams) (CompleteBroadcastRow, error)
@@ -523,8 +526,6 @@ type Querier interface {
 	// ---------- Segments (ADR 0014) ----------
 	// Who matches a segment is compiled from its rules in segments_match.go.
 	ListSegments(ctx context.Context, workspaceID uuid.UUID) ([]ListSegmentsRow, error)
-	// Job only (all workspaces): events still unprocessed long after they arrived.
-	ListStuckPaymentEvents(ctx context.Context, arg ListStuckPaymentEventsParams) ([]ListStuckPaymentEventsRow, error)
 	ListSubscribedEndpoints(ctx context.Context, arg ListSubscribedEndpointsParams) ([]uuid.UUID, error)
 	ListSubscriptionChanges(ctx context.Context, arg ListSubscriptionChangesParams) ([]ListSubscriptionChangesRow, error)
 	ListTagsOfContacts(ctx context.Context, arg ListTagsOfContactsParams) ([]ListTagsOfContactsRow, error)
