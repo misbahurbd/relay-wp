@@ -137,7 +137,7 @@ func (s *Service) DeletionCheck(ctx context.Context, workspaceID uuid.UUID) (mod
 // StartWorkspaceTrial starts a new workspace's trial of cfg.TrialPlan in tx and
 // returns when it ends. Nil when that plan has no card-less trial or isn't in
 // the catalog, or when ownerID already had a card-less trial on a workspace
-// they created or own: one per person. For features/workspaces, through an
+// they created: one per person. For features/workspaces, through an
 // interface it declares.
 func (s *Service) StartWorkspaceTrial(ctx context.Context, tx pgx.Tx, workspaceID, ownerID uuid.UUID) (*time.Time, error) {
 	if s.cfg.TrialPlan == "" {
