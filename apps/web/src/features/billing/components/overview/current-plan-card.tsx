@@ -11,7 +11,7 @@ import {
   useOpenCardPortal,
   useResumeSubscription,
 } from '../../api/billing.mutations'
-import { paymentMethodQueryOptions, plansQueryOptions } from '../../api/billing.queries'
+import { onSale, paymentMethodQueryOptions, plansQueryOptions } from '../../api/billing.queries'
 import { GRANT_SOURCE, SUBSCRIPTION_STATUS } from '../../schemas/billing.schema'
 import type { Overview, PaymentMethod, Price, Subscription } from '../../types'
 import { formatDate, formatMonth } from '../kit/format'
@@ -51,6 +51,10 @@ export function CurrentPlanCard({
   const priceOf = (priceId: string) =>
     plans.data?.plans.flatMap((p) => p.prices).find((pr) => pr.id === priceId)
   const error = resume.error ?? dropPending.error ?? portal.error
+  const currentPriceId = live ? sub.plan_price_id : order?.plan_price_id
+  const canChange =
+    !!plans.data &&
+    onSale(plans.data).plans.some((p) => p.prices.some((pr) => pr.id !== currentPriceId))
 
   return (
     <Section aria-labelledby="plan-heading" className={className}>
@@ -91,7 +95,9 @@ export function CurrentPlanCard({
       ) : (
         !grant && (
           <p className="text-[13px] text-muted-foreground">
-            The free plan. Upgrade for more team members and WhatsApp numbers.
+            {canChange
+              ? 'The free plan. Upgrade for more team members and WhatsApp numbers.'
+              : 'The free plan. Paid plans aren’t on sale right now.'}
           </p>
         )
       )}
@@ -174,9 +180,11 @@ export function CurrentPlanCard({
 
       {canPay ? (
         <div className="mt-auto flex flex-wrap gap-2.5">
-          <Button asChild>
-            <a href="#plans">{grant ? 'Change plan' : 'Upgrade'}</a>
-          </Button>
+          {canChange && (
+            <Button asChild>
+              <a href="#plans">{grant ? 'Change plan' : 'Upgrade'}</a>
+            </Button>
+          )}
           {live &&
             (sub.cancel_at_period_end ? (
               <Button
