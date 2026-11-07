@@ -414,6 +414,46 @@ func (q *Queries) ListInvoices(ctx context.Context, arg ListInvoicesParams) ([]L
 	return items, nil
 }
 
+const listInvoicesWithoutPDF = `-- name: ListInvoicesWithoutPDF :many
+SELECT id, workspace_id
+FROM invoices
+WHERE number IS NOT NULL AND pdf_key IS NULL AND created_at < $1
+ORDER BY created_at, id
+LIMIT $2
+`
+
+type ListInvoicesWithoutPDFParams struct {
+	Before  time.Time
+	MaxRows int32
+}
+
+type ListInvoicesWithoutPDFRow struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+}
+
+// Numbered invoices created before @before that still have no PDF: their
+// document job ran out of attempts, or they predate invoice documents.
+func (q *Queries) ListInvoicesWithoutPDF(ctx context.Context, arg ListInvoicesWithoutPDFParams) ([]ListInvoicesWithoutPDFRow, error) {
+	rows, err := q.db.Query(ctx, listInvoicesWithoutPDF, arg.Before, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListInvoicesWithoutPDFRow{}
+	for rows.Next() {
+		var i ListInvoicesWithoutPDFRow
+		if err := rows.Scan(&i.ID, &i.WorkspaceID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markInvoiceEmailed = `-- name: MarkInvoiceEmailed :execrows
 UPDATE invoices
 SET emailed_at = $1

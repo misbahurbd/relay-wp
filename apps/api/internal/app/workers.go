@@ -33,6 +33,7 @@ func (a *App) addFeatureWorkers(w *river.Workers) {
 	river.AddWorker(w, teamjobs.NewMaintenanceWorker(a.team))
 	river.AddWorker(w, billingjobs.NewProcessPaymentEventWorker(a.billing))
 	river.AddWorker(w, billingjobs.NewInvoiceDocumentWorker(a.billing))
+	river.AddWorker(w, billingjobs.NewInvoiceDocumentsSweepWorker(a.billing))
 	river.AddWorker(w, billingjobs.NewInstallmentsDueWorker(a.billing))
 	river.AddWorker(w, billingjobs.NewExpireTrialsWorker(a.billing))
 	river.AddWorker(w, billingjobs.NewExpireCheckoutsWorker(a.billing))

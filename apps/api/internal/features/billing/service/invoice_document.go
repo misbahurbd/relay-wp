@@ -13,10 +13,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/misbahurbd/relay-wp/apps/api/db/gen"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/model"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/repository"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/database"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/payment"
 )
 
@@ -96,6 +98,35 @@ func (s *Service) DeliverInvoiceDocument(ctx context.Context, workspaceID, invoi
 		return fmt.Errorf("mark invoice emailed: %w", err)
 	}
 	return nil
+}
+
+// invoiceDocumentGrace is how long an invoice's own document job has before
+// the sweep queues another: longer than its 12 attempts take.
+const invoiceDocumentGrace = 24 * time.Hour
+
+// SweepInvoiceDocuments queues the document job for numbered invoices that
+// still have no PDF a day after they were issued, and returns how many.
+// Run hourly by the InvoiceDocumentsSweep worker.
+func (s *Service) SweepInvoiceDocuments(ctx context.Context) (int, error) {
+	rows, err := repository.NewRepository(s.pool).ListInvoicesWithoutPDF(ctx, gen.ListInvoicesWithoutPDFParams{
+		Before: s.now().Add(-invoiceDocumentGrace), MaxRows: jobBatch,
+	})
+	if err != nil || len(rows) == 0 {
+		return 0, err
+	}
+	err = database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+		for _, row := range rows {
+			args := model.InvoiceDocumentArgs{WorkspaceID: row.WorkspaceID, InvoiceID: row.ID}
+			if _, err := s.queue.InsertTx(ctx, tx, args, nil); err != nil {
+				return fmt.Errorf("enqueue invoice document: %w", err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return len(rows), nil
 }
 
 func (s *Service) renderInvoice(ctx context.Context, doc invoiceDoc) ([]byte, error) {

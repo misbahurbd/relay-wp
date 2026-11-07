@@ -500,6 +500,9 @@ type Querier interface {
 	ListInvitations(ctx context.Context, workspaceID uuid.UUID) ([]ListInvitationsRow, error)
 	// Newest first. The cursor is the last row's (created_at, id); null starts at the top.
 	ListInvoices(ctx context.Context, arg ListInvoicesParams) ([]ListInvoicesRow, error)
+	// Numbered invoices created before @before that still have no PDF: their
+	// document job ran out of attempts, or they predate invoice documents.
+	ListInvoicesWithoutPDF(ctx context.Context, arg ListInvoicesWithoutPDFParams) ([]ListInvoicesWithoutPDFRow, error)
 	// ---------- Overrides ----------
 	ListMemberOverrides(ctx context.Context, arg ListMemberOverridesParams) ([]ListMemberOverridesRow, error)
 	ListMemberWorkspaces(ctx context.Context, userID uuid.UUID) ([]ListMemberWorkspacesRow, error)

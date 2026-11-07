@@ -44,6 +44,23 @@ func (w *InvoiceDocumentWorker) Work(ctx context.Context, job *river.Job[model.I
 	return w.svc.DeliverInvoiceDocument(ctx, job.Args.WorkspaceID, job.Args.InvoiceID)
 }
 
+// InvoiceDocumentsSweepWorker works InvoiceDocumentsSweepArgs.
+type InvoiceDocumentsSweepWorker struct {
+	river.WorkerDefaults[model.InvoiceDocumentsSweepArgs]
+	svc *service.Service
+}
+
+// NewInvoiceDocumentsSweepWorker builds the worker.
+func NewInvoiceDocumentsSweepWorker(svc *service.Service) *InvoiceDocumentsSweepWorker {
+	return &InvoiceDocumentsSweepWorker{svc: svc}
+}
+
+// Work queues document jobs for invoices still without a PDF.
+func (w *InvoiceDocumentsSweepWorker) Work(ctx context.Context, _ *river.Job[model.InvoiceDocumentsSweepArgs]) error {
+	_, err := w.svc.SweepInvoiceDocuments(ctx)
+	return err
+}
+
 // InstallmentsDueWorker works InstallmentsDueArgs.
 type InstallmentsDueWorker struct {
 	river.WorkerDefaults[model.InstallmentsDueArgs]
@@ -178,5 +195,6 @@ func PeriodicJobs() []*river.PeriodicJob {
 		every(24*time.Hour, model.PlanCacheDriftArgs{}),
 		every(15*time.Minute, model.PastDueGraceArgs{}),
 		every(time.Hour, model.StuckPaymentEventsArgs{}),
+		every(time.Hour, model.InvoiceDocumentsSweepArgs{}),
 	}
 }

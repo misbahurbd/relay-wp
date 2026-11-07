@@ -345,3 +345,39 @@ func TestMoney(t *testing.T) {
 		}
 	}
 }
+
+func TestSweepRequeuesInvoicesStillWithoutAPDF(t *testing.T) {
+	e := newDocsEnv(t)
+	p := e.plan(t3PlanOpts{Monthly: 7900})
+	e.subscribe(p.Monthly)
+	inv := e.documentJobs()[0]
+	e.svc.now = func() time.Time { return time.Now().UTC() }
+	swept := func() bool {
+		t.Helper()
+		e.queue.jobs = nil
+		if _, err := e.svc.SweepInvoiceDocuments(e.ctx); err != nil {
+			t.Fatal(err)
+		}
+		for _, j := range e.queue.all() {
+			if a, ok := j.(model.InvoiceDocumentArgs); ok && a.InvoiceID == inv {
+				return true
+			}
+		}
+		return false
+	}
+
+	if swept() {
+		t.Fatal("a fresh invoice is still its own job's to finish")
+	}
+	// Issued long ago, its job gave up: the sweep queues it again.
+	e.exec(`UPDATE invoices SET created_at = '2000-01-01' WHERE id = $1`, inv)
+	if !swept() {
+		t.Fatal("an old invoice without a PDF was not queued again")
+	}
+	if err := e.svc.DeliverInvoiceDocument(e.ctx, e.ws, inv); err != nil {
+		t.Fatal(err)
+	}
+	if swept() {
+		t.Fatal("an invoice with a PDF was queued again")
+	}
+}

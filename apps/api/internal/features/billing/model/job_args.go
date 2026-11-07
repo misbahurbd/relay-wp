@@ -28,8 +28,18 @@ type InvoiceDocumentArgs struct {
 // Kind is the job's stable name in the river_job table.
 func (InvoiceDocumentArgs) Kind() string { return "billing_invoice_document" }
 
-// InsertOpts retries a failed render or send with River's backoff, for most of a day.
-func (InvoiceDocumentArgs) InsertOpts() river.InsertOpts { return river.InsertOpts{MaxAttempts: 12} }
+// InsertOpts retries a failed render or send with River's backoff, for most
+// of a day. Unique by args: the sweep never queues a second live job.
+func (InvoiceDocumentArgs) InsertOpts() river.InsertOpts {
+	return river.InsertOpts{MaxAttempts: 12, UniqueOpts: river.UniqueOpts{ByArgs: true}}
+}
+
+// InvoiceDocumentsSweepArgs queues the document job again for numbered
+// invoices still without a PDF a day after they were issued.
+type InvoiceDocumentsSweepArgs struct{}
+
+// Kind is the job's stable name in the river_job table.
+func (InvoiceDocumentsSweepArgs) Kind() string { return "billing_invoice_documents_sweep" }
 
 // InstallmentsDueArgs is the daily installments pass: mark due, remind,
 // mark overdue and suspend, default (Q2).
@@ -78,6 +88,7 @@ func (StuckPaymentEventsArgs) Kind() string { return "billing_stuck_payment_even
 var (
 	_ river.JobArgs = ProcessPaymentEventArgs{}
 	_ river.JobArgs = InvoiceDocumentArgs{}
+	_ river.JobArgs = InvoiceDocumentsSweepArgs{}
 	_ river.JobArgs = InstallmentsDueArgs{}
 	_ river.JobArgs = ExpireTrialsArgs{}
 	_ river.JobArgs = ExpireCheckoutsArgs{}

@@ -49,6 +49,15 @@ UPDATE invoices
 SET pdf_key = @pdf_key
 WHERE workspace_id = @workspace_id AND id = @invoice_id AND pdf_key IS NULL;
 
+-- name: ListInvoicesWithoutPDF :many
+-- Numbered invoices created before @before that still have no PDF: their
+-- document job ran out of attempts, or they predate invoice documents.
+SELECT id, workspace_id
+FROM invoices
+WHERE number IS NOT NULL AND pdf_key IS NULL AND created_at < @before
+ORDER BY created_at, id
+LIMIT @max_rows;
+
 -- name: MarkInvoiceEmailed :execrows
 UPDATE invoices
 SET emailed_at = @emailed_at

@@ -41,8 +41,16 @@ GROUP BY 1;
 
 ALTER TABLE invoices ADD CONSTRAINT invoices_number_key UNIQUE (number);
 
+-- Past payments get their PDF from the hourly sweep, but no email: the
+-- customer was told about them long ago.
+UPDATE invoices SET emailed_at = COALESCE(paid_at, created_at) WHERE number IS NOT NULL;
+
+-- The sweep's work list: numbered invoices still waiting for their PDF.
+CREATE INDEX invoices_pdf_pending_idx ON invoices (created_at) WHERE number IS NOT NULL AND pdf_key IS NULL;
+
 -- +goose Down
 -- Provider numbers and receipt links are gone for good; Relay's numbers stay.
+DROP INDEX invoices_pdf_pending_idx;
 ALTER TABLE invoices DROP CONSTRAINT invoices_number_key;
 
 ALTER TABLE invoices
