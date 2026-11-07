@@ -23,7 +23,9 @@ var (
 	ErrPaymentProviderMissing  = apperr.Conflict("payment_provider_out_of_sync",
 		"The payment provider has no record of this. Contact support and we'll sort it out.")
 	ErrPaymentProviderRefused = apperr.Validation("payment_provider_refused", "The payment provider couldn't do this. Contact support.")
-	ErrPaymentProviderDown    = apperr.Unavailable("payment_provider_unavailable", "The payment provider isn't answering. Try again in a minute.")
+	ErrBelowProviderMinimum   = apperr.Validation("amount_below_provider_minimum",
+		"This payment is smaller than the payment provider can take. Pay in full or use another payment method.")
+	ErrPaymentProviderDown = apperr.Unavailable("payment_provider_unavailable", "The payment provider isn't answering. Try again in a minute.")
 
 	// Subscriptions.
 	ErrNoSubscription     = apperr.NotFound("subscription_not_found", "This workspace has no subscription.")

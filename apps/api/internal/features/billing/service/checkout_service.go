@@ -185,6 +185,9 @@ func (s *Service) prepareOrder(ctx context.Context, r repository.Repository, c *
 		c.params.DiscountID = &q.Discount.Discount.ID
 	}
 	c.quote = &q
+	if err := checkMinCharge(c.gateway, q, offer, collection); err != nil {
+		return err
+	}
 	product, err := oneTimeProduct(ctx, r, price.ID, c.gateway.Provider())
 	if err != nil {
 		return err
@@ -213,6 +216,22 @@ func (s *Service) prepareOrder(ctx context.Context, r repository.Repository, c *
 	c.req.Mode, c.req.ExternalPriceID = payment.ModeInstallments, *pp.ExternalPriceID
 	for _, p := range q.Schedule {
 		c.req.Schedule = append(c.req.Schedule, p.AmountMinor)
+	}
+	return nil
+}
+
+// checkMinCharge refuses an order whose payments Relay would charge one by one
+// (in full, or app_link installments) when one is under the provider's
+// minimum. Nothing due now is fine: openCheckout completes it without the provider.
+func checkMinCharge(g payment.Gateway, q model.OrderQuote, offer *model.InstallmentOffer, collection string) error {
+	floor := g.Capabilities().MinChargeMinor
+	if floor == 0 || (offer != nil && collection == model.CollectionProviderSchedule) {
+		return nil
+	}
+	for _, p := range q.Schedule {
+		if p.AmountMinor < floor {
+			return model.ErrBelowProviderMinimum
+		}
 	}
 	return nil
 }
@@ -253,6 +272,9 @@ func (s *Service) StartPaymentCheckout(ctx context.Context, workspaceID, userID 
 	g, err := s.gateway(provider)
 	if err != nil {
 		return model.StartedCheckout{}, err
+	}
+	if in.AmountMinor < g.Capabilities().MinChargeMinor {
+		return model.StartedCheckout{}, model.ErrBelowProviderMinimum
 	}
 	profile, err := s.Profile(ctx, workspaceID)
 	if err != nil {
@@ -300,9 +322,12 @@ type checkoutStart struct {
 
 // openCheckout stores the session (with its order and discount reservation)
 // in one transaction, then asks the provider to start it. If the provider
-// refuses, the session fails and the discount is released.
+// refuses, the session fails and the discount is released. An order with
+// nothing due now (a discount or credit covers it) completes in that
+// transaction instead, and the provider is never asked.
 func (s *Service) openCheckout(ctx context.Context, workspaceID uuid.UUID, c checkoutStart) (model.StartedCheckout, error) {
 	c.params.ExpiresAt = s.now().Add(s.cfg.CheckoutTTL)
+	free := c.quote != nil && c.params.AmountMinor == 0
 	var (
 		session  model.CheckoutSession
 		customer gen.EnsureBillingCustomerRow
@@ -333,7 +358,12 @@ func (s *Service) openCheckout(ctx context.Context, workspaceID uuid.UUID, c che
 		}
 		session = toCheckoutSession(gen.GetCheckoutSessionRow(row))
 		if c.discount != nil {
-			return s.ReserveDiscount(ctx, tx, workspaceID, session.ID, *c.discount)
+			if err := s.ReserveDiscount(ctx, tx, workspaceID, session.ID, *c.discount); err != nil {
+				return err
+			}
+		}
+		if free {
+			return s.completeFreeCheckout(ctx, tx, &session)
 		}
 		return nil
 	})
@@ -355,6 +385,9 @@ func (s *Service) openCheckout(ctx context.Context, workspaceID uuid.UUID, c che
 		}
 	} else if err != nil {
 		return model.StartedCheckout{}, err
+	}
+	if free {
+		return model.StartedCheckout{Session: session}, nil
 	}
 
 	req := c.req
@@ -430,6 +463,24 @@ func (s *Service) openCheckout(ctx context.Context, workspaceID uuid.UUID, c che
 		Session: session, ClientSecret: started.ClientSecret, URL: started.URL,
 		PublishableKey: c.gateway.Capabilities().PublishableKey,
 	}, nil
+}
+
+// completeFreeCheckout completes an order checkout that charges nothing in tx,
+// through the path a paid checkout.completed takes: the order is paid, the
+// discount redeemed, the grant started and an invoice of 0 recorded.
+func (s *Service) completeFreeCheckout(ctx context.Context, tx pgx.Tx, session *model.CheckoutSession) error {
+	now := s.now()
+	ev := payment.Event{
+		Provider: session.Provider, Type: payment.EventCheckoutCompleted, OccurredAt: now, Reference: &session.ID,
+		Payment: &payment.Payment{
+			SubtotalMinor: session.DiscountMinor, DiscountMinor: session.DiscountMinor, Currency: session.Currency, PaidAt: &now,
+		},
+	}
+	if err := s.CompleteCheckout(ctx, tx, session.WorkspaceID, session.ID, ev); err != nil {
+		return err
+	}
+	session.Status = model.CheckoutCompleted
+	return nil
 }
 
 // checkoutReturnURL is the web page a hosted checkout returns to. It shows

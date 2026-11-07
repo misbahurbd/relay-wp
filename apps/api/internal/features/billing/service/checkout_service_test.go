@@ -221,3 +221,92 @@ func TestRetryResumesAHalfOpenCheckout(t *testing.T) {
 		t.Fatalf("retry = %+v, want the first provider checkout with its form", again)
 	}
 }
+
+// A lifetime deal a discount (or credit) covers in full completes inside Relay:
+// providers refuse a charge of 0, so none is asked.
+func TestFreeOrderCompletesWithoutTheProvider(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	ltd := e.price(p.ID, model.BillingOneTime, "", 5000)
+	d := e.discount(func(d *model.NewDiscount) { d.PercentBps = ptrTo(10000) })
+	in := model.CheckoutInput{PlanPriceID: ltd, DiscountCode: d.Code, IdempotencyKey: uuid.NewString()}
+
+	c, err := e.svc.CreateCheckout(e.ctx, e.ws, e.user, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := c.Session
+	if s.Status != model.CheckoutCompleted || s.AmountMinor != 0 || s.ExternalSessionID != nil || c.URL != "" || c.ClientSecret != "" {
+		t.Fatalf("checkout = %+v, want completed with nothing for the browser to open", c)
+	}
+	o, err := e.svc.CurrentOrder(e.ctx, e.ws)
+	if err != nil || o.Status != model.OrderPaid || o.DiscountMinor != 5000 || o.PaidMinor != 0 {
+		t.Fatalf("order = %+v, %v", o, err)
+	}
+	e.wantCache(e.ws, p.Code)
+	if status, _ := e.redemption(s.ID); status != model.RedemptionRedeemed {
+		t.Errorf("redemption = %s", status)
+	}
+	page, err := e.svc.Invoices(e.ctx, e.ws, "")
+	if err != nil || len(page.Invoices) != 1 {
+		t.Fatalf("invoices = %+v, %v", page.Invoices, err)
+	}
+	if inv := page.Invoices[0]; inv.TotalMinor != 0 || inv.DiscountMinor != 5000 || inv.SubtotalMinor != 5000 || inv.Status != model.InvoicePaid {
+		t.Errorf("invoice = %+v", inv)
+	}
+
+	again, err := e.svc.CreateCheckout(e.ctx, e.ws, e.user, in)
+	if err != nil || again.Session.ID != s.ID || again.Session.Status != model.CheckoutCompleted {
+		t.Fatalf("replay = %+v, %v", again.Session, err)
+	}
+}
+
+// A payment under the provider's minimum is refused before any order exists,
+// whether it is the whole price or one of the installments Relay charges.
+func TestOrderUnderProviderMinimumIsRefused(t *testing.T) {
+	e := newT3Env(t)
+	caps := e.fake.Capabilities()
+	t.Cleanup(func() { e.fake.SetCapabilities(caps) })
+	floored := caps
+	floored.MinChargeMinor = 100
+	e.fake.SetCapabilities(floored)
+
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	ltd := e.price(p.ID, model.BillingOneTime, "", 5000)
+	d := e.discount(func(d *model.NewDiscount) {
+		d.Kind, d.PercentBps, d.AmountOffMinor, d.Currency = model.DiscountAmount, nil, ptrTo(int64(4950)), ptrTo("USD")
+	})
+	_, err := e.svc.CreateCheckout(e.ctx, e.ws, e.user, model.CheckoutInput{
+		PlanPriceID: ltd, DiscountCode: d.Code, IdempotencyKey: uuid.NewString(),
+	})
+	if !errors.Is(err, model.ErrBelowProviderMinimum) {
+		t.Fatalf("50 due now: err = %v", err)
+	}
+
+	offer, err := e.svc.CreateInstallmentOffer(e.ctx, model.NewInstallmentOffer{
+		PlanPriceID: ltd, Count: 3, TotalMinor: 250, GraceDays: 7, MaxMissed: 2,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	link := model.CollectionAppLink
+	if _, err := e.svc.CreateProviderPrice(e.ctx, model.NewProviderPrice{
+		PlanPriceID: ltd, InstallmentOfferID: &offer, Provider: string(payment.Stripe), Collection: &link,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_, err = e.svc.CreateCheckout(e.ctx, e.ws, e.user, model.CheckoutInput{
+		PlanPriceID: ltd, InstallmentOfferID: &offer, IdempotencyKey: uuid.NewString(),
+	})
+	if !errors.Is(err, model.ErrBelowProviderMinimum) {
+		t.Fatalf("installments of 83: err = %v", err)
+	}
+
+	var orders int
+	if err := e.pool.QueryRow(e.ctx, `SELECT count(*) FROM orders WHERE workspace_id = $1`, e.ws).Scan(&orders); err != nil {
+		t.Fatal(err)
+	}
+	if orders != 0 {
+		t.Fatalf("%d orders created, want none", orders)
+	}
+}

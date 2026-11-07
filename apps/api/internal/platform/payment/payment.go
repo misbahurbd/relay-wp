@@ -124,6 +124,9 @@ type Capabilities struct {
 	CheckoutTrials bool `json:"checkout_trials"`
 	// Coupons: CreateCoupon works, so discounts carry over to renewals.
 	Coupons bool `json:"coupons"`
+	// MinChargeMinor is the smallest amount a payment-mode checkout may charge,
+	// in minor units; 0 means Relay enforces no floor.
+	MinChargeMinor int64 `json:"min_charge_minor"`
 	// PartialRefunds: Refund accepts less than the payment's total.
 	PartialRefunds bool `json:"partial_refunds"`
 	// MerchantOfRecord: the provider charges and reports tax (Creem).
