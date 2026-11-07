@@ -322,7 +322,10 @@ export const contactsUsageQueryOptions = (workspaceId: string) =>
     },
   })
 
-/** This month's use of each monthly plan resource, keyed by resource, for the usage meters. */
+/**
+ * This month's use of each monthly plan resource, keyed by resource, for the usage meters, and the
+ * calendar month (UTC) the counts cover.
+ */
 export const monthlyUsageQueryOptions = (workspaceId: string) =>
   queryOptions({
     queryKey: billingKeys.monthly(workspaceId),
@@ -332,6 +335,10 @@ export const monthlyUsageQueryOptions = (workspaceId: string) =>
         signal,
         throwOnError: true,
       })
-      return Object.fromEntries(list(data.resources).map((r) => [r.resource, r]))
+      return {
+        periodStart: data.period_start,
+        periodEnd: data.period_end,
+        resources: Object.fromEntries(list(data.resources).map((r) => [r.resource, r])),
+      }
     },
   })
