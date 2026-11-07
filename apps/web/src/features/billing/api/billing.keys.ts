@@ -21,10 +21,11 @@ export const billingKeys = {
   checkout: (workspaceId: string, sessionId: string) =>
     ['billing', workspaceId, 'checkout', sessionId] as const,
   paymentMethod: (workspaceId: string) => ['billing', workspaceId, 'payment-method'] as const,
-  /** Seats and WhatsApp numbers, read from their own endpoints for the usage meters. */
+  /** Seats, WhatsApp numbers and contacts, read from their own endpoints for the usage meters. */
   seats: (workspaceId: string) => ['billing', workspaceId, 'usage', 'seats'] as const,
   numbers: (workspaceId: string) => ['billing', workspaceId, 'usage', 'numbers'] as const,
-  /** This month's use of monthly resources (broadcasts, API calls). */
+  contacts: (workspaceId: string) => ['billing', workspaceId, 'usage', 'contacts'] as const,
+  /** This month's use of monthly resources (broadcasts, API calls, AI replies). */
   monthly: (workspaceId: string) => ['billing', workspaceId, 'usage', 'monthly'] as const,
   /** Sample data (api/billing.preview.ts). */
   preview: (workspaceId: string, part: string) =>

@@ -122,9 +122,6 @@ export type PaymentMethod = {
 // ---------- Preview (sample data until the backend exists; api/billing.preview.ts) ----------
 // Amounts follow the API's rules: plan money in minor units, Meta's sub-cent rates in micros.
 
-/** One usage meter. limit -1 is unlimited. */
-export type UsageRow = { key: string; label: string; used: number; limit: number; preview: boolean }
-
 export type MetaCostCategory = 'marketing' | 'utility' | 'authentication' | 'service'
 
 export type MetaCostRow = {

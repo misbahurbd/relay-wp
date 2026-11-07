@@ -1,25 +1,31 @@
 import { useQuery } from '@tanstack/react-query'
+import { CheckIcon } from 'lucide-react'
 import { Badge } from '#/components/ui/badge'
 import { Skeleton } from '#/components/ui/skeleton'
-import { usagePreviewQueryOptions } from '../../api/billing.preview'
 import {
+  contactsUsageQueryOptions,
   monthlyUsageQueryOptions,
   numbersUsageQueryOptions,
+  resourcesQueryOptions,
   seatsUsageQueryOptions,
 } from '../../api/billing.queries'
-import { useBillingPreview } from '../../hooks/use-billing-preview'
-import type { Overview, UsageRow } from '../../types'
+import type { Overview, Resource } from '../../types'
 import { formatDate } from '../kit/format'
 import { type LimitState, limitState } from '../kit/limit-state'
 import { Meter } from '../kit/meter'
-import { PreviewBadge } from '../kit/preview-badge'
 import { Section, SectionHeader } from '../kit/section'
 
 const DAY = 24 * 60 * 60 * 1000
+const count = new Intl.NumberFormat()
+
+type Load = { isPending: boolean; isError: boolean }
+
+/** One meter: what the plan allows of a resource and how much is used, once loaded. */
+type Row = { resource: Resource; label: string; load: Load; used?: number; limit: number }
 
 /**
- * How much of each plan limit the workspace uses. Seats, WhatsApp numbers and broadcasts are real;
- * contacts, flows and API calls are a preview until Relay counts them.
+ * How much of each plan limit the workspace uses: a meter for every count and monthly resource the
+ * plan includes, then the features it includes. Each count comes from the feature that owns it.
  */
 export function UsageCard({
   workspaceId,
@@ -30,41 +36,47 @@ export function UsageCard({
   overview: Overview
   className?: string
 }) {
-  const preview = useBillingPreview()
+  const resources = useQuery(resourcesQueryOptions())
   const seats = useQuery(seatsUsageQueryOptions(workspaceId))
   const numbers = useQuery(numbersUsageQueryOptions(workspaceId))
+  const contacts = useQuery(contactsUsageQueryOptions(workspaceId))
   const monthly = useQuery(monthlyUsageQueryOptions(workspaceId))
-  const broadcasts = monthly.data?.broadcasts
-  const samples = useQuery({ ...usagePreviewQueryOptions(workspaceId), enabled: preview })
   const limits = overview.plan.limits
-  const seatLimit = seats.data?.limit ?? limits.members
-  const states = [
-    seats.data && limitState(seats.data.used, seatLimit),
-    numbers.data !== undefined && limitState(numbers.data, limits.whatsapp_numbers),
-    broadcasts && limitState(broadcasts.used, broadcasts.limit),
-  ].flatMap((s) => (s ? [s] : []))
-  const alert = limitsAlert(states)
-  const sample = (key: string) => samples.data?.find((r) => r.key === key)
 
-  const seatsRow = (
-    <Live label="Team seats" state={seats} used={seats.data?.used} limit={seatLimit} />
-  )
-  const numbersRow = (
-    <Live
-      label="WhatsApp numbers"
-      state={numbers}
-      used={numbers.data}
-      limit={limits.whatsapp_numbers}
-    />
-  )
-  const broadcastsRow = (
-    <Live
-      label="Broadcasts this month"
-      state={monthly}
-      used={broadcasts?.used}
-      limit={broadcasts?.limit ?? limits.broadcasts}
-    />
-  )
+  const counted: Record<string, { load: Load; used?: number; limit?: number }> = {
+    members: { load: seats, used: seats.data?.used, limit: seats.data?.limit },
+    whatsapp_numbers: { load: numbers, used: numbers.data },
+    contacts: { load: contacts, used: contacts.data },
+  }
+
+  const catalog = resources.data ?? []
+  const rows: Row[] = catalog
+    .filter((r) => r.kind !== 'access' && (limits[r.key] ?? 0) !== 0)
+    .map((resource) => {
+      const limit = limits[resource.key] ?? 0
+      if (resource.kind === 'monthly') {
+        const m = monthly.data?.[resource.key]
+        return {
+          resource,
+          label: `${resource.label} this month`,
+          load: monthly,
+          used: m?.used,
+          limit: m?.limit ?? limit,
+        }
+      }
+      const c = counted[resource.key]
+      return {
+        resource,
+        label: resource.label,
+        load: c?.load,
+        used: c?.used,
+        limit: c?.limit ?? limit,
+      }
+    })
+  const features = catalog.filter((r) => r.kind === 'access' && limits[r.key] === 1)
+
+  const states = rows.flatMap((r) => (r.used === undefined ? [] : [limitState(r.used, r.limit)]))
+  const alert = limitsAlert(states)
 
   return (
     <Section aria-labelledby="usage-heading" className={className}>
@@ -81,23 +93,25 @@ export function UsageCard({
         }
       />
       <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-x-6 gap-y-4">
-        {preview ? (
-          <>
-            <Sample row={sample('contacts')} />
-            {seatsRow}
-            <Sample row={sample('chatbot_flows')} />
-            {broadcastsRow}
-            <Sample row={sample('api_calls_per_month')} />
-            {numbersRow}
-          </>
-        ) : (
-          <>
-            {seatsRow}
-            {numbersRow}
-            {broadcastsRow}
-          </>
-        )}
+        {resources.isPending
+          ? [0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-[62px]" aria-label="Loading usage" />
+            ))
+          : rows.map((row) => <UsageRow key={row.resource.key} row={row} />)}
       </div>
+      {features.length > 0 && (
+        <div className="mt-5 flex flex-col gap-2 border-t pt-4">
+          <span className="text-[13px] font-bold">Included in {overview.plan.plan_name}</span>
+          <ul className="flex flex-wrap gap-x-5 gap-y-1.5 text-[13px] text-muted-foreground">
+            {features.map((f) => (
+              <li key={f.key} className="flex items-center gap-1.5">
+                <CheckIcon className="size-3.5 text-brand" aria-hidden="true" />
+                {f.label}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </Section>
   )
 }
@@ -139,24 +153,24 @@ function period({ subscription: sub }: Overview) {
   }`
 }
 
-function Sample({ row }: { row: UsageRow | undefined }) {
-  if (!row) return <Skeleton className="h-[62px]" aria-label="Loading usage" />
-  return <Meter label={row.label} used={row.used} limit={row.limit} tag={<PreviewBadge />} />
-}
-
-function Live({
-  label,
-  state,
-  used,
-  limit,
-}: {
-  label: string
-  state: { isPending: boolean; isError: boolean }
-  used: number | undefined
-  limit: number
-}) {
-  if (state.isPending) return <Skeleton className="h-[62px]" aria-label={`Loading ${label}`} />
-  if (state.isError || used === undefined) {
+function UsageRow({ row }: { row: Row }) {
+  const { label, load, used, limit } = row
+  if (!load) {
+    // A limit no feature counts yet: show what the plan allows, without a bar.
+    return (
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center justify-between gap-2 text-[13px]">
+          <span className="font-bold">{label}</span>
+          <span className="text-muted-foreground tabular-nums">
+            {limit < 0 ? 'Unlimited' : `Up to ${count.format(limit)}`}
+          </span>
+        </div>
+        <span className="text-xs text-muted-foreground">Usage isn’t tracked yet.</span>
+      </div>
+    )
+  }
+  if (load.isPending) return <Skeleton className="h-[62px]" aria-label={`Loading ${label}`} />
+  if (load.isError || used === undefined) {
     return (
       <div className="flex flex-col gap-1">
         <span className="text-[13px] font-bold">{label}</span>

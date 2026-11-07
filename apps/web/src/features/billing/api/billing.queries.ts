@@ -4,6 +4,7 @@ import {
   getBillingProfile,
   getBillingUsage,
   getCheckoutSession,
+  getContactsSummary,
   getInvoice,
   getPaymentMethod,
   getSeats,
@@ -277,6 +278,20 @@ export const numbersUsageQueryOptions = (workspaceId: string) =>
         throwOnError: true,
       })
       return list(data.numbers).filter((n) => n.status !== 'disconnected').length
+    },
+  })
+
+/** Contacts in the workspace, against the plan's contacts cap. */
+export const contactsUsageQueryOptions = (workspaceId: string) =>
+  queryOptions({
+    queryKey: billingKeys.contacts(workspaceId),
+    queryFn: async ({ signal }) => {
+      const { data } = await getContactsSummary({
+        headers: inWorkspace(workspaceId),
+        signal,
+        throwOnError: true,
+      })
+      return data.total
     },
   })
 

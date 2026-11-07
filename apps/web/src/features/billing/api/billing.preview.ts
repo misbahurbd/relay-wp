@@ -6,7 +6,6 @@ import type {
   SpendingBudget,
   SpendingPeriod,
   SpendPoint,
-  UsageRow,
   Wallet,
   WalletEntry,
   WalletOutlook,
@@ -23,24 +22,6 @@ const sample =
   <T>(value: T) =>
   () =>
     Promise.resolve(value)
-
-/** Usage meters for limits Relay doesn't count yet. */
-export const usagePreviewQueryOptions = (workspaceId: string) =>
-  queryOptions({
-    queryKey: billingKeys.preview(workspaceId, 'usage'),
-    queryFn: sample<UsageRow[]>([
-      { key: 'contacts', label: 'Contacts', used: 8640, limit: 10000, preview: true },
-      { key: 'chatbot_flows', label: 'Chatbot flows', used: 4, limit: 10, preview: true },
-      {
-        key: 'api_calls_per_month',
-        label: 'API calls this month',
-        used: 41200,
-        limit: 50000,
-        preview: true,
-      },
-    ]),
-    staleTime: Infinity,
-  })
 
 /** This month's Meta charges by category, as Meta's pricing analytics will report them. */
 export const metaCostsPreviewQueryOptions = (workspaceId: string) =>

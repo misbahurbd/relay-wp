@@ -20,7 +20,7 @@ function note(state: LimitState, used: number, limit: number) {
     case 'not_included':
       return 'Not in your plan'
     case 'ok':
-      return `${state.pct}% used`
+      return used > 0 && state.pct === 0 ? 'Under 1% used' : `${state.pct}% used`
     case 'almost':
       return `${state.pct}% used. Upgrade to avoid interruptions.`
     case 'at':
