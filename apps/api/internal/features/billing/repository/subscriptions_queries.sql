@@ -148,3 +148,13 @@ SELECT EXISTS (
     UNION ALL
     SELECT 1 FROM plan_grants g WHERE g.workspace_id = @workspace_id AND g.source = 'trial'
 );
+
+-- name: ListOverdueSubscriptions :many
+-- Job only (all workspaces): live provider-renewed subscriptions whose period
+-- ended at or before @ended_before with no news, in ID order after @after_id.
+SELECT id, workspace_id, provider, external_subscription_id
+FROM subscriptions
+WHERE renewal_mode = 'provider' AND status IN ('trialing', 'active', 'past_due')
+  AND external_subscription_id IS NOT NULL AND current_period_end <= @ended_before AND id > @after_id
+ORDER BY id
+LIMIT @max_rows;

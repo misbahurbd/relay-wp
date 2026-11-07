@@ -605,9 +605,13 @@ export type ChangePlanInputBody = {
 };
 
 export type ChangeQuoteOutputBody = {
+    /**
+     * True when the change takes effect now; false when it waits for the period end
+     */
+    applies_now: boolean;
     currency: string;
     /**
-     * Now for an upgrade; the period end for a downgrade
+     * Now when applies_now; otherwise the period end
      */
     effective_at: string;
     from_price_id: string;
@@ -642,6 +646,17 @@ export type CheckoutSessionDto = {
     purpose: 'new' | 'renewal' | 'change' | 'ltd' | 'installment';
     status: 'pending' | 'completed' | 'failed' | 'expired';
     subscription_id: string;
+};
+
+export type CloseDisputeInputBody = {
+    /**
+     * won: the invoice is paid again; lost: the plan it paid for is suspended
+     */
+    outcome: 'won' | 'lost';
+    /**
+     * How it was settled, for the record
+     */
+    reason: string;
 };
 
 export type ColumnMappingDto = {
@@ -1055,6 +1070,28 @@ export type DiscountPreviewOutputBody = {
     total_minor: number;
 };
 
+export type DisputedInvoiceDto = {
+    currency: string;
+    disputed_since: string;
+    id: string;
+    /**
+     * Empty before one is issued
+     */
+    number: string;
+    paid_at: string | null;
+    provider: 'stripe' | 'creem' | 'paypal' | 'sslcommerz';
+    total_minor: number;
+    workspace_id: string;
+    workspace_name: string;
+};
+
+export type DisputedInvoicesOutputBody = {
+    /**
+     * Oldest dispute first, at most 200
+     */
+    invoices: Array<DisputedInvoiceDto> | null;
+};
+
 export type DripSettings = {
     steps: Array<DripStep> | null;
     stop_on_reply: boolean;
@@ -1168,7 +1205,11 @@ export type GrantDto = {
     starts_at: string;
     status: 'active' | 'suspended';
     /**
-     * A missed installment; free limits apply until it is paid
+     * Why it is suspended; null when active
+     */
+    suspend_reason: 'past_due' | 'installments' | 'dispute';
+    /**
+     * Free limits apply until the cause is cleared
      */
     suspended_at: string | null;
 };
@@ -3499,6 +3540,58 @@ export type AdminDeactivateDiscountResponses = {
 };
 
 export type AdminDeactivateDiscountResponse = AdminDeactivateDiscountResponses[keyof AdminDeactivateDiscountResponses];
+
+export type AdminListDisputesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/admin/billing/disputes';
+};
+
+export type AdminListDisputesErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AdminListDisputesError = AdminListDisputesErrors[keyof AdminListDisputesErrors];
+
+export type AdminListDisputesResponses = {
+    /**
+     * OK
+     */
+    200: DisputedInvoicesOutputBody;
+};
+
+export type AdminListDisputesResponse = AdminListDisputesResponses[keyof AdminListDisputesResponses];
+
+export type AdminCloseDisputeData = {
+    body: CloseDisputeInputBody;
+    path: {
+        invoice_id: string;
+    };
+    query?: never;
+    url: '/v1/admin/billing/disputes/{invoice_id}/close';
+};
+
+export type AdminCloseDisputeErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type AdminCloseDisputeError = AdminCloseDisputeErrors[keyof AdminCloseDisputeErrors];
+
+export type AdminCloseDisputeResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type AdminCloseDisputeResponse = AdminCloseDisputeResponses[keyof AdminCloseDisputeResponses];
 
 export type AdminCreateInstallmentOfferData = {
     body: CreateInstallmentOfferInputBody;

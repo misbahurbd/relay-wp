@@ -1,4 +1,5 @@
 import {
+  adminCloseDispute,
   adminCreateDiscount,
   adminCreateInstallmentOffer,
   adminCreatePlan,
@@ -13,6 +14,7 @@ import {
   adminGetCatalog,
   adminGrantPlan,
   adminListDiscounts,
+  adminListDisputes,
   adminListWorkspaces,
   adminRestoreGrant,
   adminSetGrantOverrides,
@@ -35,6 +37,7 @@ import type {
   AdminDiscount,
   AdminWorkspace,
   CatalogRowKind,
+  DisputedInvoice,
   ProviderCaps,
   Resource,
 } from '../types'
@@ -46,6 +49,7 @@ export const adminKeys = {
   catalog: () => ['admin', 'catalog'] as const,
   discounts: () => ['admin', 'discounts'] as const,
   workspaces: (search: string) => ['admin', 'workspaces', search] as const,
+  disputes: () => ['admin', 'disputes'] as const,
   resources: () => ['admin', 'resources'] as const,
   providerCaps: () => ['billing', 'providers'] as const,
 }
@@ -94,6 +98,16 @@ export function workspacesQueryOptions(search: string) {
     queryFn: async (): Promise<AdminWorkspace[]> => {
       const { data } = await adminListWorkspaces({ query: { search }, throwOnError: true })
       return list(data.workspaces).map((w) => ({ ...w, grant: w.grant ?? null }))
+    },
+  })
+}
+
+export function disputesQueryOptions() {
+  return queryOptions({
+    queryKey: adminKeys.disputes(),
+    queryFn: async (): Promise<DisputedInvoice[]> => {
+      const { data } = await adminListDisputes({ throwOnError: true })
+      return list(data.invoices).map((i) => ({ ...i, paid_at: i.paid_at ?? null }))
     },
   })
 }
@@ -167,6 +181,24 @@ export const useEndGrant = () =>
 export const useRestoreGrant = () =>
   useAdminMutation((workspaceId: string) =>
     adminRestoreGrant({ body: { workspace_id: workspaceId }, throwOnError: true }),
+  )
+
+export const useCloseDispute = () =>
+  useAdminMutation(
+    ({
+      invoiceId,
+      outcome,
+      reason,
+    }: {
+      invoiceId: string
+      outcome: 'won' | 'lost'
+      reason: string
+    }) =>
+      adminCloseDispute({
+        path: { invoice_id: invoiceId },
+        body: { outcome, reason },
+        throwOnError: true,
+      }),
   )
 
 export const useUpdatePlan = () =>

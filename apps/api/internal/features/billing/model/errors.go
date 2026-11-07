@@ -60,6 +60,7 @@ var (
 	// Profiles, invoices, grants.
 	ErrProfileNotFound = apperr.NotFound("billing_profile_not_found", "Add your billing details first.")
 	ErrInvoiceNotFound = apperr.NotFound("invoice_not_found", "Invoice not found")
+	ErrNotDisputed     = apperr.Conflict("invoice_not_disputed", "This invoice has no open dispute.")
 	ErrInvalidCursor   = apperr.Validation("invalid_cursor", "The page cursor is invalid")
 	ErrPlanNotFound    = apperr.NotFound("plan_not_found", "Plan not found")
 	ErrNoCardCustomer  = apperr.NotFound("no_payment_customer", "There's no card on file yet. It's saved when you first pay.")

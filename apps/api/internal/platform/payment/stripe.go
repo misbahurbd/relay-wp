@@ -564,6 +564,17 @@ func (g *stripeGateway) Card(ctx context.Context, req CardRequest) (*Card, error
 // PortalURL opens a Stripe Billing Portal session. Which actions the portal
 // offers is set in the Stripe dashboard (payment methods only; see
 // docs/PHASE-7-BILLING.md section 4).
+// FetchCheckout is unsupported: Stripe retries a webhook for three days, and
+// its dashboard resends one.
+func (g *stripeGateway) FetchCheckout(context.Context, string) (Event, error) {
+	return Event{}, fmt.Errorf("stripe: fetch checkout: %w", ErrUnsupported)
+}
+
+// FetchSubscription is unsupported, as FetchCheckout is.
+func (g *stripeGateway) FetchSubscription(context.Context, string) (Event, error) {
+	return Event{}, fmt.Errorf("stripe: fetch subscription: %w", ErrUnsupported)
+}
+
 func (g *stripeGateway) PortalURL(ctx context.Context, req PortalRequest) (string, error) {
 	if req.ExternalCustomerID == "" {
 		return "", fmt.Errorf("stripe: portal needs a customer: %w", ErrInvalidRequest)

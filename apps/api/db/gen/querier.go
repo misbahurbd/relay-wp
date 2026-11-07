@@ -33,6 +33,10 @@ type Querier interface {
 	AdminCountFreeWorkspaces(ctx context.Context) (int32, error)
 	// Workspaces whose limits come from each plan right now: an active grant on it.
 	AdminCountPlanWorkspaces(ctx context.Context) ([]AdminCountPlanWorkspacesRow, error)
+	// Staff only: the invoice a staff action names, with the IDs it needs.
+	AdminGetInvoice(ctx context.Context, invoiceID uuid.UUID) (AdminGetInvoiceRow, error)
+	// Staff only (all workspaces): invoices under an open dispute, oldest first.
+	AdminListDisputedInvoices(ctx context.Context) ([]AdminListDisputedInvoicesRow, error)
 	AdminListInstallmentOffers(ctx context.Context) ([]AdminListInstallmentOffersRow, error)
 	AdminListPlanPrices(ctx context.Context) ([]AdminListPlanPricesRow, error)
 	// Staff admin tools only (/v1/admin): the whole catalog, active or not, and
@@ -368,6 +372,7 @@ type Querier interface {
 	GetPasswordHash(ctx context.Context, id uuid.UUID) (*string, error)
 	GetPaymentEvent(ctx context.Context, paymentEventID uuid.UUID) (GetPaymentEventRow, error)
 	GetPlan(ctx context.Context, planID uuid.UUID) (GetPlanRow, error)
+	// is_active means on sale: a price of a deactivated plan is off sale too.
 	GetPlanPrice(ctx context.Context, planPriceID uuid.UUID) (GetPlanPriceRow, error)
 	GetProfile(ctx context.Context, userID uuid.UUID) (GetProfileRow, error)
 	// ---------- Provider coupons (subscriptions the provider renews) ----------
@@ -489,8 +494,6 @@ type Querier interface {
 	ListDiscounts(ctx context.Context, activeOnly bool) ([]ListDiscountsRow, error)
 	// Job only (all workspaces): scheduled downgrades whose date has come.
 	ListDuePendingChanges(ctx context.Context, arg ListDuePendingChangesParams) ([]ListDuePendingChangesRow, error)
-	// Job only (all workspaces): pending sessions past their expiry, oldest first.
-	ListExpiredCheckoutSessions(ctx context.Context, arg ListExpiredCheckoutSessionsParams) ([]ListExpiredCheckoutSessionsRow, error)
 	// Job only (all workspaces): card-less trials and staff grants that have reached their end.
 	ListExpiredGrants(ctx context.Context, arg ListExpiredGrantsParams) ([]ListExpiredGrantsRow, error)
 	ListIdentities(ctx context.Context, userID uuid.UUID) ([]ListIdentitiesRow, error)
@@ -515,7 +518,13 @@ type Querier interface {
 	ListMentions(ctx context.Context, arg ListMentionsParams) ([]ListMentionsRow, error)
 	// One page of a thread, newest first. Cursor: the id of the oldest message so far.
 	ListMessages(ctx context.Context, arg ListMessagesParams) ([]ListMessagesRow, error)
+	// Job only (all workspaces): pending sessions started at or before
+	// @started_before, in ID order after @after_id.
+	ListOpenCheckoutSessions(ctx context.Context, arg ListOpenCheckoutSessionsParams) ([]ListOpenCheckoutSessionsRow, error)
 	ListOrderInstallments(ctx context.Context, arg ListOrderInstallmentsParams) ([]ListOrderInstallmentsRow, error)
+	// Job only (all workspaces): live provider-renewed subscriptions whose period
+	// ended at or before @ended_before with no news, in ID order after @after_id.
+	ListOverdueSubscriptions(ctx context.Context, arg ListOverdueSubscriptionsParams) ([]ListOverdueSubscriptionsRow, error)
 	// Job only (all workspaces): past-due subscriptions whose grace has run out
 	// and whose plan is still active.
 	ListPastDueGraceEnded(ctx context.Context, arg ListPastDueGraceEndedParams) ([]ListPastDueGraceEndedRow, error)

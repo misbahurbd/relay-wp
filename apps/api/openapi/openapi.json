@@ -1844,11 +1844,15 @@
       "ChangeQuoteOutputBody": {
         "additionalProperties": false,
         "properties": {
+          "applies_now": {
+            "description": "True when the change takes effect now; false when it waits for the period end",
+            "type": "boolean"
+          },
           "currency": {
             "type": "string"
           },
           "effective_at": {
-            "description": "Now for an upgrade; the period end for a downgrade",
+            "description": "Now when applies_now; otherwise the period end",
             "format": "date-time",
             "type": "string"
           },
@@ -1876,6 +1880,7 @@
           "kind",
           "from_price_id",
           "to_price_id",
+          "applies_now",
           "effective_at",
           "proration_minor",
           "currency"
@@ -1991,6 +1996,30 @@
           "currency",
           "expires_at",
           "created_at"
+        ],
+        "type": "object"
+      },
+      "CloseDisputeInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "outcome": {
+            "description": "won: the invoice is paid again; lost: the plan it paid for is suspended",
+            "enum": [
+              "won",
+              "lost"
+            ],
+            "type": "string"
+          },
+          "reason": {
+            "description": "How it was settled, for the record",
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome",
+          "reason"
         ],
         "type": "object"
       },
@@ -3270,6 +3299,82 @@
         ],
         "type": "object"
       },
+      "DisputedInvoiceDTO": {
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "disputed_since": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "number": {
+            "description": "Empty before one is issued",
+            "type": "string"
+          },
+          "paid_at": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "enum": [
+              "stripe",
+              "creem",
+              "paypal",
+              "sslcommerz"
+            ],
+            "type": "string"
+          },
+          "total_minor": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "workspace_id": {
+            "type": "string"
+          },
+          "workspace_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "workspace_name",
+          "number",
+          "provider",
+          "total_minor",
+          "currency",
+          "paid_at",
+          "disputed_since"
+        ],
+        "type": "object"
+      },
+      "DisputedInvoicesOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "invoices": {
+            "description": "Oldest dispute first, at most 200",
+            "items": {
+              "$ref": "#/components/schemas/DisputedInvoiceDTO"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "invoices"
+        ],
+        "type": "object"
+      },
       "DripSettings": {
         "additionalProperties": false,
         "properties": {
@@ -3661,8 +3766,20 @@
             ],
             "type": "string"
           },
+          "suspend_reason": {
+            "description": "Why it is suspended; null when active",
+            "enum": [
+              "past_due",
+              "installments",
+              "dispute"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "suspended_at": {
-            "description": "A missed installment; free limits apply until it is paid",
+            "description": "Free limits apply until the cause is cleared",
             "format": "date-time",
             "type": [
               "string",
@@ -3676,7 +3793,8 @@
           "status",
           "starts_at",
           "ends_at",
-          "suspended_at"
+          "suspended_at",
+          "suspend_reason"
         ],
         "type": "object"
       },
@@ -10696,6 +10814,97 @@
           }
         ],
         "summary": "Stop a discount code from being used again",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/billing/disputes": {
+      "get": {
+        "operationId": "admin-list-disputes",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisputedInvoicesOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Invoices under an open dispute, oldest first",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/billing/disputes/{invoice_id}/close": {
+      "post": {
+        "operationId": "admin-close-dispute",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoice_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloseDisputeInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Record how a dispute ended, for providers that don't report it (Creem)",
         "tags": [
           "admin"
         ]

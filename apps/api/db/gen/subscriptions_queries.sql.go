@@ -430,6 +430,55 @@ func (q *Queries) ListDuePendingChanges(ctx context.Context, arg ListDuePendingC
 	return items, nil
 }
 
+const listOverdueSubscriptions = `-- name: ListOverdueSubscriptions :many
+SELECT id, workspace_id, provider, external_subscription_id
+FROM subscriptions
+WHERE renewal_mode = 'provider' AND status IN ('trialing', 'active', 'past_due')
+  AND external_subscription_id IS NOT NULL AND current_period_end <= $1 AND id > $2
+ORDER BY id
+LIMIT $3
+`
+
+type ListOverdueSubscriptionsParams struct {
+	EndedBefore *time.Time
+	AfterID     uuid.UUID
+	MaxRows     int32
+}
+
+type ListOverdueSubscriptionsRow struct {
+	ID                     uuid.UUID
+	WorkspaceID            uuid.UUID
+	Provider               string
+	ExternalSubscriptionID *string
+}
+
+// Job only (all workspaces): live provider-renewed subscriptions whose period
+// ended at or before @ended_before with no news, in ID order after @after_id.
+func (q *Queries) ListOverdueSubscriptions(ctx context.Context, arg ListOverdueSubscriptionsParams) ([]ListOverdueSubscriptionsRow, error) {
+	rows, err := q.db.Query(ctx, listOverdueSubscriptions, arg.EndedBefore, arg.AfterID, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListOverdueSubscriptionsRow{}
+	for rows.Next() {
+		var i ListOverdueSubscriptionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.Provider,
+			&i.ExternalSubscriptionID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPastDueGraceEnded = `-- name: ListPastDueGraceEnded :many
 SELECT s.id, s.workspace_id
 FROM subscriptions s

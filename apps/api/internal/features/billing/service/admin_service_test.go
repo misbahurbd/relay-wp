@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -563,5 +564,66 @@ func TestAdminOfferLinkCreatesThePriceProduct(t *testing.T) {
 	}
 	if n := len(e.pricesFor(ltd)); n != 1 {
 		t.Fatalf("a refused link still reached the provider: %d requests", n)
+	}
+}
+
+// Creem reports no dispute outcome, so staff record it: won pays the invoice
+// again, lost suspends the plan it paid for, and each decision stays on record.
+func TestStaffClosesDisputes(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	e.subscribe(p.Monthly)
+	var invoiceID uuid.UUID
+	if err := e.pool.QueryRow(e.ctx, `SELECT id FROM invoices WHERE workspace_id = $1`, e.ws).Scan(&invoiceID); err != nil {
+		t.Fatal(err)
+	}
+	staff := uuid.New()
+	closeIt := func(won bool) error {
+		return e.svc.CloseDispute(e.ctx, model.DisputeClose{InvoiceID: invoiceID, Won: won, Reason: "Bank decided", ClosedBy: staff})
+	}
+	status := func() string {
+		var s string
+		if err := e.pool.QueryRow(e.ctx, `SELECT status FROM invoices WHERE id = $1`, invoiceID).Scan(&s); err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+
+	if err := closeIt(true); !errors.Is(err, model.ErrNotDisputed) {
+		t.Fatalf("closing an undisputed invoice: %v", err)
+	}
+	e.exec(`UPDATE invoices SET status = 'disputed' WHERE id = $1`, invoiceID)
+	listed, err := e.svc.DisputedInvoices(e.ctx)
+	if err != nil || !slices.ContainsFunc(listed, func(d model.DisputedInvoice) bool { return d.ID == invoiceID }) {
+		t.Fatalf("disputed invoice not listed: %v", err)
+	}
+	if err := e.svc.CloseDispute(e.ctx, model.DisputeClose{InvoiceID: invoiceID, Won: true, ClosedBy: staff}); !isInvalidInput(err) {
+		t.Fatalf("no reason: %v", err)
+	}
+
+	if err := closeIt(true); err != nil {
+		t.Fatal(err)
+	}
+	if got := status(); got != model.InvoicePaid {
+		t.Fatalf("won dispute: invoice %s", got)
+	}
+	e.wantCache(e.ws, p.Code)
+
+	e.exec(`UPDATE invoices SET status = 'disputed' WHERE id = $1`, invoiceID)
+	if err := closeIt(false); err != nil {
+		t.Fatal(err)
+	}
+	if g := e.grant(e.ws); g == nil || g.Status != model.GrantSuspended || g.SuspendReason != model.SuspendDispute {
+		t.Fatalf("lost dispute: grant %+v", g)
+	}
+	e.wantCache(e.ws, model.FreePlan)
+
+	var recorded int
+	if err := e.pool.QueryRow(e.ctx, `SELECT count(*) FROM payment_events WHERE workspace_id = $1
+		AND event_type = 'dispute.closed' AND processed_at IS NOT NULL AND payload->>'closed_by' = $2`, e.ws, staff.String()).Scan(&recorded); err != nil {
+		t.Fatal(err)
+	}
+	if recorded != 2 {
+		t.Fatalf("%d staff decisions on record, want 2", recorded)
 	}
 }

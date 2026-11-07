@@ -43,7 +43,9 @@ WHERE pp.is_active AND p.is_active
 ORDER BY pp.plan_id, pp.billing_type DESC, pp.interval NULLS LAST, pp.currency;
 
 -- name: GetPlanPrice :one
-SELECT pp.id, pp.plan_id, pp.billing_type, pp.interval, pp.currency, pp.amount_minor, pp.is_active,
+-- is_active means on sale: a price of a deactivated plan is off sale too.
+SELECT pp.id, pp.plan_id, pp.billing_type, pp.interval, pp.currency, pp.amount_minor,
+       (pp.is_active AND p.is_active)::bool AS is_active,
        p.code AS plan_code, p.name AS plan_name, p.trial_days, p.trial_requires_card
 FROM plan_prices pp
 JOIN plans p ON p.id = pp.plan_id

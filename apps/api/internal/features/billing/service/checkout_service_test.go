@@ -71,6 +71,39 @@ func TestCreateCheckoutRefusals(t *testing.T) {
 	}
 }
 
+// A deactivated plan is off sale through every price it has, even to someone
+// holding a price ID. Workspaces already on it keep it.
+func TestDeactivatedPlanIsOffSale(t *testing.T) {
+	e := newT3Env(t)
+	old := e.plan(t3PlanOpts{Monthly: 1000})
+	other := e.plan(t3PlanOpts{Monthly: 3000})
+	sub := e.subscribe(other.Monthly)
+	if err := e.svc.DeactivateCatalogRow(e.ctx, CatalogPlan, old.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := e.svc.ChangePlan(e.ctx, e.ws, e.user, old.Monthly); !errors.Is(err, model.ErrPriceNotFound) {
+		t.Errorf("plan change to a deactivated plan: %v", err)
+	}
+	fresh := e.workspace()
+	if _, err := e.svc.UpdateProfile(e.ctx, fresh, model.ProfileInput{LegalName: "Fresh Ltd", Email: "billing@fresh.test"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.CreateCheckout(e.ctx, fresh, e.user, model.CheckoutInput{
+		PlanPriceID: old.Monthly, IdempotencyKey: uuid.NewString(),
+	}); !errors.Is(err, model.ErrPriceNotFound) {
+		t.Errorf("checkout of a deactivated plan: %v", err)
+	}
+
+	if err := e.svc.DeactivateCatalogRow(e.ctx, CatalogPlan, other.ID); err != nil {
+		t.Fatal(err)
+	}
+	e.wantCache(e.ws, other.Code)
+	if got, err := e.svc.Subscription(e.ctx, e.ws); err != nil || got.ID != sub.ID {
+		t.Fatalf("subscriber on a deactivated plan: %+v, %v", got, err)
+	}
+}
+
 func TestCardTrialStartsTrialing(t *testing.T) {
 	e := newT3Env(t)
 	p := e.plan(t3PlanOpts{Monthly: 1000, TrialDays: 14, RequiresCard: true})

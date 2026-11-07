@@ -193,20 +193,20 @@ func TestQuoteChangeIntervals(t *testing.T) {
 		t.Fatal(err)
 	}
 	// A new yearly period starts now, less half a month unused.
-	if q.Kind != model.ChangeInterval || !q.EffectiveAt.Equal(mid) || q.ProrationMinor != 10000-500 {
+	if q.Kind != model.ChangeInterval || !q.AppliesNow || !q.EffectiveAt.Equal(mid) || q.ProrationMinor != 10000-500 {
 		t.Fatalf("month to year: %+v", q)
 	}
 
 	yend := start.AddDate(1, 0, 0)
 	ysub := model.Subscription{Status: model.SubscriptionActive, CurrentPeriodStart: &start, CurrentPeriodEnd: &yend, Price: &yearly}
 	q, err = quoteChange(ysub, loadedPrice{Price: monthly, IsActive: true}, mid)
-	if err != nil || q.Kind != model.ChangeInterval || !q.EffectiveAt.Equal(yend) || q.ProrationMinor != 0 {
+	if err != nil || q.Kind != model.ChangeInterval || q.AppliesNow || !q.EffectiveAt.Equal(yend) || q.ProrationMinor != 0 {
 		t.Fatalf("year to month: %+v, %v", q, err)
 	}
 
 	sub.Status = model.SubscriptionTrialing
 	other := model.Price{ID: uuid.New(), PlanID: uuid.New(), BillingType: model.BillingRecurring, Interval: model.IntervalMonth, Currency: "USD", AmountMinor: 5000}
-	if q, _ := quoteChange(sub, loadedPrice{Price: other, IsActive: true}, mid); q.Kind != model.ChangeUpgrade || q.ProrationMinor != 0 {
+	if q, _ := quoteChange(sub, loadedPrice{Price: other, IsActive: true}, mid); q.Kind != model.ChangeUpgrade || !q.AppliesNow || q.ProrationMinor != 0 {
 		t.Fatalf("trial upgrade: %+v", q)
 	}
 	eur := other
@@ -339,6 +339,74 @@ func TestPastDueSweepSuspendsAfterGrace(t *testing.T) {
 	ps.Status = payment.SubscriptionActive
 	e.inTx(func(tx pgx.Tx) error { return e.svc.SyncSubscription(e.ctx, tx, e.ws, sub.ID, ps) })
 	e.wantCache(e.ws, p.Code)
+}
+
+// A renewal paid after grace ends brings the plan back for good: the sweep
+// must not suspend it again, and the paid period becomes the current one.
+func TestRenewalPaidAfterGraceStaysActive(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	sub := e.subscribe(p.Monthly)
+	ps := payment.Subscription{ExternalID: *sub.ExternalSubscriptionID, Status: payment.SubscriptionPastDue}
+	e.inTx(func(tx pgx.Tx) error { return e.svc.SyncSubscription(e.ctx, tx, e.ws, sub.ID, ps) })
+	e.tick(pastDueGrace + time.Hour)
+	if _, err := e.svc.SuspendPastDue(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	e.wantCache(e.ws, model.FreePlan)
+
+	start, end := *sub.CurrentPeriodEnd, sub.CurrentPeriodEnd.AddDate(0, 1, 0)
+	e.inTx(func(tx pgx.Tx) error {
+		return e.svc.ApplySubscriptionPayment(e.ctx, tx, e.ws, sub.ID, payment.Payment{
+			ExternalID: "pay_" + uuid.NewString(), SubtotalMinor: 1000, TotalMinor: 1000, Currency: "USD",
+			PeriodStart: &start, PeriodEnd: &end,
+		}, true)
+	})
+	e.wantCache(e.ws, p.Code)
+
+	if n, err := e.svc.SuspendPastDue(e.ctx); err != nil || n != 0 {
+		t.Fatalf("sweep after payment suspended %d, %v", n, err)
+	}
+	e.wantCache(e.ws, p.Code)
+	got, err := e.svc.Subscription(e.ctx, e.ws)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != model.SubscriptionActive || got.GraceEndsAt != nil ||
+		got.CurrentPeriodEnd == nil || !got.CurrentPeriodEnd.Equal(end) {
+		t.Fatalf("after payment: status %s, grace %v, period end %v", got.Status, got.GraceEndsAt, got.CurrentPeriodEnd)
+	}
+}
+
+// A renewal payment that carries the subscription (Creem's subscription.paid)
+// syncs it too, even when the payment itself is already recorded.
+func TestRenewalPaymentSyncsTheSubscriptionItCarries(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	sub := e.subscribe(p.Monthly)
+	start, end := *sub.CurrentPeriodEnd, sub.CurrentPeriodEnd.AddDate(0, 1, 0)
+	pay := payment.Payment{
+		ExternalID: "pay_" + uuid.NewString(), ExternalSubscriptionID: *sub.ExternalSubscriptionID,
+		SubtotalMinor: 1000, TotalMinor: 1000, Currency: "USD", PeriodStart: &start, PeriodEnd: &end,
+	}
+	ps := payment.Subscription{
+		ExternalID: *sub.ExternalSubscriptionID, Status: payment.SubscriptionActive,
+		CurrentPeriodStart: &start, CurrentPeriodEnd: &end,
+	}
+	ev := func() payment.Event {
+		return payment.Event{Provider: payment.Stripe, Type: payment.EventPaymentSucceeded, Payment: &pay, Subscription: &ps}
+	}
+	e.inTx(func(tx pgx.Tx) error { return e.svc.onPayment(true)(e.ctx, tx, e.ws, ev()) })
+
+	ps.CancelAtPeriodEnd = true
+	e.inTx(func(tx pgx.Tx) error { return e.svc.onPayment(true)(e.ctx, tx, e.ws, ev()) })
+	got, err := e.svc.Subscription(e.ctx, e.ws)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.CancelAtPeriodEnd || got.CurrentPeriodEnd == nil || !got.CurrentPeriodEnd.Equal(end) {
+		t.Fatalf("after payment events: cancel %v, period end %v", got.CancelAtPeriodEnd, got.CurrentPeriodEnd)
+	}
 }
 
 // A lost dispute suspends the plan until support restores it, renewals or not.

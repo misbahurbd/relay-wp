@@ -78,7 +78,8 @@ function SessionState({ workspaceId, sessionId }: { workspaceId: string; session
           <p className="font-bold">Still waiting for the payment provider</p>
         </div>
         <p className="text-sm text-muted-foreground">
-          Your plan updates as soon as it confirms. Check Billing in a minute, or contact support.
+          Your plan updates as soon as it confirms. If it stays quiet, we follow up with it
+          ourselves, so there’s no need to pay again.
         </p>
         <div className="flex flex-wrap gap-2">
           <Button

@@ -60,6 +60,87 @@ func (q *Queries) AdminCountPlanWorkspaces(ctx context.Context) ([]AdminCountPla
 	return items, nil
 }
 
+const adminGetInvoice = `-- name: AdminGetInvoice :one
+SELECT id, workspace_id, provider, external_payment_id, status
+FROM invoices
+WHERE id = $1
+`
+
+type AdminGetInvoiceRow struct {
+	ID                uuid.UUID
+	WorkspaceID       uuid.UUID
+	Provider          string
+	ExternalPaymentID *string
+	Status            string
+}
+
+// Staff only: the invoice a staff action names, with the IDs it needs.
+func (q *Queries) AdminGetInvoice(ctx context.Context, invoiceID uuid.UUID) (AdminGetInvoiceRow, error) {
+	row := q.db.QueryRow(ctx, adminGetInvoice, invoiceID)
+	var i AdminGetInvoiceRow
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.Provider,
+		&i.ExternalPaymentID,
+		&i.Status,
+	)
+	return i, err
+}
+
+const adminListDisputedInvoices = `-- name: AdminListDisputedInvoices :many
+SELECT i.id, i.workspace_id, w.name AS workspace_name, i.number, i.provider, i.total_minor, i.currency,
+       i.paid_at, i.updated_at
+FROM invoices i
+JOIN workspaces w ON w.id = i.workspace_id
+WHERE i.status = 'disputed'
+ORDER BY i.updated_at, i.id
+LIMIT 200
+`
+
+type AdminListDisputedInvoicesRow struct {
+	ID            uuid.UUID
+	WorkspaceID   uuid.UUID
+	WorkspaceName string
+	Number        *string
+	Provider      string
+	TotalMinor    int64
+	Currency      string
+	PaidAt        *time.Time
+	UpdatedAt     time.Time
+}
+
+// Staff only (all workspaces): invoices under an open dispute, oldest first.
+func (q *Queries) AdminListDisputedInvoices(ctx context.Context) ([]AdminListDisputedInvoicesRow, error) {
+	rows, err := q.db.Query(ctx, adminListDisputedInvoices)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AdminListDisputedInvoicesRow{}
+	for rows.Next() {
+		var i AdminListDisputedInvoicesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.WorkspaceName,
+			&i.Number,
+			&i.Provider,
+			&i.TotalMinor,
+			&i.Currency,
+			&i.PaidAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const adminListInstallmentOffers = `-- name: AdminListInstallmentOffers :many
 SELECT id, plan_price_id, count, total_minor, grace_days, max_missed, is_active
 FROM installment_offers

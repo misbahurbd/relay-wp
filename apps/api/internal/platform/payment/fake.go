@@ -66,6 +66,8 @@ func NewDevFake(provider Provider) *Fake {
 type FakeCheckout struct {
 	Request  CheckoutRequest
 	Checkout Checkout
+	// Paid is the checkout.completed event once CompleteCheckout paid it.
+	Paid *Event
 }
 
 // NewFake builds a fake gateway named provider, which signs webhooks with secret.
@@ -475,7 +477,64 @@ func (f *Fake) CompleteCheckout(externalSessionID string) (Event, error) {
 		ev.Subscription = &s
 		ev.Payment.PeriodStart, ev.Payment.PeriodEnd = s.CurrentPeriodStart, s.CurrentPeriodEnd
 	}
+	paid := ev
+	fc.Paid = &paid
+	f.checkouts[externalSessionID] = fc
 	return ev, nil
+}
+
+// FetchCheckout returns what CompleteCheckout sent, or EventIgnored while unpaid.
+func (f *Fake) FetchCheckout(_ context.Context, externalSessionID string) (Event, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.takeFailure(); err != nil {
+		return Event{}, err
+	}
+	fc, ok := f.checkouts[externalSessionID]
+	switch {
+	case !ok:
+		return Event{}, fmt.Errorf("fake: checkout %q: %w", externalSessionID, ErrNotFound)
+	case fc.Paid == nil:
+		return Event{Provider: f.provider, Type: EventIgnored, ProviderType: "checkout.open"}, nil
+	}
+	ev := *fc.Paid
+	ev.ExternalID = "fetch_" + externalSessionID
+	return ev, nil
+}
+
+// FetchSubscription returns the fake's subscription as an update, or as
+// canceled once it is.
+func (f *Fake) FetchSubscription(_ context.Context, externalSubscriptionID string) (Event, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.takeFailure(); err != nil {
+		return Event{}, err
+	}
+	s, ok := f.subscriptions[externalSubscriptionID]
+	if !ok {
+		return Event{}, fmt.Errorf("fake: subscription %q: %w", externalSubscriptionID, ErrNotFound)
+	}
+	ev := Event{
+		Provider: f.provider, Type: EventSubscriptionUpdated, ProviderType: "subscription.fetched",
+		OccurredAt: f.now().UTC(), Subscription: &s,
+	}
+	if s.Status == SubscriptionCanceled {
+		ev.Type = EventSubscriptionCanceled
+	}
+	var end int64
+	if s.CurrentPeriodEnd != nil {
+		end = s.CurrentPeriodEnd.Unix()
+	}
+	ev.ExternalID = fmt.Sprintf("fetch_%s_%s_%t_%d", externalSubscriptionID, s.Status, s.CancelAtPeriodEnd, end)
+	return ev, nil
+}
+
+// SetSubscription changes a subscription on the fake's side only, as the
+// provider does when its webhook is lost.
+func (f *Fake) SetSubscription(s Subscription) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.subscriptions[s.ExternalID] = s
 }
 
 // Checkout returns a checkout the fake started.

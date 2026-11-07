@@ -76,13 +76,29 @@ func (s *Service) ReceiveWebhook(ctx context.Context, provider string, header ma
 		return fmt.Errorf("parse %s webhook: %w", p, err)
 	}
 	ev.Provider = p
-	_, handled := s.events[ev.Type]
+	stored, err := s.ingest(ctx, ev)
+	if err != nil {
+		return err
+	}
+	if stored {
+		s.log.InfoContext(ctx, "billing: webhook received", "event", ev)
+	} else {
+		s.log.InfoContext(ctx, "billing: webhook replay ignored", "event", ev)
+	}
+	return nil
+}
 
+// ingest stores a verified event and queues its processing in one
+// transaction. A webhook and an object read back from the provider both come
+// through here, so they are applied the same way. False means an event with
+// its ID is already stored: a replay, which changes nothing.
+func (s *Service) ingest(ctx context.Context, ev payment.Event) (bool, error) {
+	_, handled := s.events[ev.Type]
 	var stored bool
-	err = database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+	err := database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
 		repo := repository.NewRepository(tx)
 		id, err := repo.InsertPaymentEvent(ctx, gen.InsertPaymentEventParams{
-			Provider: string(p), ExternalEventID: ev.ExternalID, EventType: string(ev.Type), Payload: ev.Payload,
+			Provider: string(ev.Provider), ExternalEventID: ev.ExternalID, EventType: string(ev.Type), Payload: ev.Payload,
 		})
 		if repository.IsNoRows(err) {
 			return nil // a replay: stored the first time
@@ -102,15 +118,7 @@ func (s *Service) ReceiveWebhook(ctx context.Context, provider string, header ma
 		}
 		return nil
 	})
-	if err != nil {
-		return err
-	}
-	if stored {
-		s.log.InfoContext(ctx, "billing: webhook received", "event", ev)
-	} else {
-		s.log.InfoContext(ctx, "billing: webhook replay ignored", "event", ev)
-	}
-	return nil
+	return stored, err
 }
 
 // ProcessPaymentEvent applies one stored event: it finds the workspace through
@@ -270,6 +278,9 @@ func (s *Service) onCheckoutEnded(status string) eventHandler {
 // installment of a provider-run schedule.
 func (s *Service) onPayment(paid bool) eventHandler {
 	return func(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID, ev payment.Event) error {
+		if ev.Payment == nil && ev.Subscription != nil {
+			return s.onSubscription(ctx, tx, workspaceID, ev) // nothing to record, but the state still counts
+		}
 		if ev.Payment == nil {
 			s.log.WarnContext(ctx, "billing: payment event without a payment", "event", ev)
 			return nil
@@ -281,7 +292,15 @@ func (s *Service) onPayment(paid bool) eventHandler {
 				Provider: provider, ExternalSubscriptionID: &id,
 			})
 			if err == nil && row.WorkspaceID == workspaceID {
-				return s.ApplySubscriptionPayment(ctx, tx, workspaceID, row.ID, *ev.Payment, paid)
+				if err := s.ApplySubscriptionPayment(ctx, tx, workspaceID, row.ID, *ev.Payment, paid); err != nil {
+					return err
+				}
+				if ev.Subscription == nil {
+					return nil
+				}
+				// Creem's subscription.paid is also its renewal's only status
+				// update, and a fetched subscription arrives this way too.
+				return s.SyncSubscription(ctx, tx, workspaceID, row.ID, *ev.Subscription)
 			}
 			if err != nil && !repository.IsNoRows(err) {
 				return fmt.Errorf("find subscription: %w", err)

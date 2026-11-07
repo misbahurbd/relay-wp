@@ -9,12 +9,13 @@ import (
 )
 
 type GrantDTO struct {
-	ID          uuid.UUID  `json:"id"`
-	Source      string     `json:"source" enum:"subscription,order,trial,manual"`
-	Status      string     `json:"status" enum:"active,suspended"`
-	StartsAt    time.Time  `json:"starts_at"`
-	EndsAt      *time.Time `json:"ends_at" doc:"Null: lifetime"`
-	SuspendedAt *time.Time `json:"suspended_at" doc:"A missed installment; free limits apply until it is paid"`
+	ID            uuid.UUID  `json:"id"`
+	Source        string     `json:"source" enum:"subscription,order,trial,manual"`
+	Status        string     `json:"status" enum:"active,suspended"`
+	StartsAt      time.Time  `json:"starts_at"`
+	EndsAt        *time.Time `json:"ends_at" doc:"Null: lifetime"`
+	SuspendedAt   *time.Time `json:"suspended_at" doc:"Free limits apply until the cause is cleared"`
+	SuspendReason *string    `json:"suspend_reason" nullable:"true" enum:"past_due,installments,dispute" doc:"Why it is suspended; null when active"`
 }
 
 type CurrentPlanDTO struct {
@@ -29,6 +30,9 @@ func ToCurrentPlanDTO(p model.CurrentPlan) CurrentPlanDTO {
 	if g := p.Grant; g != nil {
 		out.Grant = &GrantDTO{
 			ID: g.ID, Source: g.Source, Status: g.Status, StartsAt: g.StartsAt, EndsAt: g.EndsAt, SuspendedAt: g.SuspendedAt,
+		}
+		if g.SuspendReason != "" {
+			out.Grant.SuspendReason = &g.SuspendReason
 		}
 	}
 	return out

@@ -59,7 +59,10 @@ type ChangeQuote struct {
 	Kind        string // ChangeUpgrade, ChangeDowngrade or ChangeInterval
 	FromPriceID uuid.UUID
 	ToPriceID   uuid.UUID
-	// EffectiveAt is now for an upgrade, the period end for a downgrade.
+	// AppliesNow is true when the change takes effect at once (an upgrade, or
+	// monthly to yearly), false when it waits for the period end.
+	AppliesNow bool
+	// EffectiveAt is now when AppliesNow, otherwise the period end.
 	EffectiveAt time.Time
 	// ProrationMinor is charged now (positive) or credited (negative).
 	ProrationMinor int64

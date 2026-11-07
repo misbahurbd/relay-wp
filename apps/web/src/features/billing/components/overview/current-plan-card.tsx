@@ -23,6 +23,20 @@ import { CancelDialog } from './cancel-dialog'
 
 const LIVE: Subscription['status'][] = ['trialing', 'active', 'past_due']
 
+type SuspendReason = NonNullable<NonNullable<Overview['plan']['grant']>['suspend_reason']>
+
+const SUSPEND_CAUSE: Record<SuspendReason, string> = {
+  installments: 'An installment was missed',
+  past_due: 'The renewal payment failed',
+  dispute: 'A payment was disputed',
+}
+
+const SUSPEND_FIX: Record<SuspendReason, string> = {
+  installments: 'Pay it below to get your plan back straight away.',
+  past_due: 'Update your card to get your plan back once the payment goes through.',
+  dispute: 'Contact support to get your plan back.',
+}
+
 /** The plan in force now, what it costs, when it next charges, and the actions on it. */
 export function CurrentPlanCard({
   workspaceId,
@@ -110,9 +124,9 @@ export function CurrentPlanCard({
           <AlertTitle>Free limits apply for now</AlertTitle>
           <AlertDescription>
             <p>
-              An installment was missed
+              {SUSPEND_CAUSE[grant.suspend_reason ?? 'installments']}
               {grant.suspended_at && `, so access was limited on ${formatDate(grant.suspended_at)}`}
-              . Pay it below to get your plan back straight away.
+              . {SUSPEND_FIX[grant.suspend_reason ?? 'installments']}
             </p>
           </AlertDescription>
         </Alert>

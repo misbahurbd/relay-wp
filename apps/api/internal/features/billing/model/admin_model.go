@@ -168,3 +168,24 @@ type GrantOverridesEdit struct {
 	Reason      string
 	ChangedBy   uuid.UUID
 }
+
+// DisputedInvoice is an invoice under an open dispute, for staff to close.
+type DisputedInvoice struct {
+	ID            uuid.UUID
+	WorkspaceID   uuid.UUID
+	WorkspaceName string
+	Number        string // empty before one is issued
+	Provider      string
+	TotalMinor    int64
+	Currency      string
+	PaidAt        *time.Time
+	DisputedSince time.Time
+}
+
+// DisputeClose is staff closing a dispute the provider sends no outcome for.
+type DisputeClose struct {
+	InvoiceID uuid.UUID
+	Won       bool
+	Reason    string
+	ClosedBy  uuid.UUID
+}

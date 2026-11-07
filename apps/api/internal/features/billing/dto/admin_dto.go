@@ -377,3 +377,45 @@ func (in *GrantOverridesInput) ToModel(changedBy uuid.UUID) model.GrantOverrides
 	b := in.Body
 	return model.GrantOverridesEdit{WorkspaceID: b.WorkspaceID, Overrides: model.Limits(b.Overrides), Reason: b.Reason, ChangedBy: changedBy}
 }
+
+type DisputedInvoiceDTO struct {
+	ID            uuid.UUID  `json:"id"`
+	WorkspaceID   uuid.UUID  `json:"workspace_id"`
+	WorkspaceName string     `json:"workspace_name"`
+	Number        string     `json:"number" doc:"Empty before one is issued"`
+	Provider      string     `json:"provider" enum:"stripe,creem,paypal,sslcommerz"`
+	TotalMinor    int64      `json:"total_minor"`
+	Currency      string     `json:"currency"`
+	PaidAt        *time.Time `nullable:"true" json:"paid_at"`
+	DisputedSince time.Time  `json:"disputed_since"`
+}
+
+type DisputedInvoicesOutput struct {
+	Body struct {
+		Invoices []DisputedInvoiceDTO `json:"invoices" doc:"Oldest dispute first, at most 200"`
+	}
+}
+
+func ToDisputedInvoicesOutput(invs []model.DisputedInvoice) *DisputedInvoicesOutput {
+	out := &DisputedInvoicesOutput{}
+	out.Body.Invoices = make([]DisputedInvoiceDTO, 0, len(invs))
+	for _, i := range invs {
+		out.Body.Invoices = append(out.Body.Invoices, DisputedInvoiceDTO{
+			ID: i.ID, WorkspaceID: i.WorkspaceID, WorkspaceName: i.WorkspaceName, Number: i.Number, Provider: i.Provider,
+			TotalMinor: i.TotalMinor, Currency: i.Currency, PaidAt: i.PaidAt, DisputedSince: i.DisputedSince,
+		})
+	}
+	return out
+}
+
+type CloseDisputeInput struct {
+	InvoiceID uuid.UUID `path:"invoice_id"`
+	Body      struct {
+		Outcome string `json:"outcome" enum:"won,lost" doc:"won: the invoice is paid again; lost: the plan it paid for is suspended"`
+		Reason  string `json:"reason" minLength:"1" maxLength:"300" doc:"How it was settled, for the record"`
+	}
+}
+
+func (in *CloseDisputeInput) ToModel(closedBy uuid.UUID) model.DisputeClose {
+	return model.DisputeClose{InvoiceID: in.InvoiceID, Won: in.Body.Outcome == "won", Reason: in.Body.Reason, ClosedBy: closedBy}
+}

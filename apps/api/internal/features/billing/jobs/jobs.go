@@ -95,20 +95,37 @@ func (w *ExpireTrialsWorker) Work(ctx context.Context, _ *river.Job[model.Expire
 	return err
 }
 
-// ExpireCheckoutsWorker works ExpireCheckoutsArgs.
-type ExpireCheckoutsWorker struct {
-	river.WorkerDefaults[model.ExpireCheckoutsArgs]
+// ReconcileCheckoutsWorker works ReconcileCheckoutsArgs.
+type ReconcileCheckoutsWorker struct {
+	river.WorkerDefaults[model.ReconcileCheckoutsArgs]
 	svc *service.Service
 }
 
-// NewExpireCheckoutsWorker builds the worker.
-func NewExpireCheckoutsWorker(svc *service.Service) *ExpireCheckoutsWorker {
-	return &ExpireCheckoutsWorker{svc: svc}
+// NewReconcileCheckoutsWorker builds the worker.
+func NewReconcileCheckoutsWorker(svc *service.Service) *ReconcileCheckoutsWorker {
+	return &ReconcileCheckoutsWorker{svc: svc}
 }
 
-// Work expires old pending checkouts.
-func (w *ExpireCheckoutsWorker) Work(ctx context.Context, _ *river.Job[model.ExpireCheckoutsArgs]) error {
-	_, err := w.svc.ExpireCheckouts(ctx)
+// Work settles pending checkouts with the provider.
+func (w *ReconcileCheckoutsWorker) Work(ctx context.Context, _ *river.Job[model.ReconcileCheckoutsArgs]) error {
+	_, err := w.svc.ReconcileCheckouts(ctx)
+	return err
+}
+
+// ReconcileSubscriptionsWorker works ReconcileSubscriptionsArgs.
+type ReconcileSubscriptionsWorker struct {
+	river.WorkerDefaults[model.ReconcileSubscriptionsArgs]
+	svc *service.Service
+}
+
+// NewReconcileSubscriptionsWorker builds the worker.
+func NewReconcileSubscriptionsWorker(svc *service.Service) *ReconcileSubscriptionsWorker {
+	return &ReconcileSubscriptionsWorker{svc: svc}
+}
+
+// Work reads overdue subscriptions back from the provider.
+func (w *ReconcileSubscriptionsWorker) Work(ctx context.Context, _ *river.Job[model.ReconcileSubscriptionsArgs]) error {
+	_, err := w.svc.ReconcileSubscriptions(ctx)
 	return err
 }
 
@@ -190,7 +207,8 @@ func PeriodicJobs() []*river.PeriodicJob {
 	return []*river.PeriodicJob{
 		every(time.Hour, model.InstallmentsDueArgs{}),
 		every(15*time.Minute, model.ExpireTrialsArgs{}),
-		every(15*time.Minute, model.ExpireCheckoutsArgs{}),
+		every(15*time.Minute, model.ReconcileCheckoutsArgs{}),
+		every(time.Hour, model.ReconcileSubscriptionsArgs{}),
 		every(6*time.Hour, model.PurgeEventPayloadsArgs{}),
 		every(24*time.Hour, model.PlanCacheDriftArgs{}),
 		every(15*time.Minute, model.PastDueGraceArgs{}),

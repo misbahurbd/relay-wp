@@ -55,7 +55,8 @@ type ChangeQuoteOutput struct {
 		Kind           string    `json:"kind" enum:"upgrade,downgrade,interval"`
 		FromPriceID    uuid.UUID `json:"from_price_id"`
 		ToPriceID      uuid.UUID `json:"to_price_id"`
-		EffectiveAt    time.Time `json:"effective_at" doc:"Now for an upgrade; the period end for a downgrade"`
+		AppliesNow     bool      `json:"applies_now" doc:"True when the change takes effect now; false when it waits for the period end"`
+		EffectiveAt    time.Time `json:"effective_at" doc:"Now when applies_now; otherwise the period end"`
 		ProrationMinor int64     `json:"proration_minor" doc:"Charged now (positive) or credited (negative)"`
 		Currency       string    `json:"currency"`
 	}
@@ -64,6 +65,7 @@ type ChangeQuoteOutput struct {
 func ToChangeQuoteOutput(q model.ChangeQuote) *ChangeQuoteOutput {
 	out := &ChangeQuoteOutput{}
 	out.Body.Kind, out.Body.FromPriceID, out.Body.ToPriceID = q.Kind, q.FromPriceID, q.ToPriceID
+	out.Body.AppliesNow = q.AppliesNow
 	out.Body.EffectiveAt, out.Body.ProrationMinor, out.Body.Currency = q.EffectiveAt, q.ProrationMinor, q.Currency
 	return out
 }

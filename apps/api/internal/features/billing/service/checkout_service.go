@@ -812,31 +812,6 @@ func (s *Service) FailCheckout(ctx context.Context, tx pgx.Tx, workspaceID, sess
 	return s.ReleaseDiscount(ctx, tx, workspaceID, sessionID)
 }
 
-// ExpireCheckouts expires pending sessions past expires_at, releasing their
-// discounts, and returns how many. Run by the ExpireCheckouts worker.
-func (s *Service) ExpireCheckouts(ctx context.Context) (int, error) {
-	expired := 0
-	for {
-		rows, err := repository.NewRepository(s.pool).ListExpiredCheckoutSessions(ctx, gen.ListExpiredCheckoutSessionsParams{
-			Now: s.now(), MaxRows: jobBatch,
-		})
-		if err != nil {
-			return expired, fmt.Errorf("list expired checkouts: %w", err)
-		}
-		for _, row := range rows {
-			if err := database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
-				return s.FailCheckout(ctx, tx, row.WorkspaceID, row.ID, model.CheckoutExpired)
-			}); err != nil {
-				return expired, err
-			}
-			expired++
-		}
-		if len(rows) < jobBatch {
-			return expired, nil
-		}
-	}
-}
-
 // invoiceInput is one payment to record as an invoice.
 type invoiceInput struct {
 	Provider          payment.Provider

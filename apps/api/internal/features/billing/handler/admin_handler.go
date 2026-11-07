@@ -100,6 +100,19 @@ func (h *Handler) restoreGrant(ctx context.Context, in *dto.AdminWorkspaceInput)
 	return nil, h.svc.RestoreGrantManually(ctx, in.Body.WorkspaceID)
 }
 
+func (h *Handler) disputedInvoices(ctx context.Context, _ *struct{}) (*dto.DisputedInvoicesOutput, error) {
+	invs, err := h.svc.DisputedInvoices(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return dto.ToDisputedInvoicesOutput(invs), nil
+}
+
+func (h *Handler) closeDispute(ctx context.Context, in *dto.CloseDisputeInput) (*struct{}, error) {
+	userID, _ := authctx.UserID(ctx)
+	return nil, h.svc.CloseDispute(ctx, in.ToModel(userID))
+}
+
 // catalogKinds are the catalog row kinds by route segment, in registration order.
 var catalogKinds = []struct{ path, kind, name string }{
 	{"plans", service.CatalogPlan, "plan"},

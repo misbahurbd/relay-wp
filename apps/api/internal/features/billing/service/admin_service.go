@@ -699,3 +699,74 @@ func (s *Service) adminGrant(ctx context.Context, r repository.Repository, works
 	}
 	return &g, nil
 }
+
+// DisputedInvoices lists invoices under an open dispute, oldest first. Creem
+// sends no event when a dispute closes, so staff close those here.
+func (s *Service) DisputedInvoices(ctx context.Context) ([]model.DisputedInvoice, error) {
+	rows, err := repository.NewRepository(s.pool).AdminListDisputedInvoices(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list disputed invoices: %w", err)
+	}
+	out := make([]model.DisputedInvoice, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, model.DisputedInvoice{
+			ID: r.ID, WorkspaceID: r.WorkspaceID, WorkspaceName: r.WorkspaceName, Number: deref(r.Number),
+			Provider: r.Provider, TotalMinor: r.TotalMinor, Currency: r.Currency, PaidAt: r.PaidAt, DisputedSince: r.UpdatedAt,
+		})
+	}
+	return out, nil
+}
+
+// CloseDispute records the outcome of a dispute the provider reports no
+// outcome for, as the provider's own dispute-closed event would: won puts the
+// invoice back to paid, lost suspends the plan it paid for. The decision is
+// stored as a payment event, so who closed it and why stay on record.
+func (s *Service) CloseDispute(ctx context.Context, in model.DisputeClose) error {
+	reason := strings.TrimSpace(in.Reason)
+	if reason == "" {
+		return model.ErrInvalidInput.WithDetails(apperr.Detail{Field: "reason", Message: "Say how the dispute was settled"})
+	}
+	outcome := "lost"
+	if in.Won {
+		outcome = "won"
+	}
+	payload, err := json.Marshal(map[string]string{"outcome": outcome, "reason": reason, "closed_by": in.ClosedBy.String()})
+	if err != nil {
+		return fmt.Errorf("encode dispute decision: %w", err)
+	}
+	return database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+		r := repository.NewRepository(tx)
+		inv, err := r.AdminGetInvoice(ctx, in.InvoiceID)
+		if repository.IsNoRows(err) {
+			return model.ErrInvoiceNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("get invoice: %w", err)
+		}
+		if inv.Status != model.InvoiceDisputed || inv.ExternalPaymentID == nil {
+			return model.ErrNotDisputed
+		}
+		ev := payment.Event{
+			Provider: payment.Provider(inv.Provider), ExternalID: "staff_dispute_closed_" + uuid.NewString(),
+			Type: payment.EventDisputeClosed, ProviderType: "staff.dispute_closed",
+			Payment: &payment.Payment{ExternalID: *inv.ExternalPaymentID, Status: outcome},
+		}
+		id, err := r.InsertPaymentEvent(ctx, gen.InsertPaymentEventParams{
+			Provider: inv.Provider, ExternalEventID: ev.ExternalID, EventType: string(ev.Type), Payload: payload,
+		})
+		if err != nil {
+			return fmt.Errorf("insert payment event: %w", err)
+		}
+		if _, err := r.SetPaymentEventWorkspace(ctx, gen.SetPaymentEventWorkspaceParams{
+			WorkspaceID: &inv.WorkspaceID, PaymentEventID: id,
+		}); err != nil {
+			return fmt.Errorf("set payment event workspace: %w", err)
+		}
+		if err := s.onDisputeClosed(ctx, tx, inv.WorkspaceID, ev); err != nil {
+			return err
+		}
+		s.log.InfoContext(ctx, "billing: dispute closed by staff", "invoice_id", inv.ID, "workspace_id", inv.WorkspaceID,
+			"outcome", outcome, "closed_by", in.ClosedBy)
+		return markProcessed(ctx, r, id, s.now())
+	})
+}

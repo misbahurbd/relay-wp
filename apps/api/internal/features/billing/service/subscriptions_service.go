@@ -114,7 +114,7 @@ func quoteChange(sub model.Subscription, target loadedPrice, now time.Time) (mod
 		q.EffectiveAt = *sub.CurrentPeriodEnd
 		return q, nil
 	}
-	q.EffectiveAt = now
+	q.AppliesNow, q.EffectiveAt = true, now
 	if sub.Status == model.SubscriptionTrialing {
 		return q, nil
 	}
@@ -531,6 +531,10 @@ func (s *Service) ApplySubscriptionPayment(ctx context.Context, tx pgx.Tx, works
 		return nil
 	}
 
+	if sub, err = settleRenewal(ctx, r, sub, p); err != nil {
+		return err
+	}
+
 	now := s.now()
 	at := now
 	if p.PeriodStart != nil {
@@ -551,6 +555,24 @@ func (s *Service) ApplySubscriptionPayment(ctx context.Context, tx pgx.Tx, works
 		return nil
 	}
 	return s.ensurePriceGrant(ctx, tx, workspaceID, sub.ID, planPriceID)
+}
+
+// settleRenewal records what a paid renewal proves: a past-due subscription is
+// paid up again, and the paid period is the current one. Without it the
+// PastDueGrace sweep would suspend a plan the customer has just paid for.
+func settleRenewal(ctx context.Context, r repository.Repository, sub model.Subscription, p payment.Payment) (model.Subscription, error) {
+	next := sub
+	if next.Status == model.SubscriptionPastDue {
+		next.Status, next.GraceEndsAt = model.SubscriptionActive, nil
+	}
+	if p.PeriodStart != nil && p.PeriodEnd != nil &&
+		(next.CurrentPeriodEnd == nil || p.PeriodEnd.After(*next.CurrentPeriodEnd)) {
+		next.CurrentPeriodStart, next.CurrentPeriodEnd = p.PeriodStart, p.PeriodEnd
+	}
+	if next.Status == sub.Status && next.CurrentPeriodEnd == sub.CurrentPeriodEnd {
+		return sub, nil
+	}
+	return next, syncPeriod(ctx, r, next)
 }
 
 // applyPendingChange moves sub to its scheduled price once at reaches the

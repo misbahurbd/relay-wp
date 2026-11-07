@@ -144,6 +144,11 @@ func registerAdmin(api huma.API, h *Handler, g Guards, security []map[string][]s
 	huma.Register(api, op("admin-deactivate-discount", http.MethodPost, "/billing/discounts/{code}/deactivate",
 		"Stop a discount code from being used again", none), h.deactivateDiscount)
 
+	huma.Register(api, op("admin-list-disputes", http.MethodGet, "/billing/disputes",
+		"Invoices under an open dispute, oldest first", ok), h.disputedInvoices)
+	huma.Register(api, op("admin-close-dispute", http.MethodPost, "/billing/disputes/{invoice_id}/close",
+		"Record how a dispute ended, for providers that don't report it (Creem)", none), h.closeDispute)
+
 	huma.Register(api, op("admin-list-workspaces", http.MethodGet, "/workspaces",
 		"Workspaces and the plan each is on, newest first", ok), h.adminWorkspaces)
 	huma.Register(api, op("admin-grant-plan", http.MethodPost, "/workspaces/grant-plan",

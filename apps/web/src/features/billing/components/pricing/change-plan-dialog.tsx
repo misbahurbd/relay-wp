@@ -15,8 +15,11 @@ import { ErrorState } from '../kit/states'
 
 function describe(quote: ChangeQuote) {
   const amount = formatMoney(Math.abs(quote.proration_minor), quote.currency)
-  if (quote.kind === 'downgrade') {
+  if (!quote.applies_now) {
     return `Your plan changes on ${formatDate(quote.effective_at)}, when the current period ends. You keep your current plan until then.`
+  }
+  if (quote.kind === 'interval' && quote.proration_minor > 0) {
+    return `The new plan starts now, with a new billing period. We charge ${amount} today: the new price less the unused time on your current plan.`
   }
   if (quote.proration_minor > 0) {
     return `The new plan starts now. We charge ${amount} today for the rest of this period.`
@@ -44,7 +47,7 @@ export function ChangePlanDialog({
   const confirm = () =>
     change.mutate(priceId, {
       onSuccess: () => {
-        toast.success(preview.data?.kind === 'downgrade' ? 'Plan change scheduled' : 'Plan changed')
+        toast.success(preview.data?.applies_now ? 'Plan changed' : 'Plan change scheduled')
         onClose()
         void navigate({ to: '/billing' })
       },

@@ -54,11 +54,18 @@ type ExpireTrialsArgs struct{}
 // Kind is the job's stable name in the river_job table.
 func (ExpireTrialsArgs) Kind() string { return "billing_expire_trials" }
 
-// ExpireCheckoutsArgs expires old pending checkout sessions and releases their reserved discounts.
-type ExpireCheckoutsArgs struct{}
+// ReconcileCheckoutsArgs reads pending checkouts back from the provider:
+// paid ones complete, and unpaid ones past their expiry expire.
+type ReconcileCheckoutsArgs struct{}
 
 // Kind is the job's stable name in the river_job table.
-func (ExpireCheckoutsArgs) Kind() string { return "billing_expire_checkouts" }
+func (ReconcileCheckoutsArgs) Kind() string { return "billing_reconcile_checkouts" }
+
+// ReconcileSubscriptionsArgs reads back subscriptions whose period ended with no news.
+type ReconcileSubscriptionsArgs struct{}
+
+// Kind is the job's stable name in the river_job table.
+func (ReconcileSubscriptionsArgs) Kind() string { return "billing_reconcile_subscriptions" }
 
 // PurgeEventPayloadsArgs nulls payment_events.payload after 90 days.
 type PurgeEventPayloadsArgs struct{}
@@ -91,7 +98,8 @@ var (
 	_ river.JobArgs = InvoiceDocumentsSweepArgs{}
 	_ river.JobArgs = InstallmentsDueArgs{}
 	_ river.JobArgs = ExpireTrialsArgs{}
-	_ river.JobArgs = ExpireCheckoutsArgs{}
+	_ river.JobArgs = ReconcileCheckoutsArgs{}
+	_ river.JobArgs = ReconcileSubscriptionsArgs{}
 	_ river.JobArgs = PurgeEventPayloadsArgs{}
 	_ river.JobArgs = PlanCacheDriftArgs{}
 	_ river.JobArgs = PastDueGraceArgs{}

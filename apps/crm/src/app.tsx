@@ -6,7 +6,7 @@ import { Skeleton } from '#/components/ui/skeleton'
 import { AdminPage, type AdminTab } from '#/features/admin'
 import { meQueryOptions, SignIn, useSignOut } from '#/features/session'
 
-const TABS: AdminTab[] = ['plans', 'discounts', 'workspaces']
+const TABS: AdminTab[] = ['plans', 'discounts', 'workspaces', 'disputes']
 
 function tabFromURL(): AdminTab {
   const t = new URLSearchParams(window.location.search).get('tab')

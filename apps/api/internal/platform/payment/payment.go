@@ -97,6 +97,19 @@ type Gateway interface {
 	// customer manages their cards.
 	PortalURL(ctx context.Context, req PortalRequest) (string, error)
 
+	// FetchCheckout reads a checkout back, for when its webhook never came.
+	// It returns the event that webhook would have carried: Type
+	// EventCheckoutCompleted once paid, EventIgnored while still open (the
+	// provider can't tell a declined card from an abandoned page). The
+	// ExternalID is the same on every fetch of one outcome, so storing it
+	// twice is a replay. ErrUnsupported when the provider can't read one back.
+	FetchCheckout(ctx context.Context, externalSessionID string) (Event, error)
+	// FetchSubscription reads a subscription back, for when its webhooks never
+	// came: EventSubscriptionCanceled, EventPaymentSucceeded when its latest
+	// transaction is paid, or EventSubscriptionUpdated. Like FetchCheckout,
+	// one state always has one ExternalID. ErrUnsupported when the provider can't.
+	FetchSubscription(ctx context.Context, externalSubscriptionID string) (Event, error)
+
 	// ParseWebhook verifies a webhook delivery and normalises it. A bad or
 	// missing signature returns ErrInvalidSignature. A verified event Relay
 	// doesn't act on has Type EventIgnored.

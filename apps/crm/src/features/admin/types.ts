@@ -6,6 +6,7 @@ import type {
   AdminPriceDto,
   AdminProviderPriceDto,
   AdminWorkspaceDto,
+  DisputedInvoiceDto,
   ResourceDto,
 } from '@relay/api-client'
 
@@ -29,6 +30,8 @@ export type AdminCatalog = { plans: Plan[]; providers: string[] }
 export type AdminDiscount = AdminDiscountDto
 
 export type AdminWorkspace = Omit<AdminWorkspaceDto, 'grant'> & { grant: AdminGrantDto | null }
+
+export type DisputedInvoice = Omit<DisputedInvoiceDto, 'paid_at'> & { paid_at: string | null }
 
 export type CatalogRowKind = 'plan' | 'price' | 'installment_offer' | 'provider_price'
 

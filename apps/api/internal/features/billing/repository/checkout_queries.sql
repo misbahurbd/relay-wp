@@ -73,10 +73,11 @@ UPDATE checkout_sessions
 SET expires_at = @expires_at
 WHERE workspace_id = @workspace_id AND id = @checkout_session_id AND status = 'pending';
 
--- name: ListExpiredCheckoutSessions :many
--- Job only (all workspaces): pending sessions past their expiry, oldest first.
-SELECT id, workspace_id, discount_id
+-- name: ListOpenCheckoutSessions :many
+-- Job only (all workspaces): pending sessions started at or before
+-- @started_before, in ID order after @after_id.
+SELECT id, workspace_id, provider, external_session_id, expires_at
 FROM checkout_sessions
-WHERE status = 'pending' AND expires_at <= @now
-ORDER BY expires_at
+WHERE status = 'pending' AND created_at <= @started_before AND id > @after_id
+ORDER BY id
 LIMIT @max_rows;

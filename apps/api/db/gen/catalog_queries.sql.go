@@ -269,7 +269,8 @@ func (q *Queries) GetPlan(ctx context.Context, planID uuid.UUID) (GetPlanRow, er
 }
 
 const getPlanPrice = `-- name: GetPlanPrice :one
-SELECT pp.id, pp.plan_id, pp.billing_type, pp.interval, pp.currency, pp.amount_minor, pp.is_active,
+SELECT pp.id, pp.plan_id, pp.billing_type, pp.interval, pp.currency, pp.amount_minor,
+       (pp.is_active AND p.is_active)::bool AS is_active,
        p.code AS plan_code, p.name AS plan_name, p.trial_days, p.trial_requires_card
 FROM plan_prices pp
 JOIN plans p ON p.id = pp.plan_id
@@ -290,6 +291,7 @@ type GetPlanPriceRow struct {
 	TrialRequiresCard bool
 }
 
+// is_active means on sale: a price of a deactivated plan is off sale too.
 func (q *Queries) GetPlanPrice(ctx context.Context, planPriceID uuid.UUID) (GetPlanPriceRow, error) {
 	row := q.db.QueryRow(ctx, getPlanPrice, planPriceID)
 	var i GetPlanPriceRow

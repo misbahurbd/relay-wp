@@ -320,36 +320,46 @@ func (q *Queries) LinkCheckoutSession(ctx context.Context, arg LinkCheckoutSessi
 	return result.RowsAffected(), nil
 }
 
-const listExpiredCheckoutSessions = `-- name: ListExpiredCheckoutSessions :many
-SELECT id, workspace_id, discount_id
+const listOpenCheckoutSessions = `-- name: ListOpenCheckoutSessions :many
+SELECT id, workspace_id, provider, external_session_id, expires_at
 FROM checkout_sessions
-WHERE status = 'pending' AND expires_at <= $1
-ORDER BY expires_at
-LIMIT $2
+WHERE status = 'pending' AND created_at <= $1 AND id > $2
+ORDER BY id
+LIMIT $3
 `
 
-type ListExpiredCheckoutSessionsParams struct {
-	Now     time.Time
-	MaxRows int32
+type ListOpenCheckoutSessionsParams struct {
+	StartedBefore time.Time
+	AfterID       uuid.UUID
+	MaxRows       int32
 }
 
-type ListExpiredCheckoutSessionsRow struct {
-	ID          uuid.UUID
-	WorkspaceID uuid.UUID
-	DiscountID  *uuid.UUID
+type ListOpenCheckoutSessionsRow struct {
+	ID                uuid.UUID
+	WorkspaceID       uuid.UUID
+	Provider          string
+	ExternalSessionID *string
+	ExpiresAt         time.Time
 }
 
-// Job only (all workspaces): pending sessions past their expiry, oldest first.
-func (q *Queries) ListExpiredCheckoutSessions(ctx context.Context, arg ListExpiredCheckoutSessionsParams) ([]ListExpiredCheckoutSessionsRow, error) {
-	rows, err := q.db.Query(ctx, listExpiredCheckoutSessions, arg.Now, arg.MaxRows)
+// Job only (all workspaces): pending sessions started at or before
+// @started_before, in ID order after @after_id.
+func (q *Queries) ListOpenCheckoutSessions(ctx context.Context, arg ListOpenCheckoutSessionsParams) ([]ListOpenCheckoutSessionsRow, error) {
+	rows, err := q.db.Query(ctx, listOpenCheckoutSessions, arg.StartedBefore, arg.AfterID, arg.MaxRows)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListExpiredCheckoutSessionsRow{}
+	items := []ListOpenCheckoutSessionsRow{}
 	for rows.Next() {
-		var i ListExpiredCheckoutSessionsRow
-		if err := rows.Scan(&i.ID, &i.WorkspaceID, &i.DiscountID); err != nil {
+		var i ListOpenCheckoutSessionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.Provider,
+			&i.ExternalSessionID,
+			&i.ExpiresAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

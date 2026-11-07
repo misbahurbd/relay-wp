@@ -6,15 +6,17 @@ import { isApiError } from '#/lib/api'
 import { catalogQueryOptions } from '../api/admin.api'
 import { CatalogPanel } from './catalog/catalog-panel'
 import { DiscountsPanel } from './discounts/discounts-panel'
+import { DisputesPanel } from './disputes/disputes-panel'
 import { LoadError } from './kit/load-error'
 import { WorkspacesPanel } from './workspaces/workspaces-panel'
 
-export type AdminTab = 'plans' | 'discounts' | 'workspaces'
+export type AdminTab = 'plans' | 'discounts' | 'workspaces' | 'disputes'
 
 const TABS: { id: AdminTab; label: string }[] = [
   { id: 'plans', label: 'Plans & prices' },
   { id: 'discounts', label: 'Discount codes' },
   { id: 'workspaces', label: 'Workspaces' },
+  { id: 'disputes', label: 'Disputes' },
 ]
 
 /** Relay staff's admin tools: the plan catalog, discount codes, and each workspace's plan. */
@@ -59,6 +61,9 @@ export function AdminPage({ tab, onTab }: { tab: AdminTab; onTab: (tab: AdminTab
           </TabsContent>
           <TabsContent value="workspaces">
             <WorkspacesPanel />
+          </TabsContent>
+          <TabsContent value="disputes">
+            <DisputesPanel />
           </TabsContent>
         </Tabs>
       )}

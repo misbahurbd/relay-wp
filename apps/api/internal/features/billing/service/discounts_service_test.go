@@ -171,12 +171,12 @@ func TestExpiredCheckoutReleasesDiscount(t *testing.T) {
 	c := e.checkout(p.Monthly, d.Code)
 
 	// The session stays open as long as the provider's checkout (the fake's: an hour).
-	if n, _ := e.svc.ExpireCheckouts(e.ctx); n != 0 {
+	if n, _ := e.svc.ReconcileCheckouts(e.ctx); n != 0 {
 		t.Fatalf("expired %d before the provider's checkout did", n)
 	}
 	e.tick(2 * time.Hour)
-	if n, err := e.svc.ExpireCheckouts(e.ctx); err != nil || n < 1 {
-		t.Fatalf("ExpireCheckouts = %d, %v", n, err)
+	if n, err := e.svc.ReconcileCheckouts(e.ctx); err != nil || n < 1 {
+		t.Fatalf("ReconcileCheckouts = %d, %v", n, err)
 	}
 	if status, count := e.redemption(c.Session.ID); status != model.RedemptionReleased || count != 0 {
 		t.Fatalf("after expiry: %s, %d", status, count)
@@ -198,8 +198,8 @@ func TestLatePaymentCompletesAnExpiredCheckout(t *testing.T) {
 	d := e.discount(nil)
 	c := e.checkout(p.Monthly, d.Code)
 	e.tick(2 * time.Hour)
-	if n, err := e.svc.ExpireCheckouts(e.ctx); err != nil || n < 1 {
-		t.Fatalf("ExpireCheckouts = %d, %v", n, err)
+	if n, err := e.svc.ReconcileCheckouts(e.ctx); err != nil || n < 1 {
+		t.Fatalf("ReconcileCheckouts = %d, %v", n, err)
 	}
 
 	// The customer pays from the tab they left open: the money is real.

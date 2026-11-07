@@ -63,3 +63,19 @@ WHERE w.deleted_at IS NULL
 -- name: InsertLimitChange :exec
 INSERT INTO limit_changes (plan_id, grant_id, changed_by, before, after, reason)
 VALUES (sqlc.narg('plan_id'), sqlc.narg('grant_id'), @changed_by, @before, @after, @reason);
+
+-- name: AdminListDisputedInvoices :many
+-- Staff only (all workspaces): invoices under an open dispute, oldest first.
+SELECT i.id, i.workspace_id, w.name AS workspace_name, i.number, i.provider, i.total_minor, i.currency,
+       i.paid_at, i.updated_at
+FROM invoices i
+JOIN workspaces w ON w.id = i.workspace_id
+WHERE i.status = 'disputed'
+ORDER BY i.updated_at, i.id
+LIMIT 200;
+
+-- name: AdminGetInvoice :one
+-- Staff only: the invoice a staff action names, with the IDs it needs.
+SELECT id, workspace_id, provider, external_payment_id, status
+FROM invoices
+WHERE id = @invoice_id;

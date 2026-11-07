@@ -790,3 +790,79 @@ func TestCreemPortalURL(t *testing.T) {
 		t.Fatalf("no customer: err = %v", err)
 	}
 }
+
+// creemFixtureObject is the object inside a webhook fixture: what Creem's API
+// returns when the same object is read back.
+func creemFixtureObject(t *testing.T, name string) string {
+	t.Helper()
+	var env struct {
+		Object json.RawMessage `json:"object"`
+	}
+	if err := json.Unmarshal(creemFixture(t, name), &env); err != nil {
+		t.Fatal(err)
+	}
+	return string(env.Object)
+}
+
+func TestCreemFetchCheckout(t *testing.T) {
+	g, api := newCreemWithAPI(t)
+	api.handle("GET /v1/checkouts", http.StatusOK, creemFixtureObject(t, "checkout_completed"))
+	ev, err := g.FetchCheckout(context.Background(), "ch_1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if api.last().Query != "checkout_id=ch_1" {
+		t.Errorf("query = %q", api.last().Query)
+	}
+	if ev.Type != EventCheckoutCompleted || ev.ExternalID != "fetch_ch_1" || len(ev.Payload) == 0 {
+		t.Errorf("event = %+v", ev)
+	}
+	checkReference(t, ev)
+	if p := ev.Payment; p == nil || p.ExternalID != "tran_5yMaWzAl3jxuGJMCOrYWwk" || p.PaidAt == nil {
+		t.Errorf("payment = %+v", p)
+	}
+	again, err := g.FetchCheckout(context.Background(), "ch_1")
+	if err != nil || again.ExternalID != ev.ExternalID {
+		t.Errorf("second fetch: %q, %v; want the same event ID", again.ExternalID, err)
+	}
+
+	api.handle("GET /v1/checkouts", http.StatusOK, `{"id":"ch_2","status":"pending","metadata":{}}`)
+	if ev, err := g.FetchCheckout(context.Background(), "ch_2"); err != nil || ev.Type != EventIgnored {
+		t.Errorf("pending checkout: %+v, %v", ev, err)
+	}
+	api.handle("GET /v1/checkouts", http.StatusNotFound, `{"trace_id":"t"}`)
+	if _, err := g.FetchCheckout(context.Background(), "ch_3"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("unknown checkout: %v", err)
+	}
+}
+
+func TestCreemFetchSubscription(t *testing.T) {
+	g, api := newCreemWithAPI(t)
+	api.handle("GET /v1/subscriptions", http.StatusOK, creemFixtureObject(t, "subscription_paid"))
+	ev, err := g.FetchSubscription(context.Background(), "sub_1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if api.last().Query != "subscription_id=sub_1" {
+		t.Errorf("query = %q", api.last().Query)
+	}
+	if ev.Type != EventPaymentSucceeded || ev.Payment == nil || ev.Subscription == nil {
+		t.Fatalf("paid subscription: %+v", ev)
+	}
+	again, _ := g.FetchSubscription(context.Background(), "sub_1")
+	if again.ExternalID != ev.ExternalID {
+		t.Errorf("same state, new event ID: %q then %q", ev.ExternalID, again.ExternalID)
+	}
+
+	api.handle("GET /v1/subscriptions", http.StatusOK, creemFixtureObject(t, "subscription_canceled"))
+	canceled, err := g.FetchSubscription(context.Background(), "sub_1")
+	if err != nil || canceled.Type != EventSubscriptionCanceled || canceled.ExternalID == ev.ExternalID {
+		t.Errorf("canceled subscription: %+v, %v", canceled, err)
+	}
+
+	api.handle("GET /v1/subscriptions", http.StatusOK, creemFixtureObject(t, "subscription_scheduled_cancel"))
+	sched, err := g.FetchSubscription(context.Background(), "sub_1")
+	if err != nil || sched.Subscription == nil || !sched.Subscription.CancelAtPeriodEnd {
+		t.Errorf("scheduled cancel: %+v, %v", sched, err)
+	}
+}

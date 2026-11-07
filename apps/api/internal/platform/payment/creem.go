@@ -452,6 +452,66 @@ func creemStatusError(status int) error {
 	}
 }
 
+// FetchCheckout reads a checkout from GET /v1/checkouts. Creem keeps an unpaid
+// checkout "pending" for good, declined card or not.
+func (g *creemGateway) FetchCheckout(ctx context.Context, externalSessionID string) (Event, error) {
+	var raw json.RawMessage
+	if err := g.do(ctx, http.MethodGet, "/v1/checkouts?checkout_id="+url.QueryEscape(externalSessionID), nil, &raw); err != nil {
+		return Event{}, fmt.Errorf("creem: fetch checkout: %w", err)
+	}
+	var c struct {
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal(raw, &c); err != nil {
+		return Event{}, fmt.Errorf("creem: decode checkout: %w", ErrInvalidRequest)
+	}
+	if c.Status != "completed" {
+		return Event{Provider: Creem, Type: EventIgnored, ProviderType: "checkout." + c.Status}, nil
+	}
+	return creemFetched(raw, "checkout.completed", "fetch_"+externalSessionID)
+}
+
+// FetchSubscription reads a subscription from GET /v1/subscriptions, which
+// expands last_transaction as subscription.paid does.
+func (g *creemGateway) FetchSubscription(ctx context.Context, externalSubscriptionID string) (Event, error) {
+	var raw json.RawMessage
+	path := "/v1/subscriptions?subscription_id=" + url.QueryEscape(externalSubscriptionID)
+	if err := g.do(ctx, http.MethodGet, path, nil, &raw); err != nil {
+		return Event{}, fmt.Errorf("creem: fetch subscription: %w", err)
+	}
+	var s creemSubscription
+	if err := json.Unmarshal(raw, &s); err != nil {
+		return Event{}, fmt.Errorf("creem: decode subscription: %w", ErrInvalidRequest)
+	}
+	eventType := "subscription.update"
+	switch {
+	case s.Status == "canceled":
+		eventType = "subscription.canceled"
+	case s.LastTransaction.Expanded && s.LastTransaction.Status == "paid":
+		eventType = "subscription.paid"
+	}
+	var end int64
+	if s.CurrentPeriodEnd != nil {
+		end = s.CurrentPeriodEnd.Unix()
+	}
+	id := fmt.Sprintf("fetch_%s_%s_%s_%d", externalSubscriptionID, s.Status, s.lastTransactionID(), end)
+	return creemFetched(raw, eventType, id)
+}
+
+// creemFetched is the event a webhook of eventType would have carried for an
+// object read back from the API.
+func creemFetched(object json.RawMessage, eventType, externalID string) (Event, error) {
+	now := time.Now().UTC()
+	ev := Event{
+		Provider: Creem, ExternalID: externalID, Type: EventIgnored, ProviderType: eventType,
+		OccurredAt: now, Payload: object,
+	}
+	if err := fillCreemEvent(&ev, creemEnvelope{ID: externalID, EventType: eventType, Object: object}); err != nil {
+		return Event{}, fmt.Errorf("creem: decode %s: %w", eventType, ErrInvalidRequest)
+	}
+	return ev, nil
+}
+
 // creemEnvelope is every webhook delivery. created_at is epoch milliseconds.
 type creemEnvelope struct {
 	ID        string          `json:"id"`
