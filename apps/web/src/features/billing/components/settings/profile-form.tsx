@@ -1,5 +1,5 @@
 import { revalidateLogic, useForm } from '@tanstack/react-form'
-import { useRef } from 'react'
+import { type ReactNode, useRef } from 'react'
 import { toast } from 'sonner'
 import { describedBy, FormField, fieldError, focusFirstInvalid } from '#/components/form'
 import { Alert, AlertDescription } from '#/components/ui/alert'
@@ -87,15 +87,22 @@ function toInput(v: BillingProfileValues): BillingProfileInput {
   }
 }
 
-/** The billing details form. Past invoices keep the details they were issued with. */
-export function ProfileForm({
+function sameInput(a: BillingProfileInput, b: BillingProfileInput) {
+  return (Object.keys(a) as (keyof BillingProfileInput)[]).every((k) => a[k] === b[k])
+}
+
+/**
+ * The billing details form's state. A save that changes nothing skips the request, so a caller
+ * can submit on every "continue" without a pointless write. `onSaved` gets the stored profile.
+ */
+export function useProfileForm({
   workspaceId,
   initial,
   onSaved,
 }: {
   workspaceId: string
   initial: BillingProfile | null
-  onSaved?: () => void
+  onSaved?: (profile: BillingProfile) => void
 }) {
   const update = useUpdateProfile(workspaceId)
   const formRef = useRef<HTMLFormElement>(null)
@@ -104,15 +111,32 @@ export function ProfileForm({
     validationLogic: revalidateLogic({ mode: 'blur', modeAfterSubmission: 'change' }),
     validators: { onDynamic: billingProfileSchema },
     onSubmitInvalid: () => focusFirstInvalid(formRef.current),
-    onSubmit: ({ value }) =>
-      update
-        .mutateAsync(toInput(value))
-        .then(() => {
-          toast.success('Billing details saved')
-          onSaved?.()
-        })
-        .catch(() => undefined),
+    onSubmit: async ({ value }) => {
+      const input = toInput(value)
+      if (initial && sameInput(input, toInput(toValues(initial)))) {
+        onSaved?.(initial)
+        return
+      }
+      try {
+        onSaved?.(await update.mutateAsync(input))
+      } catch {
+        // The form shows the error from `update`.
+      }
+    },
   })
+  return { form, formRef, update }
+}
+
+export type ProfileFormState = ReturnType<typeof useProfileForm>
+
+/** The fields, the API's error and a form element; `children` (the submit button) sit inside it. */
+export function ProfileFields({
+  profile: { form, formRef, update },
+  children,
+}: {
+  profile: ProfileFormState
+  children?: ReactNode
+}) {
   const details = isApiError(update.error) ? (update.error.details ?? []) : []
 
   return (
@@ -163,13 +187,38 @@ export function ProfileForm({
           }}
         </form.Field>
       ))}
-      <form.Subscribe selector={(s) => s.isSubmitting}>
+      {children}
+    </form>
+  )
+}
+
+/** The billing details form. Past invoices keep the details they were issued with. */
+export function ProfileForm({
+  workspaceId,
+  initial,
+  onSaved,
+}: {
+  workspaceId: string
+  initial: BillingProfile | null
+  onSaved?: () => void
+}) {
+  const profile = useProfileForm({
+    workspaceId,
+    initial,
+    onSaved: () => {
+      toast.success('Billing details saved')
+      onSaved?.()
+    },
+  })
+  return (
+    <ProfileFields profile={profile}>
+      <profile.form.Subscribe selector={(s) => s.isSubmitting}>
         {(submitting) => (
           <Button type="submit" size="lg" className="self-start" disabled={submitting}>
             {submitting ? 'Saving…' : 'Save billing details'}
           </Button>
         )}
-      </form.Subscribe>
-    </form>
+      </profile.form.Subscribe>
+    </ProfileFields>
   )
 }
