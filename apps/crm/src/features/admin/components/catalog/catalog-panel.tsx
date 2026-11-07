@@ -8,11 +8,19 @@ import { CheckField } from '../kit/check-field'
 import { LoadError } from '../kit/load-error'
 import { OfferDialog } from './offer-dialog'
 import { type PlanAction, PlanCard } from './plan-card'
-import { PlanSheet } from './plan-sheet'
+import type { PlanEditorMode } from './plan-draft'
+import { PlanEditor } from './plan-editor'
 import { PriceDialog } from './price-dialog'
 import { ProviderPriceDialog } from './provider-price-dialog'
 
 type Open = PlanAction | { kind: 'plan' } | null
+
+function editorMode(open: Extract<Open, { kind: 'plan' | 'version' | 'edit' }>): PlanEditorMode {
+  if (open.kind === 'plan') return { kind: 'create' }
+  return open.kind === 'version'
+    ? { kind: 'version', from: open.plan }
+    : { kind: 'edit', plan: open.plan }
+}
 
 export function CatalogPanel() {
   const catalog = useQuery(catalogQueryOptions())
@@ -67,20 +75,12 @@ export function CatalogPanel() {
         ))
       )}
 
-      {open?.kind === 'plan' && (
-        <PlanSheet mode={{ kind: 'create' }} resources={resources.data} onClose={close} />
-      )}
-      {open?.kind === 'version' && (
-        <PlanSheet
-          mode={{ kind: 'version', from: open.plan }}
+      {(open?.kind === 'plan' || open?.kind === 'version' || open?.kind === 'edit') && (
+        <PlanEditor
+          mode={editorMode(open)}
           resources={resources.data}
-          onClose={close}
-        />
-      )}
-      {open?.kind === 'edit' && (
-        <PlanSheet
-          mode={{ kind: 'edit', plan: open.plan }}
-          resources={resources.data}
+          plans={plans}
+          providers={providers}
           onClose={close}
         />
       )}
