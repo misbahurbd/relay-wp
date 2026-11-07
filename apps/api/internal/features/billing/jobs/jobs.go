@@ -44,6 +44,22 @@ func (w *InvoiceDocumentWorker) Work(ctx context.Context, job *river.Job[model.I
 	return w.svc.DeliverInvoiceDocument(ctx, job.Args.WorkspaceID, job.Args.InvoiceID)
 }
 
+// IssueRefundWorker works IssueRefundArgs.
+type IssueRefundWorker struct {
+	river.WorkerDefaults[model.IssueRefundArgs]
+	svc *service.Service
+}
+
+// NewIssueRefundWorker builds the worker.
+func NewIssueRefundWorker(svc *service.Service) *IssueRefundWorker {
+	return &IssueRefundWorker{svc: svc}
+}
+
+// Work asks the provider for one recorded refund.
+func (w *IssueRefundWorker) Work(ctx context.Context, job *river.Job[model.IssueRefundArgs]) error {
+	return w.svc.IssueRefund(ctx, job.Args.WorkspaceID, job.Args.RefundID)
+}
+
 // InvoiceDocumentsSweepWorker works InvoiceDocumentsSweepArgs.
 type InvoiceDocumentsSweepWorker struct {
 	river.WorkerDefaults[model.InvoiceDocumentsSweepArgs]

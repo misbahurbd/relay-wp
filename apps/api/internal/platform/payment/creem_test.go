@@ -345,6 +345,7 @@ func TestCreemCancelSubscription(t *testing.T) {
 
 func TestCreemRefund(t *testing.T) {
 	g, api := newCreemWithAPI(t)
+	api.handle("GET /v1/transactions", http.StatusOK, `{"id":"tran_1","status":"paid"}`)
 	api.handle("POST /v1/refunds", http.StatusOK, `{"status":"pending"}`)
 	r, err := g.Refund(context.Background(), RefundRequest{ExternalPaymentID: "tran_1", AmountMinor: 3158, Currency: "usd"})
 	if err != nil {
@@ -952,5 +953,41 @@ func TestCreemCancelRefusedButCanceledIsDone(t *testing.T) {
 	_, err = g.CancelSubscription(context.Background(), CancelRequest{ExternalSubscriptionID: "sub_1", Mode: CancelNow})
 	if !errors.Is(err, ErrInvalidRequest) || !Permanent(err) {
 		t.Fatalf("refused cancel: err = %v, want a permanent ErrInvalidRequest", err)
+	}
+}
+
+// Creem's refunds are full-only and take no idempotency key, so a refund
+// reads the transaction first: one already refunded is done, never refunded
+// twice (a retry after a lost reply, a replayed event).
+func TestCreemRefundOfARefundedTransactionIsDone(t *testing.T) {
+	for _, status := range []string{"refunded", "partialRefund"} {
+		g, api := newCreemWithAPI(t)
+		api.handle("GET /v1/transactions", http.StatusOK, `{"id":"tran_1","status":"`+status+`"}`)
+		api.handle("POST /v1/refunds", http.StatusOK, `{"status":"pending"}`)
+		r, err := g.Refund(context.Background(), RefundRequest{ExternalPaymentID: "tran_1", AmountMinor: 3158, Currency: "usd"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c := api.last(); c.Method != http.MethodGet || c.Query != "transaction_id=tran_1" {
+			t.Errorf("%s: last call %s %s?%s, want no refund request", status, c.Method, c.Path, c.Query)
+		}
+		if r.Status != RefundSucceeded || r.ExternalPaymentID != "tran_1" {
+			t.Errorf("%s: refund = %+v", status, r)
+		}
+	}
+
+	// Refused, but refunded by the time it is read again: done.
+	g, api := newCreemWithAPI(t)
+	reads := 0
+	api.routes["GET /v1/transactions"] = func(w http.ResponseWriter, _ creemCall) {
+		status := "paid"
+		if reads++; reads > 1 {
+			status = "refunded"
+		}
+		_, _ = io.WriteString(w, `{"id":"tran_1","status":"`+status+`"}`)
+	}
+	api.handle("POST /v1/refunds", http.StatusBadRequest, `{"trace_id":"t","status":400}`)
+	if _, err := g.Refund(context.Background(), RefundRequest{ExternalPaymentID: "tran_1", AmountMinor: 3158}); err != nil {
+		t.Fatalf("refused refund of a transaction refunded meanwhile: %v", err)
 	}
 }

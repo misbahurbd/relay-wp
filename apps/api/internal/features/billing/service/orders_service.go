@@ -437,25 +437,15 @@ func (l lifetimeDeals) recordPayment(ctx context.Context, tx pgx.Tx, r repositor
 
 // refundDuplicate handles a checkout paid for something already paid: two
 // Pay windows open for one installment, or a balance settled meanwhile. The
-// money is recorded on its own invoice and refunded in full, so the webhook
-// never fails over it and the customer isn't charged twice.
+// money is recorded on its own invoice and refunded in full (requestRefund),
+// so the webhook never fails over it and the customer isn't charged twice.
 func (l lifetimeDeals) refundDuplicate(ctx context.Context, tx pgx.Tx, o model.Order, inst *model.Installment, sessionID *uuid.UUID, p payment.Payment) error {
 	created, err := l.orderInvoice(ctx, tx, o, inst, sessionID, p)
 	if err != nil || !created {
 		return err
 	}
 	l.logger().Warn("refunding a duplicate order payment", "order_id", o.ID, "checkout_session_id", sessionID)
-	g, err := l.gateway(o.Provider)
-	if err != nil {
-		return err
-	}
-	if _, err := g.Refund(ctx, payment.RefundRequest{
-		ExternalPaymentID: p.ExternalID, AmountMinor: p.TotalMinor, Currency: p.Currency,
-		Reason: "duplicate", IdempotencyKey: "duplicate:" + p.ExternalID,
-	}); err != nil {
-		return l.gatewayErr("refund duplicate payment", err)
-	}
-	return nil
+	return l.requestRefund(ctx, tx, o.WorkspaceID, o.Provider, p.ExternalID, "duplicate")
 }
 
 // orderInvoice issues the paid invoice for an order payment. False means the

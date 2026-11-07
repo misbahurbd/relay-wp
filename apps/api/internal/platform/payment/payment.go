@@ -91,7 +91,9 @@ type Gateway interface {
 	// upgraded or defaulted. A schedule already canceled or completed is no
 	// error. ErrUnsupported without Capabilities.Installments.
 	CancelSchedule(ctx context.Context, externalScheduleID string) error
-	// Refund refunds all or part of a payment.
+	// Refund refunds all or part of a payment. A retry with the same
+	// IdempotencyKey, or of a payment the provider shows refunded in full,
+	// refunds nothing more and reports the refund done.
 	Refund(ctx context.Context, req RefundRequest) (Refund, error)
 	// CreateCoupon mirrors a Relay discount as a provider coupon, for
 	// subscriptions the provider renews. One-time payments never need one:

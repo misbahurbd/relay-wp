@@ -144,6 +144,7 @@ func TestDuplicateSubscriptionCheckoutIsRefunded(t *testing.T) {
 
 	e.pay(second)
 	ev := e.pay(first)
+	e.sendRefunds()
 
 	var refunded []payment.Refund
 	for _, r := range e.fake.Refunds() {
@@ -166,6 +167,35 @@ func TestDuplicateSubscriptionCheckoutIsRefunded(t *testing.T) {
 	}
 	if g := e.grant(e.ws); g == nil || !sameID(g.SubscriptionID, live.ID) {
 		t.Errorf("grant = %+v, want the live subscription's", g)
+	}
+}
+
+// A duplicate subscription checkout read back after its webhook (another
+// event ID, the same payment) asks the provider for one refund: Creem has no
+// idempotency key, so a second request would refund twice.
+func TestDuplicateSubscriptionCheckoutRefundsOnce(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	first := e.checkout(p.Monthly, "")
+	second := e.checkout(p.Monthly, "")
+	e.pay(second)
+	ev := e.pay(first)
+	readBack, err := e.fake.FetchCheckout(e.ctx, *first.Session.ExternalSessionID)
+	if err != nil || readBack.ExternalID == ev.ExternalID || readBack.Payment.ExternalID != ev.Payment.ExternalID {
+		t.Fatalf("read back = %+v, %v; want the same payment under another event ID", readBack, err)
+	}
+	e.inTx(func(tx pgx.Tx) error { return e.svc.CompleteCheckout(e.ctx, tx, e.ws, first.Session.ID, readBack) })
+	e.sendRefunds()
+	e.sendRefunds() // a retried job asks nothing more
+
+	asked := 0
+	for _, r := range e.fake.RefundRequests() {
+		if r.ExternalPaymentID == ev.Payment.ExternalID {
+			asked++
+		}
+	}
+	if asked != 1 {
+		t.Errorf("refund requests for the duplicate payment = %d, want 1", asked)
 	}
 }
 

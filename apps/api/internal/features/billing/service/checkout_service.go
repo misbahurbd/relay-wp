@@ -656,6 +656,16 @@ func (s *Service) CompleteCheckout(ctx context.Context, tx pgx.Tx, workspaceID, 
 	if session.Status == model.CheckoutCompleted {
 		return nil // a replay
 	}
+	// The payment already has its invoice: a replay of a duplicate the first
+	// delivery refunded (a read-back has another event ID). Nothing more to do,
+	// even once the plan it clashed with is gone.
+	if recorded, err := r.CheckoutPaymentRecorded(ctx, gen.CheckoutPaymentRecordedParams{
+		WorkspaceID: workspaceID, CheckoutSessionID: &session.ID, ExternalPaymentID: nilIfEmpty(ev.Payment.ExternalID),
+	}); err != nil {
+		return fmt.Errorf("checkout payment recorded: %w", err)
+	} else if recorded {
+		return nil
+	}
 	if session.Purpose == model.PurposeNew {
 		taken, err := planTaken(ctx, r, session)
 		if err != nil {
@@ -718,8 +728,9 @@ func planTaken(ctx context.Context, r repository.Repository, session model.Check
 // workspace already has a plan (two checkouts paid, or one paid after it
 // expired here). The provider subscription it started is canceled now and the
 // payment refunded, so nothing bills twice; the payment is kept on a canceled
-// subscription's invoice, where the refund's webhook lands, and the session
-// fails. The event applies instead of failing on every retry.
+// subscription's invoice, refunded, and the session fails. The refund is
+// recorded and sent after the commit (requestRefund), so the event applies
+// once, and a replay finds the invoice and changes nothing.
 func (s *Service) refundDuplicateSubscription(ctx context.Context, tx pgx.Tx, session model.CheckoutSession, ev payment.Event) error {
 	r := repository.NewRepository(tx)
 	ws := session.WorkspaceID
@@ -769,10 +780,11 @@ func (s *Service) refundDuplicateSubscription(ctx context.Context, tx pgx.Tx, se
 	if err != nil {
 		return err
 	}
-	if _, err := s.createInvoice(ctx, tx, ws, invoiceInput{
+	created, err := s.createInvoice(ctx, tx, ws, invoiceInput{
 		Provider: session.Provider, SubscriptionID: &subID, CheckoutSessionID: &session.ID, Payment: p, Paid: true,
 		BillTo: billTo, Now: now,
-	}); err != nil {
+	})
+	if err != nil || !created {
 		return err
 	}
 
@@ -787,11 +799,8 @@ func (s *Service) refundDuplicateSubscription(ctx context.Context, tx pgx.Tx, se
 		}
 	}
 	if p.TotalMinor > 0 && p.ExternalID != "" {
-		if _, err := g.Refund(ctx, payment.RefundRequest{
-			ExternalPaymentID: p.ExternalID, AmountMinor: p.TotalMinor, Currency: p.Currency, Reason: "duplicate",
-			IdempotencyKey: "duplicate-checkout:" + session.ID.String(),
-		}); err != nil {
-			return s.gatewayErr("refund duplicate subscription", err)
+		if err := s.requestRefund(ctx, tx, ws, session.Provider, p.ExternalID, "duplicate"); err != nil {
+			return err
 		}
 	}
 	if _, err := r.ReopenCheckoutSession(ctx, gen.ReopenCheckoutSessionParams{WorkspaceID: ws, CheckoutSessionID: session.ID}); err != nil {

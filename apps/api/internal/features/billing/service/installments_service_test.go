@@ -94,6 +94,7 @@ func TestPayingAnInstallmentTwiceRefundsTheSecond(t *testing.T) {
 	h.complete(first.Session, h.payment(10333))
 	dup := h.payment(10333)
 	h.complete(second.Session, dup)
+	h.sendRefunds()
 
 	wantOrder(t, h.order(o.ID), model.OrderInInstallments, 20666, "paid", "paid", "scheduled")
 	if n := h.invoiceCount(o.ID); n != 3 {
@@ -105,7 +106,8 @@ func TestPayingAnInstallmentTwiceRefundsTheSecond(t *testing.T) {
 	}
 	// A replay of the duplicate's webhook refunds nothing more.
 	h.complete(second.Session, dup)
-	if n := len(h.fake.Refunds()); n != 1 {
+	h.sendRefunds()
+	if n := len(h.fake.RefundRequests()); n != 1 {
 		t.Fatalf("%d refunds after a replay, want 1", n)
 	}
 }

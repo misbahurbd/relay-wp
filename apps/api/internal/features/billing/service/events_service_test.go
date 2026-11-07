@@ -27,6 +27,7 @@ import (
 	"github.com/misbahurbd/relay-wp/apps/api/db/gen"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/model"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/repository"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/database"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/database/dbtest"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/payment"
 )
@@ -825,5 +826,76 @@ func TestPermanentProviderRefusalIsLoggedNotRetried(t *testing.T) {
 	}
 	if n := strings.Count(e.logs.String(), "provider refused"); n != 1 {
 		t.Errorf("refusal logged %d times, want once", n)
+	}
+}
+
+// requestRefund records a refund and queues the job that sends it.
+func (e *eventsEnv) requestRefund(ws uuid.UUID, payID string) model.IssueRefundArgs {
+	e.t.Helper()
+	before := len(e.queue.all())
+	if err := database.WithTx(e.ctx, e.pool, func(tx pgx.Tx) error {
+		return e.svc.requestRefund(e.ctx, tx, ws, payment.Stripe, payID, "duplicate")
+	}); err != nil {
+		e.t.Fatal(err)
+	}
+	jobs := e.queue.all()
+	if len(jobs) != before+1 {
+		e.t.Fatalf("enqueued %d jobs, want the refund's", len(jobs)-before)
+	}
+	return jobs[len(jobs)-1].(model.IssueRefundArgs)
+}
+
+// A refund the provider refuses for good fails once: the invoice goes back
+// to paid, the refusal is logged, and the job neither retries nor asks again.
+func TestRefusedRefundFailsOnce(t *testing.T) {
+	e := newEventsEnv(t)
+	ws := e.workspace()
+	invoiceID, payID := e.invoice(ws, 1000)
+	job := e.requestRefund(ws, payID)
+	if s := e.invoiceStatus(invoiceID); s != model.InvoiceRefunded {
+		t.Fatalf("invoice %s once its refund is requested, want refunded", s)
+	}
+
+	e.fake.FailNext(fmt.Errorf("fake: %w", payment.ErrInvalidRequest))
+	if err := e.svc.IssueRefund(e.ctx, job.WorkspaceID, job.RefundID); err != nil {
+		t.Fatalf("refused refund: %v, want no retry", err)
+	}
+	if err := e.svc.IssueRefund(e.ctx, job.WorkspaceID, job.RefundID); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(e.fake.RefundRequests()); n != 1 {
+		t.Errorf("provider asked %d times, want once", n)
+	}
+	if s := e.invoiceStatus(invoiceID); s != model.InvoicePaid {
+		t.Errorf("invoice %s after the refund failed, want paid", s)
+	}
+	if n, _ := e.refunds(invoiceID); n != 0 {
+		t.Errorf("%d live refunds, want none", n)
+	}
+	if !strings.Contains(e.logs.String(), "refused a refund") {
+		t.Error("the refusal isn't logged")
+	}
+}
+
+// The provider's webhook for a refund Relay asked for names that refund,
+// even before the job recorded the provider's reply: one refund, never one
+// "more than the invoice total", and the job then asks nothing.
+func TestRequestedRefundIsNamedByItsWebhook(t *testing.T) {
+	e := newEventsEnv(t)
+	ws := e.workspace()
+	invoiceID, payID := e.invoice(ws, 1000)
+	job := e.requestRefund(ws, payID)
+	e.mustProcess(e.receive(refundEvent(payID, e.id("re_1"), 1000, payment.RefundSucceeded)))
+	if n, sum := e.refunds(invoiceID); n != 1 || sum != 1000 {
+		t.Fatalf("refunds = %d of %d, want the requested one", n, sum)
+	}
+	if err := e.svc.IssueRefund(e.ctx, job.WorkspaceID, job.RefundID); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(e.fake.RefundRequests()); n != 0 {
+		t.Errorf("provider asked %d times for a refund it already reported", n)
+	}
+	if s := e.invoiceStatus(invoiceID); s != model.InvoiceRefunded {
+		t.Errorf("invoice %s, want refunded", s)
 	}
 }

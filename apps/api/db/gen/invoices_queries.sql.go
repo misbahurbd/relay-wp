@@ -68,6 +68,43 @@ func (q *Queries) ClaimInvoicesToDeliver(ctx context.Context, arg ClaimInvoicesT
 	return items, nil
 }
 
+const claimRequestedRefund = `-- name: ClaimRequestedRefund :execrows
+UPDATE refunds
+SET external_refund_id = $1, status = $2, amount_minor = $3
+WHERE id = (SELECT r.id FROM refunds r
+            WHERE r.workspace_id = $4 AND r.invoice_id = $5 AND r.provider = $6
+              AND r.external_refund_id IS NULL AND r.status <> 'failed'
+            ORDER BY r.created_at, r.id
+            LIMIT 1
+            FOR UPDATE)
+`
+
+type ClaimRequestedRefundParams struct {
+	ExternalRefundID *string
+	Status           string
+	AmountMinor      int64
+	WorkspaceID      uuid.UUID
+	InvoiceID        uuid.UUID
+	Provider         string
+}
+
+// A provider refund we have no row for is the oldest refund Relay asked for
+// on the invoice that no webhook has named yet (Creem's refund reply has no ID).
+func (q *Queries) ClaimRequestedRefund(ctx context.Context, arg ClaimRequestedRefundParams) (int64, error) {
+	result, err := q.db.Exec(ctx, claimRequestedRefund,
+		arg.ExternalRefundID,
+		arg.Status,
+		arg.AmountMinor,
+		arg.WorkspaceID,
+		arg.InvoiceID,
+		arg.Provider,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const createInvoice = `-- name: CreateInvoice :one
 
 INSERT INTO invoices (workspace_id, subscription_id, order_id, installment_id, checkout_session_id, provider,
@@ -182,6 +219,26 @@ func (q *Queries) CreateRefund(ctx context.Context, arg CreateRefundParams) (uui
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const failRequestedRefund = `-- name: FailRequestedRefund :execrows
+UPDATE refunds
+SET status = 'failed'
+WHERE workspace_id = $1 AND id = $2 AND issued_at IS NULL AND external_refund_id IS NULL
+`
+
+type FailRequestedRefundParams struct {
+	WorkspaceID uuid.UUID
+	RefundID    uuid.UUID
+}
+
+// The provider refused the request for good; it is never sent again.
+func (q *Queries) FailRequestedRefund(ctx context.Context, arg FailRequestedRefundParams) (int64, error) {
+	result, err := q.db.Exec(ctx, failRequestedRefund, arg.WorkspaceID, arg.RefundID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const findInvoiceByExternalPaymentID = `-- name: FindInvoiceByExternalPaymentID :one
@@ -417,6 +474,50 @@ func (q *Queries) GetOrderRefundTotals(ctx context.Context, arg GetOrderRefundTo
 	return i, err
 }
 
+const getRefundToIssue = `-- name: GetRefundToIssue :one
+SELECT r.id, r.invoice_id, r.provider, r.amount_minor, r.reason, r.status, r.external_refund_id, r.issued_at,
+       i.external_payment_id, i.currency
+FROM refunds r
+JOIN invoices i ON i.id = r.invoice_id AND i.workspace_id = r.workspace_id
+WHERE r.workspace_id = $1 AND r.id = $2
+`
+
+type GetRefundToIssueParams struct {
+	WorkspaceID uuid.UUID
+	RefundID    uuid.UUID
+}
+
+type GetRefundToIssueRow struct {
+	ID                uuid.UUID
+	InvoiceID         uuid.UUID
+	Provider          string
+	AmountMinor       int64
+	Reason            *string
+	Status            string
+	ExternalRefundID  *string
+	IssuedAt          *time.Time
+	ExternalPaymentID *string
+	Currency          string
+}
+
+func (q *Queries) GetRefundToIssue(ctx context.Context, arg GetRefundToIssueParams) (GetRefundToIssueRow, error) {
+	row := q.db.QueryRow(ctx, getRefundToIssue, arg.WorkspaceID, arg.RefundID)
+	var i GetRefundToIssueRow
+	err := row.Scan(
+		&i.ID,
+		&i.InvoiceID,
+		&i.Provider,
+		&i.AmountMinor,
+		&i.Reason,
+		&i.Status,
+		&i.ExternalRefundID,
+		&i.IssuedAt,
+		&i.ExternalPaymentID,
+		&i.Currency,
+	)
+	return i, err
+}
+
 const hasOtherInstallmentPayment = `-- name: HasOtherInstallmentPayment :one
 SELECT EXISTS (
     SELECT 1 FROM invoices
@@ -582,6 +683,34 @@ func (q *Queries) MarkInvoiceEmailed(ctx context.Context, arg MarkInvoiceEmailed
 	return result.RowsAffected(), nil
 }
 
+const markRefundIssued = `-- name: MarkRefundIssued :execrows
+UPDATE refunds
+SET issued_at = $1, external_refund_id = COALESCE(external_refund_id, $2)
+WHERE workspace_id = $3 AND id = $4 AND issued_at IS NULL
+`
+
+type MarkRefundIssuedParams struct {
+	IssuedAt         *time.Time
+	ExternalRefundID *string
+	WorkspaceID      uuid.UUID
+	RefundID         uuid.UUID
+}
+
+// The provider accepted the request; its refund ID, when it gave one, unless
+// the refund's webhook already filled it in.
+func (q *Queries) MarkRefundIssued(ctx context.Context, arg MarkRefundIssuedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markRefundIssued,
+		arg.IssuedAt,
+		arg.ExternalRefundID,
+		arg.WorkspaceID,
+		arg.RefundID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const nextInvoiceSeq = `-- name: NextInvoiceSeq :one
 INSERT INTO invoice_number_counters (year, last_seq)
 VALUES ($1, 1)
@@ -596,6 +725,34 @@ func (q *Queries) NextInvoiceSeq(ctx context.Context, year int32) (int32, error)
 	var last_seq int32
 	err := row.Scan(&last_seq)
 	return last_seq, err
+}
+
+const requestRefund = `-- name: RequestRefund :one
+INSERT INTO refunds (invoice_id, workspace_id, provider, amount_minor, reason, status)
+VALUES ($1, $2, $3, $4, $5, 'pending')
+RETURNING id
+`
+
+type RequestRefundParams struct {
+	InvoiceID   uuid.UUID
+	WorkspaceID uuid.UUID
+	Provider    string
+	AmountMinor int64
+	Reason      *string
+}
+
+// A refund Relay asks for, recorded before the provider is called (IssueRefund).
+func (q *Queries) RequestRefund(ctx context.Context, arg RequestRefundParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, requestRefund,
+		arg.InvoiceID,
+		arg.WorkspaceID,
+		arg.Provider,
+		arg.AmountMinor,
+		arg.Reason,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const setInvoiceNumber = `-- name: SetInvoiceNumber :execrows

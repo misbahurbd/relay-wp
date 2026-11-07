@@ -901,3 +901,14 @@ func TestStripeCancelOfACanceledObjectIsDone(t *testing.T) {
 		t.Fatalf("refused cancel of an active schedule: err = %v, want permanent", err)
 	}
 }
+
+// A charge Stripe already refunded in full is done, not a refusal to retry.
+func TestStripeRefundOfARefundedChargeIsDone(t *testing.T) {
+	g, api := newTestStripe(t)
+	api.respond("POST /v1/refunds", http.StatusBadRequest, `{"error":{"type":"invalid_request_error",`+
+		`"code":"charge_already_refunded","message":"Charge ch_1 has already been refunded."}}`)
+	r, err := g.Refund(context.Background(), RefundRequest{ExternalPaymentID: "ch_1", AmountMinor: 1000, Currency: "USD"})
+	if err != nil || r.Status != RefundSucceeded {
+		t.Fatalf("refund of a refunded charge = %+v, %v; want done", r, err)
+	}
+}

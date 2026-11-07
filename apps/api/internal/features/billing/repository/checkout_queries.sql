@@ -94,3 +94,11 @@ FROM checkout_sessions
 WHERE status = 'pending' AND created_at <= @started_before AND id > @after_id
 ORDER BY id
 LIMIT @max_rows;
+
+-- name: CheckoutPaymentRecorded :one
+-- Whether a provider payment for the checkout already has its invoice.
+SELECT EXISTS (
+    SELECT 1 FROM invoices
+    WHERE workspace_id = @workspace_id AND checkout_session_id = sqlc.narg('checkout_session_id')
+      AND external_payment_id = sqlc.narg('external_payment_id')
+);

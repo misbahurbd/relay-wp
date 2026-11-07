@@ -142,6 +142,44 @@ VALUES (@invoice_id, @workspace_id, @provider, sqlc.narg('external_refund_id'), 
 ON CONFLICT (provider, external_refund_id) DO NOTHING
 RETURNING id;
 
+-- name: RequestRefund :one
+-- A refund Relay asks for, recorded before the provider is called (IssueRefund).
+INSERT INTO refunds (invoice_id, workspace_id, provider, amount_minor, reason, status)
+VALUES (@invoice_id, @workspace_id, @provider, @amount_minor, sqlc.narg('reason'), 'pending')
+RETURNING id;
+
+-- name: GetRefundToIssue :one
+SELECT r.id, r.invoice_id, r.provider, r.amount_minor, r.reason, r.status, r.external_refund_id, r.issued_at,
+       i.external_payment_id, i.currency
+FROM refunds r
+JOIN invoices i ON i.id = r.invoice_id AND i.workspace_id = r.workspace_id
+WHERE r.workspace_id = @workspace_id AND r.id = @refund_id;
+
+-- name: MarkRefundIssued :execrows
+-- The provider accepted the request; its refund ID, when it gave one, unless
+-- the refund's webhook already filled it in.
+UPDATE refunds
+SET issued_at = @issued_at, external_refund_id = COALESCE(external_refund_id, sqlc.narg('external_refund_id'))
+WHERE workspace_id = @workspace_id AND id = @refund_id AND issued_at IS NULL;
+
+-- name: FailRequestedRefund :execrows
+-- The provider refused the request for good; it is never sent again.
+UPDATE refunds
+SET status = 'failed'
+WHERE workspace_id = @workspace_id AND id = @refund_id AND issued_at IS NULL AND external_refund_id IS NULL;
+
+-- name: ClaimRequestedRefund :execrows
+-- A provider refund we have no row for is the oldest refund Relay asked for
+-- on the invoice that no webhook has named yet (Creem's refund reply has no ID).
+UPDATE refunds
+SET external_refund_id = @external_refund_id, status = @status, amount_minor = @amount_minor
+WHERE id = (SELECT r.id FROM refunds r
+            WHERE r.workspace_id = @workspace_id AND r.invoice_id = @invoice_id AND r.provider = @provider
+              AND r.external_refund_id IS NULL AND r.status <> 'failed'
+            ORDER BY r.created_at, r.id
+            LIMIT 1
+            FOR UPDATE);
+
 -- name: SetRefundStatus :execrows
 UPDATE refunds
 SET status = @status

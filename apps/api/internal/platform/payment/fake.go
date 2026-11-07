@@ -43,6 +43,8 @@ type Fake struct {
 	byIdempotency  map[string]string       // idempotency key → external session ID
 	subscriptions  map[string]Subscription // by external ID
 	refunds        []Refund
+	refundCalls    []RefundRequest
+	refundsByKey   map[string]Refund // idempotency key → the refund it made
 	coupons        []CouponRequest
 	deletedCoupons []string
 	prices         []PriceRequest
@@ -84,6 +86,7 @@ func NewFake(provider Provider, secret string) *Fake {
 		checkouts:     map[string]FakeCheckout{},
 		byIdempotency: map[string]string{},
 		subscriptions: map[string]Subscription{},
+		refundsByKey:  map[string]Refund{},
 	}
 }
 
@@ -295,21 +298,37 @@ func (f *Fake) CancelSchedule(_ context.Context, externalScheduleID string) erro
 	return nil
 }
 
-// Refund implements Gateway. Refunds succeed at once.
+// Refund implements Gateway. Refunds succeed at once. A repeated idempotency
+// key returns the first refund, and without partial refunds (Creem) so does
+// any refund of a payment refunded once, as the real gateways do.
 func (f *Fake) Refund(_ context.Context, req RefundRequest) (Refund, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.refundCalls = append(f.refundCalls, req)
 	if err := f.takeFailure(); err != nil {
 		return Refund{}, err
 	}
 	if req.ExternalPaymentID == "" || req.AmountMinor <= 0 {
 		return Refund{}, fmt.Errorf("fake: refund needs a payment and an amount: %w", ErrInvalidRequest)
 	}
+	if r, ok := f.refundsByKey[req.IdempotencyKey]; ok && req.IdempotencyKey != "" {
+		return r, nil
+	}
+	if !f.caps.PartialRefunds {
+		for _, r := range f.refunds {
+			if r.ExternalPaymentID == req.ExternalPaymentID {
+				return r, nil
+			}
+		}
+	}
 	r := Refund{
 		ExternalID: f.nextID("re"), ExternalPaymentID: req.ExternalPaymentID,
 		AmountMinor: req.AmountMinor, Currency: req.Currency, Status: RefundSucceeded,
 	}
 	f.refunds = append(f.refunds, r)
+	if req.IdempotencyKey != "" {
+		f.refundsByKey[req.IdempotencyKey] = r
+	}
 	return r, nil
 }
 
@@ -583,6 +602,13 @@ func (f *Fake) Refunds() []Refund {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return slices.Clone(f.refunds)
+}
+
+// RefundRequests returns every Refund call, failed ones included, oldest first.
+func (f *Fake) RefundRequests() []RefundRequest {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.refundCalls)
 }
 
 // Prices returns every price CreatePrice made, oldest first.

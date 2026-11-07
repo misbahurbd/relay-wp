@@ -459,6 +459,13 @@ func (g *stripeGateway) Refund(ctx context.Context, req RefundRequest) (Refund, 
 	}
 	setIdempotency(&p.Params, req.IdempotencyKey, "refund")
 	r, err := g.sc.V1Refunds.Create(ctx, p)
+	if se := (*stripe.Error)(nil); errors.As(err, &se) && se.Code == stripe.ErrorCodeChargeAlreadyRefunded {
+		// Refunded in full already: by an earlier request whose reply was lost, or by hand.
+		return Refund{
+			ExternalPaymentID: req.ExternalPaymentID, AmountMinor: req.AmountMinor,
+			Currency: strings.ToUpper(req.Currency), Status: RefundSucceeded,
+		}, nil
+	}
 	if err != nil {
 		return Refund{}, stripeError("refund", err)
 	}

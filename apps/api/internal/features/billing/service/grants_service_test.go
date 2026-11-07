@@ -167,6 +167,19 @@ func (e *t3Env) subscribe(priceID uuid.UUID) model.Subscription {
 	return sub
 }
 
+// sendRefunds runs every queued IssueRefund job, as the worker would after
+// the commit. Running one twice changes nothing.
+func (e *t3Env) sendRefunds() {
+	e.t.Helper()
+	for _, j := range e.svc.queue.(*recordingQueue).all() {
+		if a, ok := j.(model.IssueRefundArgs); ok {
+			if err := e.svc.IssueRefund(e.ctx, a.WorkspaceID, a.RefundID); err != nil {
+				e.t.Fatalf("issue refund: %v", err)
+			}
+		}
+	}
+}
+
 func (e *t3Env) inTx(fn func(tx pgx.Tx) error) {
 	e.t.Helper()
 	if err := database.WithTx(e.ctx, e.pool, fn); err != nil {

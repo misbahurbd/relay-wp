@@ -12,6 +12,28 @@ import (
 	"github.com/google/uuid"
 )
 
+const checkoutPaymentRecorded = `-- name: CheckoutPaymentRecorded :one
+SELECT EXISTS (
+    SELECT 1 FROM invoices
+    WHERE workspace_id = $1 AND checkout_session_id = $2
+      AND external_payment_id = $3
+)
+`
+
+type CheckoutPaymentRecordedParams struct {
+	WorkspaceID       uuid.UUID
+	CheckoutSessionID *uuid.UUID
+	ExternalPaymentID *string
+}
+
+// Whether a provider payment for the checkout already has its invoice.
+func (q *Queries) CheckoutPaymentRecorded(ctx context.Context, arg CheckoutPaymentRecordedParams) (bool, error) {
+	row := q.db.QueryRow(ctx, checkoutPaymentRecorded, arg.WorkspaceID, arg.CheckoutSessionID, arg.ExternalPaymentID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const createCheckoutSession = `-- name: CreateCheckoutSession :one
 
 INSERT INTO checkout_sessions (workspace_id, plan_price_id, installment_offer_id, purpose, subscription_id, order_id,

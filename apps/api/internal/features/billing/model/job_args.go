@@ -34,6 +34,21 @@ func (InvoiceDocumentArgs) InsertOpts() river.InsertOpts {
 	return river.InsertOpts{MaxAttempts: 12, UniqueOpts: river.UniqueOpts{ByArgs: true}}
 }
 
+// IssueRefundArgs asks the provider for a refund Relay recorded (refunds.id),
+// after the transaction that recorded it committed.
+type IssueRefundArgs struct {
+	WorkspaceID uuid.UUID `json:"workspace_id"`
+	RefundID    uuid.UUID `json:"refund_id"`
+}
+
+// Kind is the job's stable name in the river_job table.
+func (IssueRefundArgs) Kind() string { return "billing_issue_refund" }
+
+// InsertOpts makes the job unique by args, so one refund never has two live jobs.
+func (IssueRefundArgs) InsertOpts() river.InsertOpts {
+	return river.InsertOpts{UniqueOpts: river.UniqueOpts{ByArgs: true}}
+}
+
 // InvoiceDocumentsSweepArgs queues the document job again for numbered
 // invoices still without a PDF ten minutes after they were issued.
 type InvoiceDocumentsSweepArgs struct{}

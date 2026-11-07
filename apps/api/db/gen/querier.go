@@ -80,6 +80,8 @@ type Querier interface {
 	CancelSubscriptionNow(ctx context.Context, arg CancelSubscriptionNowParams) (int64, error)
 	// The contact's chat on one number: a broadcast sends from the number it chose.
 	ChannelContactConversation(ctx context.Context, arg ChannelContactConversationParams) (uuid.UUID, error)
+	// Whether a provider payment for the checkout already has its invoice.
+	CheckoutPaymentRecorded(ctx context.Context, arg CheckoutPaymentRecordedParams) (bool, error)
 	// Numbered invoices created before `before` whose PDF, or receipt email to a
 	// billing contact, is still undelivered: their document job ran out of
 	// attempts, or they predate invoice documents. Each claim counts a sweep and
@@ -90,6 +92,9 @@ type Querier interface {
 	// The next pending recipients, locked so a second batch job skips them. The
 	// contact's current attributes fill variables; a deleted contact has none.
 	ClaimRecipients(ctx context.Context, arg ClaimRecipientsParams) ([]ClaimRecipientsRow, error)
+	// A provider refund we have no row for is the oldest refund Relay asked for
+	// on the invoice that no webhook has named yet (Creem's refund reply has no ID).
+	ClaimRequestedRefund(ctx context.Context, arg ClaimRequestedRefundParams) (int64, error)
 	// A due run, locked; another worker holding it means nothing to do here.
 	ClaimRun(ctx context.Context, arg ClaimRunParams) (ClaimRunRow, error)
 	// Job only (all workspaces): events still unprocessed long after they
@@ -271,6 +276,8 @@ type Querier interface {
 	ExtendSession(ctx context.Context, arg ExtendSessionParams) error
 	// No row when it isn't sending any more. The month its plan unit was taken from comes back.
 	FailBroadcast(ctx context.Context, arg FailBroadcastParams) (pgtype.Date, error)
+	// The provider refused the request for good; it is never sent again.
+	FailRequestedRefund(ctx context.Context, arg FailRequestedRefundParams) (int64, error)
 	// Members with 3+ failed sign-ins in the window. Reads auth_events directly, never secrets.
 	FailedLoginAlerts(ctx context.Context, arg FailedLoginAlertsParams) ([]FailedLoginAlertsRow, error)
 	// Why recipients didn't get it, most common first: Meta's error for a failed
@@ -399,6 +406,7 @@ type Querier interface {
 	GetProviderPrice(ctx context.Context, arg GetProviderPriceParams) (GetProviderPriceRow, error)
 	// Locks the token row so two concurrent refreshes can't both rotate it.
 	GetRefreshTokenForUpdate(ctx context.Context, tokenHash []byte) (GetRefreshTokenForUpdateRow, error)
+	GetRefundToIssue(ctx context.Context, arg GetRefundToIssueParams) (GetRefundToIssueRow, error)
 	GetRole(ctx context.Context, arg GetRoleParams) (GetRoleRow, error)
 	GetSegment(ctx context.Context, arg GetSegmentParams) (GetSegmentRow, error)
 	// When this session last proved who it is (password or social sign-in), for sensitive actions.
@@ -621,6 +629,9 @@ type Querier interface {
 	MarkProviderDiscountDeleted(ctx context.Context, providerDiscountID uuid.UUID) (int64, error)
 	// used_at comes from the service clock, which also checks the reuse grace window.
 	MarkRefreshTokenUsed(ctx context.Context, arg MarkRefreshTokenUsedParams) error
+	// The provider accepted the request; its refund ID, when it gave one, unless
+	// the refund's webhook already filled it in.
+	MarkRefundIssued(ctx context.Context, arg MarkRefundIssuedParams) (int64, error)
 	// Records the submission to the workspace's active WhatsApp account (the one submit used).
 	MarkTemplateSubmitted(ctx context.Context, arg MarkTemplateSubmittedParams) error
 	MarkTestMessageSent(ctx context.Context, workspaceID uuid.UUID) error
@@ -664,6 +675,8 @@ type Querier interface {
 	// Chats whose snooze has ended, a batch at a time, across workspaces.
 	ReopenSnoozed(ctx context.Context, arg ReopenSnoozedParams) ([]ReopenSnoozedRow, error)
 	RequestInvitationRenewal(ctx context.Context, invitationID uuid.UUID) (int64, error)
+	// A refund Relay asks for, recorded before the provider is called (IssueRefund).
+	RequestRefund(ctx context.Context, arg RequestRefundParams) (uuid.UUID, error)
 	Reschedule(ctx context.Context, arg RescheduleParams) error
 	ResendInvitation(ctx context.Context, arg ResendInvitationParams) error
 	// One statement: the conditional bump of redeemed_count takes the discount's

@@ -396,6 +396,16 @@ func (s *Service) onRefund(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID
 	if err != nil {
 		return fmt.Errorf("set refund status: %w", err)
 	}
+	if n == 0 && r.AmountMinor > 0 {
+		// A refund Relay asked for, which the provider names for the first time.
+		n, err = repo.ClaimRequestedRefund(ctx, gen.ClaimRequestedRefundParams{
+			ExternalRefundID: &r.ExternalID, Status: string(r.Status), AmountMinor: r.AmountMinor,
+			WorkspaceID: workspaceID, InvoiceID: inv.ID, Provider: string(ev.Provider),
+		})
+		if err != nil {
+			return fmt.Errorf("claim requested refund: %w", err)
+		}
+	}
 	if n == 0 {
 		if err := s.createRefund(ctx, repo, workspaceID, inv, ev); err != nil {
 			return err

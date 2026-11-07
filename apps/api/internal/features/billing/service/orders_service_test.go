@@ -306,6 +306,16 @@ func (h *ltdHarness) providerPayment(orderID uuid.UUID, p payment.Payment, paid 
 	})
 }
 
+// sendRefunds runs every queued IssueRefund job, as the worker would.
+func (h *ltdHarness) sendRefunds() {
+	h.t.Helper()
+	for _, j := range h.queue.all() {
+		if a, ok := j.(model.IssueRefundArgs); ok {
+			h.must(h.l.IssueRefund(h.ctx, a.WorkspaceID, a.RefundID))
+		}
+	}
+}
+
 func (h *ltdHarness) payment(amount int64) payment.Payment {
 	h.paymentSequence++
 	paidAt := h.now
