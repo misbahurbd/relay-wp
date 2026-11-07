@@ -1,7 +1,9 @@
-import { ExternalLinkIcon, FlaskConicalIcon } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
+import { ExternalLinkIcon, FlaskConicalIcon, LoaderCircleIcon } from 'lucide-react'
 import { useEffect } from 'react'
 import { Alert, AlertDescription, AlertTitle } from '#/components/ui/alert'
 import { Button } from '#/components/ui/button'
+import { invalidateBilling } from '../../api/billing.keys'
 import { useCompleteTestCheckout } from '../../api/billing.mutations'
 import { PROVIDER_LABEL } from '../../schemas/billing.schema'
 import type { StartedCheckout } from '../../types'
@@ -19,7 +21,8 @@ function isFake(started: StartedCheckout) {
 
 /**
  * Pays a started checkout the way its provider works: an embedded Stripe form when the API sent
- * a client secret, the provider's own page when it sent a URL.
+ * a client secret, the provider's own page when it sent a URL. A checkout that is already settled
+ * (Relay completes one with nothing to pay) goes straight to its result.
  */
 export function PaymentStep({
   workspaceId,
@@ -33,6 +36,9 @@ export function PaymentStep({
   onPaid: (sessionId: string) => void
 }) {
   const { session } = started
+  if (session.status !== 'pending') {
+    return <Settled workspaceId={workspaceId} onDone={() => onPaid(session.id)} />
+  }
   if (isFake(started))
     return (
       <FakeGateway
@@ -61,7 +67,7 @@ export function PaymentStep({
       />
     )
   // Nothing to pay (a full discount or credit): the session settles by itself.
-  if (session.amount_minor === 0 || session.status !== 'pending') {
+  if (session.amount_minor === 0) {
     return (
       <Button size="lg" onClick={() => onPaid(session.id)}>
         Continue
@@ -73,6 +79,21 @@ export function PaymentStep({
       <AlertTitle>This payment method can’t start</AlertTitle>
       <AlertDescription>Choose another payment method, or try again later.</AlertDescription>
     </Alert>
+  )
+}
+
+function Settled({ workspaceId, onDone }: { workspaceId: string; onDone: () => void }) {
+  const queryClient = useQueryClient()
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run once, when the checkout settles
+  useEffect(() => {
+    void invalidateBilling(queryClient, workspaceId)
+    onDone()
+  }, [])
+  return (
+    <p className="flex items-center gap-2 text-sm" role="status">
+      <LoaderCircleIcon className="size-4 animate-spin text-brand-text" aria-hidden="true" />
+      Finishing your checkout…
+    </p>
   )
 }
 
