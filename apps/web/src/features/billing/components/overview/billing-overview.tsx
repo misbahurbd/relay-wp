@@ -22,7 +22,9 @@ export function BillingPage({ workspaceId, canView, canPay }: Props) {
       <div className="flex flex-col gap-1">
         <h1 className="text-[28px] font-extrabold tracking-[-0.02em]">Billing</h1>
         <p className="text-[15px] text-muted-foreground">
-          Your Relay plan, usage, Meta message costs and invoices in one place.
+          {preview
+            ? 'Your Relay plan, usage, Meta message costs and invoices in one place.'
+            : 'Your Relay plan, usage and invoices in one place.'}
         </p>
       </div>
       {canView ? (
