@@ -580,6 +580,11 @@ func TestStripeErrorsMapToGatewayErrors(t *testing.T) {
 			`"message":"Missing required param: price."}}`, ErrInvalidRequest},
 		{"idempotency", http.StatusBadRequest, `{"error":{"type":"idempotency_error","message":"Keys for idempotent ` +
 			`requests can only be used with the same parameters"}}`, ErrInvalidRequest},
+		{"idempotency key in use", http.StatusConflict, `{"error":{"type":"idempotency_error",` +
+			`"code":"idempotency_key_in_use","message":"There is currently another in-progress request using ` +
+			`this Idempotent Key"}}`, ErrUnavailable},
+		{"lock timeout", http.StatusConflict, `{"error":{"type":"invalid_request_error","code":"lock_timeout",` +
+			`"message":"This object cannot be accessed right now"}}`, ErrUnavailable},
 		{"rate limited", http.StatusTooManyRequests, `{"error":{"type":"invalid_request_error","code":"rate_limit",` +
 			`"message":"Too many requests"}}`, ErrUnavailable},
 		{

@@ -922,7 +922,10 @@ func stripeError(op string, err error) error {
 		kind = ErrDeclined
 	case se.HTTPStatusCode == http.StatusNotFound || se.Code == stripe.ErrorCodeResourceMissing:
 		kind = ErrNotFound
-	case se.HTTPStatusCode == http.StatusTooManyRequests || se.HTTPStatusCode >= http.StatusInternalServerError ||
+	// 409 is another request holding the object or the idempotency key; it
+	// goes through once that one is done.
+	case se.HTTPStatusCode == http.StatusConflict ||
+		se.HTTPStatusCode == http.StatusTooManyRequests || se.HTTPStatusCode >= http.StatusInternalServerError ||
 		se.HTTPStatusCode == http.StatusUnauthorized || se.HTTPStatusCode == http.StatusForbidden ||
 		se.Type == stripe.ErrorTypeAPI:
 		kind = ErrUnavailable
