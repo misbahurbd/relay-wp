@@ -68,3 +68,24 @@ UPDATE orders
 SET paid_minor = paid_minor + @amount_minor
 WHERE workspace_id = @workspace_id AND id = @order_id
 RETURNING paid_minor, total_minor, discount_minor, credit_minor;
+
+-- name: MarkOrderCancelRefused :execrows
+-- The provider refused for good to stop the installment schedule of an order
+-- Relay ended.
+UPDATE orders
+SET provider_cancel_refused_at = COALESCE(provider_cancel_refused_at, @now)
+WHERE workspace_id = @workspace_id AND id = @order_id;
+
+-- name: ListCancelRefusedOrders :many
+-- Job only (all workspaces): orders whose provider refused to stop their
+-- schedule, in ID order after after_id.
+SELECT id, workspace_id, provider, external_ref
+FROM orders
+WHERE provider_cancel_refused_at IS NOT NULL AND id > @after_id
+ORDER BY id
+LIMIT @max_rows;
+
+-- name: ClearOrderCancelRefused :execrows
+UPDATE orders
+SET provider_cancel_refused_at = NULL
+WHERE workspace_id = @workspace_id AND id = @order_id;

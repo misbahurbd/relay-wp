@@ -33,6 +33,25 @@ func (q *Queries) CancelSubscriptionNow(ctx context.Context, arg CancelSubscript
 	return result.RowsAffected(), nil
 }
 
+const clearSubscriptionCancelRefused = `-- name: ClearSubscriptionCancelRefused :execrows
+UPDATE subscriptions
+SET provider_cancel_refused_at = NULL
+WHERE workspace_id = $1 AND id = $2
+`
+
+type ClearSubscriptionCancelRefusedParams struct {
+	WorkspaceID    uuid.UUID
+	SubscriptionID uuid.UUID
+}
+
+func (q *Queries) ClearSubscriptionCancelRefused(ctx context.Context, arg ClearSubscriptionCancelRefusedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, clearSubscriptionCancelRefused, arg.WorkspaceID, arg.SubscriptionID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const countSubscriptionChanges = `-- name: CountSubscriptionChanges :one
 SELECT count(*)::int
 FROM subscription_changes
@@ -391,6 +410,53 @@ func (q *Queries) ListAppRenewalsDue(ctx context.Context, arg ListAppRenewalsDue
 	return items, nil
 }
 
+const listCancelRefusedSubscriptions = `-- name: ListCancelRefusedSubscriptions :many
+SELECT id, workspace_id, provider, external_subscription_id
+FROM subscriptions
+WHERE provider_cancel_refused_at IS NOT NULL AND id > $1
+ORDER BY id
+LIMIT $2
+`
+
+type ListCancelRefusedSubscriptionsParams struct {
+	AfterID uuid.UUID
+	MaxRows int32
+}
+
+type ListCancelRefusedSubscriptionsRow struct {
+	ID                     uuid.UUID
+	WorkspaceID            uuid.UUID
+	Provider               string
+	ExternalSubscriptionID *string
+}
+
+// Job only (all workspaces): subscriptions whose provider refused to cancel
+// them, in ID order after after_id.
+func (q *Queries) ListCancelRefusedSubscriptions(ctx context.Context, arg ListCancelRefusedSubscriptionsParams) ([]ListCancelRefusedSubscriptionsRow, error) {
+	rows, err := q.db.Query(ctx, listCancelRefusedSubscriptions, arg.AfterID, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCancelRefusedSubscriptionsRow{}
+	for rows.Next() {
+		var i ListCancelRefusedSubscriptionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.Provider,
+			&i.ExternalSubscriptionID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDuePendingChanges = `-- name: ListDuePendingChanges :many
 SELECT id, workspace_id
 FROM subscriptions
@@ -702,6 +768,27 @@ func (q *Queries) LockSubscription(ctx context.Context, arg LockSubscriptionPara
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const markSubscriptionCancelRefused = `-- name: MarkSubscriptionCancelRefused :execrows
+UPDATE subscriptions
+SET provider_cancel_refused_at = COALESCE(provider_cancel_refused_at, $1)
+WHERE workspace_id = $2 AND id = $3
+`
+
+type MarkSubscriptionCancelRefusedParams struct {
+	Now            *time.Time
+	WorkspaceID    uuid.UUID
+	SubscriptionID uuid.UUID
+}
+
+// The provider refused for good to cancel a subscription Relay ended.
+func (q *Queries) MarkSubscriptionCancelRefused(ctx context.Context, arg MarkSubscriptionCancelRefusedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markSubscriptionCancelRefused, arg.Now, arg.WorkspaceID, arg.SubscriptionID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const markSubscriptionReconciled = `-- name: MarkSubscriptionReconciled :execrows

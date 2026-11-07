@@ -352,7 +352,7 @@ func (l lifetimeDeals) pastGrace(ctx context.Context, row gen.ListInstallmentsPa
 			return fmt.Errorf("count missed installments: %w", err)
 		}
 		if missed >= row.MaxMissed {
-			if err := l.stopSchedule(ctx, o); err != nil {
+			if err := l.stopSchedule(ctx, r, o); err != nil {
 				return err
 			}
 			if err := setOrderStatus(ctx, r, o, model.OrderDefaulted, now); err != nil {

@@ -340,7 +340,7 @@ func (l lifetimeDeals) startOrder(ctx context.Context, tx pgx.Tx, r repository.R
 			return fmt.Errorf("upgraded order %s is %s: %w", old.ID, old.Status, model.ErrOrderNotUpgradable)
 		}
 		if old.Status == model.OrderInInstallments {
-			if err := l.stopSchedule(ctx, old); err != nil {
+			if err := l.stopSchedule(ctx, r, old); err != nil {
 				return err
 			}
 		}
@@ -561,8 +561,10 @@ func (l lifetimeDeals) resumeOrder(ctx context.Context, workspaceID, userID, ord
 
 // stopSchedule cancels the order's provider-run schedule, if it has one, so
 // the provider charges nothing more. It runs in the transaction that ends the
-// order: a failure the provider may get past rolls that back, and the job retries.
-func (l lifetimeDeals) stopSchedule(ctx context.Context, o model.Order) error {
+// order: a failure the provider may get past rolls that back, and the job
+// retries. A refusal for good is kept on the order, and RetryRefusedCancels
+// asks again until the provider takes it.
+func (l lifetimeDeals) stopSchedule(ctx context.Context, repo repository.Repository, o model.Order) error {
 	if o.ExternalRef == nil {
 		return nil
 	}
@@ -570,7 +572,16 @@ func (l lifetimeDeals) stopSchedule(ctx context.Context, o model.Order) error {
 	if err != nil {
 		return err
 	}
-	return l.cleanupErr(ctx, "cancel an installment schedule", g.CancelSchedule(ctx, *o.ExternalRef), "order_id", o.ID)
+	refused, err := l.cleanupErr(ctx, "cancel an installment schedule", g.CancelSchedule(ctx, *o.ExternalRef), "order_id", o.ID)
+	if err != nil || !refused {
+		return err
+	}
+	if _, err := repo.MarkOrderCancelRefused(ctx, gen.MarkOrderCancelRefusedParams{
+		Now: new(l.now()), WorkspaceID: o.WorkspaceID, OrderID: o.ID,
+	}); err != nil {
+		return fmt.Errorf("mark order cancel refused: %w", err)
+	}
+	return nil
 }
 
 // billingURL is the billing settings page of one workspace, for emails.

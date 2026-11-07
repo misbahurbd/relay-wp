@@ -803,13 +803,15 @@ func TestOutOfOrderEventsRetryUntilOld(t *testing.T) {
 
 // A provider that refuses to stop a schedule for good (a 4xx) doesn't hold
 // the lost dispute back: the event applies and the refusal is logged once
-// for a person, instead of the job failing for weeks.
+// for a person, instead of the job failing for weeks. The schedule isn't
+// left charging either: the hourly sweep asks again until the provider stops it.
 func TestPermanentProviderRefusalIsLoggedNotRetried(t *testing.T) {
 	e := newEventsEnv(t)
 	ws := e.workspace()
 	invoiceID, payID := e.invoice(ws, 500)
+	sched := "sched_" + uuid.NewString()
 	if _, err := e.pool.Exec(e.ctx, `UPDATE orders SET status = 'in_installments', external_ref = $1
-		WHERE id = (SELECT order_id FROM invoices WHERE id = $2)`, "sched_"+uuid.NewString(), invoiceID); err != nil {
+		WHERE id = (SELECT order_id FROM invoices WHERE id = $2)`, sched, invoiceID); err != nil {
 		t.Fatal(err)
 	}
 	e.mustProcess(e.receive(payment.Event{
@@ -826,6 +828,15 @@ func TestPermanentProviderRefusalIsLoggedNotRetried(t *testing.T) {
 	}
 	if n := strings.Count(e.logs.String(), "provider refused"); n != 1 {
 		t.Errorf("refusal logged %d times, want once", n)
+	}
+	if slices.Contains(e.fake.CanceledSchedules(), sched) {
+		t.Fatal("the provider stopped a schedule it refused to stop")
+	}
+	if _, err := e.svc.RetryRefusedCancels(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(e.fake.CanceledSchedules(), sched) {
+		t.Error("the sweep didn't stop the schedule the provider refused to stop")
 	}
 }
 

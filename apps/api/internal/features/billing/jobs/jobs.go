@@ -139,9 +139,13 @@ func NewReconcileSubscriptionsWorker(svc *service.Service) *ReconcileSubscriptio
 	return &ReconcileSubscriptionsWorker{svc: svc}
 }
 
-// Work reads overdue subscriptions back from the provider.
+// Work reads overdue subscriptions back from the provider, and asks it again
+// to cancel what it refused to.
 func (w *ReconcileSubscriptionsWorker) Work(ctx context.Context, _ *river.Job[model.ReconcileSubscriptionsArgs]) error {
-	_, err := w.svc.ReconcileSubscriptions(ctx)
+	if _, err := w.svc.ReconcileSubscriptions(ctx); err != nil {
+		return err
+	}
+	_, err := w.svc.RetryRefusedCancels(ctx)
 	return err
 }
 

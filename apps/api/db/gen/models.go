@@ -607,26 +607,27 @@ type OnboardingMemberState struct {
 }
 
 type Order struct {
-	ID                     uuid.UUID
-	WorkspaceID            uuid.UUID
-	PlanPriceID            uuid.UUID
-	InstallmentOfferID     *uuid.UUID
-	BillingCustomerID      uuid.UUID
-	Provider               string
-	ExternalRef            *string
-	Status                 string
-	TotalMinor             int64
-	DiscountID             *uuid.UUID
-	DiscountMinor          int64
-	CreditMinor            int64
-	PaidMinor              int64
-	Currency               string
-	PaidInFullAt           *time.Time
-	DefaultedAt            *time.Time
-	UpgradedFromOrderID    *uuid.UUID
-	ReplacedSubscriptionID *uuid.UUID
-	CreatedAt              time.Time
-	UpdatedAt              time.Time
+	ID                      uuid.UUID
+	WorkspaceID             uuid.UUID
+	PlanPriceID             uuid.UUID
+	InstallmentOfferID      *uuid.UUID
+	BillingCustomerID       uuid.UUID
+	Provider                string
+	ExternalRef             *string
+	Status                  string
+	TotalMinor              int64
+	DiscountID              *uuid.UUID
+	DiscountMinor           int64
+	CreditMinor             int64
+	PaidMinor               int64
+	Currency                string
+	PaidInFullAt            *time.Time
+	DefaultedAt             *time.Time
+	UpgradedFromOrderID     *uuid.UUID
+	ReplacedSubscriptionID  *uuid.UUID
+	CreatedAt               time.Time
+	UpdatedAt               time.Time
+	ProviderCancelRefusedAt *time.Time
 }
 
 type PaymentEvent struct {
@@ -791,27 +792,28 @@ type RolePermission struct {
 }
 
 type Subscription struct {
-	ID                     uuid.UUID
-	WorkspaceID            uuid.UUID
-	PlanPriceID            uuid.UUID
-	BillingCustomerID      uuid.UUID
-	Provider               string
-	ExternalSubscriptionID *string
-	RenewalMode            string
-	Status                 string
-	ProviderStatus         *string
-	CurrentPeriodStart     *time.Time
-	CurrentPeriodEnd       *time.Time
-	GraceEndsAt            *time.Time
-	CancelAtPeriodEnd      bool
-	CanceledAt             *time.Time
-	PendingPlanPriceID     *uuid.UUID
-	PendingChangeAt        *time.Time
-	DiscountID             *uuid.UUID
-	DiscountEndsAt         *time.Time
-	CreatedAt              time.Time
-	UpdatedAt              time.Time
-	ReconciledAt           *time.Time
+	ID                      uuid.UUID
+	WorkspaceID             uuid.UUID
+	PlanPriceID             uuid.UUID
+	BillingCustomerID       uuid.UUID
+	Provider                string
+	ExternalSubscriptionID  *string
+	RenewalMode             string
+	Status                  string
+	ProviderStatus          *string
+	CurrentPeriodStart      *time.Time
+	CurrentPeriodEnd        *time.Time
+	GraceEndsAt             *time.Time
+	CancelAtPeriodEnd       bool
+	CanceledAt              *time.Time
+	PendingPlanPriceID      *uuid.UUID
+	PendingChangeAt         *time.Time
+	DiscountID              *uuid.UUID
+	DiscountEndsAt          *time.Time
+	CreatedAt               time.Time
+	UpdatedAt               time.Time
+	ReconciledAt            *time.Time
+	ProviderCancelRefusedAt *time.Time
 }
 
 type SubscriptionChange struct {

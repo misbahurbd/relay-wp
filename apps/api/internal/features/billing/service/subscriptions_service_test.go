@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -715,5 +716,58 @@ func TestPaidRenewalAfterGraceRestoresThePlan(t *testing.T) {
 	e.wantCache(e.ws, p.Code)
 	if got, err := e.svc.Subscription(e.ctx, e.ws); err != nil || got.Status != model.SubscriptionActive {
 		t.Fatalf("after paying: %s, %v; want active", got.Status, err)
+	}
+}
+
+// A provider that refuses for good to cancel a subscription Relay ends (its
+// latest invoice refunded) doesn't leave it billing with no follow-up: Relay
+// keeps the refusal on the subscription, and the hourly sweep asks again
+// until the provider takes it, then stops asking.
+func TestRefusedProviderCancelIsRetried(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	sub := e.subscribe(p.Monthly)
+	var pay string
+	var total int64
+	if err := e.pool.QueryRow(e.ctx, `SELECT external_payment_id, total_minor FROM invoices
+		WHERE workspace_id = $1 AND subscription_id = $2`, e.ws, sub.ID).Scan(&pay, &total); err != nil {
+		t.Fatal(err)
+	}
+	providerStatus := func() payment.SubscriptionStatus {
+		fs, _ := e.fake.Subscription(*sub.ExternalSubscriptionID)
+		return fs.Status
+	}
+
+	e.fake.FailNext(fmt.Errorf("fake: %w", payment.ErrInvalidRequest))
+	ev := refundEvent(pay, "re_"+uuid.NewString(), total, payment.RefundSucceeded)
+	ev.Provider = payment.Stripe
+	e.inTx(func(tx pgx.Tx) error { return e.svc.onRefund(e.ctx, tx, e.ws, ev) })
+	if got, err := e.svc.Subscription(e.ctx, e.ws); err != nil || got.Status != model.SubscriptionCanceled {
+		t.Fatalf("subscription after a full refund = %s, %v; want canceled", got.Status, err)
+	}
+	if s := providerStatus(); s == payment.SubscriptionCanceled {
+		t.Fatal("the provider took a cancel it refused")
+	}
+
+	e.fake.FailNext(fmt.Errorf("fake: %w", payment.ErrInvalidRequest))
+	if _, err := e.svc.RetryRefusedCancels(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	if s := providerStatus(); s == payment.SubscriptionCanceled {
+		t.Fatal("the provider took a cancel it refused")
+	}
+	if _, err := e.svc.RetryRefusedCancels(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	if s := providerStatus(); s != payment.SubscriptionCanceled {
+		t.Fatalf("provider status after the sweep = %s, want canceled", s)
+	}
+	var outstanding bool
+	if err := e.pool.QueryRow(e.ctx, `SELECT provider_cancel_refused_at IS NOT NULL FROM subscriptions WHERE id = $1`,
+		sub.ID).Scan(&outstanding); err != nil {
+		t.Fatal(err)
+	}
+	if outstanding {
+		t.Error("the subscription still shows a refused cancel after the provider took it")
 	}
 }

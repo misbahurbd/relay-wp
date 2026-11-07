@@ -46,6 +46,25 @@ func (q *Queries) AddOrderPayment(ctx context.Context, arg AddOrderPaymentParams
 	return i, err
 }
 
+const clearOrderCancelRefused = `-- name: ClearOrderCancelRefused :execrows
+UPDATE orders
+SET provider_cancel_refused_at = NULL
+WHERE workspace_id = $1 AND id = $2
+`
+
+type ClearOrderCancelRefusedParams struct {
+	WorkspaceID uuid.UUID
+	OrderID     uuid.UUID
+}
+
+func (q *Queries) ClearOrderCancelRefused(ctx context.Context, arg ClearOrderCancelRefusedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, clearOrderCancelRefused, arg.WorkspaceID, arg.OrderID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const createOrder = `-- name: CreateOrder :one
 
 INSERT INTO orders (workspace_id, plan_price_id, installment_offer_id, billing_customer_id, provider, status,
@@ -239,6 +258,53 @@ func (q *Queries) GetOrder(ctx context.Context, arg GetOrderParams) (GetOrderRow
 	return i, err
 }
 
+const listCancelRefusedOrders = `-- name: ListCancelRefusedOrders :many
+SELECT id, workspace_id, provider, external_ref
+FROM orders
+WHERE provider_cancel_refused_at IS NOT NULL AND id > $1
+ORDER BY id
+LIMIT $2
+`
+
+type ListCancelRefusedOrdersParams struct {
+	AfterID uuid.UUID
+	MaxRows int32
+}
+
+type ListCancelRefusedOrdersRow struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	Provider    string
+	ExternalRef *string
+}
+
+// Job only (all workspaces): orders whose provider refused to stop their
+// schedule, in ID order after after_id.
+func (q *Queries) ListCancelRefusedOrders(ctx context.Context, arg ListCancelRefusedOrdersParams) ([]ListCancelRefusedOrdersRow, error) {
+	rows, err := q.db.Query(ctx, listCancelRefusedOrders, arg.AfterID, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCancelRefusedOrdersRow{}
+	for rows.Next() {
+		var i ListCancelRefusedOrdersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.Provider,
+			&i.ExternalRef,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockOrder = `-- name: LockOrder :one
 SELECT id, workspace_id, plan_price_id, installment_offer_id, billing_customer_id, provider, external_ref, status,
        total_minor, discount_id, discount_minor, credit_minor, paid_minor, currency, paid_in_full_at, defaulted_at,
@@ -301,6 +367,28 @@ func (q *Queries) LockOrder(ctx context.Context, arg LockOrderParams) (LockOrder
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const markOrderCancelRefused = `-- name: MarkOrderCancelRefused :execrows
+UPDATE orders
+SET provider_cancel_refused_at = COALESCE(provider_cancel_refused_at, $1)
+WHERE workspace_id = $2 AND id = $3
+`
+
+type MarkOrderCancelRefusedParams struct {
+	Now         *time.Time
+	WorkspaceID uuid.UUID
+	OrderID     uuid.UUID
+}
+
+// The provider refused for good to stop the installment schedule of an order
+// Relay ended.
+func (q *Queries) MarkOrderCancelRefused(ctx context.Context, arg MarkOrderCancelRefusedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markOrderCancelRefused, arg.Now, arg.WorkspaceID, arg.OrderID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const setOrderExternalRef = `-- name: SetOrderExternalRef :execrows

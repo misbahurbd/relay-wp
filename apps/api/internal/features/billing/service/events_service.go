@@ -445,7 +445,7 @@ func (s *Service) endRefundedPlan(ctx context.Context, tx pgx.Tx, workspaceID uu
 		if totals.PaidMinor <= 0 || totals.RefundedMinor < totals.PaidMinor {
 			return s.reopenRefundedInstallment(ctx, repo, workspaceID, o, inv)
 		}
-		if err := s.ltd().stopSchedule(ctx, o); err != nil {
+		if err := s.ltd().stopSchedule(ctx, repo, o); err != nil {
 			return err
 		}
 		if err := setOrderStatus(ctx, repo, o, model.OrderRefunded, s.now()); err != nil {
@@ -498,10 +498,7 @@ func (s *Service) cancelLiveSubscriptionNow(ctx context.Context, repo repository
 		if err != nil {
 			return false, err
 		}
-		_, err = g.CancelSubscription(ctx, payment.CancelRequest{
-			ExternalSubscriptionID: *sub.ExternalSubscriptionID, Mode: payment.CancelNow,
-		})
-		if err := s.cleanupErr(ctx, "cancel a subscription", err, "subscription_id", sub.ID); err != nil {
+		if err := s.stopProviderSubscription(ctx, repo, g, workspaceID, sub.ID, *sub.ExternalSubscriptionID, "cancel a subscription"); err != nil {
 			return false, err
 		}
 	}
@@ -711,7 +708,7 @@ func (s *Service) stopDisputedBilling(ctx context.Context, repo repository.Repos
 		if err != nil || o.Status != model.OrderInInstallments {
 			return err
 		}
-		return s.ltd().stopSchedule(ctx, o)
+		return s.ltd().stopSchedule(ctx, repo, o)
 	}
 	if inv.SubscriptionID == nil {
 		return nil

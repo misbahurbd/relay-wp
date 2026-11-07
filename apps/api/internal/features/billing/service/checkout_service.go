@@ -793,8 +793,7 @@ func (s *Service) refundDuplicateSubscription(ctx context.Context, tx pgx.Tx, se
 		return err
 	}
 	if extSub != "" {
-		_, err := g.CancelSubscription(ctx, payment.CancelRequest{ExternalSubscriptionID: extSub, Mode: payment.CancelNow})
-		if err := s.cleanupErr(ctx, "cancel a duplicate subscription", err, "external_subscription_id", extSub); err != nil {
+		if err := s.stopProviderSubscription(ctx, r, g, ws, subID, extSub, "cancel a duplicate subscription"); err != nil {
 			return err
 		}
 	}
@@ -1072,19 +1071,38 @@ func (s *Service) gatewayErr(op string, err error) error {
 
 // cleanupErr is what a job does with the error of a provider call that
 // follows a change Relay has made (a cancel after a refund, a default or a
-// lost dispute): nil once it went through or the object is gone; nil after
-// one error log when the provider refuses for good, as a retry fails the same
-// way and would hold the change back for weeks; an error to retry otherwise.
-func (s *Service) cleanupErr(ctx context.Context, op string, err error, attrs ...any) error {
+// lost dispute): nil once it went through or the object is gone; refused,
+// after one error log, when the provider refuses for good, as a retry in the
+// job fails the same way and would hold the change back for weeks (the
+// caller records the refusal for RetryRefusedCancels); an error to retry
+// otherwise.
+func (s *Service) cleanupErr(ctx context.Context, op string, err error, attrs ...any) (refused bool, _ error) {
 	switch {
 	case err == nil, errors.Is(err, payment.ErrNotFound):
-		return nil
+		return false, nil
 	case payment.Permanent(err):
 		s.logger().ErrorContext(ctx, "billing: payment provider refused to "+op+"; needs a person", append(attrs, "err", err)...)
-		return nil
+		return true, nil
 	default:
-		return fmt.Errorf("%s: %w", op, err)
+		return false, fmt.Errorf("%s: %w", op, err)
 	}
+}
+
+// stopProviderSubscription cancels now, at its provider, a subscription Relay
+// has ended. A refusal for good is kept on the subscription, and
+// RetryRefusedCancels asks again until the provider takes it.
+func (s *Service) stopProviderSubscription(ctx context.Context, repo repository.Repository, g payment.Gateway, workspaceID, subscriptionID uuid.UUID, extSub, op string) error {
+	_, err := g.CancelSubscription(ctx, payment.CancelRequest{ExternalSubscriptionID: extSub, Mode: payment.CancelNow})
+	refused, err := s.cleanupErr(ctx, op, err, "subscription_id", subscriptionID)
+	if err != nil || !refused {
+		return err
+	}
+	if _, err := repo.MarkSubscriptionCancelRefused(ctx, gen.MarkSubscriptionCancelRefusedParams{
+		Now: new(s.now()), WorkspaceID: workspaceID, SubscriptionID: subscriptionID,
+	}); err != nil {
+		return fmt.Errorf("mark subscription cancel refused: %w", err)
+	}
+	return nil
 }
 
 // logger is the service's logger, or a silent one when none was given.

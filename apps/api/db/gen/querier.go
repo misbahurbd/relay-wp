@@ -108,8 +108,10 @@ type Querier interface {
 	// reported so each is reported once.
 	ClaimStuckRefunds(ctx context.Context, arg ClaimStuckRefundsParams) ([]ClaimStuckRefundsRow, error)
 	ClearContactTags(ctx context.Context, arg ClearContactTagsParams) error
+	ClearOrderCancelRefused(ctx context.Context, arg ClearOrderCancelRefusedParams) (int64, error)
 	// The link is saved: the product is no longer pending.
 	ClearPendingProviderProduct(ctx context.Context, arg ClearPendingProviderProductParams) (int64, error)
+	ClearSubscriptionCancelRefused(ctx context.Context, arg ClearSubscriptionCancelRefusedParams) (int64, error)
 	ClearUnread(ctx context.Context, arg ClearUnreadParams) (ClearUnreadRow, error)
 	CompleteBroadcast(ctx context.Context, arg CompleteBroadcastParams) (CompleteBroadcastRow, error)
 	CompleteOnboarding(ctx context.Context, workspaceID uuid.UUID) error
@@ -519,6 +521,12 @@ type Querier interface {
 	ListAutomations(ctx context.Context, workspaceID uuid.UUID) ([]ListAutomationsRow, error)
 	// Newest first, with each broadcast's delivery counts.
 	ListBroadcasts(ctx context.Context, arg ListBroadcastsParams) ([]ListBroadcastsRow, error)
+	// Job only (all workspaces): orders whose provider refused to stop their
+	// schedule, in ID order after after_id.
+	ListCancelRefusedOrders(ctx context.Context, arg ListCancelRefusedOrdersParams) ([]ListCancelRefusedOrdersRow, error)
+	// Job only (all workspaces): subscriptions whose provider refused to cancel
+	// them, in ID order after after_id.
+	ListCancelRefusedSubscriptions(ctx context.Context, arg ListCancelRefusedSubscriptionsParams) ([]ListCancelRefusedSubscriptionsRow, error)
 	// ---------- Connections ----------
 	ListConnections(ctx context.Context, workspaceID uuid.UUID) ([]ListConnectionsRow, error)
 	// ---------- Tags ----------
@@ -645,6 +653,9 @@ type Querier interface {
 	MarkMessageFailed(ctx context.Context, arg MarkMessageFailedParams) ([]MarkMessageFailedRow, error)
 	// The send job got the channel's message ID. Only a pending message moves.
 	MarkMessageSent(ctx context.Context, arg MarkMessageSentParams) ([]MarkMessageSentRow, error)
+	// The provider refused for good to stop the installment schedule of an order
+	// Relay ended.
+	MarkOrderCancelRefused(ctx context.Context, arg MarkOrderCancelRefusedParams) (int64, error)
 	// No row changed means another worker already processed it.
 	MarkPaymentEventProcessed(ctx context.Context, arg MarkPaymentEventProcessedParams) (int64, error)
 	MarkProviderDiscountDeleted(ctx context.Context, providerDiscountID uuid.UUID) (int64, error)
@@ -653,6 +664,8 @@ type Querier interface {
 	// The provider accepted the request; its refund ID, when it gave one, unless
 	// the refund's webhook already filled it in.
 	MarkRefundIssued(ctx context.Context, arg MarkRefundIssuedParams) (int64, error)
+	// The provider refused for good to cancel a subscription Relay ended.
+	MarkSubscriptionCancelRefused(ctx context.Context, arg MarkSubscriptionCancelRefusedParams) (int64, error)
 	MarkSubscriptionReconciled(ctx context.Context, arg MarkSubscriptionReconciledParams) (int64, error)
 	// Records the submission to the workspace's active WhatsApp account (the one submit used).
 	MarkTemplateSubmitted(ctx context.Context, arg MarkTemplateSubmittedParams) error

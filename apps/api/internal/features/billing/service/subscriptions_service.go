@@ -420,8 +420,7 @@ func (s *Service) CancelForLTD(ctx context.Context, tx pgx.Tx, workspaceID uuid.
 		return model.SubscriptionCredit{}, err
 	}
 	if g, extSub, err := s.providerSubscription(sub); err == nil {
-		_, err := g.CancelSubscription(ctx, payment.CancelRequest{ExternalSubscriptionID: extSub, Mode: payment.CancelNow})
-		if err := s.cleanupErr(ctx, "cancel a subscription for a lifetime deal", err, "subscription_id", sub.ID); err != nil {
+		if err := s.stopProviderSubscription(ctx, r, g, workspaceID, sub.ID, extSub, "cancel a subscription for a lifetime deal"); err != nil {
 			return model.SubscriptionCredit{}, err
 		}
 	}

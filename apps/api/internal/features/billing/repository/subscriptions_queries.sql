@@ -177,3 +177,23 @@ LIMIT @max_rows;
 UPDATE subscriptions
 SET reconciled_at = @reconciled_at
 WHERE workspace_id = @workspace_id AND id = @subscription_id;
+
+-- name: MarkSubscriptionCancelRefused :execrows
+-- The provider refused for good to cancel a subscription Relay ended.
+UPDATE subscriptions
+SET provider_cancel_refused_at = COALESCE(provider_cancel_refused_at, @now)
+WHERE workspace_id = @workspace_id AND id = @subscription_id;
+
+-- name: ListCancelRefusedSubscriptions :many
+-- Job only (all workspaces): subscriptions whose provider refused to cancel
+-- them, in ID order after after_id.
+SELECT id, workspace_id, provider, external_subscription_id
+FROM subscriptions
+WHERE provider_cancel_refused_at IS NOT NULL AND id > @after_id
+ORDER BY id
+LIMIT @max_rows;
+
+-- name: ClearSubscriptionCancelRefused :execrows
+UPDATE subscriptions
+SET provider_cancel_refused_at = NULL
+WHERE workspace_id = @workspace_id AND id = @subscription_id;
