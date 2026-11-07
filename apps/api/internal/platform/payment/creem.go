@@ -488,10 +488,12 @@ func creemStatusError(status int) error {
 		return ErrNotFound
 	case status == http.StatusPaymentRequired || status == http.StatusConflict:
 		return ErrDeclined
-	case status == http.StatusTooManyRequests || status >= 500:
+	case status == http.StatusTooManyRequests || status >= 500 ||
+		status == http.StatusUnauthorized || status == http.StatusForbidden:
+		// A bad key works again once an operator fixes it, so it is retried, as on Stripe.
 		return ErrUnavailable
 	default:
-		// 400 and 422 are bad input; 401 and 403 a bad key, which a retry won't fix either.
+		// 400 and 422 are bad input, which a retry won't fix.
 		return ErrInvalidRequest
 	}
 }

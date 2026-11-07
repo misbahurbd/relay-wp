@@ -237,7 +237,8 @@ func TestCreemCheckoutRejects(t *testing.T) {
 
 func TestCreemErrorsMapToGatewayErrors(t *testing.T) {
 	cases := map[int]error{
-		http.StatusBadRequest: ErrInvalidRequest, http.StatusForbidden: ErrInvalidRequest,
+		// A bad key is fixed by an operator, after which a retry works: as on Stripe, it isn't permanent.
+		http.StatusBadRequest: ErrInvalidRequest, http.StatusForbidden: ErrUnavailable, http.StatusUnauthorized: ErrUnavailable,
 		http.StatusNotFound: ErrNotFound, http.StatusTooManyRequests: ErrUnavailable,
 		http.StatusBadGateway: ErrUnavailable,
 	}

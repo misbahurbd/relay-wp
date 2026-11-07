@@ -411,10 +411,9 @@ func (s *Service) CancelForLTD(ctx context.Context, tx pgx.Tx, workspaceID uuid.
 		return model.SubscriptionCredit{}, err
 	}
 	if g, extSub, err := s.providerSubscription(sub); err == nil {
-		// Already gone at the provider is fine: we are canceling it anyway.
-		if _, err := g.CancelSubscription(ctx, payment.CancelRequest{ExternalSubscriptionID: extSub, Mode: payment.CancelNow}); err != nil &&
-			!errors.Is(err, payment.ErrNotFound) {
-			return model.SubscriptionCredit{}, s.gatewayErr("cancel subscription for lifetime deal", err)
+		_, err := g.CancelSubscription(ctx, payment.CancelRequest{ExternalSubscriptionID: extSub, Mode: payment.CancelNow})
+		if err := s.cleanupErr(ctx, "cancel a subscription for a lifetime deal", err, "subscription_id", sub.ID); err != nil {
+			return model.SubscriptionCredit{}, err
 		}
 	}
 	if err := s.cancelNow(ctx, tx, workspaceID, sub.ID); err != nil {

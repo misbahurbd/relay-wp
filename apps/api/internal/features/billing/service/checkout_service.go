@@ -781,9 +781,9 @@ func (s *Service) refundDuplicateSubscription(ctx context.Context, tx pgx.Tx, se
 		return err
 	}
 	if extSub != "" {
-		if _, err := g.CancelSubscription(ctx, payment.CancelRequest{ExternalSubscriptionID: extSub, Mode: payment.CancelNow}); err != nil &&
-			!errors.Is(err, payment.ErrNotFound) {
-			return s.gatewayErr("cancel duplicate subscription", err)
+		_, err := g.CancelSubscription(ctx, payment.CancelRequest{ExternalSubscriptionID: extSub, Mode: payment.CancelNow})
+		if err := s.cleanupErr(ctx, "cancel a duplicate subscription", err, "external_subscription_id", extSub); err != nil {
+			return err
 		}
 	}
 	if p.TotalMinor > 0 && p.ExternalID != "" {
@@ -1060,6 +1060,23 @@ func (s *Service) gatewayErr(op string, err error) error {
 	}
 	s.logger().Warn("payment provider refused", "op", op, "err", err)
 	return out
+}
+
+// cleanupErr is what a job does with the error of a provider call that
+// follows a change Relay has made (a cancel after a refund, a default or a
+// lost dispute): nil once it went through or the object is gone; nil after
+// one error log when the provider refuses for good, as a retry fails the same
+// way and would hold the change back for weeks; an error to retry otherwise.
+func (s *Service) cleanupErr(ctx context.Context, op string, err error, attrs ...any) error {
+	switch {
+	case err == nil, errors.Is(err, payment.ErrNotFound):
+		return nil
+	case payment.Permanent(err):
+		s.logger().ErrorContext(ctx, "billing: payment provider refused to "+op+"; needs a person", append(attrs, "err", err)...)
+		return nil
+	default:
+		return fmt.Errorf("%s: %w", op, err)
+	}
 }
 
 // logger is the service's logger, or a silent one when none was given.

@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -571,7 +570,7 @@ func (l lifetimeDeals) resumeOrder(ctx context.Context, workspaceID, userID, ord
 
 // stopSchedule cancels the order's provider-run schedule, if it has one, so
 // the provider charges nothing more. It runs in the transaction that ends the
-// order: a failure rolls that back, and the job retries.
+// order: a failure the provider may get past rolls that back, and the job retries.
 func (l lifetimeDeals) stopSchedule(ctx context.Context, o model.Order) error {
 	if o.ExternalRef == nil {
 		return nil
@@ -580,10 +579,7 @@ func (l lifetimeDeals) stopSchedule(ctx context.Context, o model.Order) error {
 	if err != nil {
 		return err
 	}
-	if err := g.CancelSchedule(ctx, *o.ExternalRef); err != nil && !errors.Is(err, payment.ErrNotFound) {
-		return l.gatewayErr("cancel installment schedule", err)
-	}
-	return nil
+	return l.cleanupErr(ctx, "cancel an installment schedule", g.CancelSchedule(ctx, *o.ExternalRef), "order_id", o.ID)
 }
 
 // billingURL is the billing settings page of one workspace, for emails.

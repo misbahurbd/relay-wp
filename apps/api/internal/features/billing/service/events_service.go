@@ -488,10 +488,11 @@ func (s *Service) cancelLiveSubscriptionNow(ctx context.Context, repo repository
 		if err != nil {
 			return false, err
 		}
-		if _, err := g.CancelSubscription(ctx, payment.CancelRequest{
+		_, err = g.CancelSubscription(ctx, payment.CancelRequest{
 			ExternalSubscriptionID: *sub.ExternalSubscriptionID, Mode: payment.CancelNow,
-		}); err != nil && !errors.Is(err, payment.ErrNotFound) {
-			return false, s.gatewayErr("cancel subscription now", err)
+		})
+		if err := s.cleanupErr(ctx, "cancel a subscription", err, "subscription_id", sub.ID); err != nil {
+			return false, err
 		}
 	}
 	now := s.now()

@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"slices"
@@ -796,5 +797,33 @@ func TestOutOfOrderEventsRetryUntilOld(t *testing.T) {
 		if !e.stored(ev.ExternalID).processed {
 			t.Errorf("%s: an old event was not given up", name)
 		}
+	}
+}
+
+// A provider that refuses to stop a schedule for good (a 4xx) doesn't hold
+// the lost dispute back: the event applies and the refusal is logged once
+// for a person, instead of the job failing for weeks.
+func TestPermanentProviderRefusalIsLoggedNotRetried(t *testing.T) {
+	e := newEventsEnv(t)
+	ws := e.workspace()
+	invoiceID, payID := e.invoice(ws, 500)
+	if _, err := e.pool.Exec(e.ctx, `UPDATE orders SET status = 'in_installments', external_ref = $1
+		WHERE id = (SELECT order_id FROM invoices WHERE id = $2)`, "sched_"+uuid.NewString(), invoiceID); err != nil {
+		t.Fatal(err)
+	}
+	e.mustProcess(e.receive(payment.Event{
+		ExternalID: "evt_" + uuid.NewString(), Type: payment.EventDisputeOpened, ProviderType: "opened",
+		OccurredAt: time.Now().UTC(), Payment: &payment.Payment{ExternalID: payID},
+	}))
+	closed := e.receive(payment.Event{
+		ExternalID: "evt_" + uuid.NewString(), Type: payment.EventDisputeClosed, ProviderType: "closed",
+		OccurredAt: time.Now().UTC(), Payment: &payment.Payment{ExternalID: payID, Status: "lost"},
+	})
+	e.fake.FailNext(fmt.Errorf("fake: %w", payment.ErrInvalidRequest))
+	if err := e.process(closed); err != nil {
+		t.Fatalf("lost dispute with a refused schedule cancel: %v, want applied", err)
+	}
+	if n := strings.Count(e.logs.String(), "provider refused"); n != 1 {
+		t.Errorf("refusal logged %d times, want once", n)
 	}
 }
