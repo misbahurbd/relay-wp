@@ -21,6 +21,7 @@ We looked at two permission models:
 - Keys work **only under `/v1/workspace/`**. Elsewhere they get 403 `api_key_not_allowed`.
 - `RequireWorkspace` returns 404 when the `X-Workspace-ID` header names any other workspace than the key's. It then checks the creator's access as usual.
 - `middleware.RequireSession` refuses keys (403 `session_required`). Every integrations route uses it, so a key can't create keys, webhooks or connections, and a leak can't spread.
+- Team writes (invitations, roles, member access, overrides, suspend, remove, leave, transfer ownership, teams) and billing writes (checkout, plan changes, cancel, billing details, the card portal) use it too. A key acts as its creator, so without it a key made by the owner could hand itself more access or take the workspace.
 - `last_used_at` is written at most once a minute per key.
 - Making a key needs `integrations.api_keys`, which is marked sensitive in the catalog.
 
