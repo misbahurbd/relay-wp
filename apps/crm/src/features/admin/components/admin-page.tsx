@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { ShieldAlertIcon } from 'lucide-react'
 import { Skeleton } from '#/components/ui/skeleton'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs'
 import { isApiError } from '#/lib/api'
-import { cn } from '#/lib/utils'
 import { catalogQueryOptions } from '../api/admin.api'
 import { CatalogPanel } from './catalog/catalog-panel'
 import { DiscountsPanel } from './discounts/discounts-panel'
@@ -43,34 +43,24 @@ export function AdminPage({ tab, onTab }: { tab: AdminTab; onTab: (tab: AdminTab
       ) : access.isError ? (
         <LoadError error={access.error} onRetry={() => access.refetch()} />
       ) : (
-        <>
-          <div role="tablist" aria-label="Admin sections" className="flex flex-wrap gap-1 border-b">
+        <Tabs value={tab} onValueChange={(v) => onTab(v as AdminTab)}>
+          <TabsList aria-label="Admin sections">
             {TABS.map((t) => (
-              <button
-                key={t.id}
-                id={`admin-tab-${t.id}`}
-                type="button"
-                role="tab"
-                aria-selected={tab === t.id}
-                aria-controls="admin-panel"
-                onClick={() => onTab(t.id)}
-                className={cn(
-                  '-mb-px h-11 border-b-2 px-3.5 text-sm font-bold',
-                  tab === t.id
-                    ? 'border-primary text-foreground'
-                    : 'border-transparent text-muted-foreground hover:text-foreground',
-                )}
-              >
+              <TabsTrigger key={t.id} value={t.id}>
                 {t.label}
-              </button>
+              </TabsTrigger>
             ))}
-          </div>
-          <div id="admin-panel" role="tabpanel" aria-labelledby={`admin-tab-${tab}`}>
-            {tab === 'plans' && <CatalogPanel />}
-            {tab === 'discounts' && <DiscountsPanel />}
-            {tab === 'workspaces' && <WorkspacesPanel />}
-          </div>
-        </>
+          </TabsList>
+          <TabsContent value="plans">
+            <CatalogPanel />
+          </TabsContent>
+          <TabsContent value="discounts">
+            <DiscountsPanel />
+          </TabsContent>
+          <TabsContent value="workspaces">
+            <WorkspacesPanel />
+          </TabsContent>
+        </Tabs>
       )}
     </main>
   )
