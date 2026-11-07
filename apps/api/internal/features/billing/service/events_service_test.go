@@ -510,8 +510,8 @@ func TestDisputes(t *testing.T) {
 	}
 	e.mustProcess(dispute(payment.EventDisputeOpened, lostPay, ""))
 	e.mustProcess(dispute(payment.EventDisputeClosed, lostPay, "lost"))
-	if s := e.invoiceStatus(lost); s != model.InvoiceDisputed {
-		t.Errorf("lost: invoice %s, want disputed", s)
+	if s := e.invoiceStatus(lost); s != model.InvoiceDisputeLost {
+		t.Errorf("lost: invoice %s, want dispute_lost", s)
 	}
 	var status string
 	if err := e.pool.QueryRow(e.ctx, `SELECT status FROM plan_grants WHERE id = $1`, grantID).Scan(&status); err != nil {

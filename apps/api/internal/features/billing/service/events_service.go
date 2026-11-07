@@ -589,7 +589,7 @@ func (s *Service) createRefund(ctx context.Context, repo repository.Repository, 
 }
 
 // syncRefundedStatus sets a paid invoice's status from what has been refunded.
-// A disputed, failed, open or void invoice keeps its status.
+// A disputed (open or lost), failed, open or void invoice keeps its status.
 // It returns the invoice's status afterwards.
 func (s *Service) syncRefundedStatus(ctx context.Context, repo repository.Repository, workspaceID uuid.UUID, inv gen.FindInvoiceByExternalPaymentIDRow) (string, error) {
 	switch inv.Status {
@@ -644,7 +644,7 @@ func (s *Service) onDisputeOpened(ctx context.Context, tx pgx.Tx, workspaceID uu
 	if !ok {
 		return s.notStoredYet(ctx, ev, workspaceID, "dispute names no invoice of the workspace")
 	}
-	if inv.Status == model.InvoiceDisputed {
+	if inv.Status == model.InvoiceDisputed || inv.Status == model.InvoiceDisputeLost {
 		return nil
 	}
 	s.log.WarnContext(ctx, "billing: payment disputed", "event", ev, "workspace_id", workspaceID, "invoice_id", inv.ID)
@@ -653,8 +653,8 @@ func (s *Service) onDisputeOpened(ctx context.Context, tx pgx.Tx, workspaceID uu
 
 // onDisputeClosed ends a dispute. Won: the invoice goes back to paid (or
 // partially_refunded / refunded, by its refunds). Lost: the money went back
-// to the customer, so the invoice stays disputed for support to follow up,
-// and the provider stops billing what it paid for.
+// to the customer, so the invoice is dispute_lost for good, the provider
+// stops billing what it paid for, and the plan it paid for is suspended.
 func (s *Service) onDisputeClosed(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID, ev payment.Event) error {
 	if ev.Payment == nil || ev.Payment.ExternalID == "" {
 		s.log.WarnContext(ctx, "billing: dispute event without a payment", "event", ev)
@@ -676,6 +676,9 @@ func (s *Service) onDisputeClosed(ctx context.Context, tx pgx.Tx, workspaceID uu
 		// Support can restore the grant once it is settled.
 		s.log.WarnContext(ctx, "billing: dispute lost", "event", ev, "workspace_id", workspaceID, "invoice_id", inv.ID,
 			"outcome", ev.Payment.Status)
+		if err := setInvoiceStatus(ctx, repo, workspaceID, inv.ID, model.InvoiceDisputeLost); err != nil {
+			return err
+		}
 		if err := s.stopDisputedBilling(ctx, repo, workspaceID, inv); err != nil {
 			return err
 		}

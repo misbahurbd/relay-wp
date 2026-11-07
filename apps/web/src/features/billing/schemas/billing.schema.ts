@@ -80,6 +80,7 @@ export const INVOICE_STATUS: Record<Invoice['status'], { label: string; tone: To
   partially_refunded: { label: 'Partly refunded', tone: 'info' },
   refunded: { label: 'Refunded', tone: 'neutral' },
   disputed: { label: 'Disputed', tone: 'danger' },
+  dispute_lost: { label: 'Charged back', tone: 'neutral' },
 }
 
 export const GRANT_SOURCE: Record<'subscription' | 'order' | 'trial' | 'manual', string> = {

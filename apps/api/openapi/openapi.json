@@ -5722,7 +5722,8 @@
               "void",
               "partially_refunded",
               "refunded",
-              "disputed"
+              "disputed",
+              "dispute_lost"
             ],
             "type": "string"
           },

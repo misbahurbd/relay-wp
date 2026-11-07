@@ -1855,7 +1855,7 @@ export type InvoiceDto = {
     period_end: string | null;
     period_start: string | null;
     provider: 'stripe' | 'creem' | 'paypal' | 'sslcommerz';
-    status: 'open' | 'paid' | 'failed' | 'void' | 'partially_refunded' | 'refunded' | 'disputed';
+    status: 'open' | 'paid' | 'failed' | 'void' | 'partially_refunded' | 'refunded' | 'disputed' | 'dispute_lost';
     subscription_id: string;
     subtotal_minor: number;
     tax_minor: number;

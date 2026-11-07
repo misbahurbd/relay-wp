@@ -25,7 +25,7 @@ type InvoiceDTO struct {
 	OrderID        *uuid.UUID `json:"order_id"`
 	InstallmentID  *uuid.UUID `json:"installment_id"`
 	Provider       string     `json:"provider" enum:"stripe,creem,paypal,sslcommerz"`
-	Status         string     `json:"status" enum:"open,paid,failed,void,partially_refunded,refunded,disputed"`
+	Status         string     `json:"status" enum:"open,paid,failed,void,partially_refunded,refunded,disputed,dispute_lost"`
 	SubtotalMinor  int64      `json:"subtotal_minor"`
 	DiscountMinor  int64      `json:"discount_minor"`
 	TaxMinor       int64      `json:"tax_minor"`

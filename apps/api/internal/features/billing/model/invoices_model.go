@@ -17,6 +17,8 @@ const (
 	InvoicePartiallyRefunded = "partially_refunded"
 	InvoiceRefunded          = "refunded"
 	InvoiceDisputed          = "disputed"
+	// InvoiceDisputeLost is final: a dispute took the money back to the customer.
+	InvoiceDisputeLost = "dispute_lost"
 )
 
 // InvoicePageSize is how many invoices a page lists.

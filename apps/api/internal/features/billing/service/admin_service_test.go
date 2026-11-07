@@ -628,6 +628,45 @@ func TestStaffClosesDisputes(t *testing.T) {
 	}
 }
 
+// A lost dispute is final: the invoice leaves the open-dispute list and
+// staff can't close it again as won, which would mark it paid while the
+// money is gone and the subscription canceled (N1).
+func TestLostDisputeIsFinal(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	e.subscribe(p.Monthly)
+	var invoiceID uuid.UUID
+	if err := e.pool.QueryRow(e.ctx, `SELECT id FROM invoices WHERE workspace_id = $1`, e.ws).Scan(&invoiceID); err != nil {
+		t.Fatal(err)
+	}
+	e.exec(`UPDATE invoices SET status = 'disputed' WHERE id = $1`, invoiceID)
+	closeIt := func(won bool) error {
+		return e.svc.CloseDispute(e.ctx, model.DisputeClose{InvoiceID: invoiceID, Won: won, Reason: "Bank decided", ClosedBy: uuid.New()})
+	}
+	if err := closeIt(false); err != nil {
+		t.Fatal(err)
+	}
+
+	listed, err := e.svc.DisputedInvoices(e.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if slices.ContainsFunc(listed, func(d model.DisputedInvoice) bool { return d.ID == invoiceID }) {
+		t.Error("a lost dispute is still listed as open")
+	}
+	if err := closeIt(true); !errors.Is(err, model.ErrNotDisputed) {
+		t.Errorf("closing a lost dispute again as won: err = %v, want ErrNotDisputed", err)
+	}
+	inv, err := e.svc.Invoice(e.ctx, e.ws, invoiceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if inv.Status != model.InvoiceDisputeLost {
+		t.Errorf("invoice %s after a lost dispute, want %s", inv.Status, model.InvoiceDisputeLost)
+	}
+	e.wantCache(e.ws, model.FreePlan)
+}
+
 // A plan publish the CRM retries (a reload, a lost reply) finds what it
 // already created instead of adding a second version or price.
 func TestPlanPublishRetryCreatesNothingTwice(t *testing.T) {
