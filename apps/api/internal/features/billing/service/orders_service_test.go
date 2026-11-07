@@ -782,6 +782,7 @@ func TestRefundingPartOfALifetimeDealKeepsIt(t *testing.T) {
 
 // Refunding one installment in full takes its payment off the order and opens
 // the installment again, so the due and overdue flow collects it (case 43).
+// The provider's next charge is for the next installment, not the refunded one.
 func TestRefundingAnInstallmentReopensIt(t *testing.T) {
 	h := newLTDHarness(t, model.CollectionProviderSchedule)
 	q, err := h.quote(h.basic, &h.basic3, "")
@@ -793,18 +794,119 @@ func TestRefundingAnInstallmentReopensIt(t *testing.T) {
 
 	h.refundAll(o.ID, 1)
 	wantOrder(t, h.order(o.ID), model.OrderInInstallments, first,
-		model.InstallmentPaid, model.InstallmentDue, model.InstallmentScheduled)
+		model.InstallmentPaid, model.InstallmentScheduled, model.InstallmentScheduled)
 
-	// Paying it again settles it, and the old refund replayed reopens nothing.
-	h.must(h.providerPayment(o.ID, h.payment(10333), true))
+	h.now = h.now.Add(month)
+	h.must(h.providerPayment(o.ID, h.payment(10334), true))
+	wantOrder(t, h.order(o.ID), model.OrderInInstallments, first+10334,
+		model.InstallmentPaid, model.InstallmentScheduled, model.InstallmentPaid)
+
+	// Paying it again settles the order, and the old refund replayed reopens nothing.
+	h.payNow(o.ID, 2)
 	var pay string
 	h.must(h.pool.QueryRow(h.ctx, `SELECT external_payment_id FROM invoices WHERE order_id = $1 AND status = 'refunded'`,
 		o.ID).Scan(&pay))
 	ev := refundEvent(pay, "re_replay_"+uuid.NewString(), 10333, payment.RefundSucceeded)
 	ev.Provider = payment.Stripe
 	h.must(database.WithTx(h.ctx, h.pool, func(tx pgx.Tx) error { return h.l.onRefund(h.ctx, tx, h.ws, ev) }))
-	wantOrder(t, h.order(o.ID), model.OrderInInstallments, first+10333,
-		model.InstallmentPaid, model.InstallmentPaid, model.InstallmentScheduled)
+	wantOrder(t, h.order(o.ID), model.OrderPaid, 31000,
+		model.InstallmentPaid, model.InstallmentPaid, model.InstallmentPaid)
+}
+
+// refundInvoice refunds the order's invoice for the given installment seq in
+// full, as the provider's refund webhook would.
+func (h *ltdHarness) refundInvoice(orderID uuid.UUID, seq int) {
+	h.t.Helper()
+	var pay string
+	var total int64
+	h.must(h.pool.QueryRow(h.ctx, `SELECT v.external_payment_id, v.total_minor FROM invoices v
+		JOIN installments i ON i.id = v.installment_id
+		WHERE v.workspace_id = $1 AND v.order_id = $2 AND i.seq = $3 AND v.status = 'paid'
+		ORDER BY v.created_at DESC LIMIT 1`, h.ws, orderID, seq).Scan(&pay, &total))
+	ev := refundEvent(pay, "re_"+uuid.NewString(), total, payment.RefundSucceeded)
+	ev.Provider = payment.Stripe
+	h.must(database.WithTx(h.ctx, h.pool, func(tx pgx.Tx) error { return h.l.onRefund(h.ctx, tx, h.ws, ev) }))
+}
+
+// payNow pays one installment through Pay now.
+func (h *ltdHarness) payNow(orderID uuid.UUID, seq int) {
+	h.t.Helper()
+	inst := h.order(orderID).Installments[seq-1]
+	started, err := h.l.payInstallment(h.ctx, h.ws, h.user, orderID, inst.ID, uuid.NewString())
+	h.must(err)
+	h.complete(started.Session, h.payment(inst.AmountMinor))
+}
+
+// A refunded installment is owed again from the day of the refund, not its
+// old due date: the hourly pass reminds the customer and the grace period
+// starts over, so the plan isn't suspended before they could pay (G5a).
+func TestRefundedInstallmentGetsAFreshDueDateAndReminder(t *testing.T) {
+	h := newLTDHarness(t, model.CollectionAppLink)
+	q, err := h.quote(h.basic, &h.basic3, "")
+	h.must(err)
+	o := h.buy(q, "")
+	h.run(month)
+	h.payNow(o.ID, 2)
+	h.now = h.now.Add(20 * 24 * time.Hour)
+	h.refundInvoice(o.ID, 2)
+
+	if run := h.run(time.Hour); run.MarkedDue != 1 || run.Reminded != 1 || run.Suspended != 0 {
+		t.Errorf("first pass after the refund: %+v, want it marked due and reminded, nothing suspended", run)
+	}
+	if msg := h.lastEmail(); !strings.Contains(msg.Subject, "installment 2 of 3") {
+		t.Errorf("reminder %q, want installment 2's", msg.Subject)
+	}
+	h.run(6 * 24 * time.Hour)
+	wantGrant(t, h.grant(o.ID), model.GrantActive)
+	h.payNow(o.ID, 2)
+	wantOrder(t, h.order(o.ID), model.OrderInInstallments, 20666, "paid", "paid", "scheduled")
+}
+
+// On a provider-run schedule the provider never charges a refunded
+// installment again, so the customer is emailed and pays it with Pay now (G5a).
+func TestRefundedProviderInstallmentIsPaidWithPayNow(t *testing.T) {
+	h := newLTDHarness(t, model.CollectionProviderSchedule)
+	q, err := h.quote(h.basic, &h.basic3, "")
+	h.must(err)
+	o := h.buy(q, "sched_"+uuid.NewString())
+	h.now = h.now.Add(month)
+	h.must(h.providerPayment(o.ID, h.payment(10333), true))
+	h.refundInvoice(o.ID, 2)
+	h.run(time.Hour)
+	if msg := h.lastEmail(); !strings.Contains(msg.Subject, "installment 2 of 3") {
+		t.Errorf("reminder %q, want installment 2's", msg.Subject)
+	}
+	h.payNow(o.ID, 2)
+	wantOrder(t, h.order(o.ID), model.OrderInInstallments, 20666, "paid", "paid", "scheduled")
+}
+
+// Refunding the balance payment that resumed a defaulted order reopens every
+// installment it settled, so the order can still be paid off (G5b), and the
+// order no longer says it was paid in full (G5c).
+func TestRefundedResumeBalanceReopensWhatItSettled(t *testing.T) {
+	h := newLTDHarness(t, model.CollectionAppLink)
+	q, err := h.quote(h.basic, &h.basic3, "")
+	h.must(err)
+	o := h.buy(q, "")
+	h.run(month)
+	h.run(8 * 24 * time.Hour)
+	h.run(month - 8*24*time.Hour)
+	h.run(8 * 24 * time.Hour)
+	started, err := h.l.resumeOrder(h.ctx, h.ws, h.user, o.ID, "resume")
+	h.must(err)
+	h.complete(started.Session, h.payment(20667))
+	wantOrder(t, h.order(o.ID), model.OrderPaid, 31000, "paid", "paid", "canceled")
+
+	h.refundInvoice(o.ID, 2)
+	o = h.order(o.ID)
+	wantOrder(t, o, model.OrderInInstallments, 10333, "paid", "scheduled", "scheduled")
+	if o.PaidInFull != nil {
+		t.Errorf("paid_in_full_at = %v after the balance was refunded, want none", o.PaidInFull)
+	}
+	h.run(time.Hour)
+	h.payNow(o.ID, 2)
+	h.payNow(o.ID, 3)
+	wantOrder(t, h.order(o.ID), model.OrderPaid, 31000, "paid", "paid", "paid")
 }
 
 // dispute opens and closes a dispute on payID with outcome ("won" or "lost").

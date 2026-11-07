@@ -118,7 +118,9 @@ func (q *Queries) GetInstallmentBySeq(ctx context.Context, arg GetInstallmentByS
 }
 
 const listInstallmentsComingDue = `-- name: ListInstallmentsComingDue :many
-SELECT i.id, i.workspace_id, i.order_id, i.seq, i.due_at, i.amount_minor
+SELECT i.id, i.workspace_id, i.order_id, i.seq, i.due_at, i.amount_minor,
+       EXISTS (SELECT 1 FROM invoices v
+               WHERE v.workspace_id = i.workspace_id AND v.installment_id = i.id AND v.status = 'refunded') AS refunded
 FROM installments i
 WHERE i.status = 'scheduled' AND i.due_at <= $1 AND (i.due_at, i.id) > ($2::timestamptz, $3::uuid)
 ORDER BY i.due_at, i.id
@@ -139,10 +141,12 @@ type ListInstallmentsComingDueRow struct {
 	Seq         int32
 	DueAt       time.Time
 	AmountMinor int64
+	Refunded    bool
 }
 
 // Job only (all workspaces): scheduled installments whose due date has come,
-// in (due_at, id) order after the last row read.
+// in (due_at, id) order after the last row read. refunded as in
+// ListOrderInstallments.
 func (q *Queries) ListInstallmentsComingDue(ctx context.Context, arg ListInstallmentsComingDueParams) ([]ListInstallmentsComingDueRow, error) {
 	rows, err := q.db.Query(ctx, listInstallmentsComingDue,
 		arg.Now,
@@ -164,6 +168,7 @@ func (q *Queries) ListInstallmentsComingDue(ctx context.Context, arg ListInstall
 			&i.Seq,
 			&i.DueAt,
 			&i.AmountMinor,
+			&i.Refunded,
 		); err != nil {
 			return nil, err
 		}
@@ -237,10 +242,12 @@ func (q *Queries) ListInstallmentsPastGrace(ctx context.Context, arg ListInstall
 }
 
 const listOrderInstallments = `-- name: ListOrderInstallments :many
-SELECT id, order_id, seq, due_at, amount_minor, status, paid_at, reminder_sent_at
-FROM installments
-WHERE workspace_id = $1 AND order_id = $2
-ORDER BY seq
+SELECT i.id, i.order_id, i.seq, i.due_at, i.amount_minor, i.status, i.paid_at, i.reminder_sent_at,
+       EXISTS (SELECT 1 FROM invoices v
+               WHERE v.workspace_id = i.workspace_id AND v.installment_id = i.id AND v.status = 'refunded') AS refunded
+FROM installments i
+WHERE i.workspace_id = $1 AND i.order_id = $2
+ORDER BY i.seq
 `
 
 type ListOrderInstallmentsParams struct {
@@ -257,8 +264,11 @@ type ListOrderInstallmentsRow struct {
 	Status         string
 	PaidAt         *time.Time
 	ReminderSentAt *time.Time
+	Refunded       bool
 }
 
+// refunded: a payment of the installment was refunded, so a provider
+// schedule won't charge it again.
 func (q *Queries) ListOrderInstallments(ctx context.Context, arg ListOrderInstallmentsParams) ([]ListOrderInstallmentsRow, error) {
 	rows, err := q.db.Query(ctx, listOrderInstallments, arg.WorkspaceID, arg.OrderID)
 	if err != nil {
@@ -277,6 +287,7 @@ func (q *Queries) ListOrderInstallments(ctx context.Context, arg ListOrderInstal
 			&i.Status,
 			&i.PaidAt,
 			&i.ReminderSentAt,
+			&i.Refunded,
 		); err != nil {
 			return nil, err
 		}
@@ -289,10 +300,12 @@ func (q *Queries) ListOrderInstallments(ctx context.Context, arg ListOrderInstal
 }
 
 const lockInstallment = `-- name: LockInstallment :one
-SELECT id, order_id, seq, due_at, amount_minor, status, paid_at, reminder_sent_at
-FROM installments
-WHERE workspace_id = $1 AND id = $2
-FOR UPDATE
+SELECT i.id, i.order_id, i.seq, i.due_at, i.amount_minor, i.status, i.paid_at, i.reminder_sent_at,
+       EXISTS (SELECT 1 FROM invoices v
+               WHERE v.workspace_id = i.workspace_id AND v.installment_id = i.id AND v.status = 'refunded') AS refunded
+FROM installments i
+WHERE i.workspace_id = $1 AND i.id = $2
+FOR UPDATE OF i
 `
 
 type LockInstallmentParams struct {
@@ -309,6 +322,7 @@ type LockInstallmentRow struct {
 	Status         string
 	PaidAt         *time.Time
 	ReminderSentAt *time.Time
+	Refunded       bool
 }
 
 func (q *Queries) LockInstallment(ctx context.Context, arg LockInstallmentParams) (LockInstallmentRow, error) {
@@ -323,6 +337,7 @@ func (q *Queries) LockInstallment(ctx context.Context, arg LockInstallmentParams
 		&i.Status,
 		&i.PaidAt,
 		&i.ReminderSentAt,
+		&i.Refunded,
 	)
 	return i, err
 }
@@ -347,21 +362,44 @@ func (q *Queries) MarkInstallmentPaid(ctx context.Context, arg MarkInstallmentPa
 	return result.RowsAffected(), nil
 }
 
+const reopenCanceledInstallments = `-- name: ReopenCanceledInstallments :execrows
+UPDATE installments
+SET status = 'scheduled', due_at = GREATEST(due_at, $1::timestamptz), reminder_sent_at = NULL
+WHERE workspace_id = $2 AND order_id = $3 AND status = 'canceled'
+`
+
+type ReopenCanceledInstallmentsParams struct {
+	Now         time.Time
+	WorkspaceID uuid.UUID
+	OrderID     uuid.UUID
+}
+
+// The installments a refunded balance payment settled are owed again from
+// @now, as ReopenInstallment.
+func (q *Queries) ReopenCanceledInstallments(ctx context.Context, arg ReopenCanceledInstallmentsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, reopenCanceledInstallments, arg.Now, arg.WorkspaceID, arg.OrderID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const reopenInstallment = `-- name: ReopenInstallment :execrows
 UPDATE installments
-SET status = $1, paid_at = NULL
+SET status = 'scheduled', due_at = GREATEST(due_at, $1::timestamptz), paid_at = NULL, reminder_sent_at = NULL
 WHERE workspace_id = $2 AND id = $3 AND status = 'paid'
 `
 
 type ReopenInstallmentParams struct {
-	Status        string
+	Now           time.Time
 	WorkspaceID   uuid.UUID
 	InstallmentID uuid.UUID
 }
 
-// A paid installment whose payment was refunded in full is owed again.
+// A paid installment whose payment was refunded in full is owed again from
+// @now: the hourly pass marks it due, reminds, and grace starts over.
 func (q *Queries) ReopenInstallment(ctx context.Context, arg ReopenInstallmentParams) (int64, error) {
-	result, err := q.db.Exec(ctx, reopenInstallment, arg.Status, arg.WorkspaceID, arg.InstallmentID)
+	result, err := q.db.Exec(ctx, reopenInstallment, arg.Now, arg.WorkspaceID, arg.InstallmentID)
 	if err != nil {
 		return 0, err
 	}

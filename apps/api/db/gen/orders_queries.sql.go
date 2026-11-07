@@ -414,7 +414,9 @@ func (q *Queries) SetOrderExternalRef(ctx context.Context, arg SetOrderExternalR
 const setOrderStatus = `-- name: SetOrderStatus :execrows
 UPDATE orders
 SET status          = $1,
-    paid_in_full_at = CASE WHEN $1 = 'paid' THEN COALESCE(paid_in_full_at, $2::timestamptz) ELSE paid_in_full_at END,
+    paid_in_full_at = CASE WHEN $1 = 'paid' THEN COALESCE(paid_in_full_at, $2::timestamptz)
+                           WHEN $1 = 'in_installments' THEN NULL
+                           ELSE paid_in_full_at END,
     defaulted_at    = CASE WHEN $1 = 'defaulted' THEN $2::timestamptz
                            WHEN $1 = 'in_installments' THEN NULL
                            ELSE defaulted_at END
@@ -429,7 +431,8 @@ type SetOrderStatusParams struct {
 }
 
 // paid stamps paid_in_full_at once; defaulted stamps defaulted_at; going back
-// to in_installments (a resumed order) clears it.
+// to in_installments (a resumed order, or a paid one with a refunded
+// installment) clears both.
 func (q *Queries) SetOrderStatus(ctx context.Context, arg SetOrderStatusParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setOrderStatus,
 		arg.Status,

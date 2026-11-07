@@ -553,7 +553,8 @@ type Querier interface {
 	ListExpiredGrants(ctx context.Context, arg ListExpiredGrantsParams) ([]ListExpiredGrantsRow, error)
 	ListIdentities(ctx context.Context, userID uuid.UUID) ([]ListIdentitiesRow, error)
 	// Job only (all workspaces): scheduled installments whose due date has come,
-	// in (due_at, id) order after the last row read.
+	// in (due_at, id) order after the last row read. refunded as in
+	// ListOrderInstallments.
 	ListInstallmentsComingDue(ctx context.Context, arg ListInstallmentsComingDueParams) ([]ListInstallmentsComingDueRow, error)
 	// Job only (all workspaces): due installments unpaid past their offer's
 	// grace_days, in (due_at, id) order after the last row read.
@@ -575,6 +576,8 @@ type Querier interface {
 	// Job only (all workspaces): pending sessions started at or before
 	// @started_before, in ID order after @after_id.
 	ListOpenCheckoutSessions(ctx context.Context, arg ListOpenCheckoutSessionsParams) ([]ListOpenCheckoutSessionsRow, error)
+	// refunded: a payment of the installment was refunded, so a provider
+	// schedule won't charge it again.
 	ListOrderInstallments(ctx context.Context, arg ListOrderInstallmentsParams) ([]ListOrderInstallmentsRow, error)
 	// The workspace's other open checkouts of these purposes.
 	ListOtherPendingCheckouts(ctx context.Context, arg ListOtherPendingCheckoutsParams) ([]uuid.UUID, error)
@@ -705,9 +708,13 @@ type Querier interface {
 	// Gives back n of what was consumed in the month that started at period_start.
 	ReleaseUsage(ctx context.Context, arg ReleaseUsageParams) (int64, error)
 	RemoveContactTagLinks(ctx context.Context, arg RemoveContactTagLinksParams) (int64, error)
+	// The installments a refunded balance payment settled are owed again from
+	// @now, as ReopenInstallment.
+	ReopenCanceledInstallments(ctx context.Context, arg ReopenCanceledInstallmentsParams) (int64, error)
 	// A payment arrived for a failed or expired session: it completes after all.
 	ReopenCheckoutSession(ctx context.Context, arg ReopenCheckoutSessionParams) (int64, error)
-	// A paid installment whose payment was refunded in full is owed again.
+	// A paid installment whose payment was refunded in full is owed again from
+	// @now: the hourly pass marks it due, reminds, and grace starts over.
 	ReopenInstallment(ctx context.Context, arg ReopenInstallmentParams) (int64, error)
 	// Chats whose snooze has ended, a batch at a time, across workspaces.
 	ReopenSnoozed(ctx context.Context, arg ReopenSnoozedParams) ([]ReopenSnoozedRow, error)
@@ -785,7 +792,8 @@ type Querier interface {
 	SetOAuthFlowEmailCode(ctx context.Context, arg SetOAuthFlowEmailCodeParams) error
 	SetOrderExternalRef(ctx context.Context, arg SetOrderExternalRefParams) (int64, error)
 	// paid stamps paid_in_full_at once; defaulted stamps defaulted_at; going back
-	// to in_installments (a resumed order) clears it.
+	// to in_installments (a resumed order, or a paid one with a refunded
+	// installment) clears both.
 	SetOrderStatus(ctx context.Context, arg SetOrderStatusParams) (int64, error)
 	SetPasswordHash(ctx context.Context, arg SetPasswordHashParams) error
 	// POST /auth/password/set: only for accounts that have no password yet.

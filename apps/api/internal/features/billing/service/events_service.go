@@ -516,10 +516,12 @@ func (s *Service) cancelLiveSubscriptionNow(ctx context.Context, repo repository
 }
 
 // reopenRefundedInstallment takes a fully refunded installment payment off the
-// order and makes the installment owed again (due, or scheduled before its
-// date), so the due and overdue flow collects it. A partial refund is a
-// concession and leaves the installment paid. Nothing changes while another
-// invoice still pays for the installment.
+// order and makes what it paid owed again from now: the installment, and for
+// a balance payment (ResumeOrder) every installment it settled. The hourly
+// pass then marks them due and reminds, grace starts over, and Pay now takes
+// them whatever the collection, since a provider schedule never charges a
+// payment again. A partial refund is a concession and leaves the installment
+// paid. Nothing changes while another invoice still pays for the installment.
 func (s *Service) reopenRefundedInstallment(ctx context.Context, repo repository.Repository, workspaceID uuid.UUID, o model.Order, inv gen.FindInvoiceByExternalPaymentIDRow) error {
 	if inv.InstallmentID == nil {
 		return nil
@@ -534,28 +536,32 @@ func (s *Service) reopenRefundedInstallment(ctx context.Context, repo repository
 	if err != nil {
 		return fmt.Errorf("lock installment: %w", err)
 	}
-	status := model.InstallmentDue
-	if inst.DueAt.After(s.now()) {
-		status = model.InstallmentScheduled
-	}
-	n, err := repo.ReopenInstallment(ctx, gen.ReopenInstallmentParams{
-		Status: status, WorkspaceID: workspaceID, InstallmentID: inst.ID,
-	})
+	now := s.now()
+	n, err := repo.ReopenInstallment(ctx, gen.ReopenInstallmentParams{Now: now, WorkspaceID: workspaceID, InstallmentID: inst.ID})
 	if err != nil {
 		return fmt.Errorf("reopen installment: %w", err)
 	}
 	if n == 0 {
 		return nil // not paid: already reopened
 	}
+	amount := inv.TotalMinor - inv.TaxMinor
+	if amount > inst.AmountMinor {
+		// A balance payment: settle canceled what it covered beyond this installment.
+		if _, err := repo.ReopenCanceledInstallments(ctx, gen.ReopenCanceledInstallmentsParams{
+			Now: now, WorkspaceID: workspaceID, OrderID: o.ID,
+		}); err != nil {
+			return fmt.Errorf("reopen settled installments: %w", err)
+		}
+	}
 	if _, err := repo.SubtractOrderPayment(ctx, gen.SubtractOrderPaymentParams{
-		AmountMinor: inv.TotalMinor - inv.TaxMinor, WorkspaceID: workspaceID, OrderID: o.ID,
+		AmountMinor: amount, WorkspaceID: workspaceID, OrderID: o.ID,
 	}); err != nil {
 		return fmt.Errorf("subtract order payment: %w", err)
 	}
-	s.log.InfoContext(ctx, "billing: installment refunded; owed again", "workspace_id", workspaceID, "order_id", o.ID,
-		"installment_id", inst.ID)
-	if o.Status == model.OrderPaid {
-		return setOrderStatus(ctx, repo, o, model.OrderInInstallments, s.now())
+	s.log.WarnContext(ctx, "billing: installment refunded; owed again, payable with Pay now", "workspace_id", workspaceID,
+		"order_id", o.ID, "installment_id", inst.ID, "amount_minor", amount)
+	if o.Status != model.OrderInInstallments {
+		return setOrderStatus(ctx, repo, o, model.OrderInInstallments, now)
 	}
 	return nil
 }

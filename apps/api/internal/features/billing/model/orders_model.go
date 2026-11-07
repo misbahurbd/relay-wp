@@ -77,6 +77,9 @@ type Installment struct {
 	Status         string
 	PaidAt         *time.Time
 	ReminderSentAt *time.Time
+	// Refunded: a payment of it was refunded, so a provider schedule won't
+	// charge it again; the customer pays it with Pay now.
+	Refunded bool
 }
 
 // QuoteInput asks what a lifetime deal would cost this workspace now.

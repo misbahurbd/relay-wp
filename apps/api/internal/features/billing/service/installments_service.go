@@ -48,8 +48,9 @@ func (l lifetimeDeals) payInstallment(ctx context.Context, workspaceID, userID, 
 	if inst == nil {
 		return model.StartedCheckout{}, model.ErrInstallmentNotFound
 	}
-	// A defaulted order resumes through ResumeOrder; installments are paid in order.
-	if o.Status != model.OrderInInstallments || inst.Status == model.InstallmentScheduled ||
+	// A defaulted order resumes through ResumeOrder; installments are paid in
+	// order, once their date has come.
+	if o.Status != model.OrderInInstallments || inst.Status == model.InstallmentScheduled && inst.DueAt.After(l.now()) ||
 		firstOpen(insts) != inst {
 		return model.StartedCheckout{}, model.ErrInstallmentNotDue
 	}
@@ -57,8 +58,12 @@ func (l lifetimeDeals) payInstallment(ctx context.Context, workspaceID, userID, 
 	if err != nil {
 		return model.StartedCheckout{}, err
 	}
-	if coll != model.CollectionAppLink {
-		// The provider collects it; paying here as well would charge twice.
+	refunded := slices.ContainsFunc(insts, func(i model.Installment) bool { return i.Refunded })
+	if coll != model.CollectionAppLink && !refunded {
+		// The provider collects it; paying here as well would charge twice. Once
+		// one of its payments is refunded, the provider won't charge that one
+		// again, so every installment of the order can be paid here, and a
+		// provider charge that then finds nothing owed is refunded.
 		return model.StartedCheckout{}, model.ErrInstallmentNotDue
 	}
 	return l.t3.startPaymentCheckout(ctx, workspaceID, userID, installmentCheckout(o, *inst, len(insts), idempotencyKey,
@@ -118,7 +123,7 @@ func (l lifetimeDeals) applyInstallmentPayment(ctx context.Context, tx pgx.Tx, w
 	if err != nil {
 		return err
 	}
-	inst := firstOpen(insts)
+	inst := providerNext(insts)
 
 	if !paid {
 		// The provider retries. Mark it due so the hourly pass applies the
@@ -257,16 +262,19 @@ func (l lifetimeDeals) comeDue(ctx context.Context, row gen.ListInstallmentsComi
 	return nil
 }
 
-// remind stamps the installment's reminder and, for app_link, emails the
-// billing contact. The email links to the billing page, whose Pay now starts a
-// fresh checkout: one made here would expire long before it is opened.
+// remind stamps the installment's reminder and, for app_link or a refunded
+// installment, emails the billing contact. The email links to the billing
+// page, whose Pay now starts a fresh checkout: one made here would expire
+// long before it is opened.
 func (l lifetimeDeals) remind(ctx context.Context, o model.Order, row gen.ListInstallmentsComingDueRow, now time.Time) error {
 	coll, err := l.collection(ctx, o)
 	if err != nil {
 		return err
 	}
+	// The provider won't charge a refunded installment again, so its customer is asked too.
+	email := coll == model.CollectionAppLink || row.Refunded
 	var count int
-	if coll == model.CollectionAppLink {
+	if email {
 		insts, err := listInstallments(ctx, repository.NewRepository(l.pool), o.WorkspaceID, o.ID)
 		if err != nil {
 			return err
@@ -274,7 +282,7 @@ func (l lifetimeDeals) remind(ctx context.Context, o model.Order, row gen.ListIn
 		count = len(insts)
 	}
 	err = database.WithTx(ctx, l.pool, func(tx pgx.Tx) error {
-		if coll == model.CollectionAppLink {
+		if email {
 			to, err := l.t3.billTo(ctx, tx, o.WorkspaceID)
 			if err != nil {
 				return err

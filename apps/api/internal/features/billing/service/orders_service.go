@@ -592,15 +592,34 @@ func (s *Service) billingURL(workspaceID uuid.UUID) string {
 	return s.cfg.AppBaseURL + "/billing?workspace=" + workspaceID.String()
 }
 
+// providerNext is the installment a provider schedule's charge pays: the
+// earliest open one whose payment wasn't refunded (the provider never charges
+// that one again), or else the earliest open one, or nil.
+func providerNext(insts []model.Installment) *model.Installment {
+	for i := range insts {
+		if isOpen(insts[i]) && !insts[i].Refunded {
+			return &insts[i]
+		}
+	}
+	return firstOpen(insts)
+}
+
 // firstOpen is the earliest installment still to be paid, or nil.
 func firstOpen(insts []model.Installment) *model.Installment {
 	for i := range insts {
-		switch insts[i].Status {
-		case model.InstallmentScheduled, model.InstallmentDue, model.InstallmentOverdue, model.InstallmentFailed:
+		if isOpen(insts[i]) {
 			return &insts[i]
 		}
 	}
 	return nil
+}
+
+func isOpen(inst model.Installment) bool {
+	switch inst.Status {
+	case model.InstallmentScheduled, model.InstallmentDue, model.InstallmentOverdue, model.InstallmentFailed:
+		return true
+	}
+	return false
 }
 
 func getOrder(ctx context.Context, r repository.Repository, workspaceID, orderID uuid.UUID) (model.Order, error) {
@@ -665,7 +684,7 @@ func orderFromRow(r gen.GetOrderRow) model.Order {
 func installmentFromRow(r gen.ListOrderInstallmentsRow) model.Installment {
 	return model.Installment{
 		ID: r.ID, OrderID: r.OrderID, Seq: int(r.Seq), DueAt: r.DueAt, AmountMinor: r.AmountMinor,
-		Status: r.Status, PaidAt: r.PaidAt, ReminderSentAt: r.ReminderSentAt,
+		Status: r.Status, PaidAt: r.PaidAt, ReminderSentAt: r.ReminderSentAt, Refunded: r.Refunded,
 	}
 }
 

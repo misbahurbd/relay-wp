@@ -46,10 +46,13 @@ WHERE workspace_id = @workspace_id AND id = @order_id AND external_ref IS NULL;
 
 -- name: SetOrderStatus :execrows
 -- paid stamps paid_in_full_at once; defaulted stamps defaulted_at; going back
--- to in_installments (a resumed order) clears it.
+-- to in_installments (a resumed order, or a paid one with a refunded
+-- installment) clears both.
 UPDATE orders
 SET status          = @status,
-    paid_in_full_at = CASE WHEN @status = 'paid' THEN COALESCE(paid_in_full_at, @now::timestamptz) ELSE paid_in_full_at END,
+    paid_in_full_at = CASE WHEN @status = 'paid' THEN COALESCE(paid_in_full_at, @now::timestamptz)
+                           WHEN @status = 'in_installments' THEN NULL
+                           ELSE paid_in_full_at END,
     defaulted_at    = CASE WHEN @status = 'defaulted' THEN @now::timestamptz
                            WHEN @status = 'in_installments' THEN NULL
                            ELSE defaulted_at END

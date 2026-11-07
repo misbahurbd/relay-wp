@@ -7,16 +7,22 @@ SELECT @order_id, @workspace_id, unnest(@seqs::int[]), unnest(@due_ats::timestam
        unnest(@amounts_minor::bigint[]), 'scheduled';
 
 -- name: ListOrderInstallments :many
-SELECT id, order_id, seq, due_at, amount_minor, status, paid_at, reminder_sent_at
-FROM installments
-WHERE workspace_id = @workspace_id AND order_id = @order_id
-ORDER BY seq;
+-- refunded: a payment of the installment was refunded, so a provider
+-- schedule won't charge it again.
+SELECT i.id, i.order_id, i.seq, i.due_at, i.amount_minor, i.status, i.paid_at, i.reminder_sent_at,
+       EXISTS (SELECT 1 FROM invoices v
+               WHERE v.workspace_id = i.workspace_id AND v.installment_id = i.id AND v.status = 'refunded') AS refunded
+FROM installments i
+WHERE i.workspace_id = @workspace_id AND i.order_id = @order_id
+ORDER BY i.seq;
 
 -- name: LockInstallment :one
-SELECT id, order_id, seq, due_at, amount_minor, status, paid_at, reminder_sent_at
-FROM installments
-WHERE workspace_id = @workspace_id AND id = @installment_id
-FOR UPDATE;
+SELECT i.id, i.order_id, i.seq, i.due_at, i.amount_minor, i.status, i.paid_at, i.reminder_sent_at,
+       EXISTS (SELECT 1 FROM invoices v
+               WHERE v.workspace_id = i.workspace_id AND v.installment_id = i.id AND v.status = 'refunded') AS refunded
+FROM installments i
+WHERE i.workspace_id = @workspace_id AND i.id = @installment_id
+FOR UPDATE OF i;
 
 -- name: GetInstallmentBySeq :one
 SELECT id, order_id, seq, due_at, amount_minor, status, paid_at, reminder_sent_at
@@ -29,10 +35,18 @@ SET status = 'paid', paid_at = @paid_at
 WHERE workspace_id = @workspace_id AND id = @installment_id AND status <> 'paid';
 
 -- name: ReopenInstallment :execrows
--- A paid installment whose payment was refunded in full is owed again.
+-- A paid installment whose payment was refunded in full is owed again from
+-- @now: the hourly pass marks it due, reminds, and grace starts over.
 UPDATE installments
-SET status = @status, paid_at = NULL
+SET status = 'scheduled', due_at = GREATEST(due_at, @now::timestamptz), paid_at = NULL, reminder_sent_at = NULL
 WHERE workspace_id = @workspace_id AND id = @installment_id AND status = 'paid';
+
+-- name: ReopenCanceledInstallments :execrows
+-- The installments a refunded balance payment settled are owed again from
+-- @now, as ReopenInstallment.
+UPDATE installments
+SET status = 'scheduled', due_at = GREATEST(due_at, @now::timestamptz), reminder_sent_at = NULL
+WHERE workspace_id = @workspace_id AND order_id = @order_id AND status = 'canceled';
 
 -- name: SetInstallmentStatus :execrows
 -- Any status but paid (MarkInstallmentPaid sets paid_at with it).
@@ -58,8 +72,11 @@ WHERE workspace_id = @workspace_id AND id = @installment_id;
 
 -- name: ListInstallmentsComingDue :many
 -- Job only (all workspaces): scheduled installments whose due date has come,
--- in (due_at, id) order after the last row read.
-SELECT i.id, i.workspace_id, i.order_id, i.seq, i.due_at, i.amount_minor
+-- in (due_at, id) order after the last row read. refunded as in
+-- ListOrderInstallments.
+SELECT i.id, i.workspace_id, i.order_id, i.seq, i.due_at, i.amount_minor,
+       EXISTS (SELECT 1 FROM invoices v
+               WHERE v.workspace_id = i.workspace_id AND v.installment_id = i.id AND v.status = 'refunded') AS refunded
 FROM installments i
 WHERE i.status = 'scheduled' AND i.due_at <= @now AND (i.due_at, i.id) > (@after_due_at::timestamptz, @after_id::uuid)
 ORDER BY i.due_at, i.id
