@@ -82,8 +82,9 @@ UPDATE refunds
 SET external_refund_id = $1, status = $2
 WHERE id = (SELECT r.id FROM refunds r
             WHERE r.workspace_id = $3 AND r.invoice_id = $4 AND r.provider = $5
-              AND r.amount_minor = $6 AND r.external_refund_id IS NULL AND r.status <> 'failed'
-            ORDER BY r.created_at, r.id
+              AND (r.amount_minor = $6 OR r.issued_at IS NOT NULL)
+              AND r.external_refund_id IS NULL AND r.status <> 'failed'
+            ORDER BY r.amount_minor = $6 DESC, r.created_at, r.id
             LIMIT 1
             FOR UPDATE)
 `
@@ -99,8 +100,11 @@ type ClaimRequestedRefundParams struct {
 
 // A provider refund we have no row for is the oldest refund Relay asked for
 // on the invoice, of the same amount, that no webhook has named yet (Creem's
-// refund reply has no ID). A refund of another amount is not one Relay asked
-// for (staff made it in the provider's dashboard) and claims nothing.
+// refund reply has no ID). Failing that, it is one the provider already took
+// from Relay but hasn't named: Creem refunds only in full, and its webhook
+// may report another amount (refund_amount). A refund of another amount with
+// none sent is not one Relay asked for (staff made it in the provider's
+// dashboard) and claims nothing.
 func (q *Queries) ClaimRequestedRefund(ctx context.Context, arg ClaimRequestedRefundParams) (int64, error) {
 	result, err := q.db.Exec(ctx, claimRequestedRefund,
 		arg.ExternalRefundID,
@@ -120,17 +124,18 @@ const claimStuckRefunds = `-- name: ClaimStuckRefunds :many
 UPDATE refunds
 SET reported_at = $1
 WHERE id IN (SELECT r.id FROM refunds r
-             WHERE r.status = 'pending' AND r.issued_at IS NULL AND r.external_refund_id IS NULL
-               AND r.reported_at IS NULL AND r.created_at <= $2
+             WHERE r.status = 'pending' AND r.external_refund_id IS NULL AND r.reported_at IS NULL
+               AND ((r.issued_at IS NULL AND r.created_at <= $2) OR r.issued_at <= $3)
              ORDER BY r.created_at
-             LIMIT $3)
-RETURNING id, workspace_id, invoice_id, provider, amount_minor, created_at
+             LIMIT $4)
+RETURNING id, workspace_id, invoice_id, provider, amount_minor, created_at, issued_at
 `
 
 type ClaimStuckRefundsParams struct {
-	Now     *time.Time
-	Before  time.Time
-	MaxRows int32
+	Now          *time.Time
+	Before       time.Time
+	IssuedBefore *time.Time
+	MaxRows      int32
 }
 
 type ClaimStuckRefundsRow struct {
@@ -140,13 +145,19 @@ type ClaimStuckRefundsRow struct {
 	Provider    string
 	AmountMinor int64
 	CreatedAt   time.Time
+	IssuedAt    *time.Time
 }
 
-// Job only (all workspaces): refunds Relay asked for long ago that the
-// provider has neither taken nor named, not reported yet, stamped as
-// reported so each is reported once.
+// Job only (all workspaces): refunds Relay asked for that the provider still
+// hasn't named, not reported yet: never taken by it since @before, or taken
+// since @issued_before. Stamped as reported so each is reported once.
 func (q *Queries) ClaimStuckRefunds(ctx context.Context, arg ClaimStuckRefundsParams) ([]ClaimStuckRefundsRow, error) {
-	rows, err := q.db.Query(ctx, claimStuckRefunds, arg.Now, arg.Before, arg.MaxRows)
+	rows, err := q.db.Query(ctx, claimStuckRefunds,
+		arg.Now,
+		arg.Before,
+		arg.IssuedBefore,
+		arg.MaxRows,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -161,6 +172,7 @@ func (q *Queries) ClaimStuckRefunds(ctx context.Context, arg ClaimStuckRefundsPa
 			&i.Provider,
 			&i.AmountMinor,
 			&i.CreatedAt,
+			&i.IssuedAt,
 		); err != nil {
 			return nil, err
 		}

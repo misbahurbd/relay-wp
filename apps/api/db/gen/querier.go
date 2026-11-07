@@ -95,17 +95,20 @@ type Querier interface {
 	ClaimRecipients(ctx context.Context, arg ClaimRecipientsParams) ([]ClaimRecipientsRow, error)
 	// A provider refund we have no row for is the oldest refund Relay asked for
 	// on the invoice, of the same amount, that no webhook has named yet (Creem's
-	// refund reply has no ID). A refund of another amount is not one Relay asked
-	// for (staff made it in the provider's dashboard) and claims nothing.
+	// refund reply has no ID). Failing that, it is one the provider already took
+	// from Relay but hasn't named: Creem refunds only in full, and its webhook
+	// may report another amount (refund_amount). A refund of another amount with
+	// none sent is not one Relay asked for (staff made it in the provider's
+	// dashboard) and claims nothing.
 	ClaimRequestedRefund(ctx context.Context, arg ClaimRequestedRefundParams) (int64, error)
 	// A due run, locked; another worker holding it means nothing to do here.
 	ClaimRun(ctx context.Context, arg ClaimRunParams) (ClaimRunRow, error)
 	// Job only (all workspaces): events still unprocessed long after they
 	// arrived and not reported yet, stamped as reported so each is reported once.
 	ClaimStuckPaymentEvents(ctx context.Context, arg ClaimStuckPaymentEventsParams) ([]ClaimStuckPaymentEventsRow, error)
-	// Job only (all workspaces): refunds Relay asked for long ago that the
-	// provider has neither taken nor named, not reported yet, stamped as
-	// reported so each is reported once.
+	// Job only (all workspaces): refunds Relay asked for that the provider still
+	// hasn't named, not reported yet: never taken by it since @before, or taken
+	// since @issued_before. Stamped as reported so each is reported once.
 	ClaimStuckRefunds(ctx context.Context, arg ClaimStuckRefundsParams) ([]ClaimStuckRefundsRow, error)
 	ClearContactTags(ctx context.Context, arg ClearContactTagsParams) error
 	ClearOrderCancelRefused(ctx context.Context, arg ClearOrderCancelRefusedParams) (int64, error)

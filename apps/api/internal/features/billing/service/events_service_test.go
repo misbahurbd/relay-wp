@@ -994,3 +994,63 @@ func TestUnsentRefundIsReportedOnce(t *testing.T) {
 		t.Error("a sent or recent refund was reported")
 	}
 }
+
+// Creem's refund reply carries no ID, and its webhook may report another
+// amount than Relay asked for (refund_amount, tax aside). That webhook names
+// the refund Relay already sent for the invoice, so the invoice counts one
+// refund, not two, and the report has nothing to flag.
+func TestWebhookOfAnotherAmountNamesTheSentRefund(t *testing.T) {
+	e := newEventsEnv(t)
+	ws := e.workspace()
+	invoiceID, payID := e.invoice(ws, 1000)
+	job := e.requestRefund(ws, payID)
+	if err := e.svc.IssueRefund(e.ctx, job.WorkspaceID, job.RefundID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.pool.Exec(e.ctx, `UPDATE refunds SET external_refund_id = NULL WHERE id = $1`, job.RefundID); err != nil {
+		t.Fatal(err)
+	}
+
+	e.mustProcess(e.receive(refundEvent(payID, e.id("re_creem"), 900, payment.RefundSucceeded)))
+	var named *string
+	if err := e.pool.QueryRow(e.ctx, `SELECT external_refund_id FROM refunds WHERE id = $1`, job.RefundID).Scan(&named); err != nil {
+		t.Fatal(err)
+	}
+	if named == nil || *named != e.id("re_creem") {
+		t.Errorf("sent refund named %v, want the webhook's refund", named)
+	}
+	if n, sum := e.refunds(invoiceID); n != 1 || sum != 1000 {
+		t.Errorf("refunds = %d of %d, want the one sent", n, sum)
+	}
+}
+
+// A refund the provider took but never named by webhook (its amount matched
+// nothing, or the webhook was lost) is reported once a few days on, so a
+// person checks the customer got it.
+func TestSentButUnnamedRefundIsReportedOnce(t *testing.T) {
+	e := newEventsEnv(t)
+	ws := e.workspace()
+	_, payID := e.invoice(ws, 1000)
+	job := e.requestRefund(ws, payID)
+	if err := e.svc.IssueRefund(e.ctx, job.WorkspaceID, job.RefundID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.pool.Exec(e.ctx, `UPDATE refunds SET external_refund_id = NULL,
+		created_at = now() - interval '4 days', issued_at = now() - interval '4 days' WHERE id = $1`, job.RefundID); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		if _, err := e.svc.ReportStuckRefunds(e.ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	n := 0
+	for line := range strings.Lines(e.logs.String()) {
+		if strings.Contains(line, job.RefundID.String()) && strings.Contains(line, "never confirmed") {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Errorf("sent but unnamed refund reported %d times, want once", n)
+	}
+}

@@ -177,29 +177,33 @@ SET status = 'failed'
 WHERE workspace_id = @workspace_id AND id = @refund_id AND issued_at IS NULL AND external_refund_id IS NULL;
 
 -- name: ClaimStuckRefunds :many
--- Job only (all workspaces): refunds Relay asked for long ago that the
--- provider has neither taken nor named, not reported yet, stamped as
--- reported so each is reported once.
+-- Job only (all workspaces): refunds Relay asked for that the provider still
+-- hasn't named, not reported yet: never taken by it since @before, or taken
+-- since @issued_before. Stamped as reported so each is reported once.
 UPDATE refunds
 SET reported_at = @now
 WHERE id IN (SELECT r.id FROM refunds r
-             WHERE r.status = 'pending' AND r.issued_at IS NULL AND r.external_refund_id IS NULL
-               AND r.reported_at IS NULL AND r.created_at <= @before
+             WHERE r.status = 'pending' AND r.external_refund_id IS NULL AND r.reported_at IS NULL
+               AND ((r.issued_at IS NULL AND r.created_at <= @before) OR r.issued_at <= @issued_before)
              ORDER BY r.created_at
              LIMIT @max_rows)
-RETURNING id, workspace_id, invoice_id, provider, amount_minor, created_at;
+RETURNING id, workspace_id, invoice_id, provider, amount_minor, created_at, issued_at;
 
 -- name: ClaimRequestedRefund :execrows
 -- A provider refund we have no row for is the oldest refund Relay asked for
 -- on the invoice, of the same amount, that no webhook has named yet (Creem's
--- refund reply has no ID). A refund of another amount is not one Relay asked
--- for (staff made it in the provider's dashboard) and claims nothing.
+-- refund reply has no ID). Failing that, it is one the provider already took
+-- from Relay but hasn't named: Creem refunds only in full, and its webhook
+-- may report another amount (refund_amount). A refund of another amount with
+-- none sent is not one Relay asked for (staff made it in the provider's
+-- dashboard) and claims nothing.
 UPDATE refunds
 SET external_refund_id = @external_refund_id, status = @status
 WHERE id = (SELECT r.id FROM refunds r
             WHERE r.workspace_id = @workspace_id AND r.invoice_id = @invoice_id AND r.provider = @provider
-              AND r.amount_minor = @amount_minor AND r.external_refund_id IS NULL AND r.status <> 'failed'
-            ORDER BY r.created_at, r.id
+              AND (r.amount_minor = @amount_minor OR r.issued_at IS NOT NULL)
+              AND r.external_refund_id IS NULL AND r.status <> 'failed'
+            ORDER BY r.amount_minor = @amount_minor DESC, r.created_at, r.id
             LIMIT 1
             FOR UPDATE);
 

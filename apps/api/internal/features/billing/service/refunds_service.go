@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -106,23 +107,32 @@ func (s *Service) IssueRefund(ctx context.Context, workspaceID, refundID uuid.UU
 	}
 }
 
-// ReportStuckRefunds logs an error, once, for each refund Relay asked for a
-// day or more ago that the provider has neither taken nor named: its job has
+// unnamedRefundAge is how long a refund the provider took may go without its
+// webhook naming it before a person is told.
+const unnamedRefundAge = 3 * 24 * time.Hour
+
+// ReportStuckRefunds logs an error, once, for each refund Relay asked for
+// that the provider hasn't named. One not taken a day or more on: its job has
 // failed all that time, or River gave up on it, and the invoice shows a
-// refund the customer hasn't had. It returns how many it found. Run by the
-// StuckPaymentEvents worker.
+// refund the customer hasn't had. One taken but unnamed for unnamedRefundAge:
+// its webhook was lost or matched nothing, and the customer may not have had
+// it. It returns how many it found. Run by the StuckPaymentEvents worker.
 func (s *Service) ReportStuckRefunds(ctx context.Context) (int, error) {
 	now := s.now()
 	rows, err := repository.NewRepository(s.pool).ClaimStuckRefunds(ctx, gen.ClaimStuckRefundsParams{
-		Now: &now, Before: now.Add(-stuckEventAge), MaxRows: jobBatch,
+		Now: &now, Before: now.Add(-stuckEventAge), IssuedBefore: new(now.Add(-unnamedRefundAge)), MaxRows: jobBatch,
 	})
 	if err != nil {
 		return 0, fmt.Errorf("list stuck refunds: %w", err)
 	}
 	for _, r := range rows {
-		s.logger().ErrorContext(ctx, "billing: refund still not sent to the payment provider; needs a person",
+		msg := "billing: refund still not sent to the payment provider; needs a person"
+		if r.IssuedAt != nil {
+			msg = "billing: payment provider took a refund but never confirmed it; needs a person to check"
+		}
+		s.logger().ErrorContext(ctx, msg,
 			"refund_id", r.ID, "workspace_id", r.WorkspaceID, "invoice_id", r.InvoiceID, "provider", r.Provider,
-			"amount_minor", r.AmountMinor, "requested_at", r.CreatedAt)
+			"amount_minor", r.AmountMinor, "requested_at", r.CreatedAt, "issued_at", r.IssuedAt)
 	}
 	return len(rows), nil
 }
