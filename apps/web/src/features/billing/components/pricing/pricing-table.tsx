@@ -5,9 +5,10 @@ import { Label } from '#/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '#/components/ui/radio-group'
 import { ToggleGroup, ToggleGroupItem } from '#/components/ui/toggle-group'
 import { cn } from '#/lib/utils'
-import type { Cadence, Catalog, Plan, Price, Selection } from '../../types'
+import type { Cadence, Catalog, Plan, Price, Provider, Selection } from '../../types'
 import { describeInstallments } from '../kit/installments'
 import { formatMoney, formatPrice, limitLines, yearlySaving } from '../kit/money'
+import { checkoutStartsTrial } from '../kit/trial'
 
 const PAY_ONCE = 'once'
 
@@ -37,6 +38,11 @@ type Props = {
   /** The price this workspace pays now, marked "Current plan". */
   currentPriceId?: string
   action: PlanAction
+  /**
+   * Whether this workspace has used its one trial. Leave it out on the public page, where
+   * there is no workspace and a visitor is a future new one.
+   */
+  hadTrial?: boolean
   /** Places the cadence toggle, e.g. beside a section title. Without it the toggle is centred. */
   header?: (toggle: ReactNode) => ReactNode
 }
@@ -47,6 +53,7 @@ export function PricingTable({
   onCadence,
   currentPriceId,
   action,
+  hadTrial,
   header,
 }: Props) {
   const cadences = cadencesOf(catalog)
@@ -94,6 +101,8 @@ export function PricingTable({
               <PlanCard
                 plan={plan}
                 price={price}
+                providers={catalog.providers}
+                hadTrial={hadTrial}
                 current={price.id === currentPriceId}
                 action={action}
               />
@@ -108,11 +117,15 @@ export function PricingTable({
 function PlanCard({
   plan,
   price,
+  providers,
+  hadTrial,
   current,
   action,
 }: {
   plan: Plan
   price: Price
+  providers: Provider[]
+  hadTrial?: boolean
   current: boolean
   action: PlanAction
 }) {
@@ -163,7 +176,9 @@ function PlanCard({
             {price.billing_type === 'one_time' ? 'once' : '/ month'}
           </span>
         </p>
-        <p className="text-xs text-muted-foreground">{billedNote(plan, price)}</p>
+        <p className="text-xs text-muted-foreground">
+          {billedNote(plan, price, providers, hadTrial)}
+        </p>
       </div>
 
       {offers.length > 0 && (
@@ -214,19 +229,26 @@ function PlanCard({
   )
 }
 
-/** The small line under a price: how and when it is billed. */
-function billedNote(plan: Plan, price: Price) {
+/**
+ * The small line under a price: how and when it is billed, and the trial only where it is true.
+ * Buying a plan never starts a card-less trial; those go to new workspaces on their own. So a
+ * workspace sees trial wording only when this checkout would start a card-required one, and the
+ * public page tells a visitor what a new workspace gets.
+ */
+function billedNote(plan: Plan, price: Price, providers: Provider[], hadTrial?: boolean) {
   if (price.billing_type === 'one_time') return 'Pay once, keep the plan for life.'
-  const trial =
-    plan.trial_days > 0
-      ? `${plan.trial_days}-day free trial${plan.trial_requires_card ? ', card required' : ''}, then `
-      : ''
   const billed =
     price.interval === 'year'
-      ? `billed ${formatPrice(price.amount_minor, price.currency)} yearly`
-      : 'billed monthly, cancel anytime'
-  const note = trial + billed
-  return note[0].toUpperCase() + note.slice(1)
+      ? `Billed ${formatPrice(price.amount_minor, price.currency)} yearly`
+      : 'Billed monthly, cancel anytime'
+  if (hadTrial === undefined && plan.trial_days > 0 && !plan.trial_requires_card) {
+    return `${billed}. Starts with a ${plan.trial_days}-day free trial for new workspaces. No card needed.`
+  }
+  if (!hadTrial && checkoutStartsTrial(plan, price, providers)) {
+    const note = `${plan.trial_days}-day free trial, card required, then ${billed[0].toLowerCase()}${billed.slice(1)}`
+    return note[0].toUpperCase() + note.slice(1)
+  }
+  return billed
 }
 
 function OfferOption({

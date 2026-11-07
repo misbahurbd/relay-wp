@@ -5,6 +5,7 @@ import { Button } from '#/components/ui/button'
 import { overviewQueryOptions } from '../../api/billing.queries'
 import type { Price } from '../../types'
 import { ErrorState } from '../kit/states'
+import { hadTrial } from '../kit/trial'
 import { Catalogue } from './catalogue'
 import { ChangePlanDialog } from './change-plan-dialog'
 
@@ -44,6 +45,8 @@ export function PlanChoices({
       )}
       <Catalogue
         currentPriceId={currentPriceId}
+        // Until the overview says otherwise, promise nothing.
+        hadTrial={overview.data ? hadTrial(overview.data) : true}
         header={header}
         action={({ plan, price, selection, current }) => {
           if (current) {

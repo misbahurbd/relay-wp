@@ -18,10 +18,13 @@ function useCadence(catalog: Catalog | undefined) {
 export function Catalogue({
   action,
   currentPriceId,
+  hadTrial,
   header,
 }: {
   action: PlanAction
   currentPriceId?: string
+  /** See PricingTable. Leave it out without a workspace. */
+  hadTrial?: boolean
   header?: (toggle: ReactNode) => ReactNode
 }) {
   const plans = useQuery({
@@ -54,6 +57,7 @@ export function Catalogue({
       onCadence={setCadence}
       currentPriceId={currentPriceId}
       action={action}
+      hadTrial={hadTrial}
       header={header}
     />
   )
