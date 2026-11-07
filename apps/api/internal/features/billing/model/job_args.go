@@ -100,7 +100,8 @@ type PastDueGraceArgs struct{}
 // Kind is the job's stable name in the river_job table.
 func (PastDueGraceArgs) Kind() string { return "billing_past_due_grace" }
 
-// StuckPaymentEventsArgs reports webhook events still unprocessed long after they arrived.
+// StuckPaymentEventsArgs reports webhook events still unprocessed long after
+// they arrived, and refunds Relay asked for that still aren't sent.
 type StuckPaymentEventsArgs struct{}
 
 // Kind is the job's stable name in the river_job table.

@@ -765,6 +765,7 @@ type Refund struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	IssuedAt         *time.Time
+	ReportedAt       *time.Time
 }
 
 type Role struct {

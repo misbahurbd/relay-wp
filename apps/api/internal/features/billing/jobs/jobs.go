@@ -207,9 +207,13 @@ func NewStuckPaymentEventsWorker(svc *service.Service) *StuckPaymentEventsWorker
 	return &StuckPaymentEventsWorker{svc: svc}
 }
 
-// Work logs webhook events that never got processed.
+// Work logs webhook events that never got processed and refunds that never
+// got sent.
 func (w *StuckPaymentEventsWorker) Work(ctx context.Context, _ *river.Job[model.StuckPaymentEventsArgs]) error {
-	_, err := w.svc.ReportStuckPaymentEvents(ctx)
+	if _, err := w.svc.ReportStuckPaymentEvents(ctx); err != nil {
+		return err
+	}
+	_, err := w.svc.ReportStuckRefunds(ctx)
 	return err
 }
 

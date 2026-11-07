@@ -103,6 +103,10 @@ type Querier interface {
 	// Job only (all workspaces): events still unprocessed long after they
 	// arrived and not reported yet, stamped as reported so each is reported once.
 	ClaimStuckPaymentEvents(ctx context.Context, arg ClaimStuckPaymentEventsParams) ([]ClaimStuckPaymentEventsRow, error)
+	// Job only (all workspaces): refunds Relay asked for long ago that the
+	// provider has neither taken nor named, not reported yet, stamped as
+	// reported so each is reported once.
+	ClaimStuckRefunds(ctx context.Context, arg ClaimStuckRefundsParams) ([]ClaimStuckRefundsRow, error)
 	ClearContactTags(ctx context.Context, arg ClearContactTagsParams) error
 	// The link is saved: the product is no longer pending.
 	ClearPendingProviderProduct(ctx context.Context, arg ClearPendingProviderProductParams) (int64, error)

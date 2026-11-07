@@ -105,3 +105,24 @@ func (s *Service) IssueRefund(ctx context.Context, workspaceID, refundID uuid.UU
 		return fmt.Errorf("issue refund %s: %w", r.ID, err)
 	}
 }
+
+// ReportStuckRefunds logs an error, once, for each refund Relay asked for a
+// day or more ago that the provider has neither taken nor named: its job has
+// failed all that time, or River gave up on it, and the invoice shows a
+// refund the customer hasn't had. It returns how many it found. Run by the
+// StuckPaymentEvents worker.
+func (s *Service) ReportStuckRefunds(ctx context.Context) (int, error) {
+	now := s.now()
+	rows, err := repository.NewRepository(s.pool).ClaimStuckRefunds(ctx, gen.ClaimStuckRefundsParams{
+		Now: &now, Before: now.Add(-stuckEventAge), MaxRows: jobBatch,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("list stuck refunds: %w", err)
+	}
+	for _, r := range rows {
+		s.logger().ErrorContext(ctx, "billing: refund still not sent to the payment provider; needs a person",
+			"refund_id", r.ID, "workspace_id", r.WorkspaceID, "invoice_id", r.InvoiceID, "provider", r.Provider,
+			"amount_minor", r.AmountMinor, "requested_at", r.CreatedAt)
+	}
+	return len(rows), nil
+}

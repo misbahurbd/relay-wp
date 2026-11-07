@@ -116,6 +116,62 @@ func (q *Queries) ClaimRequestedRefund(ctx context.Context, arg ClaimRequestedRe
 	return result.RowsAffected(), nil
 }
 
+const claimStuckRefunds = `-- name: ClaimStuckRefunds :many
+UPDATE refunds
+SET reported_at = $1
+WHERE id IN (SELECT r.id FROM refunds r
+             WHERE r.status = 'pending' AND r.issued_at IS NULL AND r.external_refund_id IS NULL
+               AND r.reported_at IS NULL AND r.created_at <= $2
+             ORDER BY r.created_at
+             LIMIT $3)
+RETURNING id, workspace_id, invoice_id, provider, amount_minor, created_at
+`
+
+type ClaimStuckRefundsParams struct {
+	Now     *time.Time
+	Before  time.Time
+	MaxRows int32
+}
+
+type ClaimStuckRefundsRow struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	InvoiceID   uuid.UUID
+	Provider    string
+	AmountMinor int64
+	CreatedAt   time.Time
+}
+
+// Job only (all workspaces): refunds Relay asked for long ago that the
+// provider has neither taken nor named, not reported yet, stamped as
+// reported so each is reported once.
+func (q *Queries) ClaimStuckRefunds(ctx context.Context, arg ClaimStuckRefundsParams) ([]ClaimStuckRefundsRow, error) {
+	rows, err := q.db.Query(ctx, claimStuckRefunds, arg.Now, arg.Before, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ClaimStuckRefundsRow{}
+	for rows.Next() {
+		var i ClaimStuckRefundsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.InvoiceID,
+			&i.Provider,
+			&i.AmountMinor,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const createInvoice = `-- name: CreateInvoice :one
 
 INSERT INTO invoices (workspace_id, subscription_id, order_id, installment_id, checkout_session_id, provider,

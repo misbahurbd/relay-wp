@@ -173,6 +173,19 @@ UPDATE refunds
 SET status = 'failed'
 WHERE workspace_id = @workspace_id AND id = @refund_id AND issued_at IS NULL AND external_refund_id IS NULL;
 
+-- name: ClaimStuckRefunds :many
+-- Job only (all workspaces): refunds Relay asked for long ago that the
+-- provider has neither taken nor named, not reported yet, stamped as
+-- reported so each is reported once.
+UPDATE refunds
+SET reported_at = @now
+WHERE id IN (SELECT r.id FROM refunds r
+             WHERE r.status = 'pending' AND r.issued_at IS NULL AND r.external_refund_id IS NULL
+               AND r.reported_at IS NULL AND r.created_at <= @before
+             ORDER BY r.created_at
+             LIMIT @max_rows)
+RETURNING id, workspace_id, invoice_id, provider, amount_minor, created_at;
+
 -- name: ClaimRequestedRefund :execrows
 -- A provider refund we have no row for is the oldest refund Relay asked for
 -- on the invoice, of the same amount, that no webhook has named yet (Creem's

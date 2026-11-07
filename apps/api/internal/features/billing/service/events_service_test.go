@@ -937,3 +937,49 @@ func TestDashboardRefundNeverClaimsARequestedRefund(t *testing.T) {
 		t.Error("the refused rest of the refund isn't logged for a person")
 	}
 }
+
+// A requested refund the job never gets sent (the provider down until River
+// gives up on the job) doesn't stay silent: a day on, the stuck report logs
+// it once for a person. A recent one, or one the provider named, isn't reported.
+func TestUnsentRefundIsReportedOnce(t *testing.T) {
+	e := newEventsEnv(t)
+	ws := e.workspace()
+	_, payID := e.invoice(ws, 1000)
+	stuck := e.requestRefund(ws, payID)
+	for range 3 {
+		e.fake.FailNext(fmt.Errorf("fake: %w", payment.ErrUnavailable))
+		if err := e.svc.IssueRefund(e.ctx, stuck.WorkspaceID, stuck.RefundID); err == nil {
+			t.Fatal("a refund the provider couldn't take wasn't retried")
+		}
+	}
+	_, sentPay := e.invoice(ws, 500)
+	sent := e.requestRefund(ws, sentPay)
+	e.mustProcess(e.receive(refundEvent(sentPay, e.id("re_sent"), 500, payment.RefundSucceeded)))
+	_, freshPay := e.invoice(ws, 300)
+	fresh := e.requestRefund(ws, freshPay)
+	if _, err := e.pool.Exec(e.ctx, `UPDATE refunds SET created_at = now() - interval '2 days' WHERE id = ANY($1)`,
+		[]uuid.UUID{stuck.RefundID, sent.RefundID}); err != nil {
+		t.Fatal(err)
+	}
+
+	for range 2 {
+		if _, err := e.svc.ReportStuckRefunds(e.ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	count := func(id uuid.UUID) int {
+		n := 0
+		for line := range strings.Lines(e.logs.String()) {
+			if strings.Contains(line, "refund still not sent") && strings.Contains(line, id.String()) {
+				n++
+			}
+		}
+		return n
+	}
+	if n := count(stuck.RefundID); n != 1 {
+		t.Errorf("unsent refund reported %d times, want once", n)
+	}
+	if count(sent.RefundID)+count(fresh.RefundID) != 0 {
+		t.Error("a sent or recent refund was reported")
+	}
+}
