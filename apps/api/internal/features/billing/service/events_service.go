@@ -329,27 +329,15 @@ func (s *Service) onSubscription(ctx context.Context, tx pgx.Tx, workspaceID uui
 // refunds and disputes on one invoice apply one at a time. ok is false when
 // the workspace has no such invoice.
 func lockedInvoice(ctx context.Context, repo repository.Repository, provider payment.Provider, workspaceID uuid.UUID, externalPaymentID string) (gen.FindInvoiceByExternalPaymentIDRow, bool, error) {
-	find := func() (gen.FindInvoiceByExternalPaymentIDRow, error) {
-		return repo.FindInvoiceByExternalPaymentID(ctx, gen.FindInvoiceByExternalPaymentIDParams{
-			Provider: string(provider), ExternalPaymentID: &externalPaymentID,
-		})
-	}
-	inv, err := find()
+	row, err := repo.LockInvoiceByExternalPaymentID(ctx, gen.LockInvoiceByExternalPaymentIDParams{
+		Provider: string(provider), ExternalPaymentID: &externalPaymentID,
+	})
+	inv := gen.FindInvoiceByExternalPaymentIDRow(row)
 	if repository.IsNoRows(err) || (err == nil && inv.WorkspaceID != workspaceID) {
 		return inv, false, nil
 	}
 	if err != nil {
-		return inv, false, fmt.Errorf("find invoice: %w", err)
-	}
-	// Writing the status it already has takes the row lock; then read it again,
-	// as another refund may have changed it while we waited.
-	if _, err := repo.SetInvoiceStatus(ctx, gen.SetInvoiceStatusParams{
-		Status: inv.Status, WorkspaceID: workspaceID, InvoiceID: inv.ID,
-	}); err != nil {
 		return inv, false, fmt.Errorf("lock invoice: %w", err)
-	}
-	if inv, err = find(); err != nil {
-		return inv, false, fmt.Errorf("find invoice: %w", err)
 	}
 	return inv, true, nil
 }

@@ -36,6 +36,13 @@ SELECT id, workspace_id, subscription_id, order_id, total_minor, status
 FROM invoices
 WHERE provider = @provider AND external_payment_id = @external_payment_id;
 
+-- name: LockInvoiceByExternalPaymentID :one
+-- Webhooks only: refunds and disputes on one invoice apply one at a time.
+SELECT id, workspace_id, subscription_id, order_id, total_minor, status
+FROM invoices
+WHERE provider = @provider AND external_payment_id = @external_payment_id
+FOR UPDATE;
+
 -- name: SetInvoiceStatus :execrows
 UPDATE invoices
 SET status = @status, paid_at = COALESCE(sqlc.narg('paid_at'), paid_at)

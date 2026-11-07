@@ -549,6 +549,8 @@ type Querier interface {
 	LockCurrentGrant(ctx context.Context, workspaceID uuid.UUID) (LockCurrentGrantRow, error)
 	LockInstallment(ctx context.Context, arg LockInstallmentParams) (LockInstallmentRow, error)
 	LockInvitation(ctx context.Context, arg LockInvitationParams) (LockInvitationRow, error)
+	// Webhooks only: refunds and disputes on one invoice apply one at a time.
+	LockInvoiceByExternalPaymentID(ctx context.Context, arg LockInvoiceByExternalPaymentIDParams) (LockInvoiceByExternalPaymentIDRow, error)
 	LockMember(ctx context.Context, arg LockMemberParams) (LockMemberRow, error)
 	// Every balance change locks the order first.
 	LockOrder(ctx context.Context, arg LockOrderParams) (LockOrderRow, error)

@@ -635,3 +635,33 @@ func TestCheckPlanCacheDrift(t *testing.T) {
 		t.Error("the workspace name reached the logs")
 	}
 }
+
+// A refund that waits on the invoice's lock must not write back the status it
+// read before a dispute changed it.
+func TestRefundKeepsAConcurrentDispute(t *testing.T) {
+	e := newEventsEnv(t)
+	ws := e.workspace()
+	invoiceID, payID := e.invoice(ws, 1000)
+	args := e.receive(refundEvent(payID, e.id("re_1"), 300, payment.RefundSucceeded))
+
+	tx, err := e.pool.Begin(e.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback(e.ctx) }()
+	if _, err := tx.Exec(e.ctx, `UPDATE invoices SET status = 'disputed' WHERE id = $1`, invoiceID); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- e.svc.ProcessPaymentEvent(e.ctx, args.PaymentEventID, args.Event) }()
+	time.Sleep(300 * time.Millisecond) // the refund is now waiting on the invoice
+	if err := tx.Commit(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if s := e.invoiceStatus(invoiceID); s != model.InvoiceDisputed {
+		t.Errorf("invoice %s after a refund raced a dispute, want disputed", s)
+	}
+}

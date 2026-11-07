@@ -339,6 +339,42 @@ func (q *Queries) ListInvoices(ctx context.Context, arg ListInvoicesParams) ([]L
 	return items, nil
 }
 
+const lockInvoiceByExternalPaymentID = `-- name: LockInvoiceByExternalPaymentID :one
+SELECT id, workspace_id, subscription_id, order_id, total_minor, status
+FROM invoices
+WHERE provider = $1 AND external_payment_id = $2
+FOR UPDATE
+`
+
+type LockInvoiceByExternalPaymentIDParams struct {
+	Provider          string
+	ExternalPaymentID *string
+}
+
+type LockInvoiceByExternalPaymentIDRow struct {
+	ID             uuid.UUID
+	WorkspaceID    uuid.UUID
+	SubscriptionID *uuid.UUID
+	OrderID        *uuid.UUID
+	TotalMinor     int64
+	Status         string
+}
+
+// Webhooks only: refunds and disputes on one invoice apply one at a time.
+func (q *Queries) LockInvoiceByExternalPaymentID(ctx context.Context, arg LockInvoiceByExternalPaymentIDParams) (LockInvoiceByExternalPaymentIDRow, error) {
+	row := q.db.QueryRow(ctx, lockInvoiceByExternalPaymentID, arg.Provider, arg.ExternalPaymentID)
+	var i LockInvoiceByExternalPaymentIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.SubscriptionID,
+		&i.OrderID,
+		&i.TotalMinor,
+		&i.Status,
+	)
+	return i, err
+}
+
 const setInvoiceStatus = `-- name: SetInvoiceStatus :execrows
 UPDATE invoices
 SET status = $1, paid_at = COALESCE($2, paid_at)
