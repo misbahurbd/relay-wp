@@ -235,8 +235,15 @@ function Checkout({
                 applied={discount}
                 onApplied={setDiscount}
               />
-              {providers.length > 1 && (
+              {providers.length > 1 ? (
                 <ProviderChoice providers={providers} value={provider} onChange={setProvider} />
+              ) : (
+                <p className="text-[13px] text-muted-foreground">
+                  <span className="font-bold text-foreground">
+                    {PROVIDER_LABEL[providers[0].name]}
+                  </span>{' '}
+                  · {howItPays(providers[0])}
+                </p>
               )}
               {create.isError && (
                 <Alert variant="danger">
@@ -261,6 +268,12 @@ function Checkout({
       />
     </div>
   )
+}
+
+/** "Opens a secure checkout page · sales tax included": how paying with a provider goes. */
+function howItPays(p: Provider) {
+  const where = p.embedded_checkout ? 'Pay on this page' : 'Opens a secure checkout page'
+  return p.merchant_of_record ? `${where} · sales tax included` : where
 }
 
 function ProviderChoice({
@@ -293,10 +306,7 @@ function ProviderChoice({
             <RadioGroupItem id={`${id}-${p.name}`} value={p.name} className="mt-0.5" />
             <span className="flex flex-col gap-0.5">
               <span className="font-bold">{PROVIDER_LABEL[p.name]}</span>
-              <span className="text-[13px] text-muted-foreground">
-                {p.embedded_checkout ? 'Pay on this page' : 'Opens a secure checkout page'}
-                {p.merchant_of_record && ' · sales tax included'}
-              </span>
+              <span className="text-[13px] text-muted-foreground">{howItPays(p)}</span>
             </span>
           </Label>
         ))}
