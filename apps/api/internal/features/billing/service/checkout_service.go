@@ -1092,7 +1092,9 @@ func (s *Service) cleanupErr(ctx context.Context, op string, err error, attrs ..
 // has ended. A refusal for good is kept on the subscription, and
 // RetryRefusedCancels asks again until the provider takes it.
 func (s *Service) stopProviderSubscription(ctx context.Context, repo repository.Repository, g payment.Gateway, workspaceID, subscriptionID uuid.UUID, extSub, op string) error {
-	_, err := g.CancelSubscription(ctx, payment.CancelRequest{ExternalSubscriptionID: extSub, Mode: payment.CancelNow})
+	callCtx, cancel := context.WithTimeout(ctx, providerCallTimeout)
+	_, err := g.CancelSubscription(callCtx, payment.CancelRequest{ExternalSubscriptionID: extSub, Mode: payment.CancelNow})
+	cancel()
 	refused, err := s.cleanupErr(ctx, op, err, "subscription_id", subscriptionID)
 	if err != nil || !refused {
 		return err

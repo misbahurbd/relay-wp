@@ -572,7 +572,10 @@ func (l lifetimeDeals) stopSchedule(ctx context.Context, repo repository.Reposit
 	if err != nil {
 		return err
 	}
-	refused, err := l.cleanupErr(ctx, "cancel an installment schedule", g.CancelSchedule(ctx, *o.ExternalRef), "order_id", o.ID)
+	callCtx, cancel := context.WithTimeout(ctx, providerCallTimeout)
+	err = g.CancelSchedule(callCtx, *o.ExternalRef)
+	cancel()
+	refused, err := l.cleanupErr(ctx, "cancel an installment schedule", err, "order_id", o.ID)
 	if err != nil || !refused {
 		return err
 	}

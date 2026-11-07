@@ -858,3 +858,42 @@ func TestPlanChangeGivesUpOnAProviderThatNeverAnswers(t *testing.T) {
 	}
 	e.wantCache(e.ws, basic.Code)
 }
+
+// stalledCancel is a provider that never answers CancelSubscription.
+type stalledCancel struct{ *payment.Fake }
+
+func (stalledCancel) CancelSubscription(ctx context.Context, _ payment.CancelRequest) (payment.Subscription, error) {
+	<-ctx.Done()
+	return payment.Subscription{}, ctx.Err()
+}
+
+// A refund that ends a subscription cancels it at the provider while the
+// subscription row is locked. A provider that never answers fails the
+// refund for a retry after providerCallTimeout, and changes nothing.
+func TestRefundCancelGivesUpOnAProviderThatNeverAnswers(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	sub := e.subscribe(p.Monthly)
+	var periodPay string
+	if err := e.pool.QueryRow(e.ctx, `SELECT external_payment_id FROM invoices WHERE subscription_id = $1`,
+		sub.ID).Scan(&periodPay); err != nil {
+		t.Fatal(err)
+	}
+	reg, err := payment.NewRegistry(stalledCancel{e.fake})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.svc.payments = reg
+	defer func(d time.Duration) { providerCallTimeout = d }(providerCallTimeout)
+	providerCallTimeout = 200 * time.Millisecond
+	ctx, cancel := context.WithTimeout(e.ctx, 5*time.Second)
+	defer cancel()
+
+	ev := refundEvent(periodPay, "re_"+uuid.NewString(), 1000, payment.RefundSucceeded)
+	ev.Provider = payment.Stripe
+	err = database.WithTx(ctx, e.pool, func(tx pgx.Tx) error { return e.svc.onRefund(ctx, tx, e.ws, ev) })
+	if !errors.Is(err, context.DeadlineExceeded) || ctx.Err() != nil {
+		t.Fatalf("refund: %v (test deadline: %v), want a timeout within the provider bound", err, ctx.Err())
+	}
+	e.wantCache(e.ws, p.Code)
+}
