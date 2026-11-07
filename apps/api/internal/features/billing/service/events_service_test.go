@@ -112,6 +112,12 @@ func (e *eventsEnv) webhook(ev payment.Event) (http.Header, []byte) {
 	if ev.OccurredAt.IsZero() {
 		ev.OccurredAt = time.Now().UTC()
 	}
+	return e.signed(ev)
+}
+
+// signed is ev as the fake provider delivers it, OccurredAt as given.
+func (e *eventsEnv) signed(ev payment.Event) (http.Header, []byte) {
+	e.t.Helper()
 	raw, err := json.Marshal(ev)
 	if err != nil {
 		e.t.Fatal(err)
@@ -663,5 +669,85 @@ func TestRefundKeepsAConcurrentDispute(t *testing.T) {
 	}
 	if s := e.invoiceStatus(invoiceID); s != model.InvoiceDisputed {
 		t.Errorf("invoice %s after a refund raced a dispute, want disputed", s)
+	}
+}
+
+// An event without a time is as young as its delivery, so it gets the retry window.
+func TestEventWithoutATimeIsRetried(t *testing.T) {
+	e := newEventsEnv(t)
+	ev := refundEvent("pay_nobody_"+uuid.NewString(), e.id("re_z"), 100, payment.RefundSucceeded)
+	ev.OccurredAt = time.Time{}
+	header, body := e.signed(ev)
+	if err := e.svc.ReceiveWebhook(e.ctx, "stripe", header, body); err != nil {
+		t.Fatal(err)
+	}
+	jobs := e.queue.all()
+	args := jobs[len(jobs)-1].(model.ProcessPaymentEventArgs)
+	if args.Event.OccurredAt.IsZero() {
+		t.Error("the event kept a zero time")
+	}
+	if err := e.process(args); err == nil {
+		t.Error("an event without a time that matches nothing was not retried")
+	}
+}
+
+// checkoutSession stores a pending purpose-new checkout session for ws.
+func (e *eventsEnv) checkoutSession(ws uuid.UUID) uuid.UUID {
+	e.t.Helper()
+	s, err := e.repo.CreateCheckoutSession(e.ctx, gen.CreateCheckoutSessionParams{
+		WorkspaceID: ws, PlanPriceID: e.price(), Purpose: "new", Provider: "stripe", AmountMinor: 1000,
+		Currency: "USD", IdempotencyKey: uuid.NewString(), ExpiresAt: time.Now().Add(time.Hour),
+	})
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	return s.ID
+}
+
+// Events arrive out of order: one whose workspace is known (through our
+// checkout session) but whose subscription or invoice isn't stored yet is
+// retried, then given up once it is old.
+func TestOutOfOrderEventsRetryUntilOld(t *testing.T) {
+	e := newEventsEnv(t)
+	ws := e.workspace()
+	ref := e.checkoutSession(ws)
+	unknown := "unknown_" + uuid.NewString()
+	for name, ev := range map[string]payment.Event{
+		"subscription": {
+			Type: payment.EventSubscriptionUpdated, ProviderType: "customer.subscription.updated",
+			Subscription: &payment.Subscription{ExternalID: unknown, Status: payment.SubscriptionActive},
+		},
+		"payment": {
+			Type: payment.EventPaymentSucceeded, ProviderType: "invoice.paid",
+			Payment: &payment.Payment{ExternalID: "pay_" + uuid.NewString(), ExternalSubscriptionID: unknown, TotalMinor: 1000, Currency: "USD"},
+		},
+		"refund": {
+			Type: payment.EventRefundUpdated, ProviderType: "charge.refund.updated",
+			Refund: &payment.Refund{ExternalID: e.id("re_" + uuid.NewString()[:4]), ExternalPaymentID: unknown, AmountMinor: 100, Currency: "USD", Status: payment.RefundSucceeded},
+		},
+		"dispute opened": {
+			Type: payment.EventDisputeOpened, ProviderType: "charge.dispute.created",
+			Payment: &payment.Payment{ExternalID: unknown},
+		},
+		"dispute closed": {
+			Type: payment.EventDisputeClosed, ProviderType: "charge.dispute.closed",
+			Payment: &payment.Payment{ExternalID: unknown, Status: "lost"},
+		},
+	} {
+		ev.ExternalID, ev.Reference, ev.OccurredAt = "evt_"+uuid.NewString(), &ref, time.Now().UTC()
+		args := e.receive(ev)
+		if err := e.process(args); err == nil {
+			t.Errorf("%s: a recent event naming nothing stored yet was not retried", name)
+		}
+		if e.stored(ev.ExternalID).processed {
+			t.Errorf("%s: a retried event was marked processed", name)
+		}
+		args.Event.OccurredAt = time.Now().Add(-2 * unmatchedRetryWindow)
+		if err := e.process(args); err != nil {
+			t.Errorf("%s: an old event was retried: %v", name, err)
+		}
+		if !e.stored(ev.ExternalID).processed {
+			t.Errorf("%s: an old event was not given up", name)
+		}
 	}
 }

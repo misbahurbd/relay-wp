@@ -76,6 +76,10 @@ func (s *Service) ReceiveWebhook(ctx context.Context, provider string, header ma
 		return fmt.Errorf("parse %s webhook: %w", p, err)
 	}
 	ev.Provider = p
+	if ev.OccurredAt.IsZero() {
+		// Without the provider's time, the retry window runs from delivery.
+		ev.OccurredAt = s.now()
+	}
 	_, handled := s.events[ev.Type]
 
 	var stored bool
@@ -160,6 +164,17 @@ func (s *Service) ProcessPaymentEvent(ctx context.Context, paymentEventID uuid.U
 		s.log.InfoContext(ctx, "billing: payment event applied", "event", ev, "workspace_id", workspaceID)
 		return nil
 	})
+}
+
+// notStoredYet handles an event of a known workspace that names a subscription,
+// order or invoice we haven't stored yet. Providers send events out of order,
+// so it is retried for unmatchedRetryWindow, then logged and given up.
+func (s *Service) notStoredYet(ctx context.Context, ev payment.Event, workspaceID uuid.UUID, msg string) error {
+	if s.now().Sub(ev.OccurredAt) < unmatchedRetryWindow {
+		return fmt.Errorf("%s yet; retrying", msg)
+	}
+	s.log.WarnContext(ctx, "billing: "+msg, "event", ev, "workspace_id", workspaceID)
+	return nil
 }
 
 func markProcessed(ctx context.Context, repo repository.Repository, id uuid.UUID, now time.Time) error {
@@ -298,9 +313,7 @@ func (s *Service) onPayment(paid bool) eventHandler {
 				return fmt.Errorf("find order: %w", err)
 			}
 		}
-		s.log.WarnContext(ctx, "billing: payment names no subscription or order of the workspace",
-			"event", ev, "workspace_id", workspaceID)
-		return nil
+		return s.notStoredYet(ctx, ev, workspaceID, "payment names no subscription or order of the workspace")
 	}
 }
 
@@ -313,9 +326,7 @@ func (s *Service) onSubscription(ctx context.Context, tx pgx.Tx, workspaceID uui
 		Provider: string(ev.Provider), ExternalSubscriptionID: &ev.Subscription.ExternalID,
 	})
 	if repository.IsNoRows(err) || (err == nil && row.WorkspaceID != workspaceID) {
-		s.log.WarnContext(ctx, "billing: subscription event names no subscription of the workspace",
-			"event", ev, "workspace_id", workspaceID)
-		return nil
+		return s.notStoredYet(ctx, ev, workspaceID, "subscription event names no subscription of the workspace")
 	}
 	if err != nil {
 		return fmt.Errorf("find subscription: %w", err)
@@ -357,8 +368,7 @@ func (s *Service) onRefund(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID
 		return err
 	}
 	if !ok {
-		s.log.WarnContext(ctx, "billing: refund names no invoice of the workspace", "event", ev, "workspace_id", workspaceID)
-		return nil
+		return s.notStoredYet(ctx, ev, workspaceID, "refund names no invoice of the workspace")
 	}
 
 	n, err := repo.SetRefundStatus(ctx, gen.SetRefundStatusParams{
@@ -543,11 +553,11 @@ func (s *Service) onDisputeOpened(ctx context.Context, tx pgx.Tx, workspaceID uu
 	}
 	repo := repository.NewRepository(tx)
 	inv, ok, err := lockedInvoice(ctx, repo, ev.Provider, workspaceID, ev.Payment.ExternalID)
-	if err != nil || !ok {
-		if !ok && err == nil {
-			s.log.WarnContext(ctx, "billing: dispute names no invoice of the workspace", "event", ev, "workspace_id", workspaceID)
-		}
+	if err != nil {
 		return err
+	}
+	if !ok {
+		return s.notStoredYet(ctx, ev, workspaceID, "dispute names no invoice of the workspace")
 	}
 	if inv.Status == model.InvoiceDisputed {
 		return nil
@@ -566,11 +576,11 @@ func (s *Service) onDisputeClosed(ctx context.Context, tx pgx.Tx, workspaceID uu
 	}
 	repo := repository.NewRepository(tx)
 	inv, ok, err := lockedInvoice(ctx, repo, ev.Provider, workspaceID, ev.Payment.ExternalID)
-	if err != nil || !ok {
-		if !ok && err == nil {
-			s.log.WarnContext(ctx, "billing: dispute names no invoice of the workspace", "event", ev, "workspace_id", workspaceID)
-		}
+	if err != nil {
 		return err
+	}
+	if !ok {
+		return s.notStoredYet(ctx, ev, workspaceID, "dispute names no invoice of the workspace")
 	}
 	if inv.Status != model.InvoiceDisputed {
 		return nil
