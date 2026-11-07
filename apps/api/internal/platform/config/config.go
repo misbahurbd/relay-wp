@@ -29,6 +29,8 @@ type Config struct {
 	Admin        Admin
 	WhatsApp     WhatsApp
 	Payment      Payment
+	Invoices     Invoices
+	PDF          PDF
 	Integrations Integrations
 }
 
@@ -165,6 +167,27 @@ type Payment struct {
 
 	CreemAPIKey        string `env:"CREEM_API_KEY"`
 	CreemWebhookSecret string `env:"CREEM_WEBHOOK_SECRET"`
+}
+
+// Invoices configures the invoice documents Relay issues (docs/adr/0016-invoice-pdf-renderer.md).
+type Invoices struct {
+	// NumberPrefix starts every invoice number: "RLY" gives RLY-2026-000001.
+	NumberPrefix string `env:"INVOICE_NUMBER_PREFIX" envDefault:"RLY"`
+	// The seller block printed on every invoice.
+	SellerName string `env:"INVOICE_SELLER_NAME" envDefault:"Relay"`
+	// SellerAddress is multi-line; separate lines with a literal \n.
+	SellerAddress string `env:"INVOICE_SELLER_ADDRESS"`
+	SellerEmail   string `env:"INVOICE_SELLER_EMAIL"`
+	SellerTaxID   string `env:"INVOICE_SELLER_TAX_ID"`
+}
+
+// PDF configures the invoice PDF renderer.
+type PDF struct {
+	// Renderer is "cloudflare" (Browser Rendering REST API) or "local"
+	// (a plain-text stand-in for development and tests).
+	Renderer            string `env:"PDF_RENDERER" envDefault:"local"`
+	CloudflareAccountID string `env:"CLOUDFLARE_ACCOUNT_ID"`
+	CloudflareAPIToken  string `env:"CLOUDFLARE_API_TOKEN"`
 }
 
 // Storage configures object storage.

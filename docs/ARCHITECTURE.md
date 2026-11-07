@@ -110,6 +110,7 @@ apps/api/
 │   │   ├── queue/             # River client
 │   │   ├── mailer/
 │   │   ├── payment/           # payment gateways (Stripe, Creem, fake), chosen by PAYMENT_PROVIDERS
+│   ├── pdf/               # HTML → PDF (Cloudflare Browser Rendering, local stand-in), chosen by PDF_RENDERER
 │   │   └── storage/           # S3
 │   │
 │   └── shared/
@@ -170,6 +171,7 @@ Imports only go down: `handler → service, dto, model`; `service → repository
 | Outbound messaging / third-party providers                            | provider type stored on the workspace   | one client per provider                                                        | **Per workspace, cached** (see below)             |
 | Webhook / job handlers                                                | event type string                       | one handler per event type                                                     | Registry map filled at boot; lookup is a map read |
 | `platform/payment` ([ADR 0006](adr/0006-payment-gateway-registry.md)) | `PAYMENT_PROVIDERS`, then provider name | stripe, creem (paypal, sslcommerz later), fake (tests and local dev)           | Once at boot; lookup is a map read                |
+| `platform/pdf` ([ADR 0016](adr/0016-invoice-pdf-renderer.md))        | `PDF_RENDERER`                          | cloudflare (Browser Rendering REST API), local (text stand-in, no browser)     | Once at boot                                      |
 
 Layout for each factory package:
 
