@@ -185,7 +185,8 @@ VALUES ($1, $2, $3, $4,
                 WHERE prev.workspace_id = $1 AND prev.subscription_id = $2
                   AND prev.status IN ('paid', 'partially_refunded', 'refunded', 'disputed', 'dispute_lost')
                   AND prev.period_start <= $13
-                  AND $13 < prev.period_end),
+                  AND $13 < prev.period_end
+                  AND $14 <= prev.period_end),
         COALESCE(
             (SELECT cs.plan_price_id FROM checkout_sessions cs
              WHERE cs.workspace_id = $1 AND cs.id = $5),
@@ -231,8 +232,10 @@ type CreateInvoiceParams struct {
 // order's, else the subscription's, or its scheduled downgrade when this
 // period starts it (the renewal applies it next, in this transaction).
 // proration is Relay's one rule for a mid-period plan change, since Creem
-// marks none: a subscription payment whose period starts inside a period the
-// subscription was already invoiced for. Refunds and the PDF read it.
+// marks none: a subscription payment whose period lies inside a period the
+// subscription was already invoiced for. An interval switch starts a new
+// period that runs past the old one, so it is not a proration. Refunds and
+// the PDF read it.
 func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, createInvoice,
 		arg.WorkspaceID,

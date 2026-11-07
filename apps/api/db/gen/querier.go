@@ -192,8 +192,10 @@ type Querier interface {
 	// order's, else the subscription's, or its scheduled downgrade when this
 	// period starts it (the renewal applies it next, in this transaction).
 	// proration is Relay's one rule for a mid-period plan change, since Creem
-	// marks none: a subscription payment whose period starts inside a period the
-	// subscription was already invoiced for. Refunds and the PDF read it.
+	// marks none: a subscription payment whose period lies inside a period the
+	// subscription was already invoiced for. An interval switch starts a new
+	// period that runs past the old one, so it is not a proration. Refunds and
+	// the PDF read it.
 	CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (uuid.UUID, error)
 	CreateOAuthFlow(ctx context.Context, arg CreateOAuthFlowParams) error
 	CreateOnboarding(ctx context.Context, arg CreateOnboardingParams) error

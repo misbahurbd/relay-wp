@@ -7,8 +7,10 @@
 -- order's, else the subscription's, or its scheduled downgrade when this
 -- period starts it (the renewal applies it next, in this transaction).
 -- proration is Relay's one rule for a mid-period plan change, since Creem
--- marks none: a subscription payment whose period starts inside a period the
--- subscription was already invoiced for. Refunds and the PDF read it.
+-- marks none: a subscription payment whose period lies inside a period the
+-- subscription was already invoiced for. An interval switch starts a new
+-- period that runs past the old one, so it is not a proration. Refunds and
+-- the PDF read it.
 INSERT INTO invoices (workspace_id, subscription_id, order_id, installment_id, checkout_session_id, provider,
                       external_payment_id, status, subtotal_minor, tax_minor, total_minor, currency, period_start,
                       period_end, bill_to, discount_id, discount_minor, paid_at, proration, plan_price_id)
@@ -20,7 +22,8 @@ VALUES (@workspace_id, sqlc.narg('subscription_id'), sqlc.narg('order_id'), sqlc
                 WHERE prev.workspace_id = @workspace_id AND prev.subscription_id = sqlc.narg('subscription_id')
                   AND prev.status IN ('paid', 'partially_refunded', 'refunded', 'disputed', 'dispute_lost')
                   AND prev.period_start <= sqlc.narg('period_start')
-                  AND sqlc.narg('period_start') < prev.period_end),
+                  AND sqlc.narg('period_start') < prev.period_end
+                  AND sqlc.narg('period_end') <= prev.period_end),
         COALESCE(
             (SELECT cs.plan_price_id FROM checkout_sessions cs
              WHERE cs.workspace_id = @workspace_id AND cs.id = sqlc.narg('checkout_session_id')),

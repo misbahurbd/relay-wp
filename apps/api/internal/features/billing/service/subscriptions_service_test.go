@@ -897,3 +897,61 @@ func TestRefundCancelGivesUpOnAProviderThatNeverAnswers(t *testing.T) {
 	}
 	e.wantCache(e.ws, p.Code)
 }
+
+// A monthly to yearly switch starts a new, yearly period now, as Creem bills
+// it: the yearly invoice is the period the customer pays for, not a
+// proration, even though it starts inside the paid monthly period.
+// Refunding it in full ends the plan; refunding the old monthly one doesn't.
+func TestRefundAfterAnIntervalSwitchFollowsTheYearlyPeriod(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		refundYear  bool
+		wantPlanEnd bool
+	}{
+		{"yearly invoice refunded", true, true},
+		{"old monthly invoice refunded", false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e := newT3Env(t)
+			p := e.plan(t3PlanOpts{Monthly: 1000})
+			sub := e.subscribe(p.Monthly)
+			var monthPay string
+			if err := e.pool.QueryRow(e.ctx, `SELECT external_payment_id FROM invoices WHERE subscription_id = $1`,
+				sub.ID).Scan(&monthPay); err != nil {
+				t.Fatal(err)
+			}
+			e.midPeriod(sub)
+			if _, err := e.svc.ChangePlan(e.ctx, e.ws, e.user, p.Yearly); err != nil {
+				t.Fatal(err)
+			}
+			yearPay, yearEnd := "pay_"+uuid.NewString(), e.clock.AddDate(1, 0, 0)
+			e.inTx(func(tx pgx.Tx) error {
+				return e.svc.ApplySubscriptionPayment(e.ctx, tx, e.ws, sub.ID, payment.Payment{
+					ExternalID: yearPay, SubtotalMinor: 9500, TotalMinor: 9500, Currency: "USD",
+					PeriodStart: &e.clock, PeriodEnd: &yearEnd,
+				}, true)
+			})
+			var proration bool
+			if err := e.pool.QueryRow(e.ctx, `SELECT proration FROM invoices WHERE external_payment_id = $1`,
+				yearPay).Scan(&proration); err != nil {
+				t.Fatal(err)
+			}
+			if proration {
+				t.Error("the yearly invoice of an interval switch is marked a proration")
+			}
+
+			pay, amount := monthPay, int64(1000)
+			if tc.refundYear {
+				pay, amount = yearPay, 9500
+			}
+			ev := refundEvent(pay, "re_"+uuid.NewString(), amount, payment.RefundSucceeded)
+			ev.Provider = payment.Stripe
+			e.inTx(func(tx pgx.Tx) error { return e.svc.onRefund(e.ctx, tx, e.ws, ev) })
+			if tc.wantPlanEnd {
+				e.wantCache(e.ws, model.FreePlan)
+			} else {
+				e.wantCache(e.ws, p.Code)
+			}
+		})
+	}
+}
