@@ -6,7 +6,7 @@ export type StepperItem = { id: string; label: string; done: boolean; reachable:
 
 /**
  * The steps of a form as a row of numbered buttons. A step you can reach is a button; on a phone
- * only the current step keeps its label.
+ * only the current step shows its label, the others keep it for screen readers.
  */
 export function Stepper({
   steps,
@@ -47,7 +47,7 @@ export function Stepper({
                 >
                   {s.done && !active ? <CheckIcon className="size-3" /> : i + 1}
                 </span>
-                <span className={cn('truncate', !active && 'hidden sm:inline')}>{s.label}</span>
+                <span className={cn('truncate', !active && 'max-sm:sr-only')}>{s.label}</span>
                 {s.done && !active && <span className="sr-only">(done)</span>}
               </Button>
             </li>

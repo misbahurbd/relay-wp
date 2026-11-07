@@ -58,7 +58,7 @@ We considered two tables and rejected both:
 
 ## Delivery
 
-Migrations `00017_plan_resources` and `00018_plan_resources_included` build the whole catalog and live limits with per-grant overrides, the `free` plan row, `limit_changes`, `GET /v1/billing/resources`, `PUT /v1/admin/billing/plans/{id}`, `PUT /v1/admin/workspaces/grant-overrides`, and the CRM plan editor (one sheet for add, new version and edit) and per-workspace limits. Team seats, WhatsApp numbers and contacts are enforced (contacts: `409 plan_contact_limit` on create; an import skips new rows past the cap). `usage_counters`, `Consume`/`Release`, `HasAccess` and `RequirePlan` arrive with the first enforced resource of their kind, so none of them ship unused. The free plan can't be sold or granted by hand: it is what a workspace has with no grant.
+Migrations `00017_plan_resources` and `00018_plan_resources_included` build the whole catalog and live limits with per-grant overrides, the `free` plan row, `limit_changes`, `GET /v1/billing/resources`, `PUT /v1/admin/billing/plans/{id}`, `PUT /v1/admin/workspaces/grant-overrides`, and the CRM plan editor (one modal for add, new version and edit: a four-step flow that creates the plan, its prices and their provider listings, or tabs for an in-place edit) and per-workspace limits. Team seats, WhatsApp numbers and contacts are enforced (contacts: `409 plan_contact_limit` on create; an import skips new rows past the cap). `usage_counters`, `Consume`/`Release`, `HasAccess` and `RequirePlan` arrive with the first enforced resource of their kind, so none of them ship unused. The free plan can't be sold or granted by hand: it is what a workspace has with no grant.
 
 ## Migration
 

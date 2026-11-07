@@ -228,7 +228,7 @@ export function PlanEditor({
         className="top-0 left-0 flex h-dvh max-h-dvh max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 p-0 sm:top-[50%] sm:left-[50%] sm:h-[min(780px,calc(100dvh-48px))] sm:max-w-[min(940px,calc(100%-3rem))] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-xl sm:border"
       >
         <form onSubmit={submit} noValidate className="flex min-h-0 flex-1 flex-col">
-          <DialogHeader className="gap-3 border-b px-4 pt-5 pb-3 sm:px-6">
+          <DialogHeader className="gap-3 border-b px-4 pt-5 pb-3 text-left sm:px-6">
             <div className="flex flex-col gap-1 pr-8">
               <DialogTitle className="text-xl font-extrabold">{titleOf(mode)}</DialogTitle>
               <DialogDescription className="max-w-[70ch]">{introOf(mode, free)}</DialogDescription>
