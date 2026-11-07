@@ -960,7 +960,7 @@ func TestCreemCancelRefusedButCanceledIsDone(t *testing.T) {
 // reads the transaction first: one already refunded is done, never refunded
 // twice (a retry after a lost reply, a replayed event).
 func TestCreemRefundOfARefundedTransactionIsDone(t *testing.T) {
-	for _, status := range []string{"refunded", "partialRefund"} {
+	for _, status := range []string{"refunded"} {
 		g, api := newCreemWithAPI(t)
 		api.handle("GET /v1/transactions", http.StatusOK, `{"id":"tran_1","status":"`+status+`"}`)
 		api.handle("POST /v1/refunds", http.StatusOK, `{"status":"pending"}`)
@@ -976,8 +976,21 @@ func TestCreemRefundOfARefundedTransactionIsDone(t *testing.T) {
 		}
 	}
 
-	// Refused, but refunded by the time it is read again: done.
+	// Partly refunded in Creem's dashboard: the API refunds only in full, so
+	// the rest can't be asked for, and that refusal is permanent.
 	g, api := newCreemWithAPI(t)
+	api.handle("GET /v1/transactions", http.StatusOK, `{"id":"tran_1","status":"partialRefund"}`)
+	api.handle("POST /v1/refunds", http.StatusOK, `{"status":"pending"}`)
+	_, err := g.Refund(context.Background(), RefundRequest{ExternalPaymentID: "tran_1", AmountMinor: 3158, Currency: "usd"})
+	if !errors.Is(err, ErrInvalidRequest) || !Permanent(err) {
+		t.Fatalf("refund of a partly refunded transaction: err = %v, want a permanent ErrInvalidRequest", err)
+	}
+	if c := api.last(); c.Method != http.MethodGet {
+		t.Errorf("last call %s %s, want no refund request", c.Method, c.Path)
+	}
+
+	// Refused, but refunded by the time it is read again: done.
+	g, api = newCreemWithAPI(t)
 	reads := 0
 	api.routes["GET /v1/transactions"] = func(w http.ResponseWriter, _ creemCall) {
 		status := "paid"

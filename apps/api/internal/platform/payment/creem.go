@@ -233,9 +233,9 @@ func (g *creemGateway) subscription(ctx context.Context, id string) (creemSubscr
 
 // Refund refunds a transaction in full: Creem's API has no partial refunds.
 // The refund's ID comes later, in the refund.created webhook. Creem takes no
-// idempotency key, so the transaction is read first: one already refunded
-// (in full or in part) is done, and a refusal counts as done once a second
-// read shows it refunded.
+// idempotency key, so the transaction is read first: one already refunded is
+// done, one refunded in part (in Creem's dashboard) is refused for good, and
+// a refusal counts as done once a second read shows it refunded.
 func (g *creemGateway) Refund(ctx context.Context, req RefundRequest) (Refund, error) {
 	if req.ExternalPaymentID == "" || req.AmountMinor <= 0 {
 		return Refund{}, fmt.Errorf("creem: refund needs a payment and an amount: %w", ErrInvalidRequest)
@@ -244,12 +244,17 @@ func (g *creemGateway) Refund(ctx context.Context, req RefundRequest) (Refund, e
 		ExternalPaymentID: req.ExternalPaymentID, AmountMinor: req.AmountMinor,
 		Currency: strings.ToUpper(req.Currency), Status: RefundSucceeded,
 	}
-	refunded, err := g.transactionRefunded(ctx, req.ExternalPaymentID)
+	status, err := g.transactionStatus(ctx, req.ExternalPaymentID)
 	if err != nil {
 		return Refund{}, fmt.Errorf("creem: refund: %w", err)
 	}
-	if refunded {
+	switch status {
+	case "refunded":
 		return done, nil
+	case "partialRefund":
+		// Refunded in part in Creem's dashboard. The API refunds only in
+		// full, so the rest has to be refunded there too.
+		return Refund{}, fmt.Errorf("creem: refund: transaction %s is partly refunded: %w", req.ExternalPaymentID, ErrInvalidRequest)
 	}
 	var out struct {
 		Status string `json:"status"`
@@ -257,7 +262,7 @@ func (g *creemGateway) Refund(ctx context.Context, req RefundRequest) (Refund, e
 	body := map[string]string{"transaction_id": req.ExternalPaymentID}
 	if err := g.do(ctx, http.MethodPost, "/v1/refunds", body, &out); err != nil {
 		if Permanent(err) {
-			if refunded, rerr := g.transactionRefunded(ctx, req.ExternalPaymentID); rerr == nil && refunded {
+			if status, rerr := g.transactionStatus(ctx, req.ExternalPaymentID); rerr == nil && status == "refunded" {
 				return done, nil
 			}
 		}
@@ -267,16 +272,16 @@ func (g *creemGateway) Refund(ctx context.Context, req RefundRequest) (Refund, e
 	return done, nil
 }
 
-// transactionRefunded reads a transaction from GET /v1/transactions and says
-// whether it is refunded, in full or in part.
-func (g *creemGateway) transactionRefunded(ctx context.Context, id string) (bool, error) {
+// transactionStatus reads a transaction's status from GET /v1/transactions:
+// "refunded" and "partialRefund" among others.
+func (g *creemGateway) transactionStatus(ctx context.Context, id string) (string, error) {
 	var t struct {
 		Status string `json:"status"`
 	}
 	if err := g.do(ctx, http.MethodGet, "/v1/transactions?transaction_id="+url.QueryEscape(id), nil, &t); err != nil {
-		return false, fmt.Errorf("read transaction: %w", err)
+		return "", fmt.Errorf("read transaction: %w", err)
 	}
-	return t.Status == "refunded" || t.Status == "partialRefund", nil
+	return t.Status, nil
 }
 
 // creemDiscountRequest is the body of POST /v1/discounts.
