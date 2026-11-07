@@ -25,6 +25,7 @@ import type {
   Catalog,
   ChangeQuote,
   CheckoutSession,
+  Invoice,
   Order,
   OrderQuote,
   Overview,
@@ -131,6 +132,29 @@ export const overviewQueryOptions = (workspaceId: string) =>
     },
   })
 
+// An invoice's PDF is rendered in the background right after payment, and
+// its download link expires after 15 minutes.
+const PDF_POLL_MS = 5_000
+const PDF_LINK_REFRESH_MS = 10 * 60_000
+const PDF_POLL_WINDOW_MS = 10 * 60_000
+
+/** How often to refetch invoices: quickly while a fresh payment's PDF is on its way. */
+function pdfRefetchInterval(invoices: Invoice[]): number | false {
+  const now = Date.now()
+  const preparing = invoices.some(
+    (inv) =>
+      pdfPreparing(inv) &&
+      now - new Date(inv.paid_at ?? inv.created_at).getTime() < PDF_POLL_WINDOW_MS,
+  )
+  if (preparing) return PDF_POLL_MS
+  return invoices.some((inv) => inv.pdf_url) ? PDF_LINK_REFRESH_MS : false
+}
+
+/** A numbered invoice gets a PDF; until it is stored, the invoice has no link. */
+export function pdfPreparing(inv: Invoice): boolean {
+  return inv.number !== null && inv.pdf_url === null
+}
+
 export const invoicesQueryOptions = (workspaceId: string) =>
   infiniteQueryOptions({
     queryKey: billingKeys.invoices(workspaceId),
@@ -145,6 +169,8 @@ export const invoicesQueryOptions = (workspaceId: string) =>
       return { invoices: list(data.invoices), next: data.next_cursor ?? undefined }
     },
     getNextPageParam: (last) => last.next,
+    refetchInterval: (query) =>
+      pdfRefetchInterval(query.state.data?.pages.flatMap((p) => p.invoices) ?? []),
   })
 
 export const invoiceQueryOptions = (workspaceId: string, invoiceId: string) =>
@@ -159,6 +185,7 @@ export const invoiceQueryOptions = (workspaceId: string, invoiceId: string) =>
       })
       return data
     },
+    refetchInterval: (query) => pdfRefetchInterval(query.state.data ? [query.state.data] : []),
   })
 
 /** The billing details, or null before anyone has saved them. */

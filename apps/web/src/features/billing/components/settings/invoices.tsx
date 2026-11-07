@@ -1,10 +1,10 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { DownloadIcon, ExternalLinkIcon, ReceiptIcon } from 'lucide-react'
+import { DownloadIcon, ReceiptIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '#/components/ui/button'
 import { Separator } from '#/components/ui/separator'
 import { Skeleton } from '#/components/ui/skeleton'
-import { invoiceQueryOptions, invoicesQueryOptions } from '../../api/billing.queries'
+import { invoiceQueryOptions, invoicesQueryOptions, pdfPreparing } from '../../api/billing.queries'
 import { useBillingPreview } from '../../hooks/use-billing-preview'
 import { INVOICE_STATUS, PROVIDER_LABEL } from '../../schemas/billing.schema'
 import type { Invoice } from '../../types'
@@ -83,7 +83,7 @@ export function Invoices({ workspaceId }: { workspaceId: string }) {
                     Status
                   </th>
                   <th scope="col" className="py-2 pl-2 text-right font-semibold">
-                    <span className="sr-only">Receipt</span>
+                    <span className="sr-only">PDF</span>
                   </th>
                 </tr>
               </thead>
@@ -111,19 +111,7 @@ export function Invoices({ workspaceId }: { workspaceId: string }) {
                       <StatusBadge status={INVOICE_STATUS[inv.status]} />
                     </td>
                     <td className="py-1.5 pl-2 text-right">
-                      {inv.receipt_url ? (
-                        <Button asChild variant="ghost" size="icon">
-                          <a href={inv.receipt_url} target="_blank" rel="noreferrer noopener">
-                            <DownloadIcon aria-hidden="true" />
-                            <span className="sr-only">
-                              Receipt for {inv.number ?? formatDate(inv.created_at)} (opens in a new
-                              tab)
-                            </span>
-                          </a>
-                        </Button>
-                      ) : (
-                        <span className="sr-only">No receipt</span>
-                      )}
+                      <InvoicePDF inv={inv} />
                     </td>
                   </tr>
                 ))}
@@ -158,6 +146,28 @@ export function Invoices({ workspaceId }: { workspaceId: string }) {
       )}
     </Section>
   )
+}
+
+/** The row's download button, a quiet note while the PDF renders, or nothing. */
+function InvoicePDF({ inv }: { inv: Invoice }) {
+  if (inv.pdf_url) {
+    return (
+      <Button asChild variant="ghost" size="icon">
+        <a href={inv.pdf_url} download={`${inv.number ?? 'invoice'}.pdf`}>
+          <DownloadIcon aria-hidden="true" />
+          <span className="sr-only">Download invoice {inv.number} (PDF)</span>
+        </a>
+      </Button>
+    )
+  }
+  if (pdfPreparing(inv)) {
+    return (
+      <span className="inline-flex h-9 items-center px-1 text-xs text-muted-foreground">
+        Preparing…
+      </span>
+    )
+  }
+  return <span className="sr-only">No PDF</span>
 }
 
 function period(inv: Invoice) {
@@ -247,14 +257,19 @@ function InvoiceDialog({
             <Separator />
             <Row label="Total" value={money(inv.total_minor)} strong />
           </dl>
-          {inv.receipt_url && (
+          {inv.pdf_url ? (
             <Button asChild variant="outline" className="self-start">
-              <a href={inv.receipt_url} target="_blank" rel="noreferrer noopener">
-                Open receipt
-                <ExternalLinkIcon aria-hidden="true" />
-                <span className="sr-only">(opens in a new tab)</span>
+              <a href={inv.pdf_url} download={`${inv.number ?? 'invoice'}.pdf`}>
+                <DownloadIcon aria-hidden="true" />
+                Download PDF
               </a>
             </Button>
+          ) : (
+            pdfPreparing(inv) && (
+              <p className="text-[13px] text-muted-foreground" role="status">
+                Preparing the PDF…
+              </p>
+            )
           )}
         </div>
       )}
