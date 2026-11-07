@@ -253,7 +253,8 @@ type Querier interface {
 	// The provider keeps the checkout payable longer than our default.
 	ExtendCheckoutSession(ctx context.Context, arg ExtendCheckoutSessionParams) (int64, error)
 	ExtendSession(ctx context.Context, arg ExtendSessionParams) error
-	FailBroadcast(ctx context.Context, arg FailBroadcastParams) (int64, error)
+	// No row when it isn't sending any more. The month its plan unit was taken from comes back.
+	FailBroadcast(ctx context.Context, arg FailBroadcastParams) (pgtype.Date, error)
 	// Members with 3+ failed sign-ins in the window. Reads auth_events directly, never secrets.
 	FailedLoginAlerts(ctx context.Context, arg FailedLoginAlertsParams) ([]FailedLoginAlertsRow, error)
 	// Why recipients didn't get it, most common first: Meta's error for a failed

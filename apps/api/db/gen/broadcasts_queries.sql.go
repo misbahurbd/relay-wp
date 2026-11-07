@@ -143,9 +143,10 @@ func (q *Queries) DueToStart(ctx context.Context, arg DueToStartParams) ([]DueTo
 	return items, nil
 }
 
-const failBroadcast = `-- name: FailBroadcast :execrows
+const failBroadcast = `-- name: FailBroadcast :one
 UPDATE broadcasts SET status = 'failed', failure_reason = $1, completed_at = $2::timestamptz, updated_at = now()
 WHERE workspace_id = $3 AND id = $4 AND status = 'sending'
+RETURNING usage_period
 `
 
 type FailBroadcastParams struct {
@@ -155,17 +156,17 @@ type FailBroadcastParams struct {
 	ID          uuid.UUID
 }
 
-func (q *Queries) FailBroadcast(ctx context.Context, arg FailBroadcastParams) (int64, error) {
-	result, err := q.db.Exec(ctx, failBroadcast,
+// No row when it isn't sending any more. The month its plan unit was taken from comes back.
+func (q *Queries) FailBroadcast(ctx context.Context, arg FailBroadcastParams) (pgtype.Date, error) {
+	row := q.db.QueryRow(ctx, failBroadcast,
 		arg.Reason,
 		arg.Now,
 		arg.WorkspaceID,
 		arg.ID,
 	)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+	var usage_period pgtype.Date
+	err := row.Scan(&usage_period)
+	return usage_period, err
 }
 
 const finishedSending = `-- name: FinishedSending :many

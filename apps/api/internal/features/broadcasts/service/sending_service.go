@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/misbahurbd/relay-wp/apps/api/db/gen"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/broadcasts/model"
@@ -44,9 +45,7 @@ func (s *Service) Start(ctx context.Context, workspaceID, id uuid.UUID) error {
 		members, err := s.segmentMembers(ctx, workspaceID, a)
 		if errors.Is(err, model.ErrSegmentNotFound) {
 			// A segment was deleted while this waited: it can't be sent as planned.
-			reason := model.ReasonSegmentDeleted
-			_, ferr := repo.FailBroadcast(ctx, gen.FailBroadcastParams{WorkspaceID: workspaceID, ID: id, Reason: &reason, Now: now})
-			return ferr
+			return s.failIn(ctx, tx, workspaceID, id, model.ReasonSegmentDeleted)
 		}
 		if err != nil {
 			return err
@@ -245,19 +244,38 @@ func (s *Service) complete(ctx context.Context, workspaceID, id uuid.UUID) error
 }
 
 func (s *Service) fail(ctx context.Context, workspaceID, id uuid.UUID, reason string) error {
-	return database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
-		repo := repository.NewRepository(tx)
-		n, err := repo.FailBroadcast(ctx, gen.FailBroadcastParams{WorkspaceID: workspaceID, ID: id, Reason: &reason, Now: s.now()})
-		if err != nil {
-			return fmt.Errorf("fail broadcast: %w", err)
-		}
-		if n == 0 {
-			return nil
-		}
-		s.log.WarnContext(ctx, "broadcast failed", "workspace_id", workspaceID, "broadcast_id", id, "reason", reason)
-		if err := repo.SkipPending(ctx, gen.SkipPendingParams{WorkspaceID: workspaceID, BroadcastID: id, Reason: &reason}); err != nil {
-			return fmt.Errorf("skip pending recipients: %w", err)
-		}
-		return nil
+	return database.WithTx(ctx, s.pool, func(tx pgx.Tx) error { return s.failIn(ctx, tx, workspaceID, id, reason) })
+}
+
+// failIn fails a sending broadcast in tx, if it still is one.
+func (s *Service) failIn(ctx context.Context, tx pgx.Tx, workspaceID, id uuid.UUID, reason string) error {
+	period, err := repository.NewRepository(tx).FailBroadcast(ctx, gen.FailBroadcastParams{
+		WorkspaceID: workspaceID, ID: id, Reason: &reason, Now: s.now(),
 	})
+	if repository.IsNoRows(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("fail broadcast: %w", err)
+	}
+	s.log.WarnContext(ctx, "broadcast failed", "workspace_id", workspaceID, "broadcast_id", id, "reason", reason)
+	return s.giveBack(ctx, tx, workspaceID, id, period, reason)
+}
+
+// giveBack skips a stopped broadcast's pending recipients for reason and, when
+// none of its messages was queued, gives its plan unit back to the month it was
+// taken from, all in tx: a retry finds the broadcast stopped and gives nothing twice.
+func (s *Service) giveBack(ctx context.Context, tx pgx.Tx, workspaceID, id uuid.UUID, period pgtype.Date, reason string) error {
+	repo := repository.NewRepository(tx)
+	if err := repo.SkipPending(ctx, gen.SkipPendingParams{WorkspaceID: workspaceID, BroadcastID: id, Reason: &reason}); err != nil {
+		return fmt.Errorf("skip pending recipients: %w", err)
+	}
+	queued, err := repo.CountQueued(ctx, gen.CountQueuedParams{WorkspaceID: workspaceID, BroadcastID: id})
+	if err != nil {
+		return fmt.Errorf("count queued: %w", err)
+	}
+	if queued > 0 || !period.Valid {
+		return nil
+	}
+	return s.deps.Usage.Release(ctx, tx, workspaceID, model.PlanResource, period.Time, 1)
 }
