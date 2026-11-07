@@ -1,14 +1,30 @@
 import type { ReactNode } from 'react'
 import { cn } from '#/lib/utils'
+import { type LimitState, limitState } from './limit-state'
 
 const count = new Intl.NumberFormat()
 
-/** Share of a limit at which a meter warns. */
-export const ALMOST_FULL = 0.8
+const TONE: Record<LimitState['kind'], { count: string; note: string; bar: string }> = {
+  unlimited: { count: 'text-foreground', note: 'text-muted-foreground', bar: 'bg-brand' },
+  ok: { count: 'text-foreground', note: 'text-muted-foreground', bar: 'bg-brand' },
+  almost: { count: 'text-warning', note: 'text-warning', bar: 'bg-warning-bar' },
+  at: { count: 'text-warning', note: 'text-warning', bar: 'bg-warning-bar' },
+  over: { count: 'text-destructive', note: 'text-destructive', bar: 'bg-destructive' },
+}
 
-/** Whether used is close enough to limit to warn. limit -1 is unlimited. */
-export function almostFull(used: number, limit: number) {
-  return limit > 0 && used / limit >= ALMOST_FULL
+function note(state: LimitState, used: number, limit: number) {
+  switch (state.kind) {
+    case 'unlimited':
+      return 'No limit on your plan'
+    case 'ok':
+      return `${state.pct}% used`
+    case 'almost':
+      return `${state.pct}% used. Upgrade to avoid interruptions.`
+    case 'at':
+      return 'At your limit. Upgrade to add more.'
+    case 'over':
+      return `${count.format(used)} of ${count.format(limit)} · over your limit`
+  }
 }
 
 /**
@@ -27,10 +43,9 @@ export function Meter({
   /** Shown after the label, such as a Preview badge. */
   tag?: ReactNode
 }) {
-  const unlimited = limit < 0
-  const share = unlimited || limit === 0 ? 0 : Math.min(used / limit, 1)
-  const pct = Math.round(share * 100)
-  const hot = almostFull(used, limit)
+  const state = limitState(used, limit)
+  const tone = TONE[state.kind]
+  const width = state.kind === 'ok' || state.kind === 'almost' ? state.pct : 100
 
   return (
     <div className="flex min-w-0 flex-col gap-2">
@@ -40,27 +55,16 @@ export function Meter({
           {tag}
         </span>
         <span className="text-muted-foreground tabular-nums">
-          <span className={cn('font-bold', hot ? 'text-warning' : 'text-foreground')}>
-            {count.format(used)}
-          </span>{' '}
-          / {unlimited ? 'Unlimited' : count.format(limit)}
+          <span className={cn('font-bold', tone.count)}>{count.format(used)}</span> /{' '}
+          {state.kind === 'unlimited' ? 'Unlimited' : count.format(limit)}
         </span>
       </div>
       <div aria-hidden="true" className="h-2 rounded-sm bg-secondary">
-        {!unlimited && (
-          <div
-            className={cn('h-2 rounded-sm', hot ? 'bg-warning-bar' : 'bg-brand')}
-            style={{ width: `${pct}%` }}
-          />
+        {state.kind !== 'unlimited' && (
+          <div className={cn('h-2 rounded-sm', tone.bar)} style={{ width: `${width}%` }} />
         )}
       </div>
-      <span className={cn('text-xs', hot ? 'text-warning' : 'text-muted-foreground')}>
-        {unlimited
-          ? 'No limit on your plan'
-          : hot
-            ? `${pct}% used. Upgrade to avoid interruptions.`
-            : `${pct}% used`}
-      </span>
+      <span className={cn('text-xs', tone.note)}>{note(state, used, limit)}</span>
     </div>
   )
 }

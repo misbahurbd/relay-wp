@@ -10,7 +10,8 @@ import {
 import { useBillingPreview } from '../../hooks/use-billing-preview'
 import type { Overview, UsageRow } from '../../types'
 import { formatDate } from '../kit/format'
-import { almostFull, Meter } from '../kit/meter'
+import { type LimitState, limitState } from '../kit/limit-state'
+import { Meter } from '../kit/meter'
 import { PreviewBadge } from '../kit/preview-badge'
 import { Section, SectionHeader } from '../kit/section'
 
@@ -37,11 +38,12 @@ export function UsageCard({
   const samples = useQuery({ ...usagePreviewQueryOptions(workspaceId), enabled: preview })
   const limits = overview.plan.limits
   const seatLimit = seats.data?.limit ?? limits.members
-  const hot = [
-    seats.data && almostFull(seats.data.used, seatLimit),
-    numbers.data !== undefined && almostFull(numbers.data, limits.whatsapp_numbers),
-    broadcasts && almostFull(broadcasts.used, broadcasts.limit),
-  ].filter(Boolean).length
+  const states = [
+    seats.data && limitState(seats.data.used, seatLimit),
+    numbers.data !== undefined && limitState(numbers.data, limits.whatsapp_numbers),
+    broadcasts && limitState(broadcasts.used, broadcasts.limit),
+  ].flatMap((s) => (s ? [s] : []))
+  const alert = limitsAlert(states)
   const sample = (key: string) => samples.data?.find((r) => r.key === key)
 
   const seatsRow = (
@@ -71,9 +73,9 @@ export function UsageCard({
         title="Usage limits"
         description={period(overview)}
         action={
-          hot > 0 && (
-            <Badge variant="warning" className="rounded-full px-2.5">
-              {hot === 1 ? '1 limit almost reached' : `${hot} limits almost reached`}
+          alert && (
+            <Badge variant={alert.variant} className="rounded-full px-2.5">
+              {alert.label}
             </Badge>
           )
         }
@@ -98,6 +100,30 @@ export function UsageCard({
       </div>
     </Section>
   )
+}
+
+const ALERT_WORDS = [
+  ['over', 'exceeded'],
+  ['at', 'reached'],
+  ['almost', 'almost reached'],
+] as const
+
+/** "1 limit exceeded, 2 almost reached": the limits that need attention, worst first. */
+function limitsAlert(states: LimitState[]) {
+  const parts = ALERT_WORDS.flatMap(([kind, words]) => {
+    const n = states.filter((s) => s.kind === kind).length
+    return n > 0 ? [{ n, words }] : []
+  })
+  if (parts.length === 0) return undefined
+  const label = parts
+    .map(({ n, words }, i) =>
+      i === 0 ? `${n} ${n === 1 ? 'limit' : 'limits'} ${words}` : `${n} ${words}`,
+    )
+    .join(', ')
+  return {
+    label,
+    variant: states.some((s) => s.kind === 'over') ? ('danger' as const) : ('warning' as const),
+  }
 }
 
 /** "Oct 14 – Nov 13 · resets in 16 days" for a subscription, else what the card shows. */
