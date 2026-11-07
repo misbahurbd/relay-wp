@@ -1,13 +1,15 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ExternalLinkIcon, FlaskConicalIcon, LoaderCircleIcon } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Alert, AlertDescription, AlertTitle } from '#/components/ui/alert'
 import { Button } from '#/components/ui/button'
 import { invalidateBilling } from '../../api/billing.keys'
 import { useCompleteTestCheckout } from '../../api/billing.mutations'
+import { plansQueryOptions } from '../../api/billing.queries'
 import { PROVIDER_LABEL } from '../../schemas/billing.schema'
 import type { StartedCheckout } from '../../types'
 import { checkoutReturnUrl, rememberCheckout } from './checkout-return'
+import { EmbeddedCheckout } from './embedded-checkout'
 import { StripePaymentForm } from './stripe-form'
 
 /** The fake gateway (PAYMENT_PROVIDERS=stripe:fake) hands out these instead of real keys. */
@@ -21,19 +23,23 @@ function isFake(started: StartedCheckout) {
 
 /**
  * Pays a started checkout the way its provider works: an embedded Stripe form when the API sent
- * a client secret, the provider's own page when it sent a URL. A checkout that is already settled
- * (Relay completes one with nothing to pay) goes straight to its result.
+ * a client secret, the provider's page over this one when it sent an embeddable URL, else a
+ * redirect to that URL. A checkout that is already settled (Relay completes one with nothing to
+ * pay) goes straight to its result. `onRestart` starts a fresh checkout once this one has
+ * expired; without it the member is told to start over.
  */
 export function PaymentStep({
   workspaceId,
   started,
   payLabel,
   onPaid,
+  onRestart,
 }: {
   workspaceId: string
   started: StartedCheckout
   payLabel: string
   onPaid: (sessionId: string) => void
+  onRestart?: () => void
 }) {
   const { session } = started
   if (session.status !== 'pending') {
@@ -59,13 +65,7 @@ export function PaymentStep({
     )
   }
   if (started.url)
-    return (
-      <HostedCheckout
-        url={started.url}
-        sessionId={session.id}
-        provider={PROVIDER_LABEL[session.provider]}
-      />
-    )
+    return <UrlCheckout started={started} url={started.url} onPaid={onPaid} onRestart={onRestart} />
   // Nothing to pay (a full discount or credit): the session settles by itself.
   if (session.amount_minor === 0) {
     return (
@@ -95,6 +95,50 @@ function Settled({ workspaceId, onDone }: { workspaceId: string; onDone: () => v
       Finishing your checkout…
     </p>
   )
+}
+
+/** The provider's own checkout page: over this page when the catalog says it can be, else a redirect. */
+function UrlCheckout({
+  started,
+  url,
+  onPaid,
+  onRestart,
+}: {
+  started: StartedCheckout
+  url: string
+  onPaid: (sessionId: string) => void
+  onRestart?: () => void
+}) {
+  const { session } = started
+  const catalog = useQuery(plansQueryOptions())
+  const [embedFailed, setEmbedFailed] = useState(false)
+  const provider = PROVIDER_LABEL[session.provider]
+
+  if (catalog.isPending) {
+    return (
+      <p className="flex items-center gap-2 text-sm" role="status">
+        <LoaderCircleIcon className="size-4 animate-spin text-brand-text" aria-hidden="true" />
+        Preparing your checkout…
+      </p>
+    )
+  }
+  const embeddable = catalog.data?.providers.find(
+    (p) => p.name === session.provider,
+  )?.embeddable_url
+  if (embeddable && !embedFailed) {
+    return (
+      <EmbeddedCheckout
+        url={url}
+        sessionId={session.id}
+        provider={provider}
+        expiresAt={session.expires_at}
+        onPaid={onPaid}
+        onUnavailable={() => setEmbedFailed(true)}
+        onRestart={onRestart}
+      />
+    )
+  }
+  return <HostedCheckout url={url} sessionId={session.id} provider={provider} />
 }
 
 function HostedCheckout({
