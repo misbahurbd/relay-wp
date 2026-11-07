@@ -40,6 +40,11 @@ func (s *Service) OnCheckout(ctx context.Context, tx pgx.Tx, ev model.CheckoutEv
 	if errors.Is(err, model.ErrInvalidPhone) {
 		return nil
 	}
+	if errors.Is(err, model.ErrContactLimit) {
+		return s.addRun(ctx, tx, repository.NewRepository(tx), newRun{
+			workspaceID: ev.WorkspaceID, kind: model.KindCart, dedupe: cartKey(ev.Token), skipped: model.ReasonContactLimit,
+		})
+	}
 	if err != nil {
 		return fmt.Errorf("checkout contact: %w", err)
 	}

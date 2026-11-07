@@ -69,8 +69,11 @@ type automationsContacts struct{ *contactsservice.Service }
 
 func (c automationsContacts) FindOrCreateByPhone(ctx context.Context, workspaceID uuid.UUID, phone, name string) (uuid.UUID, error) {
 	id, err := c.Service.FindOrCreateByPhone(ctx, workspaceID, phone, name)
-	if errors.Is(err, contactsmodel.ErrInvalidPhone) {
+	switch {
+	case errors.Is(err, contactsmodel.ErrInvalidPhone):
 		return uuid.Nil, automationsmodel.ErrInvalidPhone
+	case errors.Is(err, contactsmodel.ErrContactLimit):
+		return uuid.Nil, automationsmodel.ErrContactLimit
 	}
 	return id, err
 }

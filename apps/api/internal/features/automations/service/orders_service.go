@@ -48,6 +48,8 @@ func (s *Service) OnOrder(ctx context.Context, tx pgx.Tx, ev model.OrderEvent) e
 	switch {
 	case errors.Is(err, model.ErrInvalidPhone):
 		n.skipped, n.context = model.ReasonNoPhone, model.RunContext{}
+	case errors.Is(err, model.ErrContactLimit):
+		n.skipped, n.context = model.ReasonContactLimit, model.RunContext{}
 	case err != nil:
 		return fmt.Errorf("order contact: %w", err)
 	default:

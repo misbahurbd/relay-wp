@@ -269,7 +269,8 @@ type Querier interface {
 	// The provider keeps the checkout payable longer than our default.
 	ExtendCheckoutSession(ctx context.Context, arg ExtendCheckoutSessionParams) (int64, error)
 	ExtendSession(ctx context.Context, arg ExtendSessionParams) error
-	FailBroadcast(ctx context.Context, arg FailBroadcastParams) (int64, error)
+	// No row when it isn't sending any more. The month its plan unit was taken from comes back.
+	FailBroadcast(ctx context.Context, arg FailBroadcastParams) (pgtype.Date, error)
 	// Members with 3+ failed sign-ins in the window. Reads auth_events directly, never secrets.
 	FailedLoginAlerts(ctx context.Context, arg FailedLoginAlertsParams) ([]FailedLoginAlertsRow, error)
 	// Why recipients didn't get it, most common first: Meta's error for a failed
@@ -839,6 +840,10 @@ type Querier interface {
 	UpsertWhatsAppAccount(ctx context.Context, arg UpsertWhatsAppAccountParams) (uuid.UUID, error)
 	UpsertWhatsAppNumber(ctx context.Context, arg UpsertWhatsAppNumberParams) (uuid.UUID, error)
 	UseEmailCode(ctx context.Context, id uuid.UUID) error
+	// Whether a user already had a card-less trial on a workspace they created or
+	// own now, deleted ones included: one trial per person, not per workspace.
+	// Keyed by user, so it reads across workspaces.
+	UserHadTrial(ctx context.Context, userID *uuid.UUID) (bool, error)
 	// Per endpoint that has finished deliveries: the latest one, and the last 7 days' success count.
 	WebhookEndpointStats(ctx context.Context, workspaceID uuid.UUID) ([]WebhookEndpointStatsRow, error)
 }

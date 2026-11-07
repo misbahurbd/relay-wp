@@ -12,6 +12,7 @@ import (
 	"github.com/misbahurbd/relay-wp/apps/api/db/gen"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/model"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/repository"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/database"
 )
 
 // Consume uses n of monthly resource key in the current month, unless that
@@ -44,12 +45,14 @@ func (s *Service) Consume(ctx context.Context, workspaceID uuid.UUID, key string
 }
 
 // Release gives back n of monthly resource key consumed in the month that
-// starts at period, when the action it was consumed for didn't happen.
-func (s *Service) Release(ctx context.Context, workspaceID uuid.UUID, key string, period time.Time, n int) error {
+// starts at period, when the action it was consumed for didn't happen. It runs
+// on db, so a feature can give the unit back in the transaction that records
+// the failure: a retried job then never gives it back twice.
+func (s *Service) Release(ctx context.Context, db database.DBTX, workspaceID uuid.UUID, key string, period time.Time, n int) error {
 	if err := monthly(key, n); err != nil {
 		return err
 	}
-	_, err := repository.NewRepository(s.pool).ReleaseUsage(ctx, gen.ReleaseUsageParams{
+	_, err := repository.NewRepository(db).ReleaseUsage(ctx, gen.ReleaseUsageParams{
 		WorkspaceID: workspaceID, Resource: key, PeriodStart: date(model.PeriodStart(period)),
 		N: int32(n), //nolint:gosec // checked by monthly
 	})

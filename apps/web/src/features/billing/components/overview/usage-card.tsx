@@ -10,13 +10,11 @@ import {
   seatsUsageQueryOptions,
 } from '../../api/billing.queries'
 import type { Overview, Resource } from '../../types'
-import { formatDate } from '../kit/format'
 import { type LimitState, limitState } from '../kit/limit-state'
 import { Meter } from '../kit/meter'
 import { Section, SectionHeader } from '../kit/section'
 
 const DAY = 24 * 60 * 60 * 1000
-const count = new Intl.NumberFormat()
 
 type Load = { isPending: boolean; isError: boolean }
 
@@ -24,8 +22,8 @@ type Load = { isPending: boolean; isError: boolean }
 type Row = { resource: Resource; label: string; load: Load; used?: number; limit: number }
 
 /**
- * How much of each plan limit the workspace uses: a meter for every count and monthly resource the
- * plan includes, then the features it includes. Each count comes from the feature that owns it.
+ * How much of each plan limit the workspace uses: a meter for every count and monthly resource Relay
+ * enforces, then the features the plan includes. Each count comes from the feature that owns it.
  */
 export function UsageCard({
   workspaceId,
@@ -50,29 +48,31 @@ export function UsageCard({
   }
 
   const catalog = resources.data ?? []
+  // Only what Relay counts gets a meter. A limit of 0 (not in the plan) shows only once something
+  // is used, as after a downgrade, so going over it is visible.
   const rows: Row[] = catalog
-    .filter((r) => r.kind !== 'access' && (limits[r.key] ?? 0) !== 0)
-    .map((resource) => {
+    .filter((r) => r.kind !== 'access' && r.enforced)
+    .flatMap((resource): Row[] => {
       const limit = limits[resource.key] ?? 0
       if (resource.kind === 'monthly') {
-        const m = monthly.data?.[resource.key]
-        return {
-          resource,
-          label: `${resource.label} this month`,
-          load: monthly,
-          used: m?.used,
-          limit: m?.limit ?? limit,
-        }
+        const m = monthly.data?.resources[resource.key]
+        return [
+          {
+            resource,
+            label: `${resource.label} this month`,
+            load: monthly,
+            used: m?.used,
+            limit: m?.limit ?? limit,
+          },
+        ]
       }
       const c = counted[resource.key]
-      return {
-        resource,
-        label: resource.label,
-        load: c?.load,
-        used: c?.used,
-        limit: c?.limit ?? limit,
-      }
+      if (!c) return []
+      return [
+        { resource, label: resource.label, load: c.load, used: c.used, limit: c.limit ?? limit },
+      ]
     })
+    .filter((r) => r.limit !== 0 || (r.used ?? 0) > 0)
   const features = catalog.filter((r) => r.kind === 'access' && limits[r.key] === 1)
 
   const states = rows.flatMap((r) => (r.used === undefined ? [] : [limitState(r.used, r.limit)]))
@@ -83,7 +83,7 @@ export function UsageCard({
       <SectionHeader
         id="usage-heading"
         title="Usage limits"
-        description={period(overview)}
+        description={period(monthly.data)}
         action={
           alert && (
             <Badge variant={alert.variant} className="rounded-full px-2.5">
@@ -140,35 +140,23 @@ function limitsAlert(states: LimitState[]) {
   }
 }
 
-/** "Oct 14 – Nov 13 · resets in 16 days" for a subscription, else what the card shows. */
-function period({ subscription: sub }: Overview) {
-  if (!sub?.current_period_start || !sub.current_period_end) {
-    return 'What your plan includes and how much of it you use.'
-  }
-  const days = Math.max(0, Math.ceil((Date.parse(sub.current_period_end) - Date.now()) / DAY))
-  const short = (iso: string) =>
-    new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-  return `${short(sub.current_period_start)} – ${short(sub.current_period_end)} · ${
-    days === 0 ? `resets ${formatDate(sub.current_period_end)}` : `resets in ${days} days`
+/**
+ * "Nov 1 – Nov 30 · monthly limits reset in 24 days": monthly limits count a calendar month in UTC,
+ * whatever the subscription's billing dates, so the dates are shown in UTC too.
+ */
+function period(month: { periodStart: string; periodEnd: string } | undefined) {
+  if (!month) return 'What your plan includes and how much of it you use.'
+  const end = Date.parse(month.periodEnd)
+  const short = (ms: number) =>
+    new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' })
+  const days = Math.max(0, Math.ceil((end - Date.now()) / DAY))
+  return `${short(Date.parse(month.periodStart))} – ${short(end - DAY)} · ${
+    days <= 1 ? `monthly limits reset ${short(end)}` : `monthly limits reset in ${days} days`
   }`
 }
 
 function UsageRow({ row }: { row: Row }) {
   const { label, load, used, limit } = row
-  if (!load) {
-    // A limit no feature counts yet: show what the plan allows, without a bar.
-    return (
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center justify-between gap-2 text-[13px]">
-          <span className="font-bold">{label}</span>
-          <span className="text-muted-foreground tabular-nums">
-            {limit < 0 ? 'Unlimited' : `Up to ${count.format(limit)}`}
-          </span>
-        </div>
-        <span className="text-xs text-muted-foreground">Usage isn’t tracked yet.</span>
-      </div>
-    )
-  }
   if (load.isPending) return <Skeleton className="h-[62px]" aria-label={`Loading ${label}`} />
   if (load.isError || used === undefined) {
     return (

@@ -137,6 +137,7 @@ export const LOG_ACTIONS: Record<string, { label: string; tone: RoleColor }> = {
   role_created: { label: 'Role created', tone: 'green' },
   role_updated: { label: 'Role edited', tone: 'blue' },
   role_deleted: { label: 'Role deleted', tone: 'red' },
+  ownership_transferred: { label: 'Ownership transferred', tone: 'green' },
 }
 
 const EMAIL = z.email()

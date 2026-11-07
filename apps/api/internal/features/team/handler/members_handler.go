@@ -83,6 +83,10 @@ func (h *Handler) restore(ctx context.Context, in *dto.MemberActionInput) (*stru
 	return nil, h.svc.Restore(ctx, actor(ctx), meta(ctx, in.MetaHeaders), in.UserID)
 }
 
+func (h *Handler) transferOwnership(ctx context.Context, in *dto.MemberActionInput) (*struct{}, error) {
+	return nil, h.svc.TransferOwnership(ctx, actor(ctx), meta(ctx, in.MetaHeaders), in.UserID)
+}
+
 func (h *Handler) remove(ctx context.Context, in *dto.RemoveInput) (*struct{}, error) {
 	return nil, h.svc.Remove(ctx, actor(ctx), meta(ctx, in.MetaHeaders), in.UserID, model.RemoveInput{ConfirmName: in.Body.ConfirmName})
 }

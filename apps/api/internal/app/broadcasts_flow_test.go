@@ -307,6 +307,36 @@ func TestBroadcastPlanLimitScheduleAndCancel(t *testing.T) {
 	}
 }
 
+func TestStalledBroadcastGivesItsUnitBackOnlyWhenNothingWent(t *testing.T) {
+	b := newBroadcastsEnv(t)
+	b.contact("Grace", "+447700900031", "in")
+	stall := func(id string) {
+		t.Helper()
+		b.e.exec(`UPDATE broadcasts SET started_at = now() - interval '25 hours' WHERE id = $1`, id)
+		if err := b.e.a.broadcasts.Tick(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		if got := b.get(id); got["status"] != "failed" || got["failure_reason"] != "stalled" {
+			t.Fatalf("after a day: %v", got)
+		}
+	}
+
+	queued := b.draft("Queued")
+	expect(t, b.owner.do("POST", broadcastsBase+"/"+queued+"/send", map[string]any{}), http.StatusOK)
+	b.runBroadcasts() // its message is queued, so it counts
+	stall(queued)
+	if b.usedThisMonth() != 1 {
+		t.Fatalf("used = %v after a stall with a queued message; want 1", b.usedThisMonth())
+	}
+
+	nothing := b.draft("Nothing")
+	expect(t, b.owner.do("POST", broadcastsBase+"/"+nothing+"/send", map[string]any{}), http.StatusOK)
+	stall(nothing) // its start job never ran
+	if b.usedThisMonth() != 1 {
+		t.Fatalf("used = %v after a stall that sent nothing; want 1", b.usedThisMonth())
+	}
+}
+
 func TestBroadcastNeedsEverythingBeforeSending(t *testing.T) {
 	b := newBroadcastsEnv(t)
 	empty := b.owner.do("POST", broadcastsBase, map[string]any{"name": "Draft", "audience": map[string]any{"tag_ids": []string{}}, "variables": map[string]any{"body": []any{}}})

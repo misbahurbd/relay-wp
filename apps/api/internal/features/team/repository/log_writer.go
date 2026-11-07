@@ -33,6 +33,8 @@ const (
 	ActionRoleCreated       = "role_created"
 	ActionRoleUpdated       = "role_updated"
 	ActionRoleDeleted       = "role_deleted"
+	// ActionOwnershipTransferred: the subject became the owner; the actor, the old owner, became an Admin.
+	ActionOwnershipTransferred = "ownership_transferred"
 )
 
 // Event is one access log entry, written in the same transaction as the change

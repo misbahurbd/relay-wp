@@ -309,6 +309,55 @@ func TestSuspendRestoreRemove(t *testing.T) {
 	expect(t, w.owner.do("POST", w.base+"/me/leave", nil), http.StatusConflict, "owner_must_transfer")
 }
 
+func TestTransferOwnership(t *testing.T) {
+	e := newAuthEnv(t)
+	w := newTeamWorkspace(e)
+	admin, adminID := w.join("admin")
+	_, agentID := w.join("agent")
+	transfer := func(b *browser, userID string) resp {
+		return b.do("POST", w.base+"/members/"+userID+"/transfer-ownership", nil)
+	}
+
+	expect(t, transfer(admin, agentID), http.StatusForbidden, "owner_only")
+	expect(t, w.owner.do("POST", w.base+"/members/"+agentID+"/suspend", map[string]any{}), http.StatusNoContent)
+	expect(t, transfer(w.owner, agentID), http.StatusConflict, "member_not_active")
+
+	expect(t, transfer(w.owner, adminID), http.StatusNoContent)
+	if a := admin.do("GET", w.base+"/me/access", nil); a.body["is_owner"] != true {
+		t.Fatalf("new owner's access: %s", a.raw)
+	}
+	old := w.owner.do("GET", w.base+"/me/access", nil)
+	expect(t, old, http.StatusOK)
+	if old.body["is_owner"] != false || old.body["role_id"] != w.roles["admin"] {
+		t.Fatalf("old owner's access: %s", old.raw)
+	}
+	log := admin.do("GET", w.base+"/access-log", nil)
+	expect(t, log, http.StatusOK)
+	if entry := log.body["entries"].([]any)[0].(map[string]any); entry["action"] != "ownership_transferred" {
+		t.Fatalf("newest log entry: %v", entry)
+	}
+	// Now the old owner can leave.
+	expect(t, w.owner.do("POST", w.base+"/me/leave", nil), http.StatusNoContent)
+}
+
+func TestResendingAnExpiredInviteChecksTheMemberLimit(t *testing.T) {
+	e := newAuthEnv(t)
+	w := newTeamWorkspace(e)
+	e.a.team.SetPlanLimits(planCap(2)) // the owner and one more
+
+	invite := func(email string) string {
+		t.Helper()
+		created := w.owner.do("POST", w.base+"/invitations", map[string]any{"emails": []string{email}, "role_id": w.roles["agent"]})
+		expect(t, created, http.StatusCreated)
+		return created.body["invitations"].([]any)[0].(map[string]any)["id"].(string)
+	}
+	expired := invite(newEmail())
+	e.exec(`UPDATE invitations SET expires_at = now() - interval '1 hour' WHERE id = $1`, expired)
+	invite(newEmail()) // takes the seat the expired invite gave up
+
+	expect(t, w.owner.do("POST", w.base+"/invitations/"+expired+"/resend", nil), http.StatusConflict, "plan_member_limit")
+}
+
 func TestTeamsScopeMembers(t *testing.T) {
 	e := newAuthEnv(t)
 	w := newTeamWorkspace(e)

@@ -120,7 +120,7 @@ func TestAIRepliesQuotaWorksByKey(t *testing.T) {
 	if _, ok := reply(e); ok {
 		t.Fatal("third reply allowed past a cap of 2")
 	}
-	if err := e.svc.Release(e.ctx, e.ws, "ai_replies", period, 1); err != nil {
+	if err := e.svc.Release(e.ctx, e.pool, e.ws, "ai_replies", period, 1); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := reply(e); !ok {
@@ -176,7 +176,7 @@ func TestReleaseGivesBackToTheMonthConsumed(t *testing.T) {
 	if !e.consume(1) {
 		t.Fatal("November refused its first broadcast")
 	}
-	if err := e.svc.Release(e.ctx, e.ws, "broadcasts", period, 1); err != nil {
+	if err := e.svc.Release(e.ctx, e.pool, e.ws, "broadcasts", period, 1); err != nil {
 		t.Fatal(err)
 	}
 	if got := e.used(); got != 1 {
@@ -187,7 +187,7 @@ func TestReleaseGivesBackToTheMonthConsumed(t *testing.T) {
 		t.Errorf("October used = %d after release, want 0", got)
 	}
 	// Releasing more than was used never goes below 0.
-	if err := e.svc.Release(e.ctx, e.ws, "broadcasts", period, 3); err != nil {
+	if err := e.svc.Release(e.ctx, e.pool, e.ws, "broadcasts", period, 3); err != nil {
 		t.Fatal(err)
 	}
 	if got := e.used(); got != 0 {

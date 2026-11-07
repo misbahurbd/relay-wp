@@ -383,3 +383,25 @@ func (q *Queries) SuspendGrant(ctx context.Context, arg SuspendGrantParams) (int
 	}
 	return result.RowsAffected(), nil
 }
+
+const userHadTrial = `-- name: UserHadTrial :one
+SELECT EXISTS (
+    SELECT 1
+    FROM plan_grants g
+    JOIN workspaces w ON w.id = g.workspace_id
+    WHERE g.source = 'trial'
+      AND (w.created_by = $1 OR EXISTS (
+          SELECT 1 FROM workspace_members m JOIN roles r ON r.id = m.role_id
+          WHERE m.workspace_id = w.id AND m.user_id = $1 AND r.system_key = 'owner'))
+)
+`
+
+// Whether a user already had a card-less trial on a workspace they created or
+// own now, deleted ones included: one trial per person, not per workspace.
+// Keyed by user, so it reads across workspaces.
+func (q *Queries) UserHadTrial(ctx context.Context, userID *uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, userHadTrial, userID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}

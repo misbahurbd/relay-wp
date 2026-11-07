@@ -3,7 +3,7 @@ import { ChevronLeftIcon } from 'lucide-react'
 import { Logo } from '#/components/layout/logo'
 import { ThemeToggle } from '#/components/layout/theme-toggle'
 import { Button } from '#/components/ui/button'
-import { NoPayPermission } from '../kit/states'
+import { NoPayPermission, NoViewPermission } from '../kit/states'
 import { Catalogue } from './catalogue'
 import { PlanChoices } from './plan-choices'
 
@@ -52,7 +52,15 @@ export function PublicPricingPage() {
 }
 
 /** Plans inside the app: switch a subscription in place, or check out a new plan. */
-export function PlanPicker({ workspaceId, canPay }: { workspaceId: string; canPay: boolean }) {
+export function PlanPicker({
+  workspaceId,
+  canView,
+  canPay,
+}: {
+  workspaceId: string
+  canView: boolean
+  canPay: boolean
+}) {
   return (
     <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-6 p-4 sm:p-7">
       <nav aria-label="Breadcrumb">
@@ -70,8 +78,14 @@ export function PlanPicker({ workspaceId, canPay }: { workspaceId: string; canPa
           Upgrades apply now and are prorated. Downgrades start when your current period ends.
         </p>
       </div>
-      {!canPay && <NoPayPermission />}
-      <PlanChoices workspaceId={workspaceId} canPay={canPay} />
+      {canView ? (
+        <>
+          {!canPay && <NoPayPermission />}
+          <PlanChoices workspaceId={workspaceId} canPay={canPay} />
+        </>
+      ) : (
+        <NoViewPermission />
+      )}
     </main>
   )
 }

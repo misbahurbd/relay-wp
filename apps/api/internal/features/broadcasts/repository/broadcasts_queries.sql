@@ -90,9 +90,11 @@ UPDATE broadcasts SET status = 'completed', completed_at = @now::timestamptz, up
 WHERE workspace_id = @workspace_id AND id = @id AND status = 'sending'
 RETURNING name, recipients_total;
 
--- name: FailBroadcast :execrows
+-- name: FailBroadcast :one
+-- No row when it isn't sending any more. The month its plan unit was taken from comes back.
 UPDATE broadcasts SET status = 'failed', failure_reason = @reason, completed_at = @now::timestamptz, updated_at = now()
-WHERE workspace_id = @workspace_id AND id = @id AND status = 'sending';
+WHERE workspace_id = @workspace_id AND id = @id AND status = 'sending'
+RETURNING usage_period;
 
 -- ---------- The tick (every workspace) ----------
 

@@ -152,6 +152,9 @@ func TestBroadcastToSegments(t *testing.T) {
 	if got["status"] != "failed" || got["failure_reason"] != "segment_deleted" {
 		t.Fatalf("after delete: %v", got)
 	}
+	if b.usedThisMonth() != 1 {
+		t.Fatalf("used = %v; the failed broadcast sent nothing, so its unit comes back", b.usedThisMonth())
+	}
 	expect(t, b.owner.do("POST", broadcastsBase+"/audience-preview", map[string]any{"segment_ids": []string{usID}}),
 		http.StatusUnprocessableEntity, "broadcast_segment_not_found")
 }

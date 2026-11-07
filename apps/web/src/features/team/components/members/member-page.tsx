@@ -48,7 +48,7 @@ import { Modal } from '../kit/modal'
 import { Breadcrumb, Panel, PanelHeader, SectionLabel } from '../kit/panel'
 import { Pill } from '../kit/pill'
 import { RadioOption } from '../kit/radio'
-import { ChangeRoleDialog, RemoveMemberDialog } from './member-dialogs'
+import { ChangeRoleDialog, RemoveMemberDialog, TransferOwnershipDialog } from './member-dialogs'
 
 type Props = { workspaceId: string; userId: string; meId: string }
 
@@ -59,7 +59,7 @@ export function MemberPage({ workspaceId, userId, meId }: Props) {
   const member = useQuery(memberQueryOptions(workspaceId, userId))
   const roles = useQuery(rolesQueryOptions(workspaceId))
   const catalog = useQuery(permissionsQueryOptions())
-  const { can } = useAccess(workspaceId)
+  const { can, isOwner } = useAccess(workspaceId)
   const [removed, setRemoved] = useState<{ name: string } | null>(null)
 
   if (removed) return <RemovedState workspaceId={workspaceId} name={removed.name} />
@@ -162,6 +162,7 @@ export function MemberPage({ workspaceId, userId, meId }: Props) {
               workspaceId={workspaceId}
               member={m}
               owner={owner}
+              canTransfer={isOwner}
               onRemoved={() => setRemoved({ name: m.name })}
             />
           )}
@@ -784,16 +785,20 @@ function ActionsCard({
   workspaceId,
   member,
   owner,
+  canTransfer,
   onRemoved,
 }: {
   workspaceId: string
   member: MemberDetail
   owner: boolean
+  /** The viewer is the Owner, so they can hand the workspace to this member. */
+  canTransfer: boolean
   onRemoved: () => void
 }) {
   const suspend = useSuspendMember(workspaceId, member.user_id)
   const restore = useRestoreMember(workspaceId, member.user_id)
   const [removing, setRemoving] = useState(false)
+  const [transferring, setTransferring] = useState(false)
   const first = member.name.split(' ')[0]
   const suspended = member.status === 'suspended'
   return (
@@ -855,6 +860,20 @@ function ActionsCard({
               Remove member
             </Btn>
           </div>
+          {canTransfer && !suspended && (
+            <div className="flex flex-wrap items-center gap-3 border-t py-3.5">
+              <div className="flex min-w-0 flex-[1_1_300px] flex-col leading-[1.35]">
+                <span className="font-bold">Transfer ownership</span>
+                <span className="text-[13px] text-muted-foreground">
+                  Makes {first} the Owner, with billing and deleting the workspace. You become an
+                  Admin.
+                </span>
+              </div>
+              <Btn variant="danger-outline" size="md" onClick={() => setTransferring(true)}>
+                Transfer ownership
+              </Btn>
+            </div>
+          )}
         </>
       )}
       <div className="mt-1.5 flex items-start gap-2.5 rounded-lg bg-muted px-3.5 py-3 text-[13px]">
@@ -862,14 +881,14 @@ function ActionsCard({
         <span>
           {owner ? (
             <>
-              The Owner can’t be suspended or removed. <strong>Transfer ownership</strong> from
-              Settings first; the old Owner becomes an Admin.
+              The Owner can’t be suspended or removed. To hand over the workspace, the Owner opens
+              another member’s page and chooses <strong>Transfer ownership</strong>; the old Owner
+              becomes an Admin.
             </>
           ) : (
             <>
-              <strong>Transfer ownership</strong> only appears on the Owner’s profile. The Owner
-              picks an Admin to become the new Owner and confirms with their password; the old Owner
-              becomes an Admin.
+              Only the Owner can <strong>transfer ownership</strong>, to an active member. The old
+              Owner becomes an Admin.
             </>
           )}
         </span>
@@ -880,6 +899,13 @@ function ActionsCard({
           member={member}
           onClose={() => setRemoving(false)}
           onRemoved={onRemoved}
+        />
+      )}
+      {transferring && (
+        <TransferOwnershipDialog
+          workspaceId={workspaceId}
+          member={member}
+          onClose={() => setTransferring(false)}
         />
       )}
     </section>

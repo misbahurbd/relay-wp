@@ -325,6 +325,68 @@ func (s *Service) Leave(ctx context.Context, me authctx.Access, meta model.Meta)
 	})
 }
 
+// TransferOwnership makes an active member the owner and the current owner an
+// Admin, in one transaction. Only the owner can do it. Billing belongs to the
+// workspace, so it carries on unchanged.
+func (s *Service) TransferOwnership(ctx context.Context, actor authctx.Access, meta model.Meta, userID uuid.UUID) error {
+	if !actor.Owner {
+		return model.ErrOwnerOnly
+	}
+	return database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+		r := repository.NewRepository(tx)
+		m, err := lockTarget(ctx, r, actor, userID)
+		if err != nil {
+			return err
+		}
+		if m.Status != model.StatusActive {
+			return model.ErrMemberNotActive
+		}
+		if _, err := r.LockMember(ctx, gen.LockMemberParams{WorkspaceID: actor.WorkspaceID, UserID: actor.UserID}); err != nil {
+			return fmt.Errorf("lock owner: %w", err)
+		}
+		if !m.UsesSeat {
+			// A Viewer becomes the owner and the old owner an Admin: one more seat.
+			seats, err := s.seats(ctx, tx, actor.WorkspaceID)
+			if err != nil {
+				return err
+			}
+			if seats.Limit >= 0 && seats.Available < 1 {
+				return model.ErrNotEnoughSeats
+			}
+		}
+		roleID := func(key string) (uuid.UUID, error) {
+			id, err := r.GetSystemRoleID(ctx, gen.GetSystemRoleIDParams{WorkspaceID: actor.WorkspaceID, SystemKey: &key})
+			if err != nil {
+				return uuid.Nil, fmt.Errorf("%s role: %w", key, err)
+			}
+			return id, nil
+		}
+		ownerRole, err := roleID(model.RoleOwner)
+		if err != nil {
+			return err
+		}
+		adminRole, err := roleID(model.RoleAdmin)
+		if err != nil {
+			return err
+		}
+		current, err := s.getRole(ctx, tx, actor.WorkspaceID, m.RoleID)
+		if err != nil {
+			return err
+		}
+		if err := r.SetMemberRole(ctx, gen.SetMemberRoleParams{WorkspaceID: actor.WorkspaceID, UserID: userID, RoleID: ownerRole}); err != nil {
+			return fmt.Errorf("set new owner: %w", err)
+		}
+		if err := r.SetMemberRole(ctx, gen.SetMemberRoleParams{WorkspaceID: actor.WorkspaceID, UserID: actor.UserID, RoleID: adminRole}); err != nil {
+			return fmt.Errorf("set old owner: %w", err)
+		}
+		return r.Log(ctx, repository.Event{
+			WorkspaceID: actor.WorkspaceID, Actor: &actor.UserID, Subject: &userID, SubjectEmail: &m.Email,
+			Action: repository.ActionOwnershipTransferred, Target: "role",
+			Before: map[string]any{"role": current.Name}, After: map[string]any{"role": "Owner", "previous_owner_role": "Admin"},
+		}, meta)
+	})
+}
+
 // SetAvailability records whether the member is online, away or offline.
 func (s *Service) SetAvailability(ctx context.Context, me authctx.Access, availability string) error {
 	if !slices.Contains(model.Availabilities, availability) {

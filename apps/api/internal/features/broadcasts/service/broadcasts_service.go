@@ -297,8 +297,11 @@ func (s *Service) Send(ctx context.Context, workspaceID, id uuid.UUID, scheduled
 	err = database.WithTx(ctx, s.pool, func(tx pgx.Tx) error { return s.send(ctx, tx, workspaceID, id, b.Status, scheduledAt, period) })
 	if err != nil {
 		if period != nil {
-			if rerr := s.deps.Usage.Release(ctx, workspaceID, model.PlanResource, *period, 1); rerr != nil {
-				s.log.ErrorContext(ctx, "release broadcast usage", "workspace_id", workspaceID, "broadcast_id", id, "error", rerr)
+			// The request is already failing, so a failed release can only be
+			// reported: the month stays one broadcast over until support fixes it (ADR 0008).
+			if rerr := s.deps.Usage.Release(ctx, s.pool, workspaceID, model.PlanResource, *period, 1); rerr != nil {
+				s.log.ErrorContext(ctx, "broadcast usage not given back", "workspace_id", workspaceID, "broadcast_id", id,
+					"usage_period", period.Format(time.DateOnly), "error", rerr)
 			}
 		}
 		return model.Broadcast{}, err
@@ -402,37 +405,22 @@ func checkVariables(t model.Template, vs model.Variables) []apperr.Detail {
 // Cancel stops a scheduled or sending broadcast. Messages already queued still
 // go. A broadcast that queued nothing gives its plan unit back.
 func (s *Service) Cancel(ctx context.Context, workspaceID, id uuid.UUID) (model.Broadcast, error) {
-	var period pgtype.Date
-	var queued int32
 	err := database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
 		repo := repository.NewRepository(tx)
 		if _, err := lock(ctx, repo, workspaceID, id); err != nil {
 			return err
 		}
-		p, err := repo.CancelBroadcast(ctx, gen.CancelBroadcastParams{WorkspaceID: workspaceID, ID: id, Now: s.now()})
+		period, err := repo.CancelBroadcast(ctx, gen.CancelBroadcastParams{WorkspaceID: workspaceID, ID: id, Now: s.now()})
 		if repository.IsNoRows(err) {
 			return model.ErrNotCancellable
 		}
 		if err != nil {
 			return fmt.Errorf("cancel broadcast: %w", err)
 		}
-		period = p
-		reason := model.ReasonCancelled
-		if err := repo.SkipPending(ctx, gen.SkipPendingParams{WorkspaceID: workspaceID, BroadcastID: id, Reason: &reason}); err != nil {
-			return fmt.Errorf("skip pending recipients: %w", err)
-		}
-		if queued, err = repo.CountQueued(ctx, gen.CountQueuedParams{WorkspaceID: workspaceID, BroadcastID: id}); err != nil {
-			return fmt.Errorf("count queued: %w", err)
-		}
-		return nil
+		return s.giveBack(ctx, tx, workspaceID, id, period, model.ReasonCancelled)
 	})
 	if err != nil {
 		return model.Broadcast{}, err
-	}
-	if queued == 0 && period.Valid {
-		if err := s.deps.Usage.Release(ctx, workspaceID, model.PlanResource, period.Time, 1); err != nil {
-			return model.Broadcast{}, err
-		}
 	}
 	return s.Get(ctx, workspaceID, id)
 }

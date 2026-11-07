@@ -62,6 +62,8 @@ export function describeLog(e: LogLike, label: (key: string) => string) {
       return `edited the role “${field(e.after, 'name')}”`
     case 'role_deleted':
       return `deleted the role “${field(e.before, 'name')}”`
+    case 'ownership_transferred':
+      return `made ${who} the Owner and became an Admin`
     default:
       return e.action.replace(/_/g, ' ')
   }
@@ -102,6 +104,8 @@ export function logChange(e: LogLike, label: (key: string) => string) {
       return { target: `Role “${field(e.after, 'name')}”` }
     case 'role_deleted':
       return { target: `Role “${field(e.before, 'name')}”` }
+    case 'ownership_transferred':
+      return { target: 'Role', before: field(e.before, 'role'), after: 'Owner' }
     case 'team_changed':
       return { target: `Team ${field(e.after, 'name') ?? field(e.before, 'name') ?? ''}`.trim() }
     case 'access_changed':

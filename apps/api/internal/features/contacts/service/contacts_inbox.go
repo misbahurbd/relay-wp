@@ -28,6 +28,8 @@ const maxExternalIDLen = 128
 // to the contact found, and the phone to a contact that had none. A known
 // identity wins, so a later edit of the contact's phone doesn't lose the chat.
 // Concurrent calls for one new sender agree on one contact and one identity.
+// A new sender is added even past the plan's contact limit: refusing would
+// drop a customer's message, which is worse than going over the cap.
 // For features/inbox, through an interface it declares.
 func (s *Service) FindOrCreateByIdentity(ctx context.Context, workspaceID uuid.UUID, in model.Sender) (model.Contact, bool, error) {
 	in.ChannelType, in.ExternalID = strings.TrimSpace(in.ChannelType), strings.TrimSpace(in.ExternalID)
@@ -204,11 +206,51 @@ func (s *Service) SetLastMessage(ctx context.Context, tx pgx.Tx, workspaceID, co
 	return nil
 }
 
-// FindOrCreateByPhone returns who has a phone, adding them if new. For
-// features/automations, through an interface it declares.
+// FindOrCreateByPhone returns who has a phone, adding them if new. A new
+// customer counts toward the plan's contact limit: at the limit it returns
+// model.ErrContactLimit. For features/automations (store events), through an
+// interface it declares.
 func (s *Service) FindOrCreateByPhone(ctx context.Context, workspaceID uuid.UUID, phone, name string) (uuid.UUID, error) {
-	id, _, err := s.findOrCreateByPhone(ctx, repository.NewRepository(s.pool), workspaceID, phone, name)
-	return id, err
+	e164, ok := NormalizePhone(phone)
+	if !ok {
+		return uuid.Nil, model.ErrInvalidPhone
+	}
+	byPhone := gen.ContactIDByPhoneParams{WorkspaceID: workspaceID, Phone: e164}
+	id, err := repository.NewRepository(s.pool).ContactIDByPhone(ctx, byPhone)
+	if err == nil {
+		return id, nil
+	}
+	if !repository.IsNoRows(err) {
+		return uuid.Nil, fmt.Errorf("contact by phone: %w", err)
+	}
+	limit, err := s.contactLimit(ctx, workspaceID)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	err = database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+		r := repository.NewRepository(tx)
+		room, err := contactRoom(ctx, r, workspaceID, limit)
+		if err != nil {
+			return err
+		}
+		// Another event may have added this customer while this one waited for the lock.
+		id, err = r.ContactIDByPhone(ctx, byPhone)
+		if err == nil {
+			return nil
+		}
+		if !repository.IsNoRows(err) {
+			return fmt.Errorf("contact by phone: %w", err)
+		}
+		if room == 0 {
+			return model.ErrContactLimit
+		}
+		id, _, err = s.findOrCreateByPhone(ctx, r, workspaceID, e164, name)
+		return err
+	})
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return id, nil
 }
 
 // ContactIDByPhone says who has a phone, if anyone.

@@ -14,6 +14,7 @@ import (
 	"github.com/riverqueue/river/rivertype"
 
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/broadcasts/model"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/database"
 )
 
 // Inbox queues one broadcast message. Implemented in internal/app on top of features/inbox.
@@ -45,7 +46,8 @@ type Segments interface {
 // Usage counts the plan's monthly broadcasts. Implemented by features/billing (ADR 0008).
 type Usage interface {
 	Consume(ctx context.Context, workspaceID uuid.UUID, key string, n int) (period time.Time, ok bool, err error)
-	Release(ctx context.Context, workspaceID uuid.UUID, key string, period time.Time, n int) error
+	// Release gives back n units of period on db, which may be the caller's transaction.
+	Release(ctx context.Context, db database.DBTX, workspaceID uuid.UUID, key string, period time.Time, n int) error
 }
 
 // Events publishes integrations webhooks in tx. Implemented by features/integrations.
