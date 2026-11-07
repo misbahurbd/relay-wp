@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/rand/v2"
 	"strings"
 	"sync"
@@ -438,6 +439,29 @@ func TestSweepBacksOffAnInvoiceThatKeepsFailing(t *testing.T) {
 	e.exec(`UPDATE invoices SET document_swept_at = now() - interval '20 minutes' WHERE id = $1`, inv)
 	if e.sweptNow(inv) {
 		t.Fatal("the second backoff is no longer than the first")
+	}
+}
+
+// An invoice that still can't be delivered after maxDocumentSweeps sweeps is
+// given up on, with one error log for a person, instead of being swept daily
+// for good.
+func TestSweepGivesUpOnAnInvoiceThatNeverDelivers(t *testing.T) {
+	e := newDocsEnv(t)
+	logs := &syncBuffer{}
+	e.svc.log = slog.New(slog.NewJSONHandler(logs, nil))
+	p := e.plan(t3PlanOpts{Monthly: 7900})
+	e.subscribe(p.Monthly)
+	inv := e.documentJobs()[0]
+	e.exec(`UPDATE invoices SET created_at = '2000-01-01', document_sweeps = $2 - 1 WHERE id = $1`, inv, maxDocumentSweeps)
+	if !e.sweptNow(inv) {
+		t.Fatal("the last sweep skipped the invoice")
+	}
+	e.exec(`UPDATE invoices SET document_swept_at = '2000-01-01' WHERE id = $1`, inv)
+	if e.sweptNow(inv) {
+		t.Fatalf("swept again after %d sweeps", maxDocumentSweeps)
+	}
+	if n := strings.Count(logs.String(), inv.String()); n != 1 {
+		t.Errorf("invoice logged %d times, want once", n)
 	}
 }
 

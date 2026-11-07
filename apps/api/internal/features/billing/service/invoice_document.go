@@ -107,10 +107,16 @@ func (s *Service) DeliverInvoiceDocument(ctx context.Context, workspaceID, invoi
 // before the sweep queues it.
 const invoiceDocumentGrace = 10 * time.Minute
 
+// maxDocumentSweeps is how often the sweep queues one invoice's document
+// before it gives up: with its backoff, about five days of tries on top of
+// the job's own retries.
+const maxDocumentSweeps = 12
+
 // SweepInvoiceDocuments queues the document job again for numbered invoices
 // whose PDF, or receipt email, is still undelivered ten minutes after they
 // were issued, and returns how many it claimed. Each invoice backs off between
-// sweeps (ClaimInvoicesToDeliver). The job is unique by args, so while an
+// sweeps (ClaimInvoicesToDeliver), and after maxDocumentSweeps the sweep
+// logs an error and leaves it for a person. The job is unique by args, so while an
 // earlier job for the invoice still waits or retries the sweep adds nothing,
 // and tries again after the backoff. Run every 15 minutes by the
 // InvoiceDocumentsSweep worker.
@@ -119,12 +125,16 @@ func (s *Service) SweepInvoiceDocuments(ctx context.Context) (int, error) {
 	err := database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
 		now := s.now()
 		rows, err := repository.NewRepository(tx).ClaimInvoicesToDeliver(ctx, gen.ClaimInvoicesToDeliverParams{
-			Now: now, Before: now.Add(-invoiceDocumentGrace), MaxRows: jobBatch,
+			Now: now, Before: now.Add(-invoiceDocumentGrace), MaxSweeps: maxDocumentSweeps, MaxRows: jobBatch,
 		})
 		if err != nil {
 			return fmt.Errorf("claim invoices to deliver: %w", err)
 		}
 		for _, row := range rows {
+			if row.DocumentSweeps >= maxDocumentSweeps {
+				s.logger().ErrorContext(ctx, "billing: invoice document still undelivered; last sweep, needs a person if this fails",
+					"workspace_id", row.WorkspaceID, "invoice_id", row.ID, "sweeps", row.DocumentSweeps)
+			}
 			args := model.InvoiceDocumentArgs{WorkspaceID: row.WorkspaceID, InvoiceID: row.ID}
 			if _, err := s.queue.InsertTx(ctx, tx, args, nil); err != nil {
 				return fmt.Errorf("enqueue invoice document: %w", err)

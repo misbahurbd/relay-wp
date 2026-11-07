@@ -74,13 +74,15 @@ WHERE workspace_id = @workspace_id AND id = @invoice_id AND pdf_key IS NULL;
 -- billing contact (none for a refunded payment), is still undelivered: their document job ran out of
 -- attempts, or they predate invoice documents. Each claim counts a sweep and
 -- the next waits twice as long (15 minutes, then 30, up to a day), and
--- the least recently swept go first, so failing invoices can't crowd out new ones.
+-- the least recently swept go first, so failing invoices can't crowd out new
+-- ones. After max_sweeps claims an invoice is left for a person.
 WITH due AS (
     SELECT x.id
     FROM invoices x
     WHERE x.number IS NOT NULL AND x.created_at < sqlc.arg(before)::timestamptz
       AND (x.pdf_key IS NULL OR x.emailed_at IS NULL)
       AND (x.pdf_key IS NULL OR (COALESCE(x.bill_to ->> 'email', '') <> '' AND x.status <> 'refunded'))
+      AND x.document_sweeps < sqlc.arg(max_sweeps)::int
       AND (x.document_swept_at IS NULL
            OR x.document_swept_at <= sqlc.arg(now)::timestamptz
                - least(interval '15 minutes' * power(2, least(x.document_sweeps - 1, 7)), interval '1 day'))
@@ -91,7 +93,7 @@ WITH due AS (
 UPDATE invoices
 SET document_sweeps = document_sweeps + 1, document_swept_at = @now::timestamptz
 WHERE id IN (SELECT id FROM due)
-RETURNING id, workspace_id;
+RETURNING id, workspace_id, document_sweeps;
 
 -- name: MarkInvoiceEmailed :execrows
 UPDATE invoices

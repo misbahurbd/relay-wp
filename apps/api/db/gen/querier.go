@@ -86,7 +86,8 @@ type Querier interface {
 	// billing contact (none for a refunded payment), is still undelivered: their document job ran out of
 	// attempts, or they predate invoice documents. Each claim counts a sweep and
 	// the next waits twice as long (15 minutes, then 30, up to a day), and
-	// the least recently swept go first, so failing invoices can't crowd out new ones.
+	// the least recently swept go first, so failing invoices can't crowd out new
+	// ones. After max_sweeps claims an invoice is left for a person.
 	ClaimInvoicesToDeliver(ctx context.Context, arg ClaimInvoicesToDeliverParams) ([]ClaimInvoicesToDeliverRow, error)
 	// ---------- Sending ----------
 	// The next pending recipients, locked so a second batch job skips them. The
