@@ -117,7 +117,7 @@ func (q *Queries) CreateRefund(ctx context.Context, arg CreateRefundParams) (uui
 }
 
 const findInvoiceByExternalPaymentID = `-- name: FindInvoiceByExternalPaymentID :one
-SELECT id, workspace_id, subscription_id, order_id, total_minor, status
+SELECT id, workspace_id, subscription_id, order_id, installment_id, total_minor, tax_minor, status
 FROM invoices
 WHERE provider = $1 AND external_payment_id = $2
 `
@@ -132,7 +132,9 @@ type FindInvoiceByExternalPaymentIDRow struct {
 	WorkspaceID    uuid.UUID
 	SubscriptionID *uuid.UUID
 	OrderID        *uuid.UUID
+	InstallmentID  *uuid.UUID
 	TotalMinor     int64
+	TaxMinor       int64
 	Status         string
 }
 
@@ -145,7 +147,9 @@ func (q *Queries) FindInvoiceByExternalPaymentID(ctx context.Context, arg FindIn
 		&i.WorkspaceID,
 		&i.SubscriptionID,
 		&i.OrderID,
+		&i.InstallmentID,
 		&i.TotalMinor,
+		&i.TaxMinor,
 		&i.Status,
 	)
 	return i, err
@@ -260,6 +264,29 @@ func (q *Queries) GetOrderRefundTotals(ctx context.Context, arg GetOrderRefundTo
 	return i, err
 }
 
+const hasOtherInstallmentPayment = `-- name: HasOtherInstallmentPayment :one
+SELECT EXISTS (
+    SELECT 1 FROM invoices
+    WHERE workspace_id = $1 AND installment_id = $2 AND id <> $3
+      AND status IN ('paid', 'partially_refunded', 'disputed')
+)
+`
+
+type HasOtherInstallmentPaymentParams struct {
+	WorkspaceID   uuid.UUID
+	InstallmentID *uuid.UUID
+	InvoiceID     uuid.UUID
+}
+
+// Whether another invoice still pays for the installment (it was paid again
+// after a refund, or twice at once).
+func (q *Queries) HasOtherInstallmentPayment(ctx context.Context, arg HasOtherInstallmentPaymentParams) (bool, error) {
+	row := q.db.QueryRow(ctx, hasOtherInstallmentPayment, arg.WorkspaceID, arg.InstallmentID, arg.InvoiceID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const listInvoices = `-- name: ListInvoices :many
 SELECT id, number, subscription_id, order_id, installment_id, provider, status, subtotal_minor, tax_minor,
        total_minor, currency, period_start, period_end, discount_minor, receipt_url, paid_at, created_at
@@ -343,7 +370,7 @@ func (q *Queries) ListInvoices(ctx context.Context, arg ListInvoicesParams) ([]L
 }
 
 const lockInvoiceByExternalPaymentID = `-- name: LockInvoiceByExternalPaymentID :one
-SELECT id, workspace_id, subscription_id, order_id, total_minor, status
+SELECT id, workspace_id, subscription_id, order_id, installment_id, total_minor, tax_minor, status
 FROM invoices
 WHERE provider = $1 AND external_payment_id = $2
 FOR UPDATE
@@ -359,7 +386,9 @@ type LockInvoiceByExternalPaymentIDRow struct {
 	WorkspaceID    uuid.UUID
 	SubscriptionID *uuid.UUID
 	OrderID        *uuid.UUID
+	InstallmentID  *uuid.UUID
 	TotalMinor     int64
+	TaxMinor       int64
 	Status         string
 }
 
@@ -372,7 +401,9 @@ func (q *Queries) LockInvoiceByExternalPaymentID(ctx context.Context, arg LockIn
 		&i.WorkspaceID,
 		&i.SubscriptionID,
 		&i.OrderID,
+		&i.InstallmentID,
 		&i.TotalMinor,
+		&i.TaxMinor,
 		&i.Status,
 	)
 	return i, err

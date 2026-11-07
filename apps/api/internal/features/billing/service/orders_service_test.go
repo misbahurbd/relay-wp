@@ -774,3 +774,30 @@ func TestRefundingPartOfALifetimeDealKeepsIt(t *testing.T) {
 	}
 	wantGrant(t, h.grant(o.ID), model.GrantActive)
 }
+
+// Refunding one installment in full takes its payment off the order and opens
+// the installment again, so the due and overdue flow collects it (case 43).
+func TestRefundingAnInstallmentReopensIt(t *testing.T) {
+	h := newLTDHarness(t, model.CollectionProviderSchedule)
+	q, err := h.quote(h.basic, &h.basic3, "")
+	h.must(err)
+	o := h.buy(q, "sched_"+uuid.NewString())
+	first := h.order(o.ID).PaidMinor
+	h.now = h.now.Add(month)
+	h.must(h.providerPayment(o.ID, h.payment(10333), true))
+
+	h.refundAll(o.ID, 1)
+	wantOrder(t, h.order(o.ID), model.OrderInInstallments, first,
+		model.InstallmentPaid, model.InstallmentDue, model.InstallmentScheduled)
+
+	// Paying it again settles it, and the old refund replayed reopens nothing.
+	h.must(h.providerPayment(o.ID, h.payment(10333), true))
+	var pay string
+	h.must(h.pool.QueryRow(h.ctx, `SELECT external_payment_id FROM invoices WHERE order_id = $1 AND status = 'refunded'`,
+		o.ID).Scan(&pay))
+	ev := refundEvent(pay, "re_replay_"+uuid.NewString(), 10333, payment.RefundSucceeded)
+	ev.Provider = payment.Stripe
+	h.must(database.WithTx(h.ctx, h.pool, func(tx pgx.Tx) error { return h.l.onRefund(h.ctx, tx, h.ws, ev) }))
+	wantOrder(t, h.order(o.ID), model.OrderInInstallments, first+10333,
+		model.InstallmentPaid, model.InstallmentPaid, model.InstallmentScheduled)
+}

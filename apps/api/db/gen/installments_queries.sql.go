@@ -330,6 +330,27 @@ func (q *Queries) MarkInstallmentPaid(ctx context.Context, arg MarkInstallmentPa
 	return result.RowsAffected(), nil
 }
 
+const reopenInstallment = `-- name: ReopenInstallment :execrows
+UPDATE installments
+SET status = $1, paid_at = NULL
+WHERE workspace_id = $2 AND id = $3 AND status = 'paid'
+`
+
+type ReopenInstallmentParams struct {
+	Status        string
+	WorkspaceID   uuid.UUID
+	InstallmentID uuid.UUID
+}
+
+// A paid installment whose payment was refunded in full is owed again.
+func (q *Queries) ReopenInstallment(ctx context.Context, arg ReopenInstallmentParams) (int64, error) {
+	result, err := q.db.Exec(ctx, reopenInstallment, arg.Status, arg.WorkspaceID, arg.InstallmentID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const setInstallmentReminderSent = `-- name: SetInstallmentReminderSent :execrows
 UPDATE installments
 SET reminder_sent_at = $1

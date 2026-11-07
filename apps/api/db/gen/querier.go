@@ -397,6 +397,9 @@ type Querier interface {
 	// Whether the workspace has used its one trial: it had a subscription that
 	// started (trialing or paid), or a card-less trial grant.
 	HasHadTrial(ctx context.Context, workspaceID uuid.UUID) (bool, error)
+	// Whether another invoice still pays for the installment (it was paid again
+	// after a refund, or twice at once).
+	HasOtherInstallmentPayment(ctx context.Context, arg HasOtherInstallmentPaymentParams) (bool, error)
 	// ---------- Access log ----------
 	InsertAccessLog(ctx context.Context, arg InsertAccessLogParams) error
 	InsertAuthEvent(ctx context.Context, arg InsertAuthEventParams) error
@@ -614,6 +617,8 @@ type Querier interface {
 	RemoveContactTagLinks(ctx context.Context, arg RemoveContactTagLinksParams) (int64, error)
 	// A payment arrived for a failed or expired session: it completes after all.
 	ReopenCheckoutSession(ctx context.Context, arg ReopenCheckoutSessionParams) (int64, error)
+	// A paid installment whose payment was refunded in full is owed again.
+	ReopenInstallment(ctx context.Context, arg ReopenInstallmentParams) (int64, error)
 	// Chats whose snooze has ended, a batch at a time, across workspaces.
 	ReopenSnoozed(ctx context.Context, arg ReopenSnoozedParams) ([]ReopenSnoozedRow, error)
 	RequestInvitationRenewal(ctx context.Context, invitationID uuid.UUID) (int64, error)
@@ -723,6 +728,8 @@ type Querier interface {
 	// Moves a due broadcast to sending, once: no row once its audience is taken or it was cancelled.
 	StartBroadcast(ctx context.Context, arg StartBroadcastParams) ([]byte, error)
 	StartContactImport(ctx context.Context, arg StartContactImportParams) (int64, error)
+	// A refunded installment's payment comes off the order again.
+	SubtractOrderPayment(ctx context.Context, arg SubtractOrderPaymentParams) (int64, error)
 	// Pending and succeeded refunds; never more than the invoice total.
 	SumInvoiceRefunds(ctx context.Context, arg SumInvoiceRefundsParams) (int64, error)
 	SuspendGrant(ctx context.Context, arg SuspendGrantParams) (int64, error)

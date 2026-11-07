@@ -32,13 +32,13 @@ LIMIT @max_rows;
 
 -- name: FindInvoiceByExternalPaymentID :one
 -- Webhooks only: refunds and disputes name the provider's payment.
-SELECT id, workspace_id, subscription_id, order_id, total_minor, status
+SELECT id, workspace_id, subscription_id, order_id, installment_id, total_minor, tax_minor, status
 FROM invoices
 WHERE provider = @provider AND external_payment_id = @external_payment_id;
 
 -- name: LockInvoiceByExternalPaymentID :one
 -- Webhooks only: refunds and disputes on one invoice apply one at a time.
-SELECT id, workspace_id, subscription_id, order_id, total_minor, status
+SELECT id, workspace_id, subscription_id, order_id, installment_id, total_minor, tax_minor, status
 FROM invoices
 WHERE provider = @provider AND external_payment_id = @external_payment_id
 FOR UPDATE;
@@ -77,6 +77,15 @@ SELECT COALESCE((SELECT sum(i.total_minor) FROM invoices i
        COALESCE((SELECT sum(r.amount_minor) FROM refunds r JOIN invoices i ON i.id = r.invoice_id
                  WHERE i.workspace_id = @workspace_id AND i.order_id = @order_id
                    AND r.status = 'succeeded'), 0)::bigint AS refunded_minor;
+
+-- name: HasOtherInstallmentPayment :one
+-- Whether another invoice still pays for the installment (it was paid again
+-- after a refund, or twice at once).
+SELECT EXISTS (
+    SELECT 1 FROM invoices
+    WHERE workspace_id = @workspace_id AND installment_id = @installment_id AND id <> @invoice_id
+      AND status IN ('paid', 'partially_refunded', 'disputed')
+);
 
 -- name: GetLatestSubscriptionInvoiceID :one
 -- The subscription's newest period invoice: refunding it in full ends the

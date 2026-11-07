@@ -28,6 +28,12 @@ UPDATE installments
 SET status = 'paid', paid_at = @paid_at
 WHERE workspace_id = @workspace_id AND id = @installment_id AND status <> 'paid';
 
+-- name: ReopenInstallment :execrows
+-- A paid installment whose payment was refunded in full is owed again.
+UPDATE installments
+SET status = @status, paid_at = NULL
+WHERE workspace_id = @workspace_id AND id = @installment_id AND status = 'paid';
+
 -- name: SetInstallmentStatus :execrows
 -- Any status but paid (MarkInstallmentPaid sets paid_at with it).
 UPDATE installments

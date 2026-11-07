@@ -55,6 +55,12 @@ SET status          = @status,
                            ELSE defaulted_at END
 WHERE workspace_id = @workspace_id AND id = @order_id;
 
+-- name: SubtractOrderPayment :execrows
+-- A refunded installment's payment comes off the order again.
+UPDATE orders
+SET paid_minor = paid_minor - @amount_minor
+WHERE workspace_id = @workspace_id AND id = @order_id;
+
 -- name: AddOrderPayment :one
 -- Runs in the same transaction as the paid invoice. The CHECK on orders
 -- rejects paying more than the total.

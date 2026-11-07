@@ -414,7 +414,7 @@ func (s *Service) endRefundedPlan(ctx context.Context, tx pgx.Tx, workspaceID uu
 			return fmt.Errorf("order refund totals: %w", err)
 		}
 		if totals.PaidMinor <= 0 || totals.RefundedMinor < totals.PaidMinor {
-			return nil
+			return s.reopenRefundedInstallment(ctx, repo, workspaceID, o, inv)
 		}
 		if err := s.ltd().stopSchedule(ctx, o); err != nil {
 			return err
@@ -482,6 +482,51 @@ func (s *Service) cancelLiveSubscriptionNow(ctx context.Context, repo repository
 		return false, fmt.Errorf("cancel subscription: %w", err)
 	}
 	return true, nil
+}
+
+// reopenRefundedInstallment takes a fully refunded installment payment off the
+// order and makes the installment owed again (due, or scheduled before its
+// date), so the due and overdue flow collects it. A partial refund is a
+// concession and leaves the installment paid. Nothing changes while another
+// invoice still pays for the installment.
+func (s *Service) reopenRefundedInstallment(ctx context.Context, repo repository.Repository, workspaceID uuid.UUID, o model.Order, inv gen.FindInvoiceByExternalPaymentIDRow) error {
+	if inv.InstallmentID == nil {
+		return nil
+	}
+	other, err := repo.HasOtherInstallmentPayment(ctx, gen.HasOtherInstallmentPaymentParams{
+		WorkspaceID: workspaceID, InstallmentID: inv.InstallmentID, InvoiceID: inv.ID,
+	})
+	if err != nil || other {
+		return err
+	}
+	inst, err := repo.LockInstallment(ctx, gen.LockInstallmentParams{WorkspaceID: workspaceID, InstallmentID: *inv.InstallmentID})
+	if err != nil {
+		return fmt.Errorf("lock installment: %w", err)
+	}
+	status := model.InstallmentDue
+	if inst.DueAt.After(s.now()) {
+		status = model.InstallmentScheduled
+	}
+	n, err := repo.ReopenInstallment(ctx, gen.ReopenInstallmentParams{
+		Status: status, WorkspaceID: workspaceID, InstallmentID: inst.ID,
+	})
+	if err != nil {
+		return fmt.Errorf("reopen installment: %w", err)
+	}
+	if n == 0 {
+		return nil // not paid: already reopened
+	}
+	if _, err := repo.SubtractOrderPayment(ctx, gen.SubtractOrderPaymentParams{
+		AmountMinor: inv.TotalMinor - inv.TaxMinor, WorkspaceID: workspaceID, OrderID: o.ID,
+	}); err != nil {
+		return fmt.Errorf("subtract order payment: %w", err)
+	}
+	s.log.InfoContext(ctx, "billing: installment refunded; owed again", "workspace_id", workspaceID, "order_id", o.ID,
+		"installment_id", inst.ID)
+	if o.Status == model.OrderPaid {
+		return setOrderStatus(ctx, repo, o, model.OrderInInstallments, s.now())
+	}
+	return nil
 }
 
 // createRefund records a refund we haven't seen, unless it would take the
