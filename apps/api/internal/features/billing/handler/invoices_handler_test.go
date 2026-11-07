@@ -67,9 +67,9 @@ func (e *env) seedInvoices(n int) (uuid.UUID, []uuid.UUID) {
 	return ws, ids
 }
 
-func TestInvoicesNeedBillingView(t *testing.T) {
+func TestInvoicesNeedBillingViewOrPay(t *testing.T) {
 	e := newEnv(t, nil)
-	m := e.member(uuid.New(), authctx.PermBillingPay)
+	m := e.member(uuid.New(), authctx.PermInboxReply)
 	expectDenied(t, m.do(http.MethodGet, invoicesPath, nil), authctx.PermBillingView)
 	expectDenied(t, m.do(http.MethodGet, invoicesPath+"/"+uuid.NewString(), nil), authctx.PermBillingView)
 }

@@ -552,3 +552,22 @@ func TestNewOwnerCantLeaveOnAStaleRequest(t *testing.T) {
 		t.Fatalf("owners %v, want one", got)
 	}
 }
+
+// A role that can pay but not view can still see what it is buying.
+func TestBillingPayAloneCanReadBilling(t *testing.T) {
+	e := newAuthEnv(t)
+	includeInPlans(e, "team_controls")
+	w := newTeamWorkspace(e)
+	payer, payerID := w.join("viewer")
+	role := w.owner.do("POST", w.base+"/roles", map[string]any{
+		"name": "Payer", "color": "red", "chat_scope": "all", "permissions": []string{"billing.pay"},
+	})
+	expect(t, role, http.StatusCreated)
+	expect(t, w.owner.do("PUT", w.base+"/members/"+payerID+"/role", map[string]any{"role_id": role.body["id"]}), http.StatusNoContent)
+
+	for _, path := range []string{"", "/usage", "/subscription", "/profile", "/invoices"} {
+		expect(t, payer.do("GET", w.base+"/billing"+path, nil), w.owner.do("GET", w.base+"/billing"+path, nil).code)
+	}
+	agent, _ := w.join("agent")
+	expect(t, agent.do("GET", w.base+"/billing", nil), http.StatusForbidden, "permission_denied")
+}

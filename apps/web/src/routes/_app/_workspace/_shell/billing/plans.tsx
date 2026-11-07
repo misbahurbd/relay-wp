@@ -13,8 +13,9 @@ function Page() {
   return (
     <PlanPicker
       workspaceId={workspaceId}
-      // The current plan and change previews need billing.view; until access loads, show the page.
-      canView={!access || can('billing.view')}
+      // The current plan and change previews need billing.view or billing.pay; until access loads,
+      // show the page.
+      canView={!access || can('billing.view') || can('billing.pay')}
       canPay={can('billing.pay')}
     />
   )
