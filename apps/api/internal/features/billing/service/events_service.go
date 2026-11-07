@@ -444,34 +444,44 @@ func (s *Service) endRefundedPlan(ctx context.Context, tx pgx.Tx, workspaceID uu
 	if latest != inv.ID {
 		return nil
 	}
-	locked, err := repo.LockSubscription(ctx, gen.LockSubscriptionParams{WorkspaceID: workspaceID, SubscriptionID: *inv.SubscriptionID})
+	canceled, err := s.cancelLiveSubscriptionNow(ctx, repo, workspaceID, *inv.SubscriptionID)
+	if err != nil || !canceled {
+		return err
+	}
+	s.log.InfoContext(ctx, "billing: subscription invoice refunded; subscription canceled",
+		"workspace_id", workspaceID, "subscription_id", *inv.SubscriptionID)
+	return s.endSubscriptionGrant(ctx, tx, workspaceID, *inv.SubscriptionID)
+}
+
+// cancelLiveSubscriptionNow cancels a started subscription now, at its provider
+// and here, and leaves its grant to the caller. False if it was not live.
+func (s *Service) cancelLiveSubscriptionNow(ctx context.Context, repo repository.Repository, workspaceID, subscriptionID uuid.UUID) (bool, error) {
+	locked, err := repo.LockSubscription(ctx, gen.LockSubscriptionParams{WorkspaceID: workspaceID, SubscriptionID: subscriptionID})
 	if err != nil {
-		return fmt.Errorf("lock subscription: %w", err)
+		return false, fmt.Errorf("lock subscription: %w", err)
 	}
 	sub := toSubscription(gen.GetSubscriptionRow(locked))
 	if sub.Status == model.SubscriptionCanceled || sub.Status == model.SubscriptionIncomplete {
-		return nil
+		return false, nil
 	}
 	if sub.RenewalMode == model.RenewalProvider && sub.ExternalSubscriptionID != nil {
 		g, err := s.gateway(sub.Provider)
 		if err != nil {
-			return err
+			return false, err
 		}
 		if _, err := g.CancelSubscription(ctx, payment.CancelRequest{
 			ExternalSubscriptionID: *sub.ExternalSubscriptionID, Mode: payment.CancelNow,
 		}); err != nil && !errors.Is(err, payment.ErrNotFound) {
-			return s.gatewayErr("cancel refunded subscription", err)
+			return false, s.gatewayErr("cancel subscription now", err)
 		}
 	}
 	now := s.now()
 	if _, err := repo.CancelSubscriptionNow(ctx, gen.CancelSubscriptionNowParams{
 		CanceledAt: &now, WorkspaceID: workspaceID, SubscriptionID: sub.ID,
 	}); err != nil {
-		return fmt.Errorf("cancel subscription: %w", err)
+		return false, fmt.Errorf("cancel subscription: %w", err)
 	}
-	s.log.InfoContext(ctx, "billing: subscription invoice refunded; subscription canceled",
-		"workspace_id", workspaceID, "subscription_id", sub.ID)
-	return s.endSubscriptionGrant(ctx, tx, workspaceID, sub.ID)
+	return true, nil
 }
 
 // createRefund records a refund we haven't seen, unless it would take the
@@ -568,7 +578,8 @@ func (s *Service) onDisputeOpened(ctx context.Context, tx pgx.Tx, workspaceID uu
 
 // onDisputeClosed ends a dispute. Won: the invoice goes back to paid (or
 // partially_refunded / refunded, by its refunds). Lost: the money went back
-// to the customer, so the invoice stays disputed for support to follow up.
+// to the customer, so the invoice stays disputed for support to follow up,
+// and the provider stops billing what it paid for.
 func (s *Service) onDisputeClosed(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID, ev payment.Event) error {
 	if ev.Payment == nil || ev.Payment.ExternalID == "" {
 		s.log.WarnContext(ctx, "billing: dispute event without a payment", "event", ev)
@@ -590,6 +601,9 @@ func (s *Service) onDisputeClosed(ctx context.Context, tx pgx.Tx, workspaceID uu
 		// Support can restore the grant once it is settled.
 		s.log.WarnContext(ctx, "billing: dispute lost", "event", ev, "workspace_id", workspaceID, "invoice_id", inv.ID,
 			"outcome", ev.Payment.Status)
+		if err := s.stopDisputedBilling(ctx, repo, workspaceID, inv); err != nil {
+			return err
+		}
 		g, err := currentGrant(ctx, repo, workspaceID)
 		if err != nil || g == nil || g.Status != model.GrantActive {
 			return err
@@ -605,6 +619,25 @@ func (s *Service) onDisputeClosed(ctx context.Context, tx pgx.Tx, workspaceID uu
 		return err
 	}
 	return setInvoiceStatus(ctx, repo, workspaceID, inv.ID, status)
+}
+
+// stopDisputedBilling stops the provider charging again for what a lost
+// dispute paid for: the subscription is canceled now, or the order's
+// installment schedule is stopped (as a default does). The grant is left to
+// the caller, which suspends it for support.
+func (s *Service) stopDisputedBilling(ctx context.Context, repo repository.Repository, workspaceID uuid.UUID, inv gen.FindInvoiceByExternalPaymentIDRow) error {
+	if inv.OrderID != nil {
+		o, err := lockOrder(ctx, repo, workspaceID, *inv.OrderID)
+		if err != nil || o.Status != model.OrderInInstallments {
+			return err
+		}
+		return s.ltd().stopSchedule(ctx, o)
+	}
+	if inv.SubscriptionID == nil {
+		return nil
+	}
+	_, err := s.cancelLiveSubscriptionNow(ctx, repo, workspaceID, *inv.SubscriptionID)
+	return err
 }
 
 // ---------- Periodic jobs ----------

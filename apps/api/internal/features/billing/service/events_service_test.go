@@ -10,6 +10,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -669,6 +670,27 @@ func TestRefundKeepsAConcurrentDispute(t *testing.T) {
 	}
 	if s := e.invoiceStatus(invoiceID); s != model.InvoiceDisputed {
 		t.Errorf("invoice %s after a refund raced a dispute, want disputed", s)
+	}
+}
+
+// A lost dispute on an installment order stops the provider's schedule.
+func TestLostDisputeStopsTheInstallmentSchedule(t *testing.T) {
+	e := newEventsEnv(t)
+	ws := e.workspace()
+	invoiceID, payID := e.invoice(ws, 500)
+	schedule := "sched_" + uuid.NewString()
+	if _, err := e.pool.Exec(e.ctx, `UPDATE orders SET status = 'in_installments', external_ref = $1
+		WHERE id = (SELECT order_id FROM invoices WHERE id = $2)`, schedule, invoiceID); err != nil {
+		t.Fatal(err)
+	}
+	for _, typ := range []payment.EventType{payment.EventDisputeOpened, payment.EventDisputeClosed} {
+		e.mustProcess(e.receive(payment.Event{
+			ExternalID: "evt_" + uuid.NewString(), Type: typ, ProviderType: string(typ), OccurredAt: time.Now().UTC(),
+			Payment: &payment.Payment{ExternalID: payID, Status: "lost"},
+		}))
+	}
+	if !slices.Contains(e.fake.CanceledSchedules(), schedule) {
+		t.Errorf("schedule %s still runs after a lost dispute", schedule)
 	}
 }
 

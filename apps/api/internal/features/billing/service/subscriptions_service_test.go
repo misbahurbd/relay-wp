@@ -448,6 +448,34 @@ func TestRefundingAProrationKeepsThePlan(t *testing.T) {
 	e.wantCache(e.ws, model.FreePlan)
 }
 
+// A lost dispute on a subscription invoice stops the provider billing it:
+// the subscription is canceled now, and the plan stays suspended for support.
+func TestLostDisputeCancelsTheSubscription(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	sub := e.subscribe(p.Monthly)
+	var pay string
+	if err := e.pool.QueryRow(e.ctx, `SELECT external_payment_id FROM invoices WHERE subscription_id = $1`,
+		sub.ID).Scan(&pay); err != nil {
+		t.Fatal(err)
+	}
+	dispute := func(typ payment.EventType, outcome string) payment.Event {
+		return payment.Event{Provider: payment.Stripe, Type: typ, Payment: &payment.Payment{ExternalID: pay, Status: outcome}}
+	}
+	e.inTx(func(tx pgx.Tx) error { return e.svc.onDisputeOpened(e.ctx, tx, e.ws, dispute(payment.EventDisputeOpened, "")) })
+	e.inTx(func(tx pgx.Tx) error { return e.svc.onDisputeClosed(e.ctx, tx, e.ws, dispute(payment.EventDisputeClosed, "lost")) })
+
+	if fs, _ := e.fake.Subscription(*sub.ExternalSubscriptionID); fs.Status != payment.SubscriptionCanceled {
+		t.Errorf("provider subscription %s after a lost dispute, want canceled", fs.Status)
+	}
+	if got, err := e.svc.Subscription(e.ctx, e.ws); err != nil || got.Status != model.SubscriptionCanceled {
+		t.Errorf("subscription %s, %v after a lost dispute, want canceled", got.Status, err)
+	}
+	if g := e.grant(e.ws); g == nil || g.Status != model.GrantSuspended || g.SuspendReason != model.SuspendDispute {
+		t.Errorf("grant = %+v, want suspended for the dispute", g)
+	}
+}
+
 // A past-due period was never paid, so a lifetime deal gets no credit for it.
 func TestPastDueSubscriptionHasNoCredit(t *testing.T) {
 	e := newT3Env(t)
