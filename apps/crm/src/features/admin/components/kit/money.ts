@@ -9,3 +9,19 @@ export function toMinor(major: string) {
   if (major.trim() === '' || !Number.isFinite(n)) return Number.NaN
   return Math.round(n * 100)
 }
+
+/** "$49" for whole amounts, "$24.17" otherwise: how the pricing table writes a price. */
+export function formatPrice(minor: number, currency: string) {
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: minor % 100 === 0 ? 0 : 2,
+  }).format(minor / 100)
+}
+
+/** Whole-percent saving of a yearly price against twelve monthly ones, or 0. */
+export function yearlySaving(monthlyMinor: number, yearlyMinor: number) {
+  const full = monthlyMinor * 12
+  if (!(full > yearlyMinor) || !(yearlyMinor > 0)) return 0
+  return Math.floor(((full - yearlyMinor) * 100) / full)
+}

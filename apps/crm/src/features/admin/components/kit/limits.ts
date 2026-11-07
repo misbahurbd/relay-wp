@@ -95,3 +95,23 @@ export function pricingLines(resources: Resource[], limits: Limits) {
     return [r.kind === 'access' ? r.label : amount(r, v)]
   })
 }
+
+/** Every resource set to its widest: unlimited counts, features on. */
+export function includeEverything(resources: Resource[]): ResourceEntries {
+  return Object.fromEntries(
+    resources.map((r) => [r.key, r.kind === 'access' ? { mode: 'on' } : { mode: 'unlimited' }]),
+  )
+}
+
+/** Whether a row counts as part of the plan. */
+export function isIncluded(e: ResourceEntry | undefined) {
+  return !!e && e.mode !== 'off' && e.mode !== 'plan'
+}
+
+/** A limit someone typed: a whole number of at least 1, or a message saying what to enter. */
+export function capError(cap: string) {
+  const n = Number(cap)
+  return cap.trim() !== '' && Number.isInteger(n) && n >= 1
+    ? undefined
+    : 'Enter a whole number, 1 or more'
+}

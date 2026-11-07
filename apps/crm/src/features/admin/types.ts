@@ -38,3 +38,6 @@ export type Resource = ResourceDto
 
 /** Resource key to cap; -1 is unlimited. */
 export type Limits = Plan['limits']
+
+/** What the plan editor needs to know about an enabled payment provider. */
+export type ProviderCaps = { name: Provider; checkoutTrials: boolean }

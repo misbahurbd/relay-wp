@@ -23,18 +23,22 @@ import {
   type CreatePriceInputBody,
   type CreateProviderPriceInputBody,
   type GrantOverridesInputBody,
+  listBillingPlans,
   listBillingResources,
   type ManualGrantInputBody,
   type UpdatePlanInputBody,
 } from '@relay/api-client'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
+import { isApiError } from '#/lib/api'
 import type {
   AdminCatalog,
   AdminDiscount,
   AdminWorkspace,
   CatalogRowKind,
+  ProviderCaps,
   Resource,
 } from '../types'
+import type { PlanPublishApi } from './plan-publish'
 
 /** Every admin query sits under ['admin'], so a change refreshes all of them. */
 export const adminKeys = {
@@ -43,6 +47,7 @@ export const adminKeys = {
   discounts: () => ['admin', 'discounts'] as const,
   workspaces: (search: string) => ['admin', 'workspaces', search] as const,
   resources: () => ['admin', 'resources'] as const,
+  providerCaps: () => ['billing', 'providers'] as const,
 }
 
 const list = <T>(v: T[] | null | undefined): T[] => v ?? []
@@ -173,3 +178,39 @@ export const useSetGrantOverrides = () =>
   useAdminMutation((body: GrantOverridesInputBody) =>
     adminSetGrantOverrides({ body, throwOnError: true }),
   )
+
+/** What each payment provider can do. Public, and it changes only with a deploy. */
+export function providerCapsQueryOptions() {
+  return queryOptions({
+    queryKey: adminKeys.providerCaps(),
+    queryFn: async (): Promise<ProviderCaps[]> => {
+      const { data } = await listBillingPlans({ throwOnError: true })
+      return list(data.providers).map((p) => ({
+        name: p.name,
+        checkoutTrials: p.checkout_trials,
+      }))
+    },
+    staleTime: Number.POSITIVE_INFINITY,
+    retry: false,
+  })
+}
+
+/** The calls that put a plan on sale, with no cache refresh between them: see useRefreshAdmin. */
+export const planPublishApi: PlanPublishApi = {
+  createPlan: async (body) => (await adminCreatePlan({ body, throwOnError: true })).data.id,
+  createPrice: async (body) => (await adminCreatePrice({ body, throwOnError: true })).data.id,
+  createProviderPrice: async (body) => {
+    try {
+      return (await adminCreateProviderPrice({ body, throwOnError: true })).data.id
+    } catch (error) {
+      if (isApiError(error) && error.code === 'catalog_duplicate') return 'existing'
+      throw error
+    }
+  },
+}
+
+/** Refreshes every admin query once, after a run of calls. */
+export function useRefreshAdmin() {
+  const queryClient = useQueryClient()
+  return () => queryClient.invalidateQueries({ queryKey: adminKeys.all() })
+}
