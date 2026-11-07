@@ -366,10 +366,11 @@ func (s *Service) SubscriptionCredit(ctx context.Context, workspaceID uuid.UUID)
 }
 
 // credit is the unused time on sub at its discounted price, if a discount still applies.
-// Trials and subscriptions without a period have none.
+// Trials, past-due subscriptions (their period is unpaid) and subscriptions without a period have none.
 func (s *Service) credit(ctx context.Context, r repository.Repository, sub model.Subscription) (model.SubscriptionCredit, error) {
 	out := model.SubscriptionCredit{SubscriptionID: &sub.ID, Currency: sub.Price.Currency}
-	if sub.Status == model.SubscriptionTrialing || sub.CurrentPeriodStart == nil || sub.CurrentPeriodEnd == nil {
+	if sub.Status == model.SubscriptionTrialing || sub.Status == model.SubscriptionPastDue ||
+		sub.CurrentPeriodStart == nil || sub.CurrentPeriodEnd == nil {
 		return out, nil
 	}
 	now := s.now()

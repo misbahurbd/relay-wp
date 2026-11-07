@@ -413,6 +413,18 @@ func TestChangeKeyRepeatsUntilAChangeIsLogged(t *testing.T) {
 	}
 }
 
+// A past-due period was never paid, so a lifetime deal gets no credit for it.
+func TestPastDueSubscriptionHasNoCredit(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	sub := e.subscribe(p.Monthly)
+	e.midPeriod(sub)
+	e.pastDue(sub)
+	if c, err := e.svc.SubscriptionCredit(e.ctx, e.ws); err != nil || c.CreditMinor != 0 {
+		t.Fatalf("credit for a past-due subscription = %+v, %v; want 0", c, err)
+	}
+}
+
 // renew pays sub's next period, as the provider's renewal webhook would.
 func (e *t3Env) renew(sub model.Subscription, start, end time.Time) {
 	e.t.Helper()
@@ -455,8 +467,8 @@ func TestPaidRenewalClearsPastDueAndSavesThePeriod(t *testing.T) {
 	}
 
 	e.tick(pastDueGrace + time.Hour)
-	if n, err := e.svc.SuspendPastDue(e.ctx); err != nil || n != 0 {
-		t.Fatalf("sweep after payment suspended %d, %v", n, err)
+	if _, err := e.svc.SuspendPastDue(e.ctx); err != nil { // the sweep covers every workspace in the shared database
+		t.Fatal(err)
 	}
 	e.wantCache(e.ws, p.Code)
 }
