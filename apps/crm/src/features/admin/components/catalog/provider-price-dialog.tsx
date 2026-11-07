@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { useCreateProviderPrice } from '../../api/admin.api'
 import type { InstallmentOffer, Price, Provider } from '../../types'
+import { CheckField } from '../kit/check-field'
 import { FormDialog } from '../kit/form-dialog'
 import { SelectField } from '../kit/select-field'
 import { TextField } from '../kit/text-field'
@@ -10,7 +11,10 @@ type Collection = 'provider_schedule' | 'app_link' | 'provider_financed'
 
 const ALL: Provider[] = ['stripe', 'creem', 'paypal', 'sslcommerz']
 
-/** Links a price, or one of its installment offers, to how a payment provider sells it. */
+/**
+ * Links a price, or one of its installment offers, to how a payment provider sells it.
+ * A plain price is created on the provider unless staff paste an ID they made there.
+ */
 export function ProviderPriceDialog({
   price,
   offer,
@@ -27,7 +31,11 @@ export function ProviderPriceDialog({
     (enabled.find((p) => ALL.includes(p as Provider)) as Provider | undefined) ?? 'stripe'
   const [provider, setProvider] = useState<Provider>(first)
   const [externalId, setExternalId] = useState('')
+  const [useExisting, setUseExisting] = useState(false)
   const [collection, setCollection] = useState<Collection>('app_link')
+
+  const createOnProvider = !offer && !useExisting
+  const idMissing = !offer && useExisting && !externalId.trim()
 
   const submit = () =>
     create.mutate(
@@ -35,7 +43,7 @@ export function ProviderPriceDialog({
         plan_price_id: price.id,
         installment_offer_id: offer?.id,
         provider,
-        external_price_id: externalId.trim() || undefined,
+        external_price_id: createOnProvider ? undefined : externalId.trim() || undefined,
         collection: offer ? collection : undefined,
       },
       {
@@ -49,9 +57,14 @@ export function ProviderPriceDialog({
   return (
     <FormDialog
       title={offer ? `Sell the ${offer.count}-payment offer` : 'Sell this price'}
-      description="Create the price or product in the provider's dashboard first, then paste its ID here."
-      submitLabel="Link provider"
+      description={
+        offer
+          ? "Create the price or product in the provider's dashboard first, then paste its ID here."
+          : `Relay creates the product and price on ${provider} for you, or you can paste an ID you made there.`
+      }
+      submitLabel={createOnProvider ? `Create on ${provider}` : 'Link provider'}
       pending={create.isPending}
+      disabled={idMissing}
       error={create.error}
       onSubmit={submit}
       onClose={onClose}
@@ -66,18 +79,28 @@ export function ProviderPriceDialog({
           label: enabled.includes(p) ? p : `${p} (not enabled on this server)`,
         }))}
       />
-      <TextField
-        id="pp-external"
-        label="Provider price or product ID"
-        value={externalId}
-        onChange={setExternalId}
-        placeholder={provider === 'creem' ? 'prod_…' : 'price_…'}
-        hint={
-          price.billing_type === 'recurring'
-            ? 'Required for subscriptions: the recurring price the provider renews.'
-            : 'Optional for one-time payments on Stripe; Creem needs its product.'
-        }
-      />
+      {!offer && (
+        <CheckField
+          id="pp-existing"
+          label="Use an existing provider ID instead"
+          checked={useExisting}
+          onChange={setUseExisting}
+        />
+      )}
+      {!createOnProvider && (
+        <TextField
+          id="pp-external"
+          label="Provider price or product ID"
+          value={externalId}
+          onChange={setExternalId}
+          placeholder={provider === 'creem' ? 'prod_…' : 'price_…'}
+          hint={
+            offer
+              ? 'Optional for installment offers on Stripe; Creem needs its product.'
+              : 'The price or product you created in the provider.'
+          }
+        />
+      )}
       {offer && (
         <SelectField
           id="pp-collection"
