@@ -8,6 +8,7 @@ import {
   getPaymentMethod,
   getSeats,
   listBillingPlans,
+  listBillingResources,
   listInvoices,
   listWhatsappNumbers,
   type OrderDto,
@@ -97,6 +98,17 @@ export const plansQueryOptions = () =>
     queryFn: async ({ signal }) => {
       const { data } = await listBillingPlans({ signal, throwOnError: true })
       return toCatalog(data)
+    },
+    staleTime: 5 * 60_000,
+  })
+
+/** The resource catalog: names, units and kinds for every key in a plan's limits. */
+export const resourcesQueryOptions = () =>
+  queryOptions({
+    queryKey: billingKeys.resources(),
+    queryFn: async ({ signal }) => {
+      const { data } = await listBillingResources({ signal, throwOnError: true })
+      return list(data.resources)
     },
     staleTime: 5 * 60_000,
   })

@@ -4,6 +4,8 @@ import type { QueryClient } from '@tanstack/react-query'
 export const billingKeys = {
   /** The public catalog: the same for everyone, so it isn't under a workspace. */
   plans: () => ['billing-plans'] as const,
+  /** What a plan can include: the same for everyone. */
+  resources: () => ['billing-resources'] as const,
   workspace: (workspaceId: string) => ['billing', workspaceId] as const,
   overview: (workspaceId: string) => ['billing', workspaceId, 'overview'] as const,
   invoices: (workspaceId: string) => ['billing', workspaceId, 'invoices'] as const,
