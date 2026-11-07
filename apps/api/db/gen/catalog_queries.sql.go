@@ -11,6 +11,25 @@ import (
 	"github.com/google/uuid"
 )
 
+const clearPendingProviderProduct = `-- name: ClearPendingProviderProduct :execrows
+DELETE FROM pending_provider_products
+WHERE plan_price_id = $1 AND provider = $2
+`
+
+type ClearPendingProviderProductParams struct {
+	PlanPriceID uuid.UUID
+	Provider    string
+}
+
+// The link is saved: the product is no longer pending.
+func (q *Queries) ClearPendingProviderProduct(ctx context.Context, arg ClearPendingProviderProductParams) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPendingProviderProduct, arg.PlanPriceID, arg.Provider)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const createInstallmentOffer = `-- name: CreateInstallmentOffer :one
 INSERT INTO installment_offers (plan_price_id, count, total_minor, grace_days, max_missed)
 VALUES ($1, $2, $3, $4, $5)
@@ -233,6 +252,25 @@ func (q *Queries) GetInstallmentOffer(ctx context.Context, installmentOfferID uu
 		&i.IsActive,
 	)
 	return i, err
+}
+
+const getPendingProviderProduct = `-- name: GetPendingProviderProduct :one
+SELECT external_price_id
+FROM pending_provider_products
+WHERE plan_price_id = $1 AND provider = $2
+`
+
+type GetPendingProviderProductParams struct {
+	PlanPriceID uuid.UUID
+	Provider    string
+}
+
+// The product a provider made for a link that failed to save.
+func (q *Queries) GetPendingProviderProduct(ctx context.Context, arg GetPendingProviderProductParams) (string, error) {
+	row := q.db.QueryRow(ctx, getPendingProviderProduct, arg.PlanPriceID, arg.Provider)
+	var external_price_id string
+	err := row.Scan(&external_price_id)
+	return external_price_id, err
 }
 
 const getPlan = `-- name: GetPlan :one
@@ -595,6 +633,28 @@ func (q *Queries) LockPlanLimits(ctx context.Context, planID uuid.UUID) (LockPla
 	var i LockPlanLimitsRow
 	err := row.Scan(&i.Code, &i.Limits)
 	return i, err
+}
+
+const savePendingProviderProduct = `-- name: SavePendingProviderProduct :one
+INSERT INTO pending_provider_products (plan_price_id, provider, external_price_id)
+VALUES ($1, $2, $3)
+ON CONFLICT (plan_price_id, provider) DO UPDATE SET plan_price_id = EXCLUDED.plan_price_id
+RETURNING external_price_id
+`
+
+type SavePendingProviderProductParams struct {
+	PlanPriceID     uuid.UUID
+	Provider        string
+	ExternalPriceID string
+}
+
+// Records the product the provider just made. On a conflict (a concurrent
+// request made one too) the stored one is returned, and the caller's is the orphan.
+func (q *Queries) SavePendingProviderProduct(ctx context.Context, arg SavePendingProviderProductParams) (string, error) {
+	row := q.db.QueryRow(ctx, savePendingProviderProduct, arg.PlanPriceID, arg.Provider, arg.ExternalPriceID)
+	var external_price_id string
+	err := row.Scan(&external_price_id)
+	return external_price_id, err
 }
 
 const updatePlan = `-- name: UpdatePlan :exec

@@ -644,6 +644,13 @@ type PaymentEvent struct {
 	ReportedAt        *time.Time
 }
 
+type PendingProviderProduct struct {
+	PlanPriceID     uuid.UUID
+	Provider        string
+	ExternalPriceID string
+	CreatedAt       time.Time
+}
+
 type Permission struct {
 	Key       string
 	Bit       int16

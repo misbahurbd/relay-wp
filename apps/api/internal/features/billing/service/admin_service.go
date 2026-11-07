@@ -395,6 +395,13 @@ func (s *Service) CreateProviderPrice(ctx context.Context, in model.NewProviderP
 		}); err != nil {
 			return err
 		}
+		if in.InstallmentOfferID == nil {
+			if _, err := r.ClearPendingProviderProduct(ctx, gen.ClearPendingProviderProductParams{
+				PlanPriceID: in.PlanPriceID, Provider: in.Provider,
+			}); err != nil {
+				return fmt.Errorf("clear pending provider product: %w", err)
+			}
+		}
 		return s.retireCoupons(ctx, r, in)
 	})
 	if repository.IsForeignKey(err) {
@@ -461,15 +468,26 @@ func (s *Service) ensureOfferProduct(ctx context.Context, r repository.Repositor
 	if err != nil {
 		return err
 	}
-	_, err = r.CreateProviderPrice(ctx, gen.CreateProviderPriceParams{
-		PlanPriceID: in.PlanPriceID, Provider: in.Provider, ExternalPriceID: &created,
+	err = database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+		r := repository.NewRepository(tx)
+		if _, err := r.CreateProviderPrice(ctx, gen.CreateProviderPriceParams{
+			PlanPriceID: in.PlanPriceID, Provider: in.Provider, ExternalPriceID: &created,
+		}); err != nil {
+			return err
+		}
+		_, err := r.ClearPendingProviderProduct(ctx, gen.ClearPendingProviderProductParams{
+			PlanPriceID: in.PlanPriceID, Provider: in.Provider,
+		})
+		return err
 	})
 	return catalogErr("create provider price", err)
 }
 
 // createOnProvider has the provider create the product or price a plain plan
 // price sells through, and returns its ID. It refuses first when an active link
-// already exists, so a refused link never leaves an orphan on the provider.
+// already exists, so a refused link never leaves an orphan on the provider. The
+// product is recorded as pending as soon as the provider returns it, and the
+// link's insert clears it: a link that failed to save reuses it.
 func (s *Service) createOnProvider(ctx context.Context, r repository.Repository, planPriceID uuid.UUID, provider string) (string, error) {
 	row, err := r.GetPlanPrice(ctx, planPriceID)
 	if repository.IsNoRows(err) {
@@ -504,7 +522,27 @@ func (s *Service) createOnProvider(ctx context.Context, r repository.Repository,
 			req.Name = "Relay " + row.PlanName + " (yearly)"
 		}
 	}
+	if pending, err := r.GetPendingProviderProduct(ctx, gen.GetPendingProviderProductParams{
+		PlanPriceID: planPriceID, Provider: provider,
+	}); err == nil {
+		return pending, nil
+	} else if !repository.IsNoRows(err) {
+		return "", fmt.Errorf("get pending provider product: %w", err)
+	}
 	external, err := g.CreatePrice(ctx, req)
+	if err == nil {
+		saved, serr := repository.NewRepository(s.pool).SavePendingProviderProduct(ctx, gen.SavePendingProviderProductParams{
+			PlanPriceID: planPriceID, Provider: provider, ExternalPriceID: external,
+		})
+		if serr != nil {
+			return "", fmt.Errorf("save pending provider product %s: %w", external, serr)
+		}
+		if saved != external {
+			s.logger().Warn("a concurrent request made the same provider product; this one is unused",
+				"provider", provider, "plan_price_id", planPriceID, "unused_external_price_id", external)
+		}
+		return saved, nil
+	}
 	if errors.Is(err, payment.ErrInvalidRequest) {
 		s.logger().Warn("payment provider refused a price", "provider", provider, "err", err)
 		return "", model.ErrInvalidInput.WithDetails(apperr.Detail{

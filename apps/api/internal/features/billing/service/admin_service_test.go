@@ -678,3 +678,37 @@ func TestSetGrantOverridesIsScopedToTheWorkspace(t *testing.T) {
 		t.Fatalf("another workspace changed the grant: %d rows, %v", n, err)
 	}
 }
+
+// A product the provider created for a link that then failed to save is
+// reused by the retry, so no orphan is left on the provider (Creem keeps
+// every product it is asked to make).
+func TestFailedProviderLinkReusesItsProduct(t *testing.T) {
+	e := newT3Env(t)
+	planID, err := e.svc.CreatePlan(e.ctx, model.NewPlan{Code: "orph_" + uuid.NewString()[:8], PlanDetails: details("Orphan")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	price, err := e.svc.CreatePrice(e.ctx, model.NewPrice{
+		PlanID: planID, Currency: "USD", BillingType: model.BillingRecurring, Interval: model.IntervalMonth, AmountMinor: 2900,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The link's insert fails once, after the provider made the product.
+	e.exec(`CREATE FUNCTION fail_link_` + strings.ReplaceAll(price.String(), "-", "") + `() RETURNS trigger LANGUAGE plpgsql AS $$
+		BEGIN IF NEW.plan_price_id = '` + price.String() + `' THEN RAISE EXCEPTION 'link lost'; END IF; RETURN NEW; END $$`)
+	trigger := "fail_link_" + strings.ReplaceAll(price.String(), "-", "")
+	e.exec(`CREATE TRIGGER ` + trigger + ` BEFORE INSERT ON provider_prices FOR EACH ROW EXECUTE FUNCTION ` + trigger + `()`)
+	if _, err := e.svc.CreateProviderPrice(e.ctx, model.NewProviderPrice{PlanPriceID: price, Provider: string(payment.Stripe)}); err == nil {
+		t.Fatal("link saved despite the failing insert")
+	}
+	e.exec(`DROP TRIGGER ` + trigger + ` ON provider_prices`)
+	e.exec(`DROP FUNCTION ` + trigger + `()`)
+
+	if _, err := e.svc.CreateProviderPrice(e.ctx, model.NewProviderPrice{PlanPriceID: price, Provider: string(payment.Stripe)}); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(e.pricesFor(price)); n != 1 {
+		t.Errorf("the provider made %d products for one link, want 1", n)
+	}
+}

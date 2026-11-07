@@ -123,3 +123,22 @@ RETURNING id;
 
 -- name: DeactivateProviderPrice :execrows
 UPDATE provider_prices SET is_active = false WHERE id = @provider_price_id AND is_active;
+
+-- name: GetPendingProviderProduct :one
+-- The product a provider made for a link that failed to save.
+SELECT external_price_id
+FROM pending_provider_products
+WHERE plan_price_id = @plan_price_id AND provider = @provider;
+
+-- name: SavePendingProviderProduct :one
+-- Records the product the provider just made. On a conflict (a concurrent
+-- request made one too) the stored one is returned, and the caller's is the orphan.
+INSERT INTO pending_provider_products (plan_price_id, provider, external_price_id)
+VALUES (@plan_price_id, @provider, @external_price_id)
+ON CONFLICT (plan_price_id, provider) DO UPDATE SET plan_price_id = EXCLUDED.plan_price_id
+RETURNING external_price_id;
+
+-- name: ClearPendingProviderProduct :execrows
+-- The link is saved: the product is no longer pending.
+DELETE FROM pending_provider_products
+WHERE plan_price_id = @plan_price_id AND provider = @provider;

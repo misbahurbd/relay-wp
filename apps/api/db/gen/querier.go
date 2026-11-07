@@ -102,6 +102,8 @@ type Querier interface {
 	// arrived and not reported yet, stamped as reported so each is reported once.
 	ClaimStuckPaymentEvents(ctx context.Context, arg ClaimStuckPaymentEventsParams) ([]ClaimStuckPaymentEventsRow, error)
 	ClearContactTags(ctx context.Context, arg ClearContactTagsParams) error
+	// The link is saved: the product is no longer pending.
+	ClearPendingProviderProduct(ctx context.Context, arg ClearPendingProviderProductParams) (int64, error)
 	ClearUnread(ctx context.Context, arg ClearUnreadParams) (ClearUnreadRow, error)
 	CompleteBroadcast(ctx context.Context, arg CompleteBroadcastParams) (CompleteBroadcastRow, error)
 	CompleteOnboarding(ctx context.Context, workspaceID uuid.UUID) error
@@ -395,6 +397,8 @@ type Querier interface {
 	// Change password, and confirming the password on the verify-link page.
 	GetPasswordHash(ctx context.Context, id uuid.UUID) (*string, error)
 	GetPaymentEvent(ctx context.Context, paymentEventID uuid.UUID) (GetPaymentEventRow, error)
+	// The product a provider made for a link that failed to save.
+	GetPendingProviderProduct(ctx context.Context, arg GetPendingProviderProductParams) (string, error)
 	GetPlan(ctx context.Context, planID uuid.UUID) (GetPlanRow, error)
 	// The plan an earlier try of the same CRM publish created.
 	GetPlanByPublishKey(ctx context.Context, publishKey *uuid.UUID) (GetPlanByPublishKeyRow, error)
@@ -708,6 +712,9 @@ type Querier interface {
 	RoleBits(ctx context.Context, roleID uuid.UUID) (int64, error)
 	RunStats(ctx context.Context, arg RunStatsParams) ([]RunStatsRow, error)
 	SaveAutomationSettings(ctx context.Context, arg SaveAutomationSettingsParams) (SaveAutomationSettingsRow, error)
+	// Records the product the provider just made. On a conflict (a concurrent
+	// request made one too) the stored one is returned, and the caller's is the orphan.
+	SavePendingProviderProduct(ctx context.Context, arg SavePendingProviderProductParams) (string, error)
 	ScheduleBroadcast(ctx context.Context, arg ScheduleBroadcastParams) error
 	// The rules of the given segments, for resolving a broadcast's audience.
 	SegmentRules(ctx context.Context, arg SegmentRulesParams) ([]SegmentRulesRow, error)
