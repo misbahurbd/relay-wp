@@ -21,4 +21,6 @@ var (
 	ErrNoChannel = apperr.Conflict("automation_no_channel", "No WhatsApp number is connected")
 	// ErrInvalidPhone: the phone can't reach anyone.
 	ErrInvalidPhone = apperr.Validation("automation_invalid_phone", "This phone number isn't valid")
+	// ErrContactLimit: the customer is new and the plan has no room for another contact.
+	ErrContactLimit = apperr.Conflict("automation_contact_limit", "Your plan's contact limit is reached")
 )

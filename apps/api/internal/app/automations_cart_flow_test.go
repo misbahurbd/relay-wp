@@ -123,6 +123,32 @@ func TestCartSecondReminderStopsAtTwo(t *testing.T) {
 	}
 }
 
+func TestStoreEventsRespectTheContactLimit(t *testing.T) {
+	s := newStoreEnv(t)
+	s.turnOnCart(false)
+	s.turnOnOrders("shopify_order_created")
+	contacts := func() int {
+		return s.count(`SELECT count(*) FROM contacts WHERE workspace_id = $1`, s.wsID)
+	}
+	full := contacts()
+	s.e.a.contacts.SetPlanLimits(planCap(full))
+
+	s.order("checkouts/create", "c1", checkout(true))
+	s.order("orders/create", "o1", shopifyOrder)
+	if contacts() != full {
+		t.Fatalf("contacts = %d; a store event passed the cap of %d", contacts(), full)
+	}
+	if n := s.runs(automationsmodel.StateSkipped, automationsmodel.ReasonContactLimit); n != 2 {
+		t.Fatalf("runs skipped for the contact limit = %d; want the cart and the order", n)
+	}
+
+	// A customer writing in still becomes a contact: their message is never dropped.
+	s.inbound("wamid.over-cap", "447700900555", "Hello?")
+	if contacts() != full+1 {
+		t.Fatalf("contacts = %d after an inbound message; want %d", contacts(), full+1)
+	}
+}
+
 func TestPausingCancelsAWaitingCart(t *testing.T) {
 	s := newStoreEnv(t)
 	s.turnOnCart(false)

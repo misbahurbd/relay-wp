@@ -34,6 +34,8 @@ const (
 	ReasonMissingVariable = "missing_variable"
 	// ReasonNoChannel: no connected number to start the chat from.
 	ReasonNoChannel = "no_channel"
+	// ReasonContactLimit: the customer is new and the plan's contact limit is reached.
+	ReasonContactLimit = "contact_limit"
 )
 
 // OptOutSource is the contact's opt_in_source after replying STOP.
