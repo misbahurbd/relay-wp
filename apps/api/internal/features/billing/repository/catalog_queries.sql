@@ -44,7 +44,7 @@ ORDER BY pp.plan_id, pp.billing_type DESC, pp.interval NULLS LAST, pp.currency;
 
 -- name: GetPlanPrice :one
 SELECT pp.id, pp.plan_id, pp.billing_type, pp.interval, pp.currency, pp.amount_minor, pp.is_active,
-       p.code AS plan_code, p.name AS plan_name
+       p.code AS plan_code, p.name AS plan_name, p.trial_days, p.trial_requires_card
 FROM plan_prices pp
 JOIN plans p ON p.id = pp.plan_id
 WHERE pp.id = @plan_price_id;

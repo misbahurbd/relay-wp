@@ -7,7 +7,9 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/misbahurbd/relay-wp/apps/api/db/gen"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/model"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/repository"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/payment"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/shared/apperr"
 )
@@ -343,4 +345,182 @@ func TestLimitEditsAreChecked(t *testing.T) {
 // details are valid plan details named name: the required resources and nothing else.
 func details(name string) model.PlanDetails {
 	return model.PlanDetails{Name: name, Limits: model.Limits{"members": 5, "whatsapp_numbers": 1}}
+}
+
+// pricesFor is the fake provider's create-price requests for one plan price.
+func (e *t3Env) pricesFor(id uuid.UUID) []payment.PriceRequest {
+	var out []payment.PriceRequest
+	for _, p := range e.fake.Prices() {
+		if p.PlanPriceID == id {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func TestAdminCreatesProviderPricesOnTheProvider(t *testing.T) {
+	e := newT3Env(t)
+	d := details("Growth")
+	d.TrialDays, d.TrialRequiresCard = 14, true
+	planID, err := e.svc.CreatePlan(e.ctx, model.NewPlan{Code: "adm_" + uuid.NewString()[:8], PlanDetails: d})
+	if err != nil {
+		t.Fatal(err)
+	}
+	newPrice := func(p model.NewPrice) uuid.UUID {
+		t.Helper()
+		p.PlanID, p.Currency = planID, "USD"
+		id, err := e.svc.CreatePrice(e.ctx, p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+	monthly := newPrice(model.NewPrice{BillingType: model.BillingRecurring, Interval: model.IntervalMonth, AmountMinor: 2900})
+	yearly := newPrice(model.NewPrice{BillingType: model.BillingRecurring, Interval: model.IntervalYear, AmountMinor: 29000})
+	ltd := newPrice(model.NewPrice{BillingType: model.BillingOneTime, AmountMinor: 29900})
+	stripe := string(payment.Stripe)
+
+	if _, err := e.svc.CreateProviderPrice(e.ctx, model.NewProviderPrice{PlanPriceID: monthly, Provider: stripe}); err != nil {
+		t.Fatal(err)
+	}
+	got := e.pricesFor(monthly)
+	want := payment.PriceRequest{
+		PlanPriceID: monthly, Name: "Relay Growth (monthly)", AmountMinor: 2900, Currency: "USD", Interval: "month", TrialDays: 14,
+	}
+	if len(got) != 1 || got[0] != want {
+		t.Fatalf("monthly request = %+v, want %+v", got, want)
+	}
+	row, err := repository.NewRepository(e.pool).GetProviderPrice(e.ctx, gen.GetProviderPriceParams{PlanPriceID: monthly, Provider: stripe})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id := deref(row.ExternalPriceID); !strings.HasPrefix(id, "fake_price_") {
+		t.Fatalf("stored external id = %q, want the one the provider returned", id)
+	}
+
+	for _, c := range []struct {
+		price uuid.UUID
+		name  string
+		inter string
+	}{{yearly, "Relay Growth (yearly)", "year"}, {ltd, "Relay Growth (lifetime)", ""}} {
+		if _, err := e.svc.CreateProviderPrice(e.ctx, model.NewProviderPrice{PlanPriceID: c.price, Provider: stripe}); err != nil {
+			t.Fatal(err)
+		}
+		if got := e.pricesFor(c.price); len(got) != 1 || got[0].Name != c.name || got[0].Interval != c.inter {
+			t.Errorf("%s request = %+v", c.name, got)
+		}
+	}
+
+	if _, err := e.svc.CreateProviderPrice(e.ctx, model.NewProviderPrice{PlanPriceID: monthly, Provider: stripe}); !errors.Is(err, model.ErrCatalogDuplicate) {
+		t.Fatalf("second active link: err = %v", err)
+	}
+	if n := len(e.pricesFor(monthly)); n != 1 {
+		t.Fatalf("a refused duplicate still reached the provider: %d requests", n)
+	}
+
+	if _, err := e.svc.CreateProviderPrice(e.ctx, model.NewProviderPrice{PlanPriceID: monthly, Provider: string(payment.Creem)}); !isInvalidInput(err) {
+		t.Fatalf("provider not enabled: err = %v", err)
+	}
+	if _, err := e.svc.CreateProviderPrice(e.ctx, model.NewProviderPrice{PlanPriceID: uuid.New(), Provider: stripe}); !errors.Is(err, model.ErrPriceNotFound) {
+		t.Fatalf("unknown price: err = %v", err)
+	}
+}
+
+func TestAdminProviderPriceKeepsTheManualPathAndSkipsCardlessTrials(t *testing.T) {
+	e := newT3Env(t)
+	d := details("Starter")
+	d.TrialDays = 7
+	planID, err := e.svc.CreatePlan(e.ctx, model.NewPlan{Code: "adm_" + uuid.NewString()[:8], PlanDetails: d})
+	if err != nil {
+		t.Fatal(err)
+	}
+	monthly, err := e.svc.CreatePrice(e.ctx, model.NewPrice{
+		PlanID: planID, BillingType: model.BillingRecurring, Interval: model.IntervalMonth, Currency: "USD", AmountMinor: 1900,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ltd, err := e.svc.CreatePrice(e.ctx, model.NewPrice{PlanID: planID, BillingType: model.BillingOneTime, Currency: "USD", AmountMinor: 19900})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stripe := string(payment.Stripe)
+
+	manual := "price_" + uuid.NewString()
+	if _, err := e.svc.CreateProviderPrice(e.ctx, model.NewProviderPrice{PlanPriceID: monthly, Provider: stripe, ExternalPriceID: &manual}); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(e.pricesFor(monthly)); n != 0 {
+		t.Fatalf("a pasted ID asked the provider to create %d prices", n)
+	}
+	blank := "  "
+	if _, err := e.svc.CreateProviderPrice(e.ctx, model.NewProviderPrice{PlanPriceID: monthly, Provider: stripe, ExternalPriceID: &blank}); !errors.Is(err, model.ErrCatalogDuplicate) {
+		t.Fatalf("a blank ID is the create path, and the price is already linked: err = %v", err)
+	}
+
+	if _, err := e.svc.CreateProviderPrice(e.ctx, model.NewProviderPrice{PlanPriceID: ltd, Provider: stripe, ExternalPriceID: &blank}); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.pricesFor(ltd); len(got) != 1 || got[0].TrialDays != 0 {
+		t.Fatalf("a card-less trial must not become a product trial: %+v", got)
+	}
+
+	offer, err := e.svc.CreateInstallmentOffer(e.ctx, model.NewInstallmentOffer{
+		PlanPriceID: ltd, Count: 3, TotalMinor: 21000, GraceDays: 7, MaxMissed: 2,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	link := model.CollectionAppLink
+	if _, err := e.svc.CreateProviderPrice(e.ctx, model.NewProviderPrice{
+		PlanPriceID: ltd, InstallmentOfferID: &offer, Provider: stripe, Collection: &link,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(e.pricesFor(ltd)); n != 1 {
+		t.Fatalf("an installment offer link changed the provider price count to %d, want the 1 from the plain link", n)
+	}
+}
+
+func TestAdminProviderPriceFailuresLeaveNoLink(t *testing.T) {
+	e := newT3Env(t)
+	planID, err := e.svc.CreatePlan(e.ctx, model.NewPlan{Code: "adm_" + uuid.NewString()[:8], PlanDetails: details("Fail")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	price, err := e.svc.CreatePrice(e.ctx, model.NewPrice{
+		PlanID: planID, BillingType: model.BillingRecurring, Interval: model.IntervalMonth, Currency: "USD", AmountMinor: 900,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := model.NewProviderPrice{PlanPriceID: price, Provider: string(payment.Stripe)}
+
+	e.fake.FailNext(payment.ErrUnavailable)
+	if _, err := e.svc.CreateProviderPrice(e.ctx, in); !errors.Is(err, model.ErrPaymentProviderDown) {
+		t.Fatalf("provider down: err = %v", err)
+	}
+	e.fake.FailNext(payment.ErrInvalidRequest)
+	if _, err := e.svc.CreateProviderPrice(e.ctx, in); !isInvalidInput(err) {
+		t.Fatalf("provider refused: err = %v", err)
+	}
+	if _, err := e.svc.CreateProviderPrice(e.ctx, in); err != nil {
+		t.Fatalf("retry after failures: %v", err)
+	}
+
+	other, err := e.svc.CreatePrice(e.ctx, model.NewPrice{
+		PlanID: planID, BillingType: model.BillingRecurring, Interval: model.IntervalYear, Currency: "USD", AmountMinor: 9000,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.DeactivateCatalogRow(e.ctx, CatalogPrice, other); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.CreateProviderPrice(e.ctx, model.NewProviderPrice{PlanPriceID: other, Provider: string(payment.Stripe)}); !isInvalidInput(err) {
+		t.Fatalf("inactive price: err = %v", err)
+	}
+	if n := len(e.pricesFor(other)); n != 0 {
+		t.Fatalf("an inactive price reached the provider: %d", n)
+	}
 }

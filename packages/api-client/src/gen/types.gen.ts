@@ -166,7 +166,7 @@ export type AdminProviderPriceDto = {
      */
     collection: 'provider_schedule' | 'app_link' | 'provider_financed';
     /**
-     * The provider's price or product ID
+     * The provider's price or product ID. Leave it empty to have Relay create the product and price on the provider (plain prices only)
      */
     external_price_id: string | null;
     id: string;

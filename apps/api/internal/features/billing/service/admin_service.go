@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"regexp"
@@ -349,6 +350,13 @@ func (s *Service) CreateProviderPrice(ctx context.Context, in model.NewProviderP
 			return uuid.Nil, fmt.Errorf("get installment offer: %w", err)
 		}
 	}
+	if ext == nil && in.InstallmentOfferID == nil {
+		created, err := s.createOnProvider(ctx, r, in.PlanPriceID, in.Provider)
+		if err != nil {
+			return uuid.Nil, err
+		}
+		ext = &created
+	}
 	id, err := r.CreateProviderPrice(ctx, gen.CreateProviderPriceParams{
 		PlanPriceID: in.PlanPriceID, InstallmentOfferID: in.InstallmentOfferID, Provider: in.Provider,
 		ExternalPriceID: ext, Collection: in.Collection,
@@ -357,6 +365,60 @@ func (s *Service) CreateProviderPrice(ctx context.Context, in model.NewProviderP
 		return uuid.Nil, model.ErrPriceNotFound
 	}
 	return id, catalogErr("create provider price", err)
+}
+
+// createOnProvider has the provider create the product or price a plain plan
+// price sells through, and returns its ID. It refuses first when an active link
+// already exists, so a refused link never leaves an orphan on the provider.
+func (s *Service) createOnProvider(ctx context.Context, r repository.Repository, planPriceID uuid.UUID, provider string) (string, error) {
+	row, err := r.GetPlanPrice(ctx, planPriceID)
+	if repository.IsNoRows(err) {
+		return "", model.ErrPriceNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("get price: %w", err)
+	}
+	if !row.IsActive {
+		return "", model.ErrInvalidInput.WithDetails(apperr.Detail{Field: "plan_price_id", Message: "This price is no longer on sale"})
+	}
+	_, err = r.GetProviderPrice(ctx, gen.GetProviderPriceParams{PlanPriceID: planPriceID, Provider: provider})
+	switch {
+	case err == nil:
+		return "", model.ErrCatalogDuplicate
+	case !repository.IsNoRows(err):
+		return "", fmt.Errorf("get provider price: %w", err)
+	}
+	g, err := s.gateway(payment.Provider(provider))
+	if err != nil {
+		return "", model.ErrInvalidInput.WithDetails(apperr.Detail{
+			Field: "provider", Message: provider + " is not enabled on this server",
+		})
+	}
+	req := payment.PriceRequest{
+		PlanPriceID: planPriceID, Name: "Relay " + row.PlanName + " (lifetime)", AmountMinor: row.AmountMinor, Currency: row.Currency,
+	}
+	if row.BillingType == model.BillingRecurring {
+		req.Interval = deref(row.Interval)
+		req.Name = "Relay " + row.PlanName + " (monthly)"
+		if req.Interval == model.IntervalYear {
+			req.Name = "Relay " + row.PlanName + " (yearly)"
+		}
+	}
+	// A card-less trial is a Relay grant, so a trial on the product would give a second one.
+	if row.TrialRequiresCard {
+		req.TrialDays = int(row.TrialDays)
+	}
+	external, err := g.CreatePrice(ctx, req)
+	if errors.Is(err, payment.ErrInvalidRequest) {
+		s.logger().Warn("payment provider refused a price", "provider", provider, "err", err)
+		return "", model.ErrInvalidInput.WithDetails(apperr.Detail{
+			Field: "provider", Message: provider + " refused this price",
+		})
+	}
+	if err != nil {
+		return "", s.gatewayErr("create provider price", err)
+	}
+	return external, nil
 }
 
 // Catalog rows an admin can deactivate.

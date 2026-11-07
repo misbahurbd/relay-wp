@@ -11,7 +11,7 @@ import (
 type AdminProviderPriceDTO struct {
 	ID              uuid.UUID `json:"id"`
 	Provider        string    `json:"provider" enum:"stripe,creem,paypal,sslcommerz"`
-	ExternalPriceID *string   `nullable:"true" json:"external_price_id" doc:"The provider's price or product ID"`
+	ExternalPriceID *string   `nullable:"true" json:"external_price_id" doc:"The provider's price or product ID. Leave it empty to have Relay create the product and price on the provider (plain prices only)"`
 	Collection      *string   `nullable:"true" json:"collection" enum:"provider_schedule,app_link,provider_financed" doc:"Installment offers only"`
 	IsActive        bool      `json:"is_active"`
 }

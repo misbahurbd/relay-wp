@@ -270,22 +270,24 @@ func (q *Queries) GetPlan(ctx context.Context, planID uuid.UUID) (GetPlanRow, er
 
 const getPlanPrice = `-- name: GetPlanPrice :one
 SELECT pp.id, pp.plan_id, pp.billing_type, pp.interval, pp.currency, pp.amount_minor, pp.is_active,
-       p.code AS plan_code, p.name AS plan_name
+       p.code AS plan_code, p.name AS plan_name, p.trial_days, p.trial_requires_card
 FROM plan_prices pp
 JOIN plans p ON p.id = pp.plan_id
 WHERE pp.id = $1
 `
 
 type GetPlanPriceRow struct {
-	ID          uuid.UUID
-	PlanID      uuid.UUID
-	BillingType string
-	Interval    *string
-	Currency    string
-	AmountMinor int64
-	IsActive    bool
-	PlanCode    string
-	PlanName    string
+	ID                uuid.UUID
+	PlanID            uuid.UUID
+	BillingType       string
+	Interval          *string
+	Currency          string
+	AmountMinor       int64
+	IsActive          bool
+	PlanCode          string
+	PlanName          string
+	TrialDays         int32
+	TrialRequiresCard bool
 }
 
 func (q *Queries) GetPlanPrice(ctx context.Context, planPriceID uuid.UUID) (GetPlanPriceRow, error) {
@@ -301,6 +303,8 @@ func (q *Queries) GetPlanPrice(ctx context.Context, planPriceID uuid.UUID) (GetP
 		&i.IsActive,
 		&i.PlanCode,
 		&i.PlanName,
+		&i.TrialDays,
+		&i.TrialRequiresCard,
 	)
 	return i, err
 }
