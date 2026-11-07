@@ -18,7 +18,8 @@ import (
 // Features name billing resources by key without importing billing, so a typo
 // would only show up as an error on the first invite or connect.
 func TestPlanResourceKeysAreInTheCatalog(t *testing.T) {
-	for _, key := range []string{teammodel.PlanResourceMembers, whatsappmodel.PlanResourceNumbers, contactsmodel.PlanResourceContacts, automationsmodel.PlanResource, broadcastsmodel.PlanResource, middleware.APICallsResource,
+	for _, key := range []string{
+		teammodel.PlanResourceMembers, whatsappmodel.PlanResourceNumbers, contactsmodel.PlanResourceContacts, automationsmodel.PlanResource, broadcastsmodel.PlanResource, middleware.APICallsResource,
 		teammodel.PlanResourceTeamControls, integrationsmodel.PlanResourceEcommerce,
 	} {
 		r, ok := billingmodel.ResourceByKey(key)

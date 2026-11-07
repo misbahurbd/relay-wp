@@ -131,7 +131,7 @@ func (a *App) registerRoutes(api huma.API) {
 		Domain: a.cfg.Auth.CookieDomain, Secure: a.cfg.Auth.CookieSecure,
 	}), integrationshandler.Guards{
 		Auth: requireAuth, Session: middleware.RequireSession(api), Member: member,
-		Keys:   chain(member, can(authctx.PermIntegrationsAPIKeys)),
+		Keys:      chain(member, can(authctx.PermIntegrationsAPIKeys)),
 		Manage:    integrations,
 		Ecommerce: middleware.RequirePlan(api, plans, integrationsmodel.PlanResourceEcommerce),
 	}, authhandler.Security)
