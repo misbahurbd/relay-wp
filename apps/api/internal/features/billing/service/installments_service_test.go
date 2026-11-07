@@ -127,6 +127,59 @@ func TestPayingAnInstallmentTwiceRefundsTheSecond(t *testing.T) {
 	}
 }
 
+// A duplicate installment payment keeps its numbered invoice, so Relay's
+// numbers stay gapless, but the invoice says Refunded and nobody is thanked
+// for the payment by email (N3).
+func TestRefundedDuplicateInstallmentGetsNoReceipt(t *testing.T) {
+	h := newLTDHarness(t, model.CollectionAppLink)
+	mail := &fakeMailer{}
+	renderer := &fakeRenderer{}
+	h.l.docs.Mailer, h.l.docs.Renderer = mail, renderer
+	q, err := h.quote(h.basic, &h.basic3, "")
+	h.must(err)
+	o := h.buy(q, "")
+	h.run(month)
+	first, err := h.l.payInstallment(h.ctx, h.ws, h.user, o.ID, o.Installments[1].ID, "window-1")
+	h.must(err)
+	second, err := h.l.payInstallment(h.ctx, h.ws, h.user, o.ID, o.Installments[1].ID, "window-2")
+	h.must(err)
+	h.complete(first.Session, h.payment(10333))
+	dup := h.payment(10333)
+	h.complete(second.Session, dup)
+	for _, j := range h.queue.all() {
+		if a, ok := j.(model.InvoiceDocumentArgs); ok {
+			h.must(h.l.DeliverInvoiceDocument(h.ctx, a.WorkspaceID, a.InvoiceID))
+		}
+	}
+
+	var number *string
+	var status string
+	h.must(h.pool.QueryRow(h.ctx, `SELECT number, status FROM invoices WHERE external_payment_id = $1`,
+		dup.ExternalID).Scan(&number, &status))
+	if number == nil || status != model.InvoiceRefunded {
+		t.Fatalf("duplicate invoice number %v, status %s; want numbered and refunded", number, status)
+	}
+	receipts := 0
+	for _, m := range mail.sent {
+		if strings.Contains(m.Subject, *number) {
+			t.Errorf("receipt %q sent for a refunded duplicate", m.Subject)
+		}
+		receipts++
+	}
+	if receipts != 2 {
+		t.Errorf("%d receipts, want the first payment's and installment 2's", receipts)
+	}
+	refunded := 0
+	for _, page := range renderer.pages {
+		if strings.Contains(page, *number) && strings.Contains(page, "Refunded") {
+			refunded++
+		}
+	}
+	if refunded != 1 {
+		t.Errorf("duplicate's PDF doesn't say refunded")
+	}
+}
+
 func TestPayInstallmentRefusesAProviderRunSchedule(t *testing.T) {
 	h := newLTDHarness(t, model.CollectionProviderSchedule)
 	q, err := h.quote(h.basic, &h.basic3, "")
