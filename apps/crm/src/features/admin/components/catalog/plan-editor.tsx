@@ -157,10 +157,11 @@ export function PlanEditor({
     if (!editing) return
     const bad = firstInvalid(order.length - 1)
     if (bad) return stop(bad)
+    const { code: _code, ...details } = planBody(draft)
     update.mutate(
       {
         planId: editing.id,
-        ...planBody(draft),
+        ...details,
         reason: draft.reason.trim(),
       },
       {
