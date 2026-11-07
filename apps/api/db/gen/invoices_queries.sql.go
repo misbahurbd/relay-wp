@@ -16,12 +16,12 @@ const createInvoice = `-- name: CreateInvoice :one
 
 INSERT INTO invoices (workspace_id, number, subscription_id, order_id, installment_id, checkout_session_id, provider,
                       external_payment_id, status, subtotal_minor, tax_minor, total_minor, currency, period_start,
-                      period_end, bill_to, discount_id, discount_minor, receipt_url, paid_at)
+                      period_end, bill_to, discount_id, discount_minor, receipt_url, paid_at, proration)
 VALUES ($1, $2, $3, $4,
         $5, $6, $7, $8,
         $9, $10, $11, $12, $13, $14,
         $15, $16, $17, $18, $19,
-        $20)
+        $20, $21)
 ON CONFLICT (provider, external_payment_id) DO NOTHING
 RETURNING id
 `
@@ -47,6 +47,7 @@ type CreateInvoiceParams struct {
 	DiscountMinor     int64
 	ReceiptUrl        *string
 	PaidAt            *time.Time
+	Proration         bool
 }
 
 // ---------- Invoices (kept forever) ----------
@@ -73,6 +74,7 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (u
 		arg.DiscountMinor,
 		arg.ReceiptUrl,
 		arg.PaidAt,
+		arg.Proration,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -211,7 +213,7 @@ func (q *Queries) GetInvoice(ctx context.Context, arg GetInvoiceParams) (GetInvo
 const getLatestSubscriptionInvoiceID = `-- name: GetLatestSubscriptionInvoiceID :one
 SELECT id
 FROM invoices
-WHERE workspace_id = $1 AND subscription_id = $2
+WHERE workspace_id = $1 AND subscription_id = $2 AND NOT proration
 ORDER BY created_at DESC, id DESC
 LIMIT 1
 `
@@ -221,7 +223,8 @@ type GetLatestSubscriptionInvoiceIDParams struct {
 	SubscriptionID *uuid.UUID
 }
 
-// The subscription's newest invoice: refunding it in full ends the subscription.
+// The subscription's newest period invoice: refunding it in full ends the
+// subscription. A proration (a mid-period plan change) never does.
 func (q *Queries) GetLatestSubscriptionInvoiceID(ctx context.Context, arg GetLatestSubscriptionInvoiceIDParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, getLatestSubscriptionInvoiceID, arg.WorkspaceID, arg.SubscriptionID)
 	var id uuid.UUID

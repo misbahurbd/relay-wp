@@ -588,6 +588,22 @@ func readStripeFixture(t *testing.T, name string) []byte {
 	return b
 }
 
+// An invoice for a mid-period plan change is a proration; a renewal is not.
+func TestStripeInvoicePaidMarksProration(t *testing.T) {
+	g, api := newTestStripe(t)
+	api.on("GET /v1/invoice_payments", `{"object":"list","has_more":false,"url":"/v1/invoice_payments","data":[]}`)
+	for reason, want := range map[string]bool{"subscription_cycle": false, "subscription_update": true} {
+		body := bytes.Replace(readStripeFixture(t, "invoice_paid"), []byte(`"subscription_cycle"`), []byte(`"`+reason+`"`), 1)
+		ev, err := g.ParseWebhook(context.Background(), signStripe(body, stripeTestWebhookSecret, time.Now()), body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ev.Payment == nil || ev.Payment.Proration != want {
+			t.Errorf("%s: payment = %+v, want proration %v", reason, ev.Payment, want)
+		}
+	}
+}
+
 func TestStripeWebhookFixtures(t *testing.T) {
 	g, api := newTestStripe(t)
 	api.on("GET /v1/invoice_payments", `{"object":"list","has_more":false,"url":"/v1/invoice_payments","data":[`+

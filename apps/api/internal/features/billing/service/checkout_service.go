@@ -833,6 +833,7 @@ func createInvoice(ctx context.Context, r repository.Repository, workspaceID uui
 		SubtotalMinor: p.TotalMinor - p.TaxMinor + discount, TaxMinor: p.TaxMinor, TotalMinor: p.TotalMinor,
 		Currency: p.Currency, PeriodStart: p.PeriodStart, PeriodEnd: p.PeriodEnd, BillTo: billTo,
 		DiscountID: discountID, DiscountMinor: discount, ReceiptUrl: nilIfEmpty(p.ReceiptURL), PaidAt: paidAt,
+		Proration: p.Proration,
 	})
 	if repository.IsNoRows(err) {
 		return false, nil

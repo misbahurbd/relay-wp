@@ -413,6 +413,41 @@ func TestChangeKeyRepeatsUntilAChangeIsLogged(t *testing.T) {
 	}
 }
 
+// Refunding a plan change's proration in full gives back the change, not the
+// period: the plan stays. Refunding the period's invoice still ends it.
+func TestRefundingAProrationKeepsThePlan(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	sub := e.subscribe(p.Monthly)
+	var periodPay string
+	if err := e.pool.QueryRow(e.ctx, `SELECT external_payment_id FROM invoices WHERE subscription_id = $1`,
+		sub.ID).Scan(&periodPay); err != nil {
+		t.Fatal(err)
+	}
+	e.tick(time.Hour)
+	prorationPay := "pay_" + uuid.NewString()
+	e.inTx(func(tx pgx.Tx) error {
+		return e.svc.ApplySubscriptionPayment(e.ctx, tx, e.ws, sub.ID, payment.Payment{
+			ExternalID: prorationPay, SubtotalMinor: 500, TotalMinor: 500, Currency: "USD", Proration: true,
+			PeriodStart: &e.clock, PeriodEnd: sub.CurrentPeriodEnd,
+		}, true)
+	})
+	refund := func(pay string, amount int64) {
+		ev := refundEvent(pay, "re_"+uuid.NewString(), amount, payment.RefundSucceeded)
+		ev.Provider = payment.Stripe
+		e.inTx(func(tx pgx.Tx) error { return e.svc.onRefund(e.ctx, tx, e.ws, ev) })
+	}
+
+	refund(prorationPay, 500)
+	e.wantCache(e.ws, p.Code)
+	if got, err := e.svc.Subscription(e.ctx, e.ws); err != nil || got.Status != model.SubscriptionActive {
+		t.Fatalf("after refunding the proration: %s, %v; want active", got.Status, err)
+	}
+
+	refund(periodPay, 1000)
+	e.wantCache(e.ws, model.FreePlan)
+}
+
 // A past-due period was never paid, so a lifetime deal gets no credit for it.
 func TestPastDueSubscriptionHasNoCredit(t *testing.T) {
 	e := newT3Env(t)

@@ -425,6 +425,8 @@ type Payment struct {
 	PeriodEnd              *time.Time `json:"period_end,omitempty"`
 	ReceiptURL             string     `json:"receipt_url,omitempty"`
 	PaidAt                 *time.Time `json:"paid_at,omitempty"`
+	// Proration: the payment charges for a mid-period plan change, not for a period.
+	Proration bool `json:"proration,omitempty"`
 	// Status is set for disputes: "won" or "lost" when closed.
 	Status string `json:"status,omitempty"`
 	// FailureCode is the provider's reason for a failed payment.

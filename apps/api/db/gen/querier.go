@@ -331,7 +331,8 @@ type Querier interface {
 	GetInvoice(ctx context.Context, arg GetInvoiceParams) (GetInvoiceRow, error)
 	// The workspace's live subscription if it has one, else its most recent.
 	GetLatestSubscription(ctx context.Context, workspaceID uuid.UUID) (GetLatestSubscriptionRow, error)
-	// The subscription's newest invoice: refunding it in full ends the subscription.
+	// The subscription's newest period invoice: refunding it in full ends the
+	// subscription. A proration (a mid-period plan change) never does.
 	GetLatestSubscriptionInvoiceID(ctx context.Context, arg GetLatestSubscriptionInvoiceIDParams) (uuid.UUID, error)
 	// The workspace's one in_installments, paid or defaulted order.
 	GetLiveOrder(ctx context.Context, workspaceID uuid.UUID) (GetLiveOrderRow, error)

@@ -4,12 +4,12 @@
 -- ON CONFLICT: a replayed webhook for the same payment adds nothing; no row back.
 INSERT INTO invoices (workspace_id, number, subscription_id, order_id, installment_id, checkout_session_id, provider,
                       external_payment_id, status, subtotal_minor, tax_minor, total_minor, currency, period_start,
-                      period_end, bill_to, discount_id, discount_minor, receipt_url, paid_at)
+                      period_end, bill_to, discount_id, discount_minor, receipt_url, paid_at, proration)
 VALUES (@workspace_id, sqlc.narg('number'), sqlc.narg('subscription_id'), sqlc.narg('order_id'),
         sqlc.narg('installment_id'), sqlc.narg('checkout_session_id'), @provider, sqlc.narg('external_payment_id'),
         @status, @subtotal_minor, @tax_minor, @total_minor, @currency, sqlc.narg('period_start'),
         sqlc.narg('period_end'), @bill_to, sqlc.narg('discount_id'), @discount_minor, sqlc.narg('receipt_url'),
-        sqlc.narg('paid_at'))
+        sqlc.narg('paid_at'), @proration)
 ON CONFLICT (provider, external_payment_id) DO NOTHING
 RETURNING id;
 
@@ -79,9 +79,10 @@ SELECT COALESCE((SELECT sum(i.total_minor) FROM invoices i
                    AND r.status = 'succeeded'), 0)::bigint AS refunded_minor;
 
 -- name: GetLatestSubscriptionInvoiceID :one
--- The subscription's newest invoice: refunding it in full ends the subscription.
+-- The subscription's newest period invoice: refunding it in full ends the
+-- subscription. A proration (a mid-period plan change) never does.
 SELECT id
 FROM invoices
-WHERE workspace_id = @workspace_id AND subscription_id = @subscription_id
+WHERE workspace_id = @workspace_id AND subscription_id = @subscription_id AND NOT proration
 ORDER BY created_at DESC, id DESC
 LIMIT 1;

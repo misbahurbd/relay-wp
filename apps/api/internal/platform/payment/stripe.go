@@ -744,7 +744,7 @@ func (g *stripeGateway) invoicePayment(
 		ExternalID: inv.ID, InvoiceNumber: inv.Number, ExternalCustomerID: stripeID(inv.Customer),
 		ExternalSubscriptionID: meta.Subscription.ID, ExternalScheduleID: meta.Metadata[stripeMetaSchedule],
 		SubtotalMinor: inv.Subtotal, TotalMinor: inv.Total, Currency: strings.ToUpper(string(inv.Currency)),
-		ReceiptURL: inv.HostedInvoiceURL,
+		ReceiptURL: inv.HostedInvoiceURL, Proration: inv.BillingReason == stripe.InvoiceBillingReasonSubscriptionUpdate,
 	}
 	for _, d := range inv.TotalDiscountAmounts {
 		p.DiscountMinor += d.Amount
