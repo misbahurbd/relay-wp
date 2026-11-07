@@ -41,7 +41,7 @@ var Resources = []Resource{
 	{Key: "contacts", Kind: KindCount, Unit: "contact", Label: "Contacts", Enforced: true},
 	{Key: "chatbot_flows", Kind: KindCount, Unit: "chatbot flow", Label: "Chatbot flows"},
 	{Key: "broadcasts", Kind: KindMonthly, Unit: "broadcast", Label: "Broadcasts", Enforced: true},
-	{Key: "api_calls", Kind: KindMonthly, Unit: "API call", Label: "API calls"},
+	{Key: "api_calls", Kind: KindMonthly, Unit: "API call", Label: "API calls", Enforced: true},
 	{Key: "ai_replies", Kind: KindMonthly, Unit: "AI reply", Label: "AI replies"},
 	{Key: "automations", Kind: KindAccess, Label: "Automations & drip campaigns", Enforced: true},
 	{Key: "ecommerce", Kind: KindAccess, Label: "Shopify & WooCommerce"},

@@ -9,12 +9,13 @@ import (
 	contactsmodel "github.com/misbahurbd/relay-wp/apps/api/internal/features/contacts/model"
 	teammodel "github.com/misbahurbd/relay-wp/apps/api/internal/features/team/model"
 	whatsappmodel "github.com/misbahurbd/relay-wp/apps/api/internal/features/whatsapp/model"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/middleware"
 )
 
 // Features name billing resources by key without importing billing, so a typo
 // would only show up as an error on the first invite or connect.
 func TestPlanResourceKeysAreInTheCatalog(t *testing.T) {
-	for _, key := range []string{teammodel.PlanResourceMembers, whatsappmodel.PlanResourceNumbers, contactsmodel.PlanResourceContacts, automationsmodel.PlanResource, broadcastsmodel.PlanResource} {
+	for _, key := range []string{teammodel.PlanResourceMembers, whatsappmodel.PlanResourceNumbers, contactsmodel.PlanResourceContacts, automationsmodel.PlanResource, broadcastsmodel.PlanResource, middleware.APICallsResource} {
 		r, ok := billingmodel.ResourceByKey(key)
 		if !ok {
 			t.Errorf("%q is not in billing's resource catalog", key)

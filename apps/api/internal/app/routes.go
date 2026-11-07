@@ -93,6 +93,11 @@ func (a *App) registerRoutes(api huma.API) {
 		resolver = a.access
 	}
 	member := middleware.RequireWorkspace(api, resolver)
+	var plans middleware.PlanAccess
+	if a.billing != nil {
+		plans = a.billing
+		member = chain(member, middleware.CountAPICalls(api, a.billing))
+	}
 	can := func(perms ...authctx.Permission) teamhandler.Middleware {
 		return middleware.RequirePermission(api, perms...)
 	}
@@ -112,10 +117,6 @@ func (a *App) registerRoutes(api huma.API) {
 		templateshandler.Guards{Auth: requireAuth, Member: member, Can: can}, authhandler.Security)
 	inboxhandler.Register(api, inboxhandler.NewHandler(a.inbox),
 		inboxhandler.Guards{Auth: requireAuth, Member: member, Can: can}, authhandler.Security)
-	var plans middleware.PlanAccess
-	if a.billing != nil {
-		plans = a.billing
-	}
 	automationshandler.Register(api, automationshandler.NewHandler(a.automations), automationshandler.Guards{
 		Auth: requireAuth, Member: member, Can: can, Plan: middleware.RequirePlan(api, plans, automationsmodel.PlanResource),
 	}, authhandler.Security)
