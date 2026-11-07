@@ -613,7 +613,7 @@ func TestStaffClosesDisputes(t *testing.T) {
 	if err := closeIt(false); err != nil {
 		t.Fatal(err)
 	}
-	if g := e.grant(e.ws); g == nil || g.Status != model.GrantSuspended || g.SuspendReason != model.SuspendDispute {
+	if g := e.grant(e.ws); g == nil || g.Status != model.GrantSuspended || !g.SuspendedFor(model.SuspendDispute) {
 		t.Fatalf("lost dispute: grant %+v", g)
 	}
 	e.wantCache(e.ws, model.FreePlan)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -251,7 +252,14 @@ func TestGrantChangesKeepThePlanCache(t *testing.T) {
 		t.Errorf("suspended member limit = %d, want free %d", n, free.Of("members"))
 	}
 
-	e.inTx(func(tx pgx.Tx) error { return e.svc.RestoreGrant(e.ctx, tx, e.ws, g.ID) })
+	// Each cause is lifted on its own: the grant waits for the last one.
+	e.inTx(func(tx pgx.Tx) error { return e.svc.SuspendGrant(e.ctx, tx, e.ws, g.ID, model.SuspendDispute) })
+	e.inTx(func(tx pgx.Tx) error { return e.svc.LiftSuspension(e.ctx, tx, e.ws, g.ID, model.SuspendPastDue) })
+	e.wantCache(e.ws, model.FreePlan)
+	if got := e.grant(e.ws); !slices.Equal(got.SuspendReasons, []string{model.SuspendDispute}) {
+		t.Errorf("causes after lifting past_due = %v, want the dispute", got.SuspendReasons)
+	}
+	e.inTx(func(tx pgx.Tx) error { return e.svc.LiftSuspension(e.ctx, tx, e.ws, g.ID, model.SuspendDispute) })
 	e.wantCache(e.ws, p.Code)
 
 	// A new grant replaces the current one.

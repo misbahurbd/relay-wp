@@ -680,7 +680,7 @@ func (s *Service) onDisputeClosed(ctx context.Context, tx pgx.Tx, workspaceID uu
 			return err
 		}
 		g, err := currentGrant(ctx, repo, workspaceID)
-		if err != nil || g == nil || g.Status != model.GrantActive {
+		if err != nil || g == nil {
 			return err
 		}
 		if (inv.SubscriptionID != nil && sameID(g.SubscriptionID, *inv.SubscriptionID)) ||

@@ -693,8 +693,8 @@ type PlanGrant struct {
 	Reason         *string
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
-	SuspendReason  *string
 	Overrides      []byte
+	SuspendReasons []string
 }
 
 type PlanPrice struct {

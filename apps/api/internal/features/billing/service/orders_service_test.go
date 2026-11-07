@@ -97,17 +97,9 @@ func newLTDHarness(t *testing.T, collection string) *ltdHarness {
 			h.canceledForLTD++
 			return h.subCredit, nil
 		},
-		activateGrant: h.activateGrant,
-		suspendGrant: func(ctx context.Context, tx pgx.Tx, ws, id uuid.UUID, reason string) error {
-			_, err := repository.NewRepository(tx).SuspendGrant(ctx, gen.SuspendGrantParams{
-				Now: &h.now, Reason: &reason, WorkspaceID: ws, GrantID: id,
-			})
-			return err
-		},
-		restoreGrant: func(ctx context.Context, tx pgx.Tx, ws, id uuid.UUID) error {
-			_, err := repository.NewRepository(tx).RestoreGrant(ctx, gen.RestoreGrantParams{WorkspaceID: ws, GrantID: id})
-			return err
-		},
+		activateGrant:  h.activateGrant,
+		suspendGrant:   svc.SuspendGrant,
+		liftSuspension: svc.LiftSuspension,
 		billTo: func(context.Context, pgx.Tx, uuid.UUID) (model.BillTo, error) {
 			return model.BillTo{LegalName: "Acme Ltd", Email: "billing@acme.test"}, nil
 		},
@@ -813,4 +805,41 @@ func TestRefundingAnInstallmentReopensIt(t *testing.T) {
 	h.must(database.WithTx(h.ctx, h.pool, func(tx pgx.Tx) error { return h.l.onRefund(h.ctx, tx, h.ws, ev) }))
 	wantOrder(t, h.order(o.ID), model.OrderInInstallments, first+10333,
 		model.InstallmentPaid, model.InstallmentPaid, model.InstallmentScheduled)
+}
+
+// dispute opens and closes a dispute on payID with outcome ("won" or "lost").
+func (h *ltdHarness) dispute(payID, outcome string) {
+	h.t.Helper()
+	for _, typ := range []payment.EventType{payment.EventDisputeOpened, payment.EventDisputeClosed} {
+		ev := payment.Event{Provider: payment.Stripe, Type: typ, Payment: &payment.Payment{ExternalID: payID, Status: outcome}}
+		h.must(database.WithTx(h.ctx, h.pool, func(tx pgx.Tx) error {
+			if typ == payment.EventDisputeOpened {
+				return h.l.onDisputeOpened(h.ctx, tx, h.ws, ev)
+			}
+			return h.l.onDisputeClosed(h.ctx, tx, h.ws, ev)
+		}))
+	}
+}
+
+// A dispute lost while a missed installment already suspends the plan still
+// counts: paying the installment lifts only its own cause, so the plan stays
+// suspended until support settles the dispute (N2).
+func TestLostDisputeOutlivesAMissedInstallment(t *testing.T) {
+	h := newLTDHarness(t, model.CollectionAppLink)
+	q, err := h.quote(h.basic, &h.basic3, "")
+	h.must(err)
+	o := h.buy(q, "")
+	h.run(month)
+	h.run(8 * 24 * time.Hour)
+	wantGrant(t, h.grant(o.ID), model.GrantSuspended)
+
+	var firstPay string
+	h.must(h.pool.QueryRow(h.ctx, `SELECT external_payment_id FROM invoices WHERE order_id = $1`, o.ID).Scan(&firstPay))
+	h.dispute(firstPay, "lost")
+
+	second := h.order(o.ID).Installments[1]
+	started, err := h.l.payInstallment(h.ctx, h.ws, h.user, o.ID, second.ID, "late")
+	h.must(err)
+	h.complete(started.Session, h.payment(second.AmountMinor))
+	wantGrant(t, h.grant(o.ID), model.GrantSuspended)
 }

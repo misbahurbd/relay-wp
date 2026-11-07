@@ -1,6 +1,7 @@
 package model
 
 import (
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,8 +23,9 @@ const (
 	GrantEnded     = "ended"
 )
 
-// Why a grant is suspended (plan_grants.suspend_reason). Each is lifted only by
-// its own cure: a renewal, a paid installment, or support.
+// Why a grant is suspended (plan_grants.suspend_reasons). A grant is
+// suspended while any cause holds, and each is lifted only by its own cure: a
+// renewal, a paid installment, or support.
 const (
 	SuspendPastDue      = "past_due"
 	SuspendInstallments = "installments"
@@ -41,12 +43,17 @@ type Grant struct {
 	OrderID        *uuid.UUID
 	Status         string // GrantActive or GrantSuspended (GrantEnded once replaced)
 	// PlanLimits are the plan's limits as they are now; Overrides are this grant's own (ADR 0008).
-	PlanLimits    Limits
-	Overrides     Limits
-	StartsAt      time.Time
-	EndsAt        *time.Time // nil: lifetime
-	SuspendedAt   *time.Time
-	SuspendReason string // Suspend…; empty unless suspended
+	PlanLimits     Limits
+	Overrides      Limits
+	StartsAt       time.Time
+	EndsAt         *time.Time // nil: lifetime
+	SuspendedAt    *time.Time
+	SuspendReasons []string // Suspend…, in the order they were added; empty unless suspended
+}
+
+// SuspendedFor reports whether reason is one of the causes holding g suspended.
+func (g Grant) SuspendedFor(reason string) bool {
+	return slices.Contains(g.SuspendReasons, reason)
 }
 
 // GrantInput gives a workspace a new grant. The current one ends in the same transaction.

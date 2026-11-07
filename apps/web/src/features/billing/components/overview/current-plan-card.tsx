@@ -104,7 +104,7 @@ export function CurrentPlanCard({
 
       <Facts overview={overview} card={card.data} priceOf={priceOf} />
 
-      {suspended && !(grant.suspend_reason === 'past_due' && sub?.status === 'past_due') && (
+      {suspended && !(onlyPastDue(grant) && sub?.status === 'past_due') && (
         <Alert variant="warning">
           <TriangleAlertIcon aria-hidden="true" />
           <AlertTitle>Free limits apply for now</AlertTitle>
@@ -279,13 +279,24 @@ function chargeTo(card: PaymentMethod | undefined) {
 }
 
 type Grant = NonNullable<CurrentPlan['grant']>
+type SuspendReason = NonNullable<Grant['suspend_reasons']>[number]
 
 const limitedOn = (grant: Grant) =>
   grant.suspended_at ? `, so access was limited on ${formatDate(grant.suspended_at)}` : ''
 
-/** Why free limits apply, and what gets the plan back: each suspension has its own cure. */
+const suspendedFor = (grant: Grant, reason: SuspendReason) =>
+  grant.suspend_reasons?.includes(reason) ?? false
+
+const onlyPastDue = (grant: Grant) =>
+  grant.suspend_reasons?.length === 1 && suspendedFor(grant, 'past_due')
+
+/**
+ * Why free limits apply, and what gets the plan back: each cause has its own
+ * cure, and a dispute, which only support lifts, is named first.
+ */
 function suspendedText(grant: Grant) {
-  switch (grant.suspend_reason) {
+  const reason = suspendedFor(grant, 'dispute') ? 'dispute' : grant.suspend_reasons?.[0]
+  switch (reason) {
     case 'installments':
       return `An installment was missed${limitedOn(grant)}. Pay it below to get your plan back straight away.`
     case 'past_due':
@@ -299,7 +310,7 @@ function suspendedText(grant: Grant) {
 
 /** A failed renewal: a deadline while the grace period runs, free limits once it has ended. */
 function pastDueText(sub: Subscription, suspended: Grant | undefined) {
-  if (suspended?.suspend_reason === 'past_due') {
+  if (suspended && suspendedFor(suspended, 'past_due')) {
     return `The last renewal failed and the grace period ended${limitedOn(suspended)}. Free limits apply until you update your card.`
   }
   const grace = sub.grace_ends_at

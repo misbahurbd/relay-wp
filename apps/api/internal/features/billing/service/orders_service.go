@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,7 +28,7 @@ type trackT3 struct {
 	cancelForLTD         func(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID) (model.SubscriptionCredit, error)
 	activateGrant        func(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID, in model.GrantInput) (model.Grant, error)
 	suspendGrant         func(ctx context.Context, tx pgx.Tx, workspaceID, grantID uuid.UUID, reason string) error
-	restoreGrant         func(ctx context.Context, tx pgx.Tx, workspaceID, grantID uuid.UUID) error
+	liftSuspension       func(ctx context.Context, tx pgx.Tx, workspaceID, grantID uuid.UUID, reason string) error
 	billTo               func(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID) (model.BillTo, error)
 	startPaymentCheckout func(ctx context.Context, workspaceID, userID uuid.UUID, in model.PaymentCheckoutInput) (model.StartedCheckout, error)
 }
@@ -42,7 +43,7 @@ func (s *Service) ltd() lifetimeDeals {
 	return lifetimeDeals{Service: s, t3: trackT3{
 		price: s.Price, offer: s.InstallmentOffer, applyDiscount: s.ApplyDiscount,
 		subscriptionCredit: s.SubscriptionCredit, cancelForLTD: s.CancelForLTD, activateGrant: s.ActivateGrant,
-		suspendGrant: s.SuspendGrant, restoreGrant: s.RestoreGrant, billTo: s.BillTo,
+		suspendGrant: s.SuspendGrant, liftSuspension: s.LiftSuspension, billTo: s.BillTo,
 		startPaymentCheckout: s.StartPaymentCheckout,
 	}}
 }
@@ -481,8 +482,9 @@ func (l lifetimeDeals) orderInvoice(ctx context.Context, tx pgx.Tx, o model.Orde
 }
 
 // settle brings a live order up to date after a later payment: paid once
-// nothing is owed (a defaulted order resumes, Q12), and its grant restored
-// once no installment is overdue (Q2).
+// nothing is owed (a defaulted order resumes, Q12), and the missed-installment
+// cause lifted from its grant once no installment is overdue (Q2). Another
+// cause, such as a lost dispute, keeps the grant suspended.
 func (l lifetimeDeals) settle(ctx context.Context, tx pgx.Tx, r repository.Repository, o model.Order) error {
 	now := l.now()
 	switch {
@@ -518,11 +520,10 @@ func (l lifetimeDeals) settle(ctx context.Context, tx pgx.Tx, r repository.Repos
 	if err != nil {
 		return fmt.Errorf("get order grant: %w", err)
 	}
-	// A grant suspended for another reason, such as a lost dispute, stays suspended.
-	if g.Status != model.GrantSuspended || deref(g.SuspendReason) != model.SuspendInstallments {
+	if !slices.Contains(g.SuspendReasons, model.SuspendInstallments) {
 		return nil
 	}
-	return l.t3.restoreGrant(ctx, tx, o.WorkspaceID, g.ID)
+	return l.t3.liftSuspension(ctx, tx, o.WorkspaceID, g.ID, model.SuspendInstallments)
 }
 
 // ResumeOrder starts a checkout for a defaulted order's remaining balance;

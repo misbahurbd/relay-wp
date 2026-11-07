@@ -486,6 +486,9 @@ type Querier interface {
 	IsSessionActive(ctx context.Context, arg IsSessionActiveParams) (bool, error)
 	LastInboundExternalID(ctx context.Context, arg LastInboundExternalIDParams) (*string, error)
 	LatestContactConversation(ctx context.Context, arg LatestContactConversationParams) (uuid.UUID, error)
+	// Lifts one cause; the grant is active again once none is left. No row when
+	// the cause doesn't hold.
+	LiftSuspension(ctx context.Context, arg LiftSuspensionParams) (int64, error)
 	// Records the subscription or order a pending checkout created.
 	LinkCheckoutSession(ctx context.Context, arg LinkCheckoutSessionParams) (int64, error)
 	// ---------- API keys ----------
@@ -697,7 +700,6 @@ type Querier interface {
 	ResetDeliveryForRetry(ctx context.Context, arg ResetDeliveryForRetryParams) (int64, error)
 	// ---------- Access (ADR 0002: one query per request) ----------
 	ResolveAccess(ctx context.Context, arg ResolveAccessParams) (ResolveAccessRow, error)
-	RestoreGrant(ctx context.Context, arg RestoreGrantParams) (int64, error)
 	// The provider's product set changed: the next use mirrors each discount again.
 	RetireProviderDiscounts(ctx context.Context, provider string) (int64, error)
 	RevokeAPIKey(ctx context.Context, arg RevokeAPIKeyParams) (int64, error)
@@ -802,6 +804,8 @@ type Querier interface {
 	SubtractOrderPayment(ctx context.Context, arg SubtractOrderPaymentParams) (int64, error)
 	// Pending and succeeded refunds; never more than the invoice total.
 	SumInvoiceRefunds(ctx context.Context, arg SumInvoiceRefundsParams) (int64, error)
+	// Adds a cause to the grant; it is suspended while it has any. No row when
+	// the cause already holds.
 	SuspendGrant(ctx context.Context, arg SuspendGrantParams) (int64, error)
 	// Copies the provider's view of a subscription.
 	SyncSubscription(ctx context.Context, arg SyncSubscriptionParams) (int64, error)

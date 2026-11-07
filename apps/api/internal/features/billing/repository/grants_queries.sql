@@ -4,19 +4,19 @@
 -- The workspace's one active or suspended grant. No row means the free plan.
 -- Limits are the plan's as they are now, plus the grant's overrides (ADR 0008).
 SELECT g.id, g.plan_id, p.code AS plan_code, p.name AS plan_name, g.source, g.subscription_id, g.order_id, g.status,
-       p.limits AS plan_limits, g.overrides, g.starts_at, g.ends_at, g.suspended_at, g.suspend_reason
+       p.limits AS plan_limits, g.overrides, g.starts_at, g.ends_at, g.suspended_at, g.suspend_reasons
 FROM plan_grants g
 JOIN plans p ON p.id = g.plan_id
 WHERE g.workspace_id = @workspace_id AND g.status IN ('active', 'suspended');
 
 -- name: LockCurrentGrant :one
-SELECT id, plan_id, source, subscription_id, order_id, status, overrides, starts_at, ends_at, suspended_at, suspend_reason
+SELECT id, plan_id, source, subscription_id, order_id, status, overrides, starts_at, ends_at, suspended_at, suspend_reasons
 FROM plan_grants
 WHERE workspace_id = @workspace_id AND status IN ('active', 'suspended')
 FOR UPDATE;
 
 -- name: GetOrderGrant :one
-SELECT id, plan_id, source, subscription_id, order_id, status, starts_at, ends_at, suspended_at, suspend_reason
+SELECT id, plan_id, source, subscription_id, order_id, status, starts_at, ends_at, suspended_at, suspend_reasons
 FROM plan_grants
 WHERE workspace_id = @workspace_id AND order_id = @order_id;
 
@@ -40,18 +40,27 @@ LIMIT 1;
 UPDATE plan_grants SET overrides = @overrides, updated_at = now() WHERE workspace_id = @workspace_id AND id = @grant_id;
 
 -- name: SuspendGrant :execrows
+-- Adds a cause to the grant; it is suspended while it has any. No row when
+-- the cause already holds.
 UPDATE plan_grants
-SET status = 'suspended', suspended_at = @now, suspend_reason = @reason
-WHERE workspace_id = @workspace_id AND id = @grant_id AND status = 'active';
+SET status = 'suspended', suspended_at = COALESCE(suspended_at, @now),
+    suspend_reasons = array_append(suspend_reasons, @reason::text)
+WHERE workspace_id = @workspace_id AND id = @grant_id AND status IN ('active', 'suspended')
+  AND NOT (@reason::text = ANY (suspend_reasons));
 
--- name: RestoreGrant :execrows
+-- name: LiftSuspension :execrows
+-- Lifts one cause; the grant is active again once none is left. No row when
+-- the cause doesn't hold.
 UPDATE plan_grants
-SET status = 'active', suspended_at = NULL, suspend_reason = NULL
-WHERE workspace_id = @workspace_id AND id = @grant_id AND status = 'suspended';
+SET suspend_reasons = array_remove(suspend_reasons, @reason::text),
+    status          = CASE WHEN suspend_reasons = ARRAY[@reason::text] THEN 'active' ELSE 'suspended' END,
+    suspended_at    = CASE WHEN suspend_reasons = ARRAY[@reason::text] THEN NULL ELSE suspended_at END
+WHERE workspace_id = @workspace_id AND id = @grant_id AND status = 'suspended'
+  AND @reason::text = ANY (suspend_reasons);
 
 -- name: EndGrant :execrows
 UPDATE plan_grants
-SET status = 'ended', suspended_at = NULL, suspend_reason = NULL, ends_at = COALESCE(LEAST(ends_at, @now), @now)
+SET status = 'ended', suspended_at = NULL, suspend_reasons = '{}', ends_at = COALESCE(LEAST(ends_at, @now), @now)
 WHERE workspace_id = @workspace_id AND id = @grant_id AND status IN ('active', 'suspended');
 
 -- name: SetWorkspacePlanCache :execrows

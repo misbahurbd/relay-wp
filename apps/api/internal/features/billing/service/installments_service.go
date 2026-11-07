@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -335,7 +336,7 @@ func (l lifetimeDeals) pastGrace(ctx context.Context, row gen.ListInstallmentsPa
 
 		g, err := r.GetOrderGrant(ctx, gen.GetOrderGrantParams{WorkspaceID: row.WorkspaceID, OrderID: &o.ID})
 		switch {
-		case err == nil && g.Status == model.GrantActive:
+		case err == nil && g.Status != model.GrantEnded && !slices.Contains(g.SuspendReasons, model.SuspendInstallments):
 			if err := l.t3.suspendGrant(ctx, tx, row.WorkspaceID, g.ID, model.SuspendInstallments); err != nil {
 				return err
 			}

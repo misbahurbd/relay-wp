@@ -633,20 +633,19 @@ func (s *Service) ensurePriceGrant(ctx context.Context, tx pgx.Tx, workspaceID, 
 }
 
 // ensureSubscriptionGrant makes the subscription's grant for planID current:
-// a no-op if it already is, restored if it was suspended for being past due, a
-// new grant otherwise. A grant suspended over a lost dispute waits for support.
+// a no-op if it already is, with the past-due cause lifted if it held, a new
+// grant otherwise. A grant suspended over a lost dispute waits for support.
 func (s *Service) ensureSubscriptionGrant(ctx context.Context, tx pgx.Tx, workspaceID, subscriptionID, planID uuid.UUID) error {
 	g, err := currentGrant(ctx, repository.NewRepository(tx), workspaceID)
 	if err != nil {
 		return err
 	}
-	if g != nil && sameID(g.SubscriptionID, subscriptionID) && g.Status == model.GrantSuspended &&
-		g.SuspendReason == model.SuspendDispute {
+	if g != nil && sameID(g.SubscriptionID, subscriptionID) && g.SuspendedFor(model.SuspendDispute) {
 		return nil // support lifts it, not a renewal or a plan change
 	}
 	if g != nil && sameID(g.SubscriptionID, subscriptionID) && g.PlanID == planID {
-		if g.Status == model.GrantSuspended && g.SuspendReason == model.SuspendPastDue {
-			return s.RestoreGrant(ctx, tx, workspaceID, g.ID)
+		if g.SuspendedFor(model.SuspendPastDue) {
+			return s.LiftSuspension(ctx, tx, workspaceID, g.ID, model.SuspendPastDue)
 		}
 		return nil
 	}
@@ -675,11 +674,11 @@ func changeKey(ctx context.Context, r repository.Repository, sub model.Subscript
 	return fmt.Sprintf("%s:%s:%d:%s:%s:%s", op, sub.ID, n, sub.PlanPriceID, pending, to), nil
 }
 
-// suspendPastDue suspends the current grant if it comes from this subscription
-// and is still active.
+// suspendPastDue adds the past-due cause to the current grant if it comes
+// from this subscription.
 func (s *Service) suspendPastDue(ctx context.Context, tx pgx.Tx, workspaceID, subscriptionID uuid.UUID) error {
 	g, err := currentGrant(ctx, repository.NewRepository(tx), workspaceID)
-	if err != nil || g == nil || !sameID(g.SubscriptionID, subscriptionID) || g.Status != model.GrantActive {
+	if err != nil || g == nil || !sameID(g.SubscriptionID, subscriptionID) || g.SuspendedFor(model.SuspendPastDue) {
 		return err
 	}
 	return s.SuspendGrant(ctx, tx, workspaceID, g.ID, model.SuspendPastDue)

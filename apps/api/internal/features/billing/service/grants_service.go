@@ -271,13 +271,14 @@ func checkGrantInput(in model.GrantInput) error {
 	return nil
 }
 
-// SuspendGrant suspends a grant in tx: the workspace falls back to free limits
-// and keeps its data (Q2). Track T4 calls it for an overdue installment.
+// SuspendGrant adds reason to the causes holding a grant suspended, in tx:
+// the workspace falls back to free limits and keeps its data (Q2). It is a
+// no-op when the cause already holds.
 func (s *Service) SuspendGrant(ctx context.Context, tx pgx.Tx, workspaceID, grantID uuid.UUID, reason string) error {
 	r := repository.NewRepository(tx)
 	now := s.now()
 	if _, err := r.SuspendGrant(ctx, gen.SuspendGrantParams{
-		Now: &now, Reason: &reason, WorkspaceID: workspaceID, GrantID: grantID,
+		Now: &now, Reason: reason, WorkspaceID: workspaceID, GrantID: grantID,
 	}); err != nil {
 		return fmt.Errorf("suspend grant: %w", err)
 	}
@@ -285,12 +286,14 @@ func (s *Service) SuspendGrant(ctx context.Context, tx pgx.Tx, workspaceID, gran
 	return err
 }
 
-// RestoreGrant reactivates a suspended grant in tx. Track T4 calls it when a
-// late installment is paid or a defaulted order resumes.
-func (s *Service) RestoreGrant(ctx context.Context, tx pgx.Tx, workspaceID, grantID uuid.UUID) error {
+// LiftSuspension lifts one cause of a grant's suspension, in tx. The grant is
+// active again once no cause is left; a no-op when reason doesn't hold.
+func (s *Service) LiftSuspension(ctx context.Context, tx pgx.Tx, workspaceID, grantID uuid.UUID, reason string) error {
 	r := repository.NewRepository(tx)
-	if _, err := r.RestoreGrant(ctx, gen.RestoreGrantParams{WorkspaceID: workspaceID, GrantID: grantID}); err != nil {
-		return fmt.Errorf("restore grant: %w", err)
+	if _, err := r.LiftSuspension(ctx, gen.LiftSuspensionParams{
+		Reason: reason, WorkspaceID: workspaceID, GrantID: grantID,
+	}); err != nil {
+		return fmt.Errorf("lift grant suspension: %w", err)
 	}
 	_, err := s.syncPlanCache(ctx, r, workspaceID)
 	return err
@@ -374,6 +377,6 @@ func currentGrant(ctx context.Context, r repository.Repository, workspaceID uuid
 	return &model.Grant{
 		ID: row.ID, PlanID: row.PlanID, PlanCode: row.PlanCode, PlanName: row.PlanName, Source: row.Source,
 		SubscriptionID: row.SubscriptionID, OrderID: row.OrderID, Status: row.Status, PlanLimits: planLimits, Overrides: overrides,
-		StartsAt: row.StartsAt, EndsAt: row.EndsAt, SuspendedAt: row.SuspendedAt, SuspendReason: deref(row.SuspendReason),
+		StartsAt: row.StartsAt, EndsAt: row.EndsAt, SuspendedAt: row.SuspendedAt, SuspendReasons: row.SuspendReasons,
 	}, nil
 }

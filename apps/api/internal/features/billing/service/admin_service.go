@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/google/uuid"
@@ -683,8 +684,10 @@ func (s *Service) EndGrantManually(ctx context.Context, workspaceID uuid.UUID) e
 	})
 }
 
-// RestoreGrantManually reactivates a suspended grant (a missed installment, a
-// lost dispute) once support has sorted it out.
+// RestoreGrantManually lifts a suspension once support has sorted it out. A
+// lost dispute is lifted first and alone, so a payment still missing keeps
+// the grant suspended; with no dispute it lifts the payment causes (a missed
+// installment or renewal settled outside Relay).
 func (s *Service) RestoreGrantManually(ctx context.Context, workspaceID uuid.UUID) error {
 	return database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
 		r := repository.NewRepository(tx)
@@ -703,7 +706,16 @@ func (s *Service) RestoreGrantManually(ctx context.Context, workspaceID uuid.UUI
 		if g.Status != model.GrantSuspended {
 			return model.ErrGrantNotSuspended
 		}
-		return s.RestoreGrant(ctx, tx, workspaceID, g.ID)
+		lift := g.SuspendReasons
+		if slices.Contains(lift, model.SuspendDispute) {
+			lift = []string{model.SuspendDispute}
+		}
+		for _, reason := range lift {
+			if err := s.LiftSuspension(ctx, tx, workspaceID, g.ID, reason); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 }
 

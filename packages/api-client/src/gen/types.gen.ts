@@ -1209,11 +1209,11 @@ export type GrantDto = {
     starts_at: string;
     status: 'active' | 'suspended';
     /**
-     * Why it is suspended; null when active
+     * Why it is suspended, each cleared on its own; empty when active
      */
-    suspend_reason: 'past_due' | 'installments' | 'dispute';
+    suspend_reasons: Array<'past_due' | 'installments' | 'dispute'> | null;
     /**
-     * Free limits apply until the cause is cleared
+     * Free limits apply until every cause is cleared
      */
     suspended_at: string | null;
 };

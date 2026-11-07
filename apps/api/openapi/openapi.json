@@ -3770,20 +3770,23 @@
             ],
             "type": "string"
           },
-          "suspend_reason": {
-            "description": "Why it is suspended; null when active",
-            "enum": [
-              "past_due",
-              "installments",
-              "dispute"
-            ],
+          "suspend_reasons": {
+            "description": "Why it is suspended, each cleared on its own; empty when active",
+            "items": {
+              "enum": [
+                "past_due",
+                "installments",
+                "dispute"
+              ],
+              "type": "string"
+            },
             "type": [
-              "string",
+              "array",
               "null"
             ]
           },
           "suspended_at": {
-            "description": "Free limits apply until the cause is cleared",
+            "description": "Free limits apply until every cause is cleared",
             "format": "date-time",
             "type": [
               "string",
@@ -3798,7 +3801,7 @@
           "starts_at",
           "ends_at",
           "suspended_at",
-          "suspend_reason"
+          "suspend_reasons"
         ],
         "type": "object"
       },

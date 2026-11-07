@@ -52,7 +52,7 @@ func (q *Queries) CreateGrant(ctx context.Context, arg CreateGrantParams) (uuid.
 
 const endGrant = `-- name: EndGrant :execrows
 UPDATE plan_grants
-SET status = 'ended', suspended_at = NULL, suspend_reason = NULL, ends_at = COALESCE(LEAST(ends_at, $1), $1)
+SET status = 'ended', suspended_at = NULL, suspend_reasons = '{}', ends_at = COALESCE(LEAST(ends_at, $1), $1)
 WHERE workspace_id = $2 AND id = $3 AND status IN ('active', 'suspended')
 `
 
@@ -73,7 +73,7 @@ func (q *Queries) EndGrant(ctx context.Context, arg EndGrantParams) (int64, erro
 const getCurrentGrant = `-- name: GetCurrentGrant :one
 
 SELECT g.id, g.plan_id, p.code AS plan_code, p.name AS plan_name, g.source, g.subscription_id, g.order_id, g.status,
-       p.limits AS plan_limits, g.overrides, g.starts_at, g.ends_at, g.suspended_at, g.suspend_reason
+       p.limits AS plan_limits, g.overrides, g.starts_at, g.ends_at, g.suspended_at, g.suspend_reasons
 FROM plan_grants g
 JOIN plans p ON p.id = g.plan_id
 WHERE g.workspace_id = $1 AND g.status IN ('active', 'suspended')
@@ -93,7 +93,7 @@ type GetCurrentGrantRow struct {
 	StartsAt       time.Time
 	EndsAt         *time.Time
 	SuspendedAt    *time.Time
-	SuspendReason  *string
+	SuspendReasons []string
 }
 
 // ---------- Plan grants: what a workspace can use ----------
@@ -116,7 +116,7 @@ func (q *Queries) GetCurrentGrant(ctx context.Context, workspaceID uuid.UUID) (G
 		&i.StartsAt,
 		&i.EndsAt,
 		&i.SuspendedAt,
-		&i.SuspendReason,
+		&i.SuspendReasons,
 	)
 	return i, err
 }
@@ -138,7 +138,7 @@ func (q *Queries) GetFreePlanLimits(ctx context.Context) ([]byte, error) {
 }
 
 const getOrderGrant = `-- name: GetOrderGrant :one
-SELECT id, plan_id, source, subscription_id, order_id, status, starts_at, ends_at, suspended_at, suspend_reason
+SELECT id, plan_id, source, subscription_id, order_id, status, starts_at, ends_at, suspended_at, suspend_reasons
 FROM plan_grants
 WHERE workspace_id = $1 AND order_id = $2
 `
@@ -158,7 +158,7 @@ type GetOrderGrantRow struct {
 	StartsAt       time.Time
 	EndsAt         *time.Time
 	SuspendedAt    *time.Time
-	SuspendReason  *string
+	SuspendReasons []string
 }
 
 func (q *Queries) GetOrderGrant(ctx context.Context, arg GetOrderGrantParams) (GetOrderGrantRow, error) {
@@ -174,9 +174,34 @@ func (q *Queries) GetOrderGrant(ctx context.Context, arg GetOrderGrantParams) (G
 		&i.StartsAt,
 		&i.EndsAt,
 		&i.SuspendedAt,
-		&i.SuspendReason,
+		&i.SuspendReasons,
 	)
 	return i, err
+}
+
+const liftSuspension = `-- name: LiftSuspension :execrows
+UPDATE plan_grants
+SET suspend_reasons = array_remove(suspend_reasons, $1::text),
+    status          = CASE WHEN suspend_reasons = ARRAY[$1::text] THEN 'active' ELSE 'suspended' END,
+    suspended_at    = CASE WHEN suspend_reasons = ARRAY[$1::text] THEN NULL ELSE suspended_at END
+WHERE workspace_id = $2 AND id = $3 AND status = 'suspended'
+  AND $1::text = ANY (suspend_reasons)
+`
+
+type LiftSuspensionParams struct {
+	Reason      string
+	WorkspaceID uuid.UUID
+	GrantID     uuid.UUID
+}
+
+// Lifts one cause; the grant is active again once none is left. No row when
+// the cause doesn't hold.
+func (q *Queries) LiftSuspension(ctx context.Context, arg LiftSuspensionParams) (int64, error) {
+	result, err := q.db.Exec(ctx, liftSuspension, arg.Reason, arg.WorkspaceID, arg.GrantID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const listExpiredGrants = `-- name: ListExpiredGrants :many
@@ -260,7 +285,7 @@ func (q *Queries) ListPlanCacheDrift(ctx context.Context, arg ListPlanCacheDrift
 }
 
 const lockCurrentGrant = `-- name: LockCurrentGrant :one
-SELECT id, plan_id, source, subscription_id, order_id, status, overrides, starts_at, ends_at, suspended_at, suspend_reason
+SELECT id, plan_id, source, subscription_id, order_id, status, overrides, starts_at, ends_at, suspended_at, suspend_reasons
 FROM plan_grants
 WHERE workspace_id = $1 AND status IN ('active', 'suspended')
 FOR UPDATE
@@ -277,7 +302,7 @@ type LockCurrentGrantRow struct {
 	StartsAt       time.Time
 	EndsAt         *time.Time
 	SuspendedAt    *time.Time
-	SuspendReason  *string
+	SuspendReasons []string
 }
 
 func (q *Queries) LockCurrentGrant(ctx context.Context, workspaceID uuid.UUID) (LockCurrentGrantRow, error) {
@@ -294,28 +319,9 @@ func (q *Queries) LockCurrentGrant(ctx context.Context, workspaceID uuid.UUID) (
 		&i.StartsAt,
 		&i.EndsAt,
 		&i.SuspendedAt,
-		&i.SuspendReason,
+		&i.SuspendReasons,
 	)
 	return i, err
-}
-
-const restoreGrant = `-- name: RestoreGrant :execrows
-UPDATE plan_grants
-SET status = 'active', suspended_at = NULL, suspend_reason = NULL
-WHERE workspace_id = $1 AND id = $2 AND status = 'suspended'
-`
-
-type RestoreGrantParams struct {
-	WorkspaceID uuid.UUID
-	GrantID     uuid.UUID
-}
-
-func (q *Queries) RestoreGrant(ctx context.Context, arg RestoreGrantParams) (int64, error) {
-	result, err := q.db.Exec(ctx, restoreGrant, arg.WorkspaceID, arg.GrantID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
 }
 
 const setGrantOverrides = `-- name: SetGrantOverrides :execrows
@@ -360,17 +366,21 @@ func (q *Queries) SetWorkspacePlanCache(ctx context.Context, arg SetWorkspacePla
 
 const suspendGrant = `-- name: SuspendGrant :execrows
 UPDATE plan_grants
-SET status = 'suspended', suspended_at = $1, suspend_reason = $2
-WHERE workspace_id = $3 AND id = $4 AND status = 'active'
+SET status = 'suspended', suspended_at = COALESCE(suspended_at, $1),
+    suspend_reasons = array_append(suspend_reasons, $2::text)
+WHERE workspace_id = $3 AND id = $4 AND status IN ('active', 'suspended')
+  AND NOT ($2::text = ANY (suspend_reasons))
 `
 
 type SuspendGrantParams struct {
 	Now         *time.Time
-	Reason      *string
+	Reason      string
 	WorkspaceID uuid.UUID
 	GrantID     uuid.UUID
 }
 
+// Adds a cause to the grant; it is suspended while it has any. No row when
+// the cause already holds.
 func (q *Queries) SuspendGrant(ctx context.Context, arg SuspendGrantParams) (int64, error) {
 	result, err := q.db.Exec(ctx, suspendGrant,
 		arg.Now,

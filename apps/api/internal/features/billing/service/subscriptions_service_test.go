@@ -331,7 +331,7 @@ func TestPastDueSweepSuspendsAfterGrace(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.wantCache(e.ws, model.FreePlan)
-	if g := e.grant(e.ws); g == nil || g.SuspendReason != model.SuspendPastDue {
+	if g := e.grant(e.ws); g == nil || !g.SuspendedFor(model.SuspendPastDue) {
 		t.Fatalf("grant = %+v", g)
 	}
 
@@ -420,7 +420,7 @@ func TestLostDisputeSuspensionSurvivesRenewal(t *testing.T) {
 	ps := payment.Subscription{ExternalID: *sub.ExternalSubscriptionID, Status: payment.SubscriptionActive}
 	e.inTx(func(tx pgx.Tx) error { return e.svc.SyncSubscription(e.ctx, tx, e.ws, sub.ID, ps) })
 	e.wantCache(e.ws, model.FreePlan)
-	if got := e.grant(e.ws); got == nil || got.ID != g.ID || got.SuspendReason != model.SuspendDispute {
+	if got := e.grant(e.ws); got == nil || got.ID != g.ID || !got.SuspendedFor(model.SuspendDispute) {
 		t.Fatalf("grant after renewal = %+v", got)
 	}
 }
@@ -543,7 +543,7 @@ func TestLostDisputeCancelsTheSubscription(t *testing.T) {
 	if got, err := e.svc.Subscription(e.ctx, e.ws); err != nil || got.Status != model.SubscriptionCanceled {
 		t.Errorf("subscription %s, %v after a lost dispute, want canceled", got.Status, err)
 	}
-	if g := e.grant(e.ws); g == nil || g.Status != model.GrantSuspended || g.SuspendReason != model.SuspendDispute {
+	if g := e.grant(e.ws); g == nil || g.Status != model.GrantSuspended || !g.SuspendedFor(model.SuspendDispute) {
 		t.Errorf("grant = %+v, want suspended for the dispute", g)
 	}
 }
