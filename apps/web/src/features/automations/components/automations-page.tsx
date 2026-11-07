@@ -39,6 +39,8 @@ export function AutomationsPage({ workspaceId, canEdit, canPublish }: Props) {
   const overview = useQuery(overviewQueryOptions(workspaceId))
   const setEnabled = useSetAutomationEnabled(workspaceId)
   const [editing, setEditing] = useState<Kind>()
+  // Set when turning one on is refused for the plan; a workspace without it can still view and turn off.
+  const [needsPlan, setNeedsPlan] = useState(false)
 
   const items = automations.data ?? []
   const stores = (overview.data?.connections ?? [])
@@ -46,26 +48,6 @@ export function AutomationsPage({ workspaceId, canEdit, canPublish }: Props) {
     .map((c) => c.provider as string)
   const active = items.filter((a) => a.enabled).length
   const open = items.find((a) => a.kind === editing)
-
-  if (isApiError(automations.error) && automations.error.code === 'plan_required') {
-    return (
-      <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-5 p-4 sm:p-7">
-        <Heading />
-        <div className="flex flex-col items-start gap-3 rounded-2xl border bg-card p-6 shadow-card">
-          <h2 className="text-base font-bold">Automations aren’t on your plan</h2>
-          <p className="text-[13px] text-muted-foreground">
-            Upgrade to turn on welcome messages, keyword replies, cart reminders and more.
-          </p>
-          <Link
-            to="/billing"
-            className="inline-flex h-11 items-center rounded-lg bg-primary px-[18px] font-bold text-primary-foreground hover:bg-primary/90"
-          >
-            See plans
-          </Link>
-        </div>
-      </main>
-    )
-  }
 
   return (
     <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-[22px] p-4 sm:p-7">
@@ -87,6 +69,21 @@ export function AutomationsPage({ workspaceId, canEdit, canPublish }: Props) {
           </span>
         </div>
       </div>
+
+      {needsPlan && (
+        <div className="flex flex-col items-start gap-3 rounded-2xl border bg-card p-6 shadow-card">
+          <h2 className="text-base font-bold">Automations aren’t on your plan</h2>
+          <p className="text-[13px] text-muted-foreground">
+            Upgrade to turn on welcome messages, keyword replies, cart reminders and more.
+          </p>
+          <Link
+            to="/billing"
+            className="inline-flex h-11 items-center rounded-lg bg-primary px-[18px] font-bold text-primary-foreground hover:bg-primary/90"
+          >
+            See plans
+          </Link>
+        </div>
+      )}
 
       <div className="flex items-center gap-3 rounded-[14px] bg-info-soft px-4 py-3.5 text-[13px]">
         <InfoIcon className="size-[18px] flex-none text-info" aria-hidden="true" />
@@ -122,6 +119,10 @@ export function AutomationsPage({ workspaceId, canEdit, canPublish }: Props) {
                   { kind: a.kind, enabled },
                   {
                     onError: (e) => {
+                      if (isApiError(e) && e.code === 'plan_required') {
+                        setNeedsPlan(true)
+                        return
+                      }
                       toast.error(errorMessage(e))
                       if (isApiError(e) && e.code === 'automation_not_ready') setEditing(a.kind)
                     },

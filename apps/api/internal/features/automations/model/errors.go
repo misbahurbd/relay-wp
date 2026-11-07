@@ -6,6 +6,9 @@ import "github.com/misbahurbd/relay-wp/apps/api/internal/shared/apperr"
 var (
 	// ErrInvalidSettings carries per-field details, located like "rules[1].reply".
 	ErrInvalidSettings = apperr.Validation("invalid_automation_settings", "Some settings are invalid")
+	// ErrPlanRequired: turning an automation on needs a plan that includes automations.
+	ErrPlanRequired = apperr.PaymentRequired("plan_required", "Your plan doesn't include this. Upgrade to use it.").
+			WithDetails(apperr.Detail{Field: "resource", Message: PlanResource})
 	// ErrNotReady carries what is missing, located the same way.
 	ErrNotReady = apperr.Conflict("automation_not_ready", "Finish this automation's settings before turning it on")
 

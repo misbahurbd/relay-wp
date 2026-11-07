@@ -157,6 +157,16 @@ func (s *Service) Save(ctx context.Context, workspaceID, userID uuid.UUID, kind 
 // SetEnabled turns a kind on or off. Turning on needs its settings complete, and
 // resuming a drip moves its dates on by the time it was paused.
 func (s *Service) SetEnabled(ctx context.Context, workspaceID, userID uuid.UUID, kind model.Kind, enabled bool) (model.Automation, error) {
+	// Turning off needs no plan, so a workspace that lost it can stop its automations.
+	if enabled {
+		allowed, err := s.deps.Plans.HasAccess(ctx, workspaceID, model.PlanResource)
+		if err != nil {
+			return model.Automation{}, err
+		}
+		if !allowed {
+			return model.Automation{}, model.ErrPlanRequired
+		}
+	}
 	var out model.Automation
 	err := database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
 		repo := repository.NewRepository(tx)
