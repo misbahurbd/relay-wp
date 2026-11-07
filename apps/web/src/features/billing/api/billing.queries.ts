@@ -58,6 +58,26 @@ function toCatalog(data: CatalogOutputBody): Catalog {
   }
 }
 
+/**
+ * The catalog with only what an enabled payment provider sells: prices and installment offers
+ * with no provider go, then plans left with no price. keepPriceId stays even if unsold, so the
+ * pricing table can still mark the workspace's current plan.
+ */
+export function onSale(catalog: Catalog, keepPriceId?: string): Catalog {
+  const enabled = new Set(catalog.providers.map((p) => p.name))
+  const plans = catalog.plans.flatMap((plan) => {
+    const prices = plan.prices.flatMap((price) => {
+      if (price.id !== keepPriceId && !price.providers.some((p) => enabled.has(p))) return []
+      const offers = price.installment_offers.filter((o) =>
+        o.providers.some((p) => enabled.has(p.provider)),
+      )
+      return [{ ...price, installment_offers: offers }]
+    })
+    return prices.length > 0 ? [{ ...plan, prices }] : []
+  })
+  return { ...catalog, plans }
+}
+
 function toOrder(o: OrderDto): Order {
   return {
     ...o,

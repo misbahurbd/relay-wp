@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { TagIcon } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { Skeleton } from '#/components/ui/skeleton'
-import { plansQueryOptions } from '../../api/billing.queries'
+import { onSale, plansQueryOptions } from '../../api/billing.queries'
 import type { Cadence, Catalog } from '../../types'
 import { EmptyState, ErrorState } from '../kit/states'
 import { cadencesOf, type PlanAction, PricingTable } from './pricing-table'
@@ -24,7 +24,10 @@ export function Catalogue({
   currentPriceId?: string
   header?: (toggle: ReactNode) => ReactNode
 }) {
-  const plans = useQuery(plansQueryOptions())
+  const plans = useQuery({
+    ...plansQueryOptions(),
+    select: (catalog) => onSale(catalog, currentPriceId),
+  })
   const [cadence, setCadence] = useCadence(plans.data)
 
   if (plans.isPending) return <PricingSkeleton />
