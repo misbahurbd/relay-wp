@@ -151,10 +151,20 @@ SELECT EXISTS (
 
 -- name: ListOverdueSubscriptions :many
 -- Job only (all workspaces): live provider-renewed subscriptions whose period
--- ended at or before @ended_before with no news, in ID order after @after_id.
+-- ended at or before ended_before with no news, in ID order after after_id.
+-- After a read back in this period, the next waits as long as the period had
+-- been over then: at least an hour, at most a day.
 SELECT id, workspace_id, provider, external_subscription_id
 FROM subscriptions
 WHERE renewal_mode = 'provider' AND status IN ('trialing', 'active', 'past_due')
   AND external_subscription_id IS NOT NULL AND current_period_end <= @ended_before AND id > @after_id
+  AND (reconciled_at IS NULL OR reconciled_at < current_period_end
+       OR reconciled_at <= sqlc.arg(now)::timestamptz
+           - least(greatest(reconciled_at - current_period_end, interval '1 hour'), interval '1 day'))
 ORDER BY id
 LIMIT @max_rows;
+
+-- name: MarkSubscriptionReconciled :execrows
+UPDATE subscriptions
+SET reconciled_at = @reconciled_at
+WHERE workspace_id = @workspace_id AND id = @subscription_id;

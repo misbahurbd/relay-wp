@@ -803,6 +803,7 @@ type Subscription struct {
 	DiscountEndsAt         *time.Time
 	CreatedAt              time.Time
 	UpdatedAt              time.Time
+	ReconciledAt           *time.Time
 }
 
 type SubscriptionChange struct {

@@ -114,15 +114,18 @@ func (s *Service) fetchCheckout(ctx context.Context, provider, externalSessionID
 // ReconcileSubscriptions reads back each live subscription whose period ended
 // more than renewalSettle ago with no news: a lost renewal, past-due or cancel
 // webhook. What the provider says is applied as its webhook would be; an
-// unchanged state is a replay and costs only the read. It returns how many
-// brought news. Run hourly by the ReconcileSubscriptions worker.
+// unchanged state is a replay and costs only the read, and each read of one
+// period waits longer than the last (ListOverdueSubscriptions). It returns how
+// many brought news. Run hourly by the ReconcileSubscriptions worker.
 func (s *Service) ReconcileSubscriptions(ctx context.Context) (int, error) {
 	news := 0
 	after := uuid.Nil
+	repo := repository.NewRepository(s.pool)
 	for {
-		before := s.now().Add(-renewalSettle)
-		rows, err := repository.NewRepository(s.pool).ListOverdueSubscriptions(ctx, gen.ListOverdueSubscriptionsParams{
-			EndedBefore: &before, AfterID: after, MaxRows: jobBatch,
+		now := s.now()
+		before := now.Add(-renewalSettle)
+		rows, err := repo.ListOverdueSubscriptions(ctx, gen.ListOverdueSubscriptionsParams{
+			EndedBefore: &before, AfterID: after, Now: now, MaxRows: jobBatch,
 		})
 		if err != nil {
 			return news, fmt.Errorf("list overdue subscriptions: %w", err)
@@ -136,6 +139,12 @@ func (s *Service) ReconcileSubscriptions(ctx context.Context) (int, error) {
 			ev, err := g.FetchSubscription(ctx, *row.ExternalSubscriptionID)
 			if errors.Is(err, payment.ErrUnsupported) {
 				continue
+			}
+			// Asked, whatever the answer: the next read of this period backs off.
+			if _, merr := repo.MarkSubscriptionReconciled(ctx, gen.MarkSubscriptionReconciledParams{
+				ReconciledAt: &now, WorkspaceID: row.WorkspaceID, SubscriptionID: row.ID,
+			}); merr != nil {
+				return news, fmt.Errorf("mark subscription reconciled: %w", merr)
 			}
 			if err != nil {
 				s.log.WarnContext(ctx, "billing: couldn't read a subscription back; trying next run",

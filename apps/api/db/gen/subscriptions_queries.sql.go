@@ -435,13 +435,17 @@ SELECT id, workspace_id, provider, external_subscription_id
 FROM subscriptions
 WHERE renewal_mode = 'provider' AND status IN ('trialing', 'active', 'past_due')
   AND external_subscription_id IS NOT NULL AND current_period_end <= $1 AND id > $2
+  AND (reconciled_at IS NULL OR reconciled_at < current_period_end
+       OR reconciled_at <= $3::timestamptz
+           - least(greatest(reconciled_at - current_period_end, interval '1 hour'), interval '1 day'))
 ORDER BY id
-LIMIT $3
+LIMIT $4
 `
 
 type ListOverdueSubscriptionsParams struct {
 	EndedBefore *time.Time
 	AfterID     uuid.UUID
+	Now         time.Time
 	MaxRows     int32
 }
 
@@ -453,9 +457,16 @@ type ListOverdueSubscriptionsRow struct {
 }
 
 // Job only (all workspaces): live provider-renewed subscriptions whose period
-// ended at or before @ended_before with no news, in ID order after @after_id.
+// ended at or before ended_before with no news, in ID order after after_id.
+// After a read back in this period, the next waits as long as the period had
+// been over then: at least an hour, at most a day.
 func (q *Queries) ListOverdueSubscriptions(ctx context.Context, arg ListOverdueSubscriptionsParams) ([]ListOverdueSubscriptionsRow, error) {
-	rows, err := q.db.Query(ctx, listOverdueSubscriptions, arg.EndedBefore, arg.AfterID, arg.MaxRows)
+	rows, err := q.db.Query(ctx, listOverdueSubscriptions,
+		arg.EndedBefore,
+		arg.AfterID,
+		arg.Now,
+		arg.MaxRows,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -632,6 +643,26 @@ func (q *Queries) LockSubscription(ctx context.Context, arg LockSubscriptionPara
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const markSubscriptionReconciled = `-- name: MarkSubscriptionReconciled :execrows
+UPDATE subscriptions
+SET reconciled_at = $1
+WHERE workspace_id = $2 AND id = $3
+`
+
+type MarkSubscriptionReconciledParams struct {
+	ReconciledAt   *time.Time
+	WorkspaceID    uuid.UUID
+	SubscriptionID uuid.UUID
+}
+
+func (q *Queries) MarkSubscriptionReconciled(ctx context.Context, arg MarkSubscriptionReconciledParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markSubscriptionReconciled, arg.ReconciledAt, arg.WorkspaceID, arg.SubscriptionID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const setSubscriptionCancelAtPeriodEnd = `-- name: SetSubscriptionCancelAtPeriodEnd :execrows

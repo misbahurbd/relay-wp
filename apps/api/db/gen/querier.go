@@ -553,7 +553,9 @@ type Querier interface {
 	// The workspace's other open checkouts of this purpose.
 	ListOtherPendingCheckouts(ctx context.Context, arg ListOtherPendingCheckoutsParams) ([]uuid.UUID, error)
 	// Job only (all workspaces): live provider-renewed subscriptions whose period
-	// ended at or before @ended_before with no news, in ID order after @after_id.
+	// ended at or before ended_before with no news, in ID order after after_id.
+	// After a read back in this period, the next waits as long as the period had
+	// been over then: at least an hour, at most a day.
 	ListOverdueSubscriptions(ctx context.Context, arg ListOverdueSubscriptionsParams) ([]ListOverdueSubscriptionsRow, error)
 	// Job only (all workspaces): past-due subscriptions whose grace has run out
 	// and whose plan is still active.
@@ -632,6 +634,7 @@ type Querier interface {
 	// The provider accepted the request; its refund ID, when it gave one, unless
 	// the refund's webhook already filled it in.
 	MarkRefundIssued(ctx context.Context, arg MarkRefundIssuedParams) (int64, error)
+	MarkSubscriptionReconciled(ctx context.Context, arg MarkSubscriptionReconciledParams) (int64, error)
 	// Records the submission to the workspace's active WhatsApp account (the one submit used).
 	MarkTemplateSubmitted(ctx context.Context, arg MarkTemplateSubmittedParams) error
 	MarkTestMessageSent(ctx context.Context, workspaceID uuid.UUID) error

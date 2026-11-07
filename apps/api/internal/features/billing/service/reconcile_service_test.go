@@ -209,3 +209,43 @@ func TestCheckoutTheProviderRefusesToReadBackExpires(t *testing.T) {
 		t.Errorf("session logged %d times, want once", n)
 	}
 }
+
+// counting is the fake, counting read-backs of one subscription.
+type counting struct {
+	*payment.Fake
+	id string
+	n  *int
+}
+
+func (c counting) FetchSubscription(ctx context.Context, id string) (payment.Event, error) {
+	if id == c.id {
+		*c.n++
+	}
+	return c.Fake.FetchSubscription(ctx, id)
+}
+
+// An overdue subscription the provider leaves unchanged (Creem keeps an
+// unpaid renewal active) is read back less and less often, not every hour.
+func TestUnchangedOverdueSubscriptionIsReadBackLessOften(t *testing.T) {
+	e := newT3Env(t)
+	e.svc.queue = &recordingQueue{}
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	sub := e.subscribe(p.Monthly)
+	fetches := 0
+	reg, err := payment.NewRegistry(counting{e.fake, *sub.ExternalSubscriptionID, &fetches})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.svc.payments = reg
+
+	e.clock = sub.CurrentPeriodEnd.Add(renewalSettle)
+	for range 24 {
+		e.tick(time.Hour)
+		if _, err := e.svc.ReconcileSubscriptions(e.ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if fetches < 2 || fetches > 6 {
+		t.Errorf("read back %d times in a day, want a handful, backing off", fetches)
+	}
+}
