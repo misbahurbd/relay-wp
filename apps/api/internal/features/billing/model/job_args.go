@@ -56,7 +56,7 @@ type InvoiceDocumentsSweepArgs struct{}
 // Kind is the job's stable name in the river_job table.
 func (InvoiceDocumentsSweepArgs) Kind() string { return "billing_invoice_documents_sweep" }
 
-// InstallmentsDueArgs is the daily installments pass: mark due, remind,
+// InstallmentsDueArgs is the hourly installments pass: mark due, remind,
 // mark overdue and suspend, default (Q2).
 type InstallmentsDueArgs struct{}
 

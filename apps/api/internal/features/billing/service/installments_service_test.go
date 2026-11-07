@@ -253,6 +253,32 @@ func TestRunInstallmentsDueCancelsAbandonedOrders(t *testing.T) {
 	}
 }
 
+// A batch of young pending orders, whose checkouts may still complete, never
+// holds up installments due after them: the hourly pass reads past them.
+func TestRunInstallmentsDueReadsPastYoungPendingOrders(t *testing.T) {
+	h := newLTDHarness(t, model.CollectionAppLink)
+	q, err := h.quote(h.basic, &h.basic3, "")
+	h.must(err)
+	o := h.buy(q, "")
+	h.now = o.Installments[1].DueAt.Add(-time.Hour)
+	h.must(database.WithTx(h.ctx, h.pool, func(tx pgx.Tx) error {
+		for range installmentBatch {
+			if _, err := h.l.CreateOrder(h.ctx, tx, h.ws, model.NewOrder{
+				Provider: payment.Stripe, BillingCustomerID: h.customer, Quote: q,
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}))
+	h.exec(`UPDATE installments SET due_at = $1 WHERE workspace_id = $2 AND order_id <> $3`, h.now, h.ws, o.ID)
+
+	h.run(time.Hour)
+	if got := h.order(o.ID).Installments[1].Status; got != model.InstallmentDue {
+		t.Errorf("installment 2 behind %d young pending orders: %s, want due", installmentBatch, got)
+	}
+}
+
 func TestDefaultStopsTheProviderSchedule(t *testing.T) {
 	h := newLTDHarness(t, model.CollectionProviderSchedule)
 	q, err := h.quote(h.basic, &h.basic3, "")

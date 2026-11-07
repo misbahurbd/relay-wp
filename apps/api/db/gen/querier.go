@@ -552,9 +552,11 @@ type Querier interface {
 	// Job only (all workspaces): card-less trials and staff grants that have reached their end.
 	ListExpiredGrants(ctx context.Context, arg ListExpiredGrantsParams) ([]ListExpiredGrantsRow, error)
 	ListIdentities(ctx context.Context, userID uuid.UUID) ([]ListIdentitiesRow, error)
-	// Job only (all workspaces): scheduled installments whose due date has come.
+	// Job only (all workspaces): scheduled installments whose due date has come,
+	// in (due_at, id) order after the last row read.
 	ListInstallmentsComingDue(ctx context.Context, arg ListInstallmentsComingDueParams) ([]ListInstallmentsComingDueRow, error)
-	// Job only (all workspaces): due installments unpaid past their offer's grace_days.
+	// Job only (all workspaces): due installments unpaid past their offer's
+	// grace_days, in (due_at, id) order after the last row read.
 	ListInstallmentsPastGrace(ctx context.Context, arg ListInstallmentsPastGraceParams) ([]ListInstallmentsPastGraceRow, error)
 	ListInvitations(ctx context.Context, workspaceID uuid.UUID) ([]ListInvitationsRow, error)
 	// Newest first. The cursor is the last row's (created_at, id); null starts at the top.

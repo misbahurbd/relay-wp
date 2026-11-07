@@ -120,14 +120,16 @@ func (q *Queries) GetInstallmentBySeq(ctx context.Context, arg GetInstallmentByS
 const listInstallmentsComingDue = `-- name: ListInstallmentsComingDue :many
 SELECT i.id, i.workspace_id, i.order_id, i.seq, i.due_at, i.amount_minor
 FROM installments i
-WHERE i.status = 'scheduled' AND i.due_at <= $1
-ORDER BY i.due_at
-LIMIT $2
+WHERE i.status = 'scheduled' AND i.due_at <= $1 AND (i.due_at, i.id) > ($2::timestamptz, $3::uuid)
+ORDER BY i.due_at, i.id
+LIMIT $4
 `
 
 type ListInstallmentsComingDueParams struct {
-	Now     time.Time
-	MaxRows int32
+	Now        time.Time
+	AfterDueAt time.Time
+	AfterID    uuid.UUID
+	MaxRows    int32
 }
 
 type ListInstallmentsComingDueRow struct {
@@ -139,9 +141,15 @@ type ListInstallmentsComingDueRow struct {
 	AmountMinor int64
 }
 
-// Job only (all workspaces): scheduled installments whose due date has come.
+// Job only (all workspaces): scheduled installments whose due date has come,
+// in (due_at, id) order after the last row read.
 func (q *Queries) ListInstallmentsComingDue(ctx context.Context, arg ListInstallmentsComingDueParams) ([]ListInstallmentsComingDueRow, error) {
-	rows, err := q.db.Query(ctx, listInstallmentsComingDue, arg.Now, arg.MaxRows)
+	rows, err := q.db.Query(ctx, listInstallmentsComingDue,
+		arg.Now,
+		arg.AfterDueAt,
+		arg.AfterID,
+		arg.MaxRows,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -173,13 +181,16 @@ FROM installments i
 JOIN orders ord ON ord.id = i.order_id
 JOIN installment_offers o ON o.id = ord.installment_offer_id
 WHERE i.status = 'due' AND i.due_at + make_interval(days => o.grace_days) <= $1
-ORDER BY i.due_at
-LIMIT $2
+  AND (i.due_at, i.id) > ($2::timestamptz, $3::uuid)
+ORDER BY i.due_at, i.id
+LIMIT $4
 `
 
 type ListInstallmentsPastGraceParams struct {
-	Now     time.Time
-	MaxRows int32
+	Now        time.Time
+	AfterDueAt time.Time
+	AfterID    uuid.UUID
+	MaxRows    int32
 }
 
 type ListInstallmentsPastGraceRow struct {
@@ -191,9 +202,15 @@ type ListInstallmentsPastGraceRow struct {
 	MaxMissed   int32
 }
 
-// Job only (all workspaces): due installments unpaid past their offer's grace_days.
+// Job only (all workspaces): due installments unpaid past their offer's
+// grace_days, in (due_at, id) order after the last row read.
 func (q *Queries) ListInstallmentsPastGrace(ctx context.Context, arg ListInstallmentsPastGraceParams) ([]ListInstallmentsPastGraceRow, error) {
-	rows, err := q.db.Query(ctx, listInstallmentsPastGrace, arg.Now, arg.MaxRows)
+	rows, err := q.db.Query(ctx, listInstallmentsPastGrace,
+		arg.Now,
+		arg.AfterDueAt,
+		arg.AfterID,
+		arg.MaxRows,
+	)
 	if err != nil {
 		return nil, err
 	}

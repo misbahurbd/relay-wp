@@ -120,7 +120,7 @@ type NewOrder struct {
 	Quote             OrderQuote
 }
 
-// InstallmentRun counts what one pass of the daily installments job did.
+// InstallmentRun counts what one pass of the hourly installments job did.
 type InstallmentRun struct {
 	MarkedDue int
 	Reminded  int

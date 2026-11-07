@@ -20,7 +20,7 @@ import (
 
 // Track T4: installments.
 
-// installmentBatch is how many installments the daily pass reads at a time.
+// installmentBatch is how many installments the hourly pass reads at a time.
 const installmentBatch = 200
 
 // PayInstallment starts a checkout for one due or overdue app_link
@@ -121,7 +121,7 @@ func (l lifetimeDeals) applyInstallmentPayment(ctx context.Context, tx pgx.Tx, w
 	inst := firstOpen(insts)
 
 	if !paid {
-		// The provider retries. Mark it due so the daily pass applies the
+		// The provider retries. Mark it due so the hourly pass applies the
 		// offer's grace days before it counts as missed (Q2).
 		if inst != nil && inst.Status == model.InstallmentScheduled {
 			if _, err := r.SetInstallmentStatus(ctx, gen.SetInstallmentStatusParams{
@@ -145,7 +145,7 @@ func (l lifetimeDeals) applyInstallmentPayment(ctx context.Context, tx pgx.Tx, w
 	return l.settle(ctx, tx, r, o)
 }
 
-// RunInstallmentsDue is the daily pass (Q2): mark scheduled installments due
+// RunInstallmentsDue is the hourly pass (Q2): mark scheduled installments due
 // and remind (creating app_link pay links), mark unpaid ones overdue after
 // grace_days and suspend the grant, and default orders after max_missed. Run
 // by the InstallmentsDue worker.
@@ -159,48 +159,44 @@ func (l lifetimeDeals) runInstallmentsDue(ctx context.Context) (model.Installmen
 	now := l.now()
 	r := repository.NewRepository(l.pool)
 
-	// Each pass changes the status of what it handles, so the next batch is
-	// new rows. It stops when a batch moves nothing (young pending orders).
+	// Each loop reads on from its last row, so rows a batch leaves as they
+	// were (young pending orders, errors) never hold up the rest.
+	afterDue, afterID := time.Time{}, uuid.Nil
 	for {
 		rows, err := r.ListInstallmentsComingDue(ctx, gen.ListInstallmentsComingDueParams{
-			Now: now, MaxRows: installmentBatch,
+			Now: now, AfterDueAt: afterDue, AfterID: afterID, MaxRows: installmentBatch,
 		})
 		if err != nil {
 			return run, fmt.Errorf("list installments coming due: %w", err)
 		}
-		moved := 0
 		for _, row := range rows {
-			changed, err := l.comeDue(ctx, row, now, &run)
-			if err != nil {
+			afterDue, afterID = row.DueAt, row.ID
+			if err := l.comeDue(ctx, row, now, &run); err != nil {
 				l.log.ErrorContext(ctx, "installment coming due", "installment_id", row.ID, "error", err)
 				errs = append(errs, err)
 			}
-			if changed {
-				moved++
-			}
 		}
-		if len(rows) < installmentBatch || moved == 0 {
+		if len(rows) < installmentBatch {
 			break
 		}
 	}
 
+	afterDue, afterID = time.Time{}, uuid.Nil
 	for {
 		rows, err := r.ListInstallmentsPastGrace(ctx, gen.ListInstallmentsPastGraceParams{
-			Now: now, MaxRows: installmentBatch,
+			Now: now, AfterDueAt: afterDue, AfterID: afterID, MaxRows: installmentBatch,
 		})
 		if err != nil {
 			return run, fmt.Errorf("list installments past grace: %w", err)
 		}
-		moved := 0
 		for _, row := range rows {
+			afterDue, afterID = row.DueAt, row.ID
 			if err := l.pastGrace(ctx, row, now, &run); err != nil {
 				l.log.ErrorContext(ctx, "installment past grace", "installment_id", row.ID, "error", err)
 				errs = append(errs, err)
-				continue
 			}
-			moved++
 		}
-		if len(rows) < installmentBatch || moved == 0 {
+		if len(rows) < installmentBatch {
 			break
 		}
 	}
@@ -210,9 +206,9 @@ func (l lifetimeDeals) runInstallmentsDue(ctx context.Context) (model.Installmen
 // comeDue marks one scheduled installment due and reminds the customer. An
 // order that is no longer live gets its open installments canceled instead,
 // and one whose checkout was abandoned long ago is canceled with them.
-func (l lifetimeDeals) comeDue(ctx context.Context, row gen.ListInstallmentsComingDueRow, now time.Time, run *model.InstallmentRun) (bool, error) {
+func (l lifetimeDeals) comeDue(ctx context.Context, row gen.ListInstallmentsComingDueRow, now time.Time, run *model.InstallmentRun) error {
 	var o model.Order
-	var changed, markedDue, remind bool
+	var markedDue, remind bool
 	err := database.WithTx(ctx, l.pool, func(tx pgx.Tx) error {
 		r := repository.NewRepository(tx)
 		var err error
@@ -227,7 +223,7 @@ func (l lifetimeDeals) comeDue(ctx context.Context, row gen.ListInstallmentsComi
 			if err != nil {
 				return fmt.Errorf("mark installment due: %w", err)
 			}
-			changed, markedDue = n > 0, n > 0
+			markedDue = n > 0
 			remind = markedDue && o.Status == model.OrderInInstallments
 			return nil
 		case model.OrderPending:
@@ -238,29 +234,27 @@ func (l lifetimeDeals) comeDue(ctx context.Context, row gen.ListInstallmentsComi
 				return err
 			}
 		}
-		n, err := r.CancelOpenInstallments(ctx, gen.CancelOpenInstallmentsParams{
+		if _, err := r.CancelOpenInstallments(ctx, gen.CancelOpenInstallmentsParams{
 			WorkspaceID: row.WorkspaceID, OrderID: row.OrderID,
-		})
-		if err != nil {
+		}); err != nil {
 			return fmt.Errorf("cancel open installments: %w", err)
 		}
-		changed = n > 0
 		return nil
 	})
 	if err != nil {
-		return false, err
+		return err
 	}
 	if markedDue {
 		run.MarkedDue++
 	}
 	if !remind {
-		return changed, nil
+		return nil
 	}
 	if err := l.remind(ctx, o, row, now); err != nil {
-		return true, err
+		return err
 	}
 	run.Reminded++
-	return true, nil
+	return nil
 }
 
 // remind stamps the installment's reminder and, for app_link, emails the

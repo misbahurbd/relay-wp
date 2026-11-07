@@ -49,7 +49,7 @@ func (s *Service) ltd() lifetimeDeals {
 }
 
 // abandonedOrderAge is how long a pending order waits for its checkout before
-// the daily pass cancels it: well past CheckoutTTL and providers' webhook retries.
+// the hourly pass cancels it: well past CheckoutTTL and providers' webhook retries.
 const abandonedOrderAge = 7 * 24 * time.Hour
 
 // QuoteOrder says what a lifetime deal would cost the workspace now: the
@@ -323,7 +323,7 @@ func (l lifetimeDeals) completeOrderCheckout(ctx context.Context, tx pgx.Tx, wor
 func (l lifetimeDeals) startOrder(ctx context.Context, tx pgx.Tx, r repository.Repository, o model.Order, session model.CheckoutSession, p payment.Payment) error {
 	if o.Status != model.OrderPending {
 		if o.Status == model.OrderCanceled {
-			// Abandoned and canceled by the daily pass, then paid after all: needs a person.
+			// Abandoned and canceled by the hourly pass, then paid after all: needs a person.
 			return fmt.Errorf("order %s was canceled before its first payment arrived", o.ID)
 		}
 		return nil // already applied

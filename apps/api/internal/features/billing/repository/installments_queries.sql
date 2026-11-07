@@ -57,19 +57,22 @@ SET reminder_sent_at = @now
 WHERE workspace_id = @workspace_id AND id = @installment_id;
 
 -- name: ListInstallmentsComingDue :many
--- Job only (all workspaces): scheduled installments whose due date has come.
+-- Job only (all workspaces): scheduled installments whose due date has come,
+-- in (due_at, id) order after the last row read.
 SELECT i.id, i.workspace_id, i.order_id, i.seq, i.due_at, i.amount_minor
 FROM installments i
-WHERE i.status = 'scheduled' AND i.due_at <= @now
-ORDER BY i.due_at
+WHERE i.status = 'scheduled' AND i.due_at <= @now AND (i.due_at, i.id) > (@after_due_at::timestamptz, @after_id::uuid)
+ORDER BY i.due_at, i.id
 LIMIT @max_rows;
 
 -- name: ListInstallmentsPastGrace :many
--- Job only (all workspaces): due installments unpaid past their offer's grace_days.
+-- Job only (all workspaces): due installments unpaid past their offer's
+-- grace_days, in (due_at, id) order after the last row read.
 SELECT i.id, i.workspace_id, i.order_id, i.seq, i.due_at, o.max_missed
 FROM installments i
 JOIN orders ord ON ord.id = i.order_id
 JOIN installment_offers o ON o.id = ord.installment_offer_id
 WHERE i.status = 'due' AND i.due_at + make_interval(days => o.grace_days) <= @now
-ORDER BY i.due_at
+  AND (i.due_at, i.id) > (@after_due_at::timestamptz, @after_id::uuid)
+ORDER BY i.due_at, i.id
 LIMIT @max_rows;

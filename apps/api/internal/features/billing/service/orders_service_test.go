@@ -317,7 +317,7 @@ func (h *ltdHarness) payment(amount int64) payment.Payment {
 	}
 }
 
-// run advances the clock and runs the daily installments pass.
+// run advances the clock and runs the hourly installments pass.
 func (h *ltdHarness) run(advance time.Duration) model.InstallmentRun {
 	h.t.Helper()
 	h.now = h.now.Add(advance)
@@ -348,7 +348,7 @@ func (h *ltdHarness) invoiceCount(orderID uuid.UUID) int {
 	return n
 }
 
-// closeOpenInstallments takes this test's orders out of later tests' daily passes.
+// closeOpenInstallments takes this test's orders out of later tests' installment passes.
 func (h *ltdHarness) closeOpenInstallments() {
 	h.exec(`UPDATE installments SET status = 'canceled'
 	        WHERE workspace_id = $1 AND status IN ('scheduled', 'due', 'overdue', 'failed')`, h.ws)
