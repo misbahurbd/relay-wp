@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -16,8 +17,9 @@ import (
 )
 
 type s3Storage struct {
-	client *s3.Client
-	bucket string
+	client  *s3.Client
+	presign *s3.PresignClient
+	bucket  string
 }
 
 func newS3(ctx context.Context, cfg config.Storage, createBucket bool) (*s3Storage, error) {
@@ -35,7 +37,7 @@ func newS3(ctx context.Context, cfg config.Storage, createBucket bool) (*s3Stora
 		o.UsePathStyle = cfg.S3PathStyle
 	})
 
-	st := &s3Storage{client: client, bucket: cfg.S3Bucket}
+	st := &s3Storage{client: client, presign: s3.NewPresignClient(client), bucket: cfg.S3Bucket}
 	if createBucket {
 		if err := st.ensureBucket(ctx); err != nil {
 			return nil, err
@@ -99,4 +101,19 @@ func (s *s3Storage) Delete(ctx context.Context, key string) error {
 		return fmt.Errorf("storage: delete %q: %w", key, err)
 	}
 	return nil
+}
+
+// SignedURL presigns a GET locally; no request reaches S3 until the link is opened.
+func (s *s3Storage) SignedURL(ctx context.Context, key, filename string, ttl time.Duration) (string, error) {
+	disposition, contentType := attachment(filename)
+	req, err := s.presign.PresignGetObject(ctx, &s3.GetObjectInput{
+		Bucket:                     aws.String(s.bucket),
+		Key:                        aws.String(key),
+		ResponseContentDisposition: aws.String(disposition),
+		ResponseContentType:        aws.String(contentType),
+	}, s3.WithPresignExpires(ttl))
+	if err != nil {
+		return "", fmt.Errorf("storage: sign %q: %w", key, err)
+	}
+	return req.URL, nil
 }

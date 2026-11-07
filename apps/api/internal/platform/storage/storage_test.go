@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/config"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/storage"
@@ -27,6 +29,55 @@ func TestMemory(t *testing.T) {
 		t.Fatal(err)
 	}
 	roundTrip(t, st)
+}
+
+func TestMemorySignedURL(t *testing.T) {
+	st, err := storage.New(context.Background(), config.Storage{Driver: "memory"}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := st.SignedURL(context.Background(), "invoices/ws/inv.pdf", "RLY-2026-000001.pdf", 15*time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "memory://invoices/ws/inv.pdf" {
+		t.Errorf("SignedURL = %q", got)
+	}
+}
+
+// TestS3SignedURL presigns without a server: signing is local.
+func TestS3SignedURL(t *testing.T) {
+	st, err := storage.New(context.Background(), config.Storage{
+		Driver: "s3", S3Endpoint: "http://localhost:9000", S3Region: "us-east-1", S3PathStyle: true,
+		S3AccessKey: "key", S3SecretKey: "secret", S3Bucket: "relay",
+	}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := st.SignedURL(context.Background(), "invoices/ws/inv.pdf", `RLY-2026-000001.pdf`, 15*time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := u.Query()
+	if u.Path != "/relay/invoices/ws/inv.pdf" {
+		t.Errorf("path = %q", u.Path)
+	}
+	if got := q.Get("response-content-disposition"); got != `attachment; filename="RLY-2026-000001.pdf"` {
+		t.Errorf("content disposition = %q", got)
+	}
+	if got := q.Get("response-content-type"); got != "application/pdf" {
+		t.Errorf("content type = %q", got)
+	}
+	if got := q.Get("X-Amz-Expires"); got != "900" {
+		t.Errorf("expires = %q", got)
+	}
+	if strings.Contains(raw, "secret") {
+		t.Error("signed URL contains the secret key")
+	}
 }
 
 // TestS3 talks to a real S3-compatible server (RustFS locally). Set S3_TEST_ENDPOINT to run it.

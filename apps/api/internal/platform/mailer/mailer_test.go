@@ -3,6 +3,7 @@ package mailer_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"log/slog"
 	"os"
 	"strconv"
@@ -54,5 +55,40 @@ func TestSMTPSend(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestLogDriverLogsAttachmentNamesNotBytes(t *testing.T) {
+	var buf bytes.Buffer
+	m, err := mailer.New(config.Mailer{Driver: "log"}, slog.New(slog.NewTextHandler(&buf, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = m.Send(context.Background(), mailer.Message{
+		To: []string{"a@b.test"}, Subject: "Receipt", Text: "x",
+		Attachments: []mailer.Attachment{{Filename: "RLY-2026-000001.pdf", ContentType: "application/pdf", Data: []byte("%PDF-secret-bytes")}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "RLY-2026-000001.pdf (17 bytes)") {
+		t.Errorf("log output lacks the attachment name and size: %s", out)
+	}
+	if strings.Contains(out, "secret-bytes") {
+		t.Errorf("log output contains attachment bytes: %s", out)
+	}
+}
+
+func TestQueuedMessageDropsAttachments(t *testing.T) {
+	raw, err := json.Marshal(mailer.SendArgs{Message: mailer.Message{
+		To: []string{"a@b.test"}, Subject: "s", Text: "t",
+		Attachments: []mailer.Attachment{{Filename: "f.pdf", Data: []byte("%PDF-")}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "f.pdf") {
+		t.Errorf("job args carry the attachment: %s", raw)
 	}
 }

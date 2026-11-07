@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"time"
 )
 
 // memoryStorage keeps objects in a map. For tests and local runs without S3.
@@ -42,4 +43,9 @@ func (m *memoryStorage) Delete(_ context.Context, key string) error {
 	delete(m.objects, key)
 	m.mu.Unlock()
 	return nil
+}
+
+// SignedURL is a stand-in link for tests; nothing serves it.
+func (m *memoryStorage) SignedURL(_ context.Context, key, _ string, _ time.Duration) (string, error) {
+	return "memory://" + key, nil
 }

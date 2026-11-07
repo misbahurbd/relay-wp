@@ -15,6 +15,16 @@ type Message struct {
 	Subject string   `json:"subject"`
 	Text    string   `json:"text"`
 	HTML    string   `json:"html,omitempty"`
+	// Attachments are never encoded, so file bytes can't land in a queued
+	// SendArgs job: a message with attachments is sent with Send directly.
+	Attachments []Attachment `json:"-"`
+}
+
+// Attachment is one file attached to a message.
+type Attachment struct {
+	Filename    string
+	ContentType string
+	Data        []byte
 }
 
 // Mailer sends a message.

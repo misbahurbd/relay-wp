@@ -1,6 +1,7 @@
 package mailer
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -59,6 +60,9 @@ func (m *smtpMailer) Send(ctx context.Context, msg Message) error {
 	em.SetBodyString(mail.TypeTextPlain, msg.Text)
 	if msg.HTML != "" {
 		em.AddAlternativeString(mail.TypeTextHTML, msg.HTML)
+	}
+	for _, a := range msg.Attachments {
+		em.AttachReadSeeker(a.Filename, bytes.NewReader(a.Data), mail.WithFileContentType(mail.ContentType(a.ContentType)))
 	}
 
 	if err := m.client.DialAndSendWithContext(ctx, em); err != nil {
