@@ -9119,6 +9119,40 @@ export type SuspendMemberResponses = {
 
 export type SuspendMemberResponse = SuspendMemberResponses[keyof SuspendMemberResponses];
 
+export type TransferOwnershipData = {
+    body?: never;
+    headers: {
+        /**
+         * The workspace this request is for
+         */
+        'X-Workspace-ID': string;
+        'User-Agent'?: string;
+    };
+    path: {
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/workspace/members/{userId}/transfer-ownership';
+};
+
+export type TransferOwnershipErrors = {
+    /**
+     * Error
+     */
+    default: ErrorBody;
+};
+
+export type TransferOwnershipError = TransferOwnershipErrors[keyof TransferOwnershipErrors];
+
+export type TransferOwnershipResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type TransferOwnershipResponse = TransferOwnershipResponses[keyof TransferOwnershipResponses];
+
 export type GetOnboardingData = {
     body?: never;
     headers: {

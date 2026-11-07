@@ -8,6 +8,7 @@ import {
   fetchMemberRolePreview,
   useChangeMemberRole,
   useRemoveMember,
+  useTransferOwnership,
 } from '../../api/team.mutations'
 import {
   permissionsQueryOptions,
@@ -209,6 +210,69 @@ export function RemoveMemberDialog({
           }
         >
           {remove.isPending ? 'Removing…' : 'Remove member'}
+        </Btn>
+      </div>
+    </Modal>
+  )
+}
+
+/** "Make Rafi Hasan the Owner?": type their name to confirm; you become an Admin. */
+export function TransferOwnershipDialog({
+  workspaceId,
+  member,
+  onClose,
+}: {
+  workspaceId: string
+  member: Target
+  onClose: () => void
+}) {
+  const transfer = useTransferOwnership(workspaceId, member.user_id)
+  const [typed, setTyped] = useState('')
+  const matches = typed.trim().toLowerCase() === member.name.toLowerCase()
+  const first = member.name.split(' ')[0]
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Make ${member.name} the Owner?`}
+      description={`${first} gets full access, including billing and deleting the workspace. You become an Admin, and only ${first} can transfer ownership back.`}
+    >
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="transfer-confirm" className="text-[13px] font-bold">
+          Type <strong>{member.name}</strong> to confirm
+        </label>
+        <Input
+          unstyled
+          id="transfer-confirm"
+          className={inputClass}
+          value={typed}
+          autoComplete="off"
+          placeholder={member.name}
+          onChange={(e) => setTyped(e.target.value)}
+          aria-invalid={transfer.isError}
+          aria-describedby={transfer.isError ? 'transfer-error' : undefined}
+        />
+        <ErrorText id="transfer-error">
+          {transfer.isError && errorMessage(transfer.error)}
+        </ErrorText>
+      </div>
+      <div className="flex justify-end gap-2.5">
+        <Btn variant="outline" onClick={onClose}>
+          Cancel
+        </Btn>
+        <Btn
+          variant="danger"
+          disabled={!matches || transfer.isPending}
+          onClick={() =>
+            transfer.mutate(undefined, {
+              onSuccess: () => {
+                toast.success(`${member.name} is now the Owner`)
+                onClose()
+              },
+            })
+          }
+        >
+          {transfer.isPending ? 'Transferring…' : 'Transfer ownership'}
         </Btn>
       </div>
     </Modal>

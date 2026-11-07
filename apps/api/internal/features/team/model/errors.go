@@ -25,6 +25,8 @@ var (
 	ErrOwnerProtected   = apperr.Forbidden("owner_protected", "Only the owner can change the owner's access")
 	ErrOwnerRole        = apperr.Forbidden("owner_role", "The Owner role is given only by transferring ownership")
 	ErrOwnerMustLeave   = apperr.Conflict("owner_must_transfer", "Transfer ownership before leaving the workspace")
+	ErrOwnerOnly        = apperr.Forbidden("owner_only", "Only the owner can transfer ownership")
+	ErrMemberNotActive  = apperr.Conflict("member_not_active", "Only an active member can become the owner")
 	ErrConfirmName      = apperr.Validation("confirm_name_mismatch", "Type the member's name exactly to confirm")
 
 	ErrNotEnoughSeats = apperr.Conflict("not_enough_seats",

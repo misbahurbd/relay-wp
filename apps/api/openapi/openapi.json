@@ -21386,6 +21386,65 @@
         ]
       }
     },
+    "/v1/workspace/members/{userId}/transfer-ownership": {
+      "post": {
+        "operationId": "transfer-ownership",
+        "parameters": [
+          {
+            "description": "The workspace this request is for",
+            "in": "header",
+            "name": "X-Workspace-ID",
+            "required": true,
+            "schema": {
+              "description": "The workspace this request is for",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Make an active member the owner; the current owner becomes an Admin (owner only)",
+        "tags": [
+          "team"
+        ]
+      }
+    },
     "/v1/workspace/onboarding": {
       "get": {
         "operationId": "get-onboarding",

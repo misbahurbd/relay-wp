@@ -21,6 +21,7 @@ import {
   revokeMemberOverride,
   setTeamMembers,
   suspendMember,
+  transferOwnership,
   updateMemberAccess,
   updateRole,
   updateTeam,
@@ -199,6 +200,16 @@ export function useRemoveMember(workspaceId: string, userId: string) {
       headers: inWorkspace(workspaceId),
       path: { userId },
       body: { confirm_name: confirmName },
+      throwOnError: true,
+    })
+  })
+}
+
+export function useTransferOwnership(workspaceId: string, userId: string) {
+  return useTeamMutation(workspaceId, async () => {
+    await transferOwnership({
+      headers: inWorkspace(workspaceId),
+      path: { userId },
       throwOnError: true,
     })
   })

@@ -75,6 +75,8 @@ func Register(api huma.API, h *Handler, g Guards, security []map[string][]string
 		"Give a suspended member their access back", none, remove), h.restore)
 	huma.Register(api, ws("remove-member", http.MethodPost, "/members/{userId}/remove",
 		"Remove a member from the workspace", none, remove), h.remove)
+	huma.Register(api, ws("transfer-ownership", http.MethodPost, "/members/{userId}/transfer-ownership",
+		"Make an active member the owner; the current owner becomes an Admin (owner only)", none), h.transferOwnership)
 
 	huma.Register(api, ws("list-teams", http.MethodGet, "/teams", "Teams and their members", ok), h.listTeams)
 	huma.Register(api, ws("create-team", http.MethodPost, "/teams", "Create a team", created, roles), h.createTeam)
