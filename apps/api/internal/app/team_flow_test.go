@@ -571,3 +571,22 @@ func TestBillingPayAloneCanReadBilling(t *testing.T) {
 	agent, _ := w.join("agent")
 	expect(t, agent.do("GET", w.base+"/billing", nil), http.StatusForbidden, "permission_denied")
 }
+
+// The CRM shows who owns a workspace now, not who created it.
+func TestCRMShowsTheCurrentOwner(t *testing.T) {
+	e := newAuthEnv(t)
+	w := newTeamWorkspace(e)
+	_, heirID := w.join("admin")
+	expect(t, w.owner.do("POST", w.base+"/members/"+heirID+"/transfer-ownership", map[string]any{}), http.StatusNoContent)
+	var email string
+	if err := e.a.db.QueryRow(t.Context(), `SELECT email FROM users WHERE id = $1`, heirID).Scan(&email); err != nil {
+		t.Fatal(err)
+	}
+	list, err := e.a.billing.AdminWorkspaces(t.Context(), email)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 || list[0].ID.String() != w.id || list[0].OwnerEmail != email {
+		t.Fatalf("searching the new owner's email: %+v", list)
+	}
+}

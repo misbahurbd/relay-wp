@@ -43,7 +43,7 @@ type Querier interface {
 	// every workspace's plan. Never called from a workspace's own requests.
 	AdminListPlans(ctx context.Context) ([]AdminListPlansRow, error)
 	AdminListProviderPrices(ctx context.Context) ([]AdminListProviderPricesRow, error)
-	// Newest first. search matches the workspace name or the creator's email.
+	// Newest first. search matches the workspace name or the current owner's email.
 	AdminListWorkspaces(ctx context.Context, search string) ([]AdminListWorkspacesRow, error)
 	AdminWorkspaceExists(ctx context.Context, workspaceID uuid.UUID) (bool, error)
 	// The channel's status webhook (AD-7): pending 0 < sent 1 < delivered 2 < read 3 < failed 4,
