@@ -814,9 +814,18 @@ func (g *stripeGateway) invoicePayment(
 	for _, t := range inv.TotalTaxes {
 		p.TaxMinor += t.Amount
 	}
-	if inv.Lines != nil && len(inv.Lines.Data) > 0 && inv.Lines.Data[0].Period != nil {
-		start, end := unixTime(inv.Lines.Data[0].Period.Start), unixTime(inv.Lines.Data[0].Period.End)
-		p.PeriodStart, p.PeriodEnd = start, end
+	// The period is the line that runs latest: on an interval switch the
+	// credit for unused time ends with the old period, the new one runs on.
+	if inv.Lines != nil {
+		var latest *stripe.Period
+		for _, l := range inv.Lines.Data {
+			if l.Period != nil && (latest == nil || l.Period.End > latest.End) {
+				latest = l.Period
+			}
+		}
+		if latest != nil {
+			p.PeriodStart, p.PeriodEnd = unixTime(latest.Start), unixTime(latest.End)
+		}
 	}
 	if st := inv.StatusTransitions; st != nil {
 		p.PaidAt = unixTime(st.PaidAt)

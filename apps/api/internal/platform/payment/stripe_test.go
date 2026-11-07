@@ -681,6 +681,15 @@ func TestStripeWebhookFixtures(t *testing.T) {
 			}
 		}},
 		{"invoice_paid", EventPaymentSucceeded, true, nil},
+		// A monthly to yearly switch with the unused-time credit as the first
+		// line: the invoice pays for the new yearly period, so that is its period.
+		{"invoice_paid_interval_switch", EventPaymentSucceeded, true, func(t *testing.T, ev Event) {
+			p := ev.Payment
+			if p == nil || p.PeriodStart == nil || p.PeriodEnd == nil ||
+				!p.PeriodStart.Equal(time.Unix(1763035200, 0)) || !p.PeriodEnd.Equal(time.Unix(1794571200, 0)) {
+				t.Fatalf("payment = %+v", p)
+			}
+		}},
 		{"invoice_payment_failed_subscription_create", EventIgnored, true, func(t *testing.T, ev Event) {
 			if ev.Payment == nil || ev.Payment.ExternalID != "in_1" || ev.Payment.PaidAt != nil {
 				t.Fatalf("payment = %+v", ev.Payment)

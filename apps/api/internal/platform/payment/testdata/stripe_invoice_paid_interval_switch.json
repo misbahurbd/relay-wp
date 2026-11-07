@@ -1,0 +1,57 @@
+{
+  "id": "evt_inv_paid_interval_switch",
+  "object": "event",
+  "api_version": "2026-09-30.endive",
+  "created": 1761696000,
+  "type": "invoice.paid",
+  "data": {
+    "object": {
+      "id": "in_switch_1",
+      "object": "invoice",
+      "number": "RELAY-0002",
+      "customer": "cus_1",
+      "currency": "usd",
+      "billing_reason": "subscription_update",
+      "subtotal": 26600,
+      "total": 26600,
+      "amount_paid": 26600,
+      "hosted_invoice_url": "https://invoice.stripe.com/i/in_switch_1",
+      "total_discount_amounts": [],
+      "total_taxes": [],
+      "status_transitions": {
+        "paid_at": 1761696000
+      },
+      "lines": {
+        "object": "list",
+        "data": [
+          {
+            "id": "il_unused",
+            "object": "line_item",
+            "period": {
+              "start": 1763035200,
+              "end": 1764374400
+            }
+          },
+          {
+            "id": "il_year",
+            "object": "line_item",
+            "period": {
+              "start": 1763035200,
+              "end": 1794571200
+            }
+          }
+        ]
+      },
+      "parent": {
+        "type": "subscription_details",
+        "subscription_details": {
+          "subscription": "sub_1",
+          "metadata": {
+            "relay_reference": "0199a0b2-7c3e-7d4a-9b1e-2f6a3c5d8e01",
+            "relay_schedule": "sub_sched_1"
+          }
+        }
+      }
+    }
+  }
+}
