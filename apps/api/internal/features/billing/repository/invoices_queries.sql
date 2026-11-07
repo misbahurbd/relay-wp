@@ -71,7 +71,7 @@ WHERE workspace_id = @workspace_id AND id = @invoice_id AND pdf_key IS NULL;
 
 -- name: ClaimInvoicesToDeliver :many
 -- Numbered invoices created before `before` whose PDF, or receipt email to a
--- billing contact, is still undelivered: their document job ran out of
+-- billing contact (none for a refunded payment), is still undelivered: their document job ran out of
 -- attempts, or they predate invoice documents. Each claim counts a sweep and
 -- the next waits twice as long (15 minutes, then 30, up to a day), and
 -- the least recently swept go first, so failing invoices can't crowd out new ones.
@@ -80,7 +80,7 @@ WITH due AS (
     FROM invoices x
     WHERE x.number IS NOT NULL AND x.created_at < sqlc.arg(before)::timestamptz
       AND (x.pdf_key IS NULL OR x.emailed_at IS NULL)
-      AND (x.pdf_key IS NULL OR COALESCE(x.bill_to ->> 'email', '') <> '')
+      AND (x.pdf_key IS NULL OR (COALESCE(x.bill_to ->> 'email', '') <> '' AND x.status <> 'refunded'))
       AND (x.document_swept_at IS NULL
            OR x.document_swept_at <= sqlc.arg(now)::timestamptz
                - least(interval '15 minutes' * power(2, least(x.document_sweeps - 1, 7)), interval '1 day'))

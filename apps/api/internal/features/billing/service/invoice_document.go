@@ -42,6 +42,9 @@ type invoiceDoc struct {
 	Tax      string
 	Total    string
 	Provider string
+	// Refunded: the payment was refunded in full before the document was
+	// made (a duplicate payment). It says so, and no receipt is emailed.
+	Refunded bool
 }
 
 // DeliverInvoiceDocument renders a paid invoice's PDF, stores it and emails
@@ -79,7 +82,7 @@ func (s *Service) DeliverInvoiceDocument(ctx context.Context, workspaceID, invoi
 		}
 	}
 
-	if row.EmailedAt != nil || doc.Email == "" {
+	if row.EmailedAt != nil || doc.Email == "" || doc.Refunded {
 		return nil
 	}
 	if file == nil {
@@ -173,7 +176,7 @@ func (s *Service) invoiceDoc(row gen.GetInvoiceDocumentRow) (invoiceDoc, error) 
 		Number: *row.Number, IssueDate: row.PaidAt.UTC().Format("January 2, 2006"), Seller: s.cfg.Seller,
 		BillTo: billToLines(billTo), Email: billTo.Email, Description: invoiceDescription(row),
 		Subtotal: money(row.SubtotalMinor, row.Currency), Total: money(row.TotalMinor, row.Currency),
-		Provider: providerName(payment.Provider(row.Provider)),
+		Provider: providerName(payment.Provider(row.Provider)), Refunded: row.Status == model.InvoiceRefunded,
 	}
 	if row.DiscountMinor > 0 {
 		doc.Discount = money(row.DiscountMinor, row.Currency)

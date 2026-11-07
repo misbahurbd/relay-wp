@@ -83,7 +83,7 @@ type Querier interface {
 	// Whether a provider payment for the checkout already has its invoice.
 	CheckoutPaymentRecorded(ctx context.Context, arg CheckoutPaymentRecordedParams) (bool, error)
 	// Numbered invoices created before `before` whose PDF, or receipt email to a
-	// billing contact, is still undelivered: their document job ran out of
+	// billing contact (none for a refunded payment), is still undelivered: their document job ran out of
 	// attempts, or they predate invoice documents. Each claim counts a sweep and
 	// the next waits twice as long (15 minutes, then 30, up to a day), and
 	// the least recently swept go first, so failing invoices can't crowd out new ones.

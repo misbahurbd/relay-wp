@@ -50,7 +50,7 @@
       <table class="meta">
         <tr><td>Invoice number</td><td>{{.Number}}</td></tr>
         <tr><td>Date of issue</td><td>{{.IssueDate}}</td></tr>
-        <tr><td>Status</td><td><span class="status">Paid</span></td></tr>
+        <tr><td>Status</td><td><span class="status">{{if .Refunded}}Refunded{{else}}Paid{{end}}</span></td></tr>
       </table>
     </div>
   </div>
@@ -72,7 +72,7 @@
     <tr class="total"><td>Total</td><td class="amount">{{.Total}}</td></tr>
   </table>
 
-  <p class="paid">{{.Total}} paid on {{.IssueDate}}. Paid with card via {{.Provider}}.</p>
+  <p class="paid">{{.Total}} paid on {{.IssueDate}}. Paid with card via {{.Provider}}.{{if .Refunded}} Refunded in full.{{end}}</p>
 
   <div class="foot">Thank you for your business. Questions about this invoice? {{if .Seller.Email}}Write to {{.Seller.Email}}.{{else}}Reply to the receipt email.{{end}}</div>
 </body>

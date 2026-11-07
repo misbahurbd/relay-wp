@@ -510,3 +510,54 @@ func TestInvoiceDocumentTellsProrationsFromDiscounts(t *testing.T) {
 		t.Error("a second charge inside a paid period is not shown as a proration")
 	}
 }
+
+// A duplicate subscription checkout's payment is refunded when it is
+// recorded: its invoice says so, and nobody is thanked for it by email, now
+// or by a later sweep.
+func TestRefundedDuplicateGetsNoReceipt(t *testing.T) {
+	e := newDocsEnv(t)
+	p := e.plan(t3PlanOpts{Monthly: 7900})
+	first := e.checkout(p.Monthly, "")
+	second := e.checkout(p.Monthly, "")
+	e.pay(second)
+	e.pay(first)
+	jobs := e.documentJobs()
+	if len(jobs) != 2 {
+		t.Fatalf("document jobs = %d, want the plan's and the duplicate's", len(jobs))
+	}
+	for _, id := range jobs {
+		if err := e.svc.DeliverInvoiceDocument(e.ctx, e.ws, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dup, err := e.svc.Invoice(e.ctx, e.ws, jobs[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dup.Status != model.InvoiceRefunded {
+		t.Errorf("duplicate invoice %s, want refunded", dup.Status)
+	}
+	for _, m := range e.mail.sent {
+		if strings.Contains(m.Subject, *dup.Number) {
+			t.Errorf("receipt %q sent for a refunded payment", m.Subject)
+		}
+	}
+	if len(e.renderer.pages) != 2 || !strings.Contains(e.renderer.pages[1], "Refunded") ||
+		strings.Contains(e.renderer.pages[1], ">Paid<") {
+		t.Errorf("duplicate invoice PDF doesn't say refunded")
+	}
+
+	e.tick(48 * time.Hour)
+	if _, err := e.svc.SweepInvoiceDocuments(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	queued := 0
+	for _, j := range e.queue.all() {
+		if a, ok := j.(model.InvoiceDocumentArgs); ok && a.InvoiceID == dup.ID {
+			queued++
+		}
+	}
+	if queued != 1 {
+		t.Errorf("duplicate's document queued %d times, want once: a sweep has nothing to deliver", queued)
+	}
+}
