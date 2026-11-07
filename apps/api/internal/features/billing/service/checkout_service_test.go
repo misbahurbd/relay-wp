@@ -93,6 +93,45 @@ func TestSubscriptionAndLifetimeCheckoutsDoNotOverlap(t *testing.T) {
 	}
 }
 
+// A second subscription checkout expires the first. If the first is paid
+// anyway, its provider subscription is canceled and the payment refunded, so
+// nothing bills twice, and the event applies instead of failing for weeks.
+func TestDuplicateSubscriptionCheckoutIsRefunded(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	first := e.checkout(p.Monthly, "")
+	second := e.checkout(p.Monthly, "")
+	if got, err := e.svc.CheckoutSession(e.ctx, e.ws, first.Session.ID); err != nil || got.Status != model.CheckoutExpired {
+		t.Errorf("first checkout %s, %v once a second started, want expired", got.Status, err)
+	}
+
+	e.pay(second)
+	ev := e.pay(first)
+
+	var refunded []payment.Refund
+	for _, r := range e.fake.Refunds() {
+		if r.ExternalPaymentID == ev.Payment.ExternalID {
+			refunded = append(refunded, r)
+		}
+	}
+	if len(refunded) != 1 || refunded[0].AmountMinor != 1000 {
+		t.Errorf("refunds of the duplicate payment = %+v, want one of 1000", refunded)
+	}
+	if fs, _ := e.fake.Subscription(ev.Payment.ExternalSubscriptionID); fs.Status != payment.SubscriptionCanceled {
+		t.Errorf("duplicate provider subscription %s, want canceled", fs.Status)
+	}
+	if got, _ := e.svc.CheckoutSession(e.ctx, e.ws, first.Session.ID); got.Status != model.CheckoutFailed {
+		t.Errorf("duplicate checkout %s, want failed", got.Status)
+	}
+	live, err := e.svc.Subscription(e.ctx, e.ws)
+	if err != nil || live.ID != *second.Session.SubscriptionID || live.Status != model.SubscriptionActive {
+		t.Errorf("live subscription = %+v, %v; want the second checkout's", live, err)
+	}
+	if g := e.grant(e.ws); g == nil || !sameID(g.SubscriptionID, live.ID) {
+		t.Errorf("grant = %+v, want the live subscription's", g)
+	}
+}
+
 // A lifetime deal paid while a subscription is live (here a late payment for
 // an expired subscription checkout) cancels that subscription, with no credit
 // beyond the deal's quote.
@@ -193,8 +232,8 @@ func TestProviderFailureFailsTheCheckout(t *testing.T) {
 	if err != nil || again.Session.Status != model.CheckoutFailed {
 		t.Fatalf("replay after failure: %+v, %v", again.Session, err)
 	}
-	// The yearly checkout above still holds the other use.
-	if status, count := e.redemption(again.Session.ID); status != model.RedemptionReleased || count != 1 {
+	// The newer checkout expired the yearly one, which gave its use back too.
+	if status, count := e.redemption(again.Session.ID); status != model.RedemptionReleased || count != 0 {
 		t.Fatalf("discount after failure: %s, %d", status, count)
 	}
 }

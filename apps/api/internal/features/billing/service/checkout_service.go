@@ -353,6 +353,11 @@ func (s *Service) openCheckout(ctx context.Context, workspaceID uuid.UUID, c che
 			return fmt.Errorf("create checkout session: %w", err)
 		}
 		session = toCheckoutSession(gen.GetCheckoutSessionRow(row))
+		if session.Purpose == model.PurposeNew {
+			if err := s.expireOtherSubscriptionCheckouts(ctx, tx, session); err != nil {
+				return err
+			}
+		}
 		if c.discount != nil {
 			return s.ReserveDiscount(ctx, tx, workspaceID, session.ID, *c.discount)
 		}
@@ -451,6 +456,25 @@ func (s *Service) openCheckout(ctx context.Context, workspaceID uuid.UUID, c che
 		Session: session, ClientSecret: started.ClientSecret, URL: started.URL,
 		PublishableKey: c.gateway.Capabilities().PublishableKey,
 	}, nil
+}
+
+// expireOtherSubscriptionCheckouts expires the workspace's other open
+// subscription checkouts in tx: the newest one is the one the customer wants.
+// The provider may still take payment for an older one; CompleteCheckout
+// refunds that.
+func (s *Service) expireOtherSubscriptionCheckouts(ctx context.Context, tx pgx.Tx, session model.CheckoutSession) error {
+	ids, err := repository.NewRepository(tx).ListOtherPendingCheckouts(ctx, gen.ListOtherPendingCheckoutsParams{
+		WorkspaceID: session.WorkspaceID, Purpose: model.PurposeNew, CheckoutSessionID: session.ID,
+	})
+	if err != nil {
+		return fmt.Errorf("list other pending checkouts: %w", err)
+	}
+	for _, id := range ids {
+		if err := s.FailCheckout(ctx, tx, session.WorkspaceID, id, model.CheckoutExpired); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // halfOpen says whether a replayed session never got the provider's checkout
@@ -574,9 +598,19 @@ func (s *Service) CompleteCheckout(ctx context.Context, tx pgx.Tx, workspaceID, 
 	if ev.Payment == nil && session.Status != model.CheckoutCompleted {
 		return fmt.Errorf("checkout %s completed without a payment", session.ID)
 	}
-	switch session.Status {
-	case model.CheckoutCompleted:
+	if session.Status == model.CheckoutCompleted {
 		return nil // a replay
+	}
+	if session.Purpose == model.PurposeNew {
+		taken, err := planTaken(ctx, r, session)
+		if err != nil {
+			return err
+		}
+		if taken {
+			return s.refundDuplicateSubscription(ctx, tx, session, ev)
+		}
+	}
+	switch session.Status {
 	case model.CheckoutFailed, model.CheckoutExpired:
 		// The customer paid after we gave up (a retried card, a tab left open):
 		// the money is real, so the checkout completes, with its discount back.
@@ -604,6 +638,111 @@ func (s *Service) CompleteCheckout(ctx context.Context, tx pgx.Tx, workspaceID, 
 	default:
 		return fmt.Errorf("checkout %s: purpose %q has no completion", session.ID, session.Purpose)
 	}
+}
+
+// planTaken says whether the workspace already has a plan that a paid
+// subscription checkout would clash with: a live subscription other than the
+// session's own, or a live lifetime deal.
+func planTaken(ctx context.Context, r repository.Repository, session model.CheckoutSession) (bool, error) {
+	live, err := r.GetLiveSubscription(ctx, session.WorkspaceID)
+	switch {
+	case err == nil && !sameID(session.SubscriptionID, live.ID):
+		return true, nil
+	case err != nil && !repository.IsNoRows(err):
+		return false, fmt.Errorf("get live subscription: %w", err)
+	}
+	if _, err := r.GetLiveOrder(ctx, session.WorkspaceID); err == nil {
+		return true, nil
+	} else if !repository.IsNoRows(err) {
+		return false, fmt.Errorf("get live order: %w", err)
+	}
+	return false, nil
+}
+
+// refundDuplicateSubscription handles a subscription checkout paid while the
+// workspace already has a plan (two checkouts paid, or one paid after it
+// expired here). The provider subscription it started is canceled now and the
+// payment refunded, so nothing bills twice; the payment is kept on a canceled
+// subscription's invoice, where the refund's webhook lands, and the session
+// fails. The event applies instead of failing on every retry.
+func (s *Service) refundDuplicateSubscription(ctx context.Context, tx pgx.Tx, session model.CheckoutSession, ev payment.Event) error {
+	r := repository.NewRepository(tx)
+	ws := session.WorkspaceID
+	p := *ev.Payment
+	s.logger().Error("billing: subscription checkout paid while the workspace has a plan; canceling and refunding it",
+		"workspace_id", ws, "checkout_session_id", session.ID)
+
+	extSub := p.ExternalSubscriptionID
+	if ev.Subscription != nil && ev.Subscription.ExternalID != "" {
+		extSub = ev.Subscription.ExternalID
+	}
+	var subID uuid.UUID
+	if session.SubscriptionID != nil {
+		subID = *session.SubscriptionID
+		row, err := r.GetSubscription(ctx, gen.GetSubscriptionParams{WorkspaceID: ws, SubscriptionID: subID})
+		if err != nil {
+			return fmt.Errorf("get subscription: %w", err)
+		}
+		if row.ExternalSubscriptionID != nil {
+			extSub = *row.ExternalSubscriptionID
+		}
+	} else {
+		customer, err := r.EnsureBillingCustomer(ctx, gen.EnsureBillingCustomerParams{WorkspaceID: ws, Provider: string(session.Provider)})
+		if err != nil {
+			return fmt.Errorf("ensure billing customer: %w", err)
+		}
+		if subID, err = r.CreateSubscription(ctx, gen.CreateSubscriptionParams{
+			WorkspaceID: ws, PlanPriceID: session.PlanPriceID, BillingCustomerID: customer.ID,
+			Provider: string(session.Provider), ExternalSubscriptionID: nilIfEmpty(extSub),
+			RenewalMode: model.RenewalProvider, Status: model.SubscriptionIncomplete,
+		}); err != nil {
+			return fmt.Errorf("create subscription: %w", err)
+		}
+		if _, err := r.LinkCheckoutSession(ctx, gen.LinkCheckoutSessionParams{
+			SubscriptionID: &subID, WorkspaceID: ws, CheckoutSessionID: session.ID,
+		}); err != nil {
+			return fmt.Errorf("link checkout session: %w", err)
+		}
+	}
+	now := s.now()
+	if _, err := r.CancelSubscriptionNow(ctx, gen.CancelSubscriptionNowParams{
+		CanceledAt: &now, WorkspaceID: ws, SubscriptionID: subID,
+	}); err != nil {
+		return fmt.Errorf("cancel subscription: %w", err)
+	}
+	billTo, err := s.BillTo(ctx, tx, ws)
+	if err != nil {
+		return err
+	}
+	if _, err := createInvoice(ctx, r, ws, invoiceInput{
+		Provider: session.Provider, SubscriptionID: &subID, CheckoutSessionID: &session.ID, Payment: p, Paid: true,
+		BillTo: billTo, Now: now,
+	}); err != nil {
+		return err
+	}
+
+	g, err := s.gateway(session.Provider)
+	if err != nil {
+		return err
+	}
+	if extSub != "" {
+		if _, err := g.CancelSubscription(ctx, payment.CancelRequest{ExternalSubscriptionID: extSub, Mode: payment.CancelNow}); err != nil &&
+			!errors.Is(err, payment.ErrNotFound) {
+			return s.gatewayErr("cancel duplicate subscription", err)
+		}
+	}
+	if p.TotalMinor > 0 && p.ExternalID != "" {
+		if _, err := g.Refund(ctx, payment.RefundRequest{
+			ExternalPaymentID: p.ExternalID, AmountMinor: p.TotalMinor, Currency: p.Currency, Reason: "duplicate",
+			IdempotencyKey: "duplicate-checkout:" + session.ID.String(),
+		}); err != nil {
+			return s.gatewayErr("refund duplicate subscription", err)
+		}
+	}
+	if _, err := r.ReopenCheckoutSession(ctx, gen.ReopenCheckoutSessionParams{WorkspaceID: ws, CheckoutSessionID: session.ID}); err != nil {
+		return fmt.Errorf("reopen checkout session: %w", err)
+	}
+	return s.FailCheckout(ctx, tx, ws, session.ID, model.CheckoutFailed)
 }
 
 // reopenCheckout puts a failed or expired session back to pending in tx, and

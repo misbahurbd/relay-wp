@@ -381,6 +381,39 @@ func (q *Queries) ListExpiredCheckoutSessions(ctx context.Context, arg ListExpir
 	return items, nil
 }
 
+const listOtherPendingCheckouts = `-- name: ListOtherPendingCheckouts :many
+SELECT id
+FROM checkout_sessions
+WHERE workspace_id = $1 AND purpose = $2 AND status = 'pending' AND id <> $3
+`
+
+type ListOtherPendingCheckoutsParams struct {
+	WorkspaceID       uuid.UUID
+	Purpose           string
+	CheckoutSessionID uuid.UUID
+}
+
+// The workspace's other open checkouts of this purpose.
+func (q *Queries) ListOtherPendingCheckouts(ctx context.Context, arg ListOtherPendingCheckoutsParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listOtherPendingCheckouts, arg.WorkspaceID, arg.Purpose, arg.CheckoutSessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockCheckoutSession = `-- name: LockCheckoutSession :one
 SELECT id, workspace_id, plan_price_id, installment_offer_id, purpose, subscription_id, order_id, installment_id,
        provider, external_session_id, status, amount_minor, currency, discount_id, discount_minor, created_by,

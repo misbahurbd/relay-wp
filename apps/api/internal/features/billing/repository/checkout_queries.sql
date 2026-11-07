@@ -80,6 +80,12 @@ SELECT EXISTS (
     WHERE workspace_id = @workspace_id AND purpose = @purpose AND status = 'pending' AND expires_at > @now
 );
 
+-- name: ListOtherPendingCheckouts :many
+-- The workspace's other open checkouts of this purpose.
+SELECT id
+FROM checkout_sessions
+WHERE workspace_id = @workspace_id AND purpose = @purpose AND status = 'pending' AND id <> @checkout_session_id;
+
 -- name: ListExpiredCheckoutSessions :many
 -- Job only (all workspaces): pending sessions past their expiry, oldest first.
 SELECT id, workspace_id, discount_id

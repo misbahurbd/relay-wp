@@ -515,6 +515,8 @@ type Querier interface {
 	// One page of a thread, newest first. Cursor: the id of the oldest message so far.
 	ListMessages(ctx context.Context, arg ListMessagesParams) ([]ListMessagesRow, error)
 	ListOrderInstallments(ctx context.Context, arg ListOrderInstallmentsParams) ([]ListOrderInstallmentsRow, error)
+	// The workspace's other open checkouts of this purpose.
+	ListOtherPendingCheckouts(ctx context.Context, arg ListOtherPendingCheckoutsParams) ([]uuid.UUID, error)
 	// Job only (all workspaces): past-due subscriptions whose grace has run out
 	// and whose plan is still active.
 	ListPastDueGraceEnded(ctx context.Context, arg ListPastDueGraceEndedParams) ([]ListPastDueGraceEndedRow, error)
