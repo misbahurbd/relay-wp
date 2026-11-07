@@ -77,3 +77,17 @@ LEFT JOIN plan_grants g ON g.workspace_id = w.id AND g.status = 'active'
 LEFT JOIN plans p ON p.id = g.plan_id
 WHERE w.deleted_at IS NULL AND w.plan IS DISTINCT FROM COALESCE(p.code, @free_plan::text)
 LIMIT @max_rows;
+
+-- name: UserHadTrial :one
+-- Whether a user already had a card-less trial on a workspace they created or
+-- own now, deleted ones included: one trial per person, not per workspace.
+-- Keyed by user, so it reads across workspaces.
+SELECT EXISTS (
+    SELECT 1
+    FROM plan_grants g
+    JOIN workspaces w ON w.id = g.workspace_id
+    WHERE g.source = 'trial'
+      AND (w.created_by = @user_id OR EXISTS (
+          SELECT 1 FROM workspace_members m JOIN roles r ON r.id = m.role_id
+          WHERE m.workspace_id = w.id AND m.user_id = @user_id AND r.system_key = 'owner'))
+);

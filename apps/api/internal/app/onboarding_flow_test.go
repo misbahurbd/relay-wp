@@ -382,6 +382,41 @@ func TestMarkActivatedOnce(t *testing.T) {
 	expect(t, b.do("POST", "/v1/workspaces", map[string]any{"name": "Second", "first_goal": "offers", "start_mode": "setup"}), http.StatusCreated)
 }
 
+func TestOneCardlessTrialPerOwner(t *testing.T) {
+	e := newAuthEnv(t)
+	b := e.signedIn()
+	newWorkspace := func(b *browser) (*browser, uuid.UUID) {
+		t.Helper()
+		created := b.do("POST", "/v1/workspaces", map[string]any{"name": "Ada's workspace", "first_goal": "offers", "start_mode": "setup"})
+		expect(t, created, http.StatusCreated)
+		id := uuid.MustParse(created.body["id"].(string))
+		return b.in(id.String()), id
+	}
+	plan := func(b *browser) (string, any) {
+		t.Helper()
+		ws := b.do("GET", "/v1/workspace", nil)
+		expect(t, ws, http.StatusOK)
+		return ws.body["plan"].(string), ws.body["trial_ends_at"]
+	}
+
+	first, firstID := newWorkspace(b)
+	if p, ends := plan(first); p != "growth" || ends == nil {
+		t.Fatalf("first workspace: plan %q, trial ends %v; want a growth trial", p, ends)
+	}
+	if _, err := e.a.directory.MarkActivated(t.Context(), firstID); err != nil {
+		t.Fatal(err)
+	}
+	second, _ := newWorkspace(b)
+	if p, ends := plan(second); p != "free" || ends != nil {
+		t.Errorf("second workspace: plan %q, trial ends %v; want free with no trial", p, ends)
+	}
+
+	other, _ := newWorkspace(e.signedIn())
+	if p, ends := plan(other); p != "growth" || ends == nil {
+		t.Errorf("another person's first workspace: plan %q, trial ends %v; want a growth trial", p, ends)
+	}
+}
+
 func TestOnboardingReminders(t *testing.T) {
 	e := newAuthEnv(t)
 	b := e.signedIn()

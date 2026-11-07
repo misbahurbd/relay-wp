@@ -797,6 +797,10 @@ type Querier interface {
 	UpsertWhatsAppAccount(ctx context.Context, arg UpsertWhatsAppAccountParams) (uuid.UUID, error)
 	UpsertWhatsAppNumber(ctx context.Context, arg UpsertWhatsAppNumberParams) (uuid.UUID, error)
 	UseEmailCode(ctx context.Context, id uuid.UUID) error
+	// Whether a user already had a card-less trial on a workspace they created or
+	// own now, deleted ones included: one trial per person, not per workspace.
+	// Keyed by user, so it reads across workspaces.
+	UserHadTrial(ctx context.Context, userID *uuid.UUID) (bool, error)
 	// Per endpoint that has finished deliveries: the latest one, and the last 7 days' success count.
 	WebhookEndpointStats(ctx context.Context, workspaceID uuid.UUID) ([]WebhookEndpointStatsRow, error)
 }

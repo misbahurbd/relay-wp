@@ -49,8 +49,9 @@ type Team interface {
 // Trials starts a new workspace's free trial. Implemented by features/billing and injected by internal/app.
 type Trials interface {
 	// StartWorkspaceTrial starts the trial in the create-workspace transaction
-	// and returns when it ends; nil means the workspace starts with no trial.
-	StartWorkspaceTrial(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID) (*time.Time, error)
+	// and returns when it ends; nil means the workspace starts with no trial,
+	// as it does when ownerID already had one.
+	StartWorkspaceTrial(ctx context.Context, tx pgx.Tx, workspaceID, ownerID uuid.UUID) (*time.Time, error)
 }
 
 // Service manages workspaces and their members.
@@ -147,7 +148,7 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, in model.CreateI
 		}
 		var trialEnds *time.Time
 		if s.trials != nil {
-			if trialEnds, err = s.trials.StartWorkspaceTrial(ctx, tx, id); err != nil {
+			if trialEnds, err = s.trials.StartWorkspaceTrial(ctx, tx, id, userID); err != nil {
 				return fmt.Errorf("start trial: %w", err)
 			}
 		}
