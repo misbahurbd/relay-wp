@@ -43,12 +43,13 @@ WHERE code = @code;
 -- Newest first. search matches the workspace name or the creator's email.
 SELECT w.id, w.name, w.plan, w.trial_ends_at, w.created_at, COALESCE(u.email, '')::text AS owner_email,
        g.id AS grant_id, g.source AS grant_source, g.status AS grant_status, g.ends_at AS grant_ends_at,
-       g.overrides AS grant_overrides, p.code AS grant_plan_code, p.name AS grant_plan_name,
-       p.limits AS grant_plan_limits
+       g.overrides AS grant_overrides, g.suspend_reasons AS grant_suspend_reasons, p.code AS grant_plan_code,
+       p.name AS grant_plan_name, p.limits AS grant_plan_limits, s.status AS grant_subscription_status
 FROM workspaces w
 LEFT JOIN users u ON u.id = w.created_by
 LEFT JOIN plan_grants g ON g.workspace_id = w.id AND g.status IN ('active', 'suspended')
 LEFT JOIN plans p ON p.id = g.plan_id
+LEFT JOIN subscriptions s ON s.workspace_id = w.id AND s.id = g.subscription_id
 WHERE w.deleted_at IS NULL
   AND (@search::text = '' OR w.name ILIKE '%' || @search::text || '%' OR u.email::text ILIKE '%' || @search::text || '%')
 ORDER BY w.created_at DESC

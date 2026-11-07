@@ -73,8 +73,11 @@ var (
 	ErrCatalogRowNotFound = apperr.NotFound("catalog_row_not_found", "Not found, or already inactive")
 	ErrGrantFromPayment   = apperr.Conflict("grant_from_payment",
 		"This workspace's plan comes from a subscription or lifetime deal. Cancel that first.")
-	ErrNoGrant           = apperr.NotFound("grant_not_found", "This workspace is on the free plan.")
-	ErrGrantNotSuspended = apperr.Conflict("grant_not_suspended", "This workspace's plan isn't suspended.")
+	ErrNoGrant                = apperr.NotFound("grant_not_found", "This workspace is on the free plan.")
+	ErrGrantNotSuspended      = apperr.Conflict("grant_not_suspended", "This workspace's plan isn't suspended.")
+	ErrGrantSubscriptionEnded = apperr.Conflict("grant_subscription_ended",
+		"This plan's subscription has ended, so restoring it would give the plan for free. "+
+			"The customer can subscribe again, or grant a plan by hand.")
 
 	// Webhooks.
 	ErrWebhookSignature = apperr.BadRequest("invalid_signature", "Webhook signature doesn't match")

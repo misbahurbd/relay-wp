@@ -43,7 +43,9 @@ function PlanCell({ w, resources }: { w: AdminWorkspace; resources: Resource[] }
           </div>
           <span className="text-xs text-muted-foreground">
             {g.source}
+            {g.source === 'subscription' && !g.billed && ' (canceled)'}
             {g.ends_at && ` · until ${day(g.ends_at)}`}
+            {g.status === 'suspended' && ` · suspended for ${g.suspend_reasons?.join(', ')}`}
           </span>
         </>
       ) : (
@@ -107,7 +109,10 @@ export function WorkspacesPanel() {
             <TableBody>
               {workspaces.data.map((w) => {
                 const g = w.grant
-                const paid = g?.source === 'subscription' || g?.source === 'order'
+                const paid = !!g?.billed
+                // A canceled subscription's plan isn't restored: nothing would bill it again.
+                const restorable =
+                  g?.status === 'suspended' && (paid || g.source !== 'subscription')
                 return (
                   <TableRow key={w.id}>
                     <TableCell>
@@ -122,7 +127,7 @@ export function WorkspacesPanel() {
                     <TableCell className="text-sm">{day(w.created_at)}</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap justify-end gap-1">
-                        {g?.status === 'suspended' && (
+                        {restorable && (
                           <Button
                             size="xs"
                             variant="outline"

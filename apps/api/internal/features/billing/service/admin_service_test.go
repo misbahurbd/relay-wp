@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -665,6 +666,47 @@ func TestLostDisputeIsFinal(t *testing.T) {
 		t.Errorf("invoice %s after a lost dispute, want %s", inv.Status, model.InvoiceDisputeLost)
 	}
 	e.wantCache(e.ws, model.FreePlan)
+}
+
+// A lost dispute cancels the subscription, so restoring its suspended grant
+// would hand out a plan nobody bills again. Staff can't; they can grant a
+// plan by hand instead, now that no payment owns the workspace's plan (G2c).
+func TestStaffCannotRestoreAPlanWhoseSubscriptionEnded(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	e.subscribe(p.Monthly)
+	var invoiceID uuid.UUID
+	if err := e.pool.QueryRow(e.ctx, `SELECT id FROM invoices WHERE workspace_id = $1`, e.ws).Scan(&invoiceID); err != nil {
+		t.Fatal(err)
+	}
+	e.exec(`UPDATE invoices SET status = 'disputed' WHERE id = $1`, invoiceID)
+	if err := e.svc.CloseDispute(e.ctx, model.DisputeClose{
+		InvoiceID: invoiceID, Reason: "Bank decided", ClosedBy: uuid.New(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := e.svc.RestoreGrantManually(e.ctx, e.ws); !errors.Is(err, model.ErrGrantSubscriptionEnded) {
+		t.Fatalf("restore over a canceled subscription: err = %v, want ErrGrantSubscriptionEnded", err)
+	}
+	e.wantCache(e.ws, model.FreePlan)
+	ws, err := e.svc.AdminWorkspaces(e.ctx, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, w := range ws {
+		if w.ID == e.ws && (w.Grant == nil || w.Grant.Billed || !slices.Equal(w.Grant.SuspendReasons, []string{model.SuspendDispute})) {
+			t.Errorf("CRM row grant = %+v, want unbilled and suspended for the dispute", w.Grant)
+		}
+	}
+
+	ends := e.clock.Add(30 * 24 * time.Hour)
+	if err := e.svc.GrantPlanManually(e.ctx, model.ManualGrantInput{
+		WorkspaceID: e.ws, PlanID: p.ID, EndsAt: &ends, Reason: "settled with the customer", CreatedBy: e.user,
+	}); err != nil {
+		t.Fatalf("manual grant over an ended subscription's grant: %v", err)
+	}
+	e.wantCache(e.ws, p.Code)
 }
 
 // A plan publish the CRM retries (a reload, a lost reply) finds what it

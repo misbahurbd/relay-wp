@@ -636,6 +636,7 @@ func (s *Service) AdminWorkspaces(ctx context.Context, search string) ([]model.A
 			ws.Grant = &model.AdminGrant{
 				ID: *w.GrantID, PlanCode: deref(w.GrantPlanCode), PlanName: deref(w.GrantPlanName),
 				Source: deref(w.GrantSource), Status: deref(w.GrantStatus), EndsAt: w.GrantEndsAt, Overrides: overrides,
+				SuspendReasons: w.GrantSuspendReasons, Billed: billed(deref(w.GrantSource), deref(w.GrantSubscriptionStatus)),
 			}
 			if ws.Grant.Status == model.GrantActive {
 				ws.Limits = planLimits.With(overrides)
@@ -687,7 +688,9 @@ func (s *Service) EndGrantManually(ctx context.Context, workspaceID uuid.UUID) e
 // RestoreGrantManually lifts a suspension once support has sorted it out. A
 // lost dispute is lifted first and alone, so a payment still missing keeps
 // the grant suspended; with no dispute it lifts the payment causes (a missed
-// installment or renewal settled outside Relay).
+// installment or renewal settled outside Relay). A grant whose subscription
+// has ended (a lost dispute cancels it) is refused: nothing would bill it
+// again. Staff grant a plan by hand instead.
 func (s *Service) RestoreGrantManually(ctx context.Context, workspaceID uuid.UUID) error {
 	return database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
 		r := repository.NewRepository(tx)
@@ -705,6 +708,11 @@ func (s *Service) RestoreGrantManually(ctx context.Context, workspaceID uuid.UUI
 		}
 		if g.Status != model.GrantSuspended {
 			return model.ErrGrantNotSuspended
+		}
+		if st, err := grantSubscriptionStatus(ctx, r, workspaceID, g); err != nil {
+			return err
+		} else if g.Source == model.GrantFromSubscription && !billed(g.Source, st) {
+			return model.ErrGrantSubscriptionEnded
 		}
 		lift := g.SuspendReasons
 		if slices.Contains(lift, model.SuspendDispute) {
@@ -760,7 +768,8 @@ func (s *Service) SetGrantOverrides(ctx context.Context, in model.GrantOverrides
 }
 
 // adminGrant locks the workspace's current grant for a manual change and
-// refuses one that payments own. It returns nil on the free plan.
+// refuses one that payments own: a lifetime deal's, or a subscription's
+// until it is canceled. It returns nil on the free plan.
 func (s *Service) adminGrant(ctx context.Context, r repository.Repository, workspaceID uuid.UUID) (*gen.LockCurrentGrantRow, error) {
 	ok, err := r.AdminWorkspaceExists(ctx, workspaceID)
 	if err != nil {
@@ -776,10 +785,34 @@ func (s *Service) adminGrant(ctx context.Context, r repository.Repository, works
 	if err != nil {
 		return nil, fmt.Errorf("lock current grant: %w", err)
 	}
-	if g.Source == model.GrantFromSubscription || g.Source == model.GrantFromOrder {
+	st, err := grantSubscriptionStatus(ctx, r, workspaceID, g)
+	if err != nil {
+		return nil, err
+	}
+	if billed(g.Source, st) {
 		return nil, model.ErrGrantFromPayment
 	}
 	return &g, nil
+}
+
+// billed reports whether a payment still pays for a grant from source: a
+// lifetime deal does, a subscription does until it is canceled.
+func billed(source, subscriptionStatus string) bool {
+	return source == model.GrantFromOrder ||
+		(source == model.GrantFromSubscription && subscriptionStatus != model.SubscriptionCanceled)
+}
+
+// grantSubscriptionStatus is the status of the subscription g comes from, or
+// empty for a grant from anything else.
+func grantSubscriptionStatus(ctx context.Context, r repository.Repository, workspaceID uuid.UUID, g gen.LockCurrentGrantRow) (string, error) {
+	if g.SubscriptionID == nil {
+		return "", nil
+	}
+	sub, err := r.GetSubscription(ctx, gen.GetSubscriptionParams{WorkspaceID: workspaceID, SubscriptionID: *g.SubscriptionID})
+	if err != nil {
+		return "", fmt.Errorf("get grant subscription: %w", err)
+	}
+	return sub.Status, nil
 }
 
 // DisputedInvoices lists invoices under an open dispute, oldest first. Creem

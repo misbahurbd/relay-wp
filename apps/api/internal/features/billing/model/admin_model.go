@@ -151,6 +151,11 @@ type AdminGrant struct {
 	Source   string
 	Status   string
 	EndsAt   *time.Time
+	// SuspendReasons hold it suspended (Suspend…); empty when active.
+	SuspendReasons []string
+	// Billed: a lifetime deal or a live subscription pays for it, so staff
+	// can't replace or end it.
+	Billed bool
 	// Overrides are this workspace's own limits on top of the plan's.
 	Overrides Limits
 }

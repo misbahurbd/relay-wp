@@ -299,13 +299,15 @@ type AdminWorkspacesInput struct {
 }
 
 type AdminGrantDTO struct {
-	ID        uuid.UUID  `json:"id"`
-	PlanCode  string     `json:"plan_code"`
-	PlanName  string     `json:"plan_name"`
-	Source    string     `json:"source" enum:"subscription,order,trial,manual"`
-	Status    string     `json:"status" enum:"active,suspended"`
-	EndsAt    *time.Time `nullable:"true" json:"ends_at"`
-	Overrides LimitsDTO  `json:"overrides" doc:"This workspace's own limits on top of the plan's; only the keys that differ"`
+	ID             uuid.UUID  `json:"id"`
+	PlanCode       string     `json:"plan_code"`
+	PlanName       string     `json:"plan_name"`
+	Source         string     `json:"source" enum:"subscription,order,trial,manual"`
+	Status         string     `json:"status" enum:"active,suspended"`
+	EndsAt         *time.Time `nullable:"true" json:"ends_at"`
+	SuspendReasons []string   `json:"suspend_reasons" enum:"past_due,installments,dispute" doc:"Why it is suspended; empty when active"`
+	Billed         bool       `json:"billed" doc:"A lifetime deal or a live subscription pays for it: staff can't replace or end it"`
+	Overrides      LimitsDTO  `json:"overrides" doc:"This workspace's own limits on top of the plan's; only the keys that differ"`
 }
 
 type AdminWorkspaceDTO struct {
@@ -336,7 +338,7 @@ func ToAdminWorkspacesOutput(ws []model.AdminWorkspace) *AdminWorkspacesOutput {
 		if g := w.Grant; g != nil {
 			d.Grant = &AdminGrantDTO{
 				ID: g.ID, PlanCode: g.PlanCode, PlanName: g.PlanName, Source: g.Source, Status: g.Status, EndsAt: g.EndsAt,
-				Overrides: LimitsDTO(g.Overrides),
+				SuspendReasons: g.SuspendReasons, Billed: g.Billed, Overrides: LimitsDTO(g.Overrides),
 			}
 		}
 		out.Body.Workspaces = append(out.Body.Workspaces, d)

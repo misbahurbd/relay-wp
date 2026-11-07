@@ -334,12 +334,13 @@ func (q *Queries) AdminListProviderPrices(ctx context.Context) ([]AdminListProvi
 const adminListWorkspaces = `-- name: AdminListWorkspaces :many
 SELECT w.id, w.name, w.plan, w.trial_ends_at, w.created_at, COALESCE(u.email, '')::text AS owner_email,
        g.id AS grant_id, g.source AS grant_source, g.status AS grant_status, g.ends_at AS grant_ends_at,
-       g.overrides AS grant_overrides, p.code AS grant_plan_code, p.name AS grant_plan_name,
-       p.limits AS grant_plan_limits
+       g.overrides AS grant_overrides, g.suspend_reasons AS grant_suspend_reasons, p.code AS grant_plan_code,
+       p.name AS grant_plan_name, p.limits AS grant_plan_limits, s.status AS grant_subscription_status
 FROM workspaces w
 LEFT JOIN users u ON u.id = w.created_by
 LEFT JOIN plan_grants g ON g.workspace_id = w.id AND g.status IN ('active', 'suspended')
 LEFT JOIN plans p ON p.id = g.plan_id
+LEFT JOIN subscriptions s ON s.workspace_id = w.id AND s.id = g.subscription_id
 WHERE w.deleted_at IS NULL
   AND ($1::text = '' OR w.name ILIKE '%' || $1::text || '%' OR u.email::text ILIKE '%' || $1::text || '%')
 ORDER BY w.created_at DESC
@@ -347,20 +348,22 @@ LIMIT 200
 `
 
 type AdminListWorkspacesRow struct {
-	ID              uuid.UUID
-	Name            string
-	Plan            string
-	TrialEndsAt     *time.Time
-	CreatedAt       time.Time
-	OwnerEmail      string
-	GrantID         *uuid.UUID
-	GrantSource     *string
-	GrantStatus     *string
-	GrantEndsAt     *time.Time
-	GrantOverrides  []byte
-	GrantPlanCode   *string
-	GrantPlanName   *string
-	GrantPlanLimits []byte
+	ID                      uuid.UUID
+	Name                    string
+	Plan                    string
+	TrialEndsAt             *time.Time
+	CreatedAt               time.Time
+	OwnerEmail              string
+	GrantID                 *uuid.UUID
+	GrantSource             *string
+	GrantStatus             *string
+	GrantEndsAt             *time.Time
+	GrantOverrides          []byte
+	GrantSuspendReasons     []string
+	GrantPlanCode           *string
+	GrantPlanName           *string
+	GrantPlanLimits         []byte
+	GrantSubscriptionStatus *string
 }
 
 // Newest first. search matches the workspace name or the creator's email.
@@ -385,9 +388,11 @@ func (q *Queries) AdminListWorkspaces(ctx context.Context, search string) ([]Adm
 			&i.GrantStatus,
 			&i.GrantEndsAt,
 			&i.GrantOverrides,
+			&i.GrantSuspendReasons,
 			&i.GrantPlanCode,
 			&i.GrantPlanName,
 			&i.GrantPlanLimits,
+			&i.GrantSubscriptionStatus,
 		); err != nil {
 			return nil, err
 		}

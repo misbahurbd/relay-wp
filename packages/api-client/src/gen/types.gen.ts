@@ -93,6 +93,10 @@ export type AdminDiscountsOutputBody = {
 };
 
 export type AdminGrantDto = {
+    /**
+     * A lifetime deal or a live subscription pays for it: staff can't replace or end it
+     */
+    billed: boolean;
     ends_at: string | null;
     id: string;
     /**
@@ -105,6 +109,10 @@ export type AdminGrantDto = {
     plan_name: string;
     source: 'subscription' | 'order' | 'trial' | 'manual';
     status: 'active' | 'suspended';
+    /**
+     * Why it is suspended; empty when active
+     */
+    suspend_reasons: Array<'past_due' | 'installments' | 'dispute'> | null;
 };
 
 export type AdminOfferDto = {

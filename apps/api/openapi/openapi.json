@@ -351,6 +351,10 @@
       "AdminGrantDTO": {
         "additionalProperties": false,
         "properties": {
+          "billed": {
+            "description": "A lifetime deal or a live subscription pays for it: staff can't replace or end it",
+            "type": "boolean"
+          },
           "ends_at": {
             "format": "date-time",
             "type": [
@@ -390,6 +394,21 @@
               "suspended"
             ],
             "type": "string"
+          },
+          "suspend_reasons": {
+            "description": "Why it is suspended; empty when active",
+            "items": {
+              "enum": [
+                "past_due",
+                "installments",
+                "dispute"
+              ],
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "required": [
@@ -399,6 +418,8 @@
           "source",
           "status",
           "ends_at",
+          "suspend_reasons",
+          "billed",
           "overrides"
         ],
         "type": "object"
