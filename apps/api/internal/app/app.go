@@ -271,6 +271,7 @@ func (a *App) buildBilling() error {
 		Renderer: a.pdf, Storage: a.storage, Mailer: a.mailer,
 	}, billingservice.Config{
 		AppBaseURL: a.cfg.AppBaseURL, TrialPlan: a.cfg.Trial.Plan, InvoicePrefix: inv.NumberPrefix,
+		Production: a.cfg.AppEnv == "production",
 		Seller: billingservice.Seller{
 			Name: inv.SellerName, AddressLines: addressLines(inv.SellerAddress), Email: inv.SellerEmail, TaxID: inv.SellerTaxID,
 		},

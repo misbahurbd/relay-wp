@@ -1004,3 +1004,18 @@ func TestCreemRefundOfARefundedTransactionIsDone(t *testing.T) {
 		t.Fatalf("refused refund of a transaction refunded meanwhile: %v", err)
 	}
 }
+
+// Every Creem object says which mode it is from. A test or sandbox object is
+// marked as such; a live one, or one that doesn't say, is not.
+func TestCreemWebhookTestMode(t *testing.T) {
+	if ev := parseCreemFixture(t, "checkout_completed"); !ev.TestMode {
+		t.Error("a test-mode checkout isn't marked test mode")
+	}
+	for mode, want := range map[string]bool{"test": true, "sandbox": true, "prod": false, "": false} {
+		body := []byte(`{"id":"evt_m","eventType":"subscription.canceled","created_at":1734004720000,` +
+			`"object":{"id":"sub_m","object":"subscription","status":"canceled","mode":"` + mode + `"}}`)
+		if ev := parseCreemBody(t, body); ev.TestMode != want {
+			t.Errorf("mode %q: test mode = %v, want %v", mode, ev.TestMode, want)
+		}
+	}
+}

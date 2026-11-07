@@ -621,6 +621,13 @@ func (g *creemGateway) ParseWebhook(_ context.Context, header http.Header, body 
 	if err := fillCreemEvent(&ev, env); err != nil {
 		return Event{}, fmt.Errorf("creem: decode %s: %w", env.EventType, ErrInvalidRequest)
 	}
+	var obj struct {
+		Mode string `json:"mode"`
+	}
+	if json.Unmarshal(env.Object, &obj) == nil {
+		// Only the modes known not to be live: an unexpected value never drops a real payment.
+		ev.TestMode = obj.Mode == "test" || obj.Mode == "sandbox"
+	}
 	return ev, nil
 }
 

@@ -1054,3 +1054,25 @@ func TestSentButUnnamedRefundIsReportedOnce(t *testing.T) {
 		t.Errorf("sent but unnamed refund reported %d times, want once", n)
 	}
 }
+
+// Production charges real money only: a webhook the provider marks as test or
+// sandbox mode is logged and dropped there, and still applies in development.
+func TestProductionIgnoresTestModeWebhooks(t *testing.T) {
+	e := newEventsEnv(t)
+	ev := refundEvent("pay_x", e.id("re_test"), 100, payment.RefundSucceeded)
+	ev.TestMode = true
+
+	e.svc.cfg.Production = true
+	if err := e.deliver(ev); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.stored(ev.ExternalID); got.count != 0 || len(e.queue.all()) != 0 {
+		t.Fatalf("test-mode webhook in production: stored %d, %d jobs; want neither", got.count, len(e.queue.all()))
+	}
+	if !strings.Contains(e.logs.String(), "test-mode webhook ignored") {
+		t.Error("the dropped webhook isn't logged")
+	}
+
+	e.svc.cfg.Production = false
+	e.receive(ev)
+}

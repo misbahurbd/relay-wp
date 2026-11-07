@@ -51,6 +51,8 @@ type Config struct {
 	InvoicePrefix string
 	// Seller is printed on every invoice.
 	Seller Seller
+	// Production (APP_ENV=production) ignores test-mode webhooks.
+	Production bool
 }
 
 // Seller is who issues the invoice (INVOICE_SELLER_*).

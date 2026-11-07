@@ -76,6 +76,10 @@ func (s *Service) ReceiveWebhook(ctx context.Context, provider string, header ma
 		return fmt.Errorf("parse %s webhook: %w", p, err)
 	}
 	ev.Provider = p
+	if ev.TestMode && s.cfg.Production {
+		s.log.WarnContext(ctx, "billing: test-mode webhook ignored in production", "event", ev)
+		return nil
+	}
 	stored, err := s.ingest(ctx, ev)
 	if err != nil {
 		return err

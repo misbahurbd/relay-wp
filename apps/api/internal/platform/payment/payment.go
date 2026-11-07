@@ -476,6 +476,9 @@ type Event struct {
 	Payment      *Payment      `json:"payment,omitempty"`
 	Subscription *Subscription `json:"subscription,omitempty"`
 	Refund       *Refund       `json:"refund,omitempty"`
+	// TestMode: the provider marks the object as from its test or sandbox
+	// mode. Production ignores such an event.
+	TestMode bool `json:"test_mode,omitempty"`
 	// Payload is the raw verified body, for payment_events.payload only.
 	// Never log it or return it.
 	Payload json.RawMessage `json:"-"`
