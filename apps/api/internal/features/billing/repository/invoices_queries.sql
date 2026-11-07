@@ -27,11 +27,13 @@ SET number = @number
 WHERE workspace_id = @workspace_id AND id = @invoice_id AND number IS NULL;
 
 -- name: GetInvoiceDocument :one
--- Everything the invoice PDF and its email show. The plan comes through the
--- subscription's current price or the order's price.
+-- Everything the invoice PDF and its email show. The plan is the price the
+-- checkout sold, else the subscription's current price or the order's price;
+-- plan_amount_minor tells a full period's charge from a proration.
 SELECT i.id, i.number, i.provider, i.status, i.subtotal_minor, i.discount_minor, i.tax_minor, i.total_minor,
        i.currency, i.period_start, i.period_end, i.bill_to, i.paid_at, i.pdf_key, i.emailed_at,
        i.order_id, i.installment_id, w.name AS workspace_name, pl.name AS plan_name, pp.interval AS plan_interval,
+       pp.amount_minor AS plan_amount_minor,
        inst.seq AS installment_seq,
        (SELECT count(*) FROM installments c WHERE c.workspace_id = i.workspace_id AND c.order_id = i.order_id)::int
            AS installment_count
@@ -39,7 +41,8 @@ FROM invoices i
 JOIN workspaces w ON w.id = i.workspace_id
 LEFT JOIN subscriptions s ON s.id = i.subscription_id AND s.workspace_id = i.workspace_id
 LEFT JOIN orders o ON o.id = i.order_id AND o.workspace_id = i.workspace_id
-JOIN plan_prices pp ON pp.id = COALESCE(s.plan_price_id, o.plan_price_id)
+LEFT JOIN checkout_sessions cs ON cs.id = i.checkout_session_id AND cs.workspace_id = i.workspace_id
+JOIN plan_prices pp ON pp.id = COALESCE(cs.plan_price_id, s.plan_price_id, o.plan_price_id)
 JOIN plans pl ON pl.id = pp.plan_id
 LEFT JOIN installments inst ON inst.id = i.installment_id AND inst.workspace_id = i.workspace_id
 WHERE i.workspace_id = @workspace_id AND i.id = @invoice_id;

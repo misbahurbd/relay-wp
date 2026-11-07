@@ -306,7 +306,7 @@ func TestInvoiceDescriptions(t *testing.T) {
 		want string
 	}{
 		{"monthly period", gen.GetInvoiceDocumentRow{
-			PlanName: "Growth", PlanInterval: &month,
+			PlanName: "Growth", PlanInterval: &month, SubtotalMinor: 7900, PlanAmountMinor: 7900,
 			PeriodStart: at(2026, 11, 7), PeriodEnd: at(2026, 12, 7),
 		}, "Growth plan · monthly · Nov 7 – Dec 7, 2026"},
 		{"month end clamped", gen.GetInvoiceDocumentRow{
@@ -320,6 +320,10 @@ func TestInvoiceDescriptions(t *testing.T) {
 		{"proration", gen.GetInvoiceDocumentRow{
 			PlanName: "Growth", PlanInterval: &month,
 			PeriodStart: at(2026, 11, 20), PeriodEnd: at(2026, 12, 7),
+		}, "Growth plan · change of plan (prorated)"},
+		{"proration over the full period", gen.GetInvoiceDocumentRow{
+			PlanName: "Growth", PlanInterval: &month, SubtotalMinor: 5000, PlanAmountMinor: 7900,
+			PeriodStart: at(2026, 11, 7), PeriodEnd: at(2026, 12, 7),
 		}, "Growth plan · change of plan (prorated)"},
 		{"lifetime deal", gen.GetInvoiceDocumentRow{PlanName: "Growth", OrderID: &order}, "Growth plan · lifetime deal"},
 		{

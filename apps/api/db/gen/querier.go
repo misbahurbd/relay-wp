@@ -332,8 +332,9 @@ type Querier interface {
 	// The only query that reads token_hash (CLAUDE.md secrets rule).
 	GetInvitationByTokenHash(ctx context.Context, tokenHash []byte) (GetInvitationByTokenHashRow, error)
 	GetInvoice(ctx context.Context, arg GetInvoiceParams) (GetInvoiceRow, error)
-	// Everything the invoice PDF and its email show. The plan comes through the
-	// subscription's current price or the order's price.
+	// Everything the invoice PDF and its email show. The plan is the price the
+	// checkout sold, else the subscription's current price or the order's price;
+	// plan_amount_minor tells a full period's charge from a proration.
 	GetInvoiceDocument(ctx context.Context, arg GetInvoiceDocumentParams) (GetInvoiceDocumentRow, error)
 	// The workspace's live subscription if it has one, else its most recent.
 	GetLatestSubscription(ctx context.Context, workspaceID uuid.UUID) (GetLatestSubscriptionRow, error)

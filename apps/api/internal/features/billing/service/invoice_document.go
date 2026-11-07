@@ -199,8 +199,12 @@ func invoiceDescription(row gen.GetInvoiceDocumentRow) string {
 			break
 		}
 		start, end := row.PeriodStart.UTC(), row.PeriodEnd.UTC()
-		// Providers clamp month ends (Jan 31 → Feb 28), so allow a few days.
-		if drift := end.Sub(start.AddDate(years, months, 0)); drift < -72*time.Hour || drift > 72*time.Hour {
+		// A proration is charged for part of a period, or for the difference
+		// between two prices over the current one (Creem reports the full
+		// period then), so its amount isn't the price's. Providers clamp month
+		// ends (Jan 31 → Feb 28), so the dates allow a few days.
+		drift := end.Sub(start.AddDate(years, months, 0))
+		if drift < -72*time.Hour || drift > 72*time.Hour || row.SubtotalMinor != row.PlanAmountMinor {
 			parts = append(parts, "change of plan (prorated)")
 			break
 		}
