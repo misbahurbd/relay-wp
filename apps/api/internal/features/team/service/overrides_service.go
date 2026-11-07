@@ -52,9 +52,6 @@ func (s *Service) AddOverride(ctx context.Context, actor authctx.Access, meta mo
 		if err != nil {
 			return err
 		}
-		if m.IsOwner {
-			return model.ErrOwnerProtected // the owner always has everything
-		}
 		if err := r.RevokeActiveOverride(ctx, gen.RevokeActiveOverrideParams{
 			WorkspaceID: actor.WorkspaceID, UserID: userID, PermissionKey: p.Key(), RevokedBy: &actor.UserID,
 		}); err != nil {

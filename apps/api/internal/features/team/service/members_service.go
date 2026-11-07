@@ -90,7 +90,10 @@ func (s *Service) GetMember(ctx context.Context, workspaceID, userID uuid.UUID, 
 }
 
 // lockTarget locks the member row and applies the rules every change to
-// someone else's access follows: not yourself, and only the owner touches the owner.
+// someone else's access follows: not yourself, and never the owner. The owner
+// changes only by transferring ownership. The check reads the locked row, not
+// actor.Owner: that was resolved before the transaction, and a transfer may
+// have committed since.
 func lockTarget(ctx context.Context, r repository.Repository, actor authctx.Access, userID uuid.UUID) (gen.LockMemberRow, error) {
 	if userID == actor.UserID {
 		return gen.LockMemberRow{}, model.ErrCannotChangeSelf
@@ -102,7 +105,7 @@ func lockTarget(ctx context.Context, r repository.Repository, actor authctx.Acce
 	if err != nil {
 		return m, fmt.Errorf("lock member: %w", err)
 	}
-	if m.IsOwner && !actor.Owner {
+	if m.IsOwner {
 		return m, model.ErrOwnerProtected
 	}
 	return m, nil
@@ -132,9 +135,6 @@ func (s *Service) ChangeMemberRole(ctx context.Context, actor authctx.Access, me
 		m, err := lockTarget(ctx, r, actor, userID)
 		if err != nil {
 			return err
-		}
-		if m.IsOwner {
-			return model.ErrOwnerRole // the owner changes only by transferring ownership
 		}
 		next, err := s.getRole(ctx, tx, actor.WorkspaceID, roleID)
 		if err != nil {
@@ -257,9 +257,6 @@ func (s *Service) setStatus(ctx context.Context, actor authctx.Access, meta mode
 		if err != nil {
 			return err
 		}
-		if m.IsOwner {
-			return model.ErrOwnerProtected
-		}
 		if m.Status == status {
 			return nil
 		}
@@ -292,9 +289,6 @@ func (s *Service) Remove(ctx context.Context, actor authctx.Access, meta model.M
 		m, err := lockTarget(ctx, r, actor, userID)
 		if err != nil {
 			return err
-		}
-		if m.IsOwner {
-			return model.ErrOwnerProtected
 		}
 		if !strings.EqualFold(strings.TrimSpace(in.ConfirmName), strings.TrimSpace(m.Name)) {
 			return model.ErrConfirmName

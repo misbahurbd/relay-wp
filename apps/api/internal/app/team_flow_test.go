@@ -512,3 +512,22 @@ func TestConcurrentTransfersLeaveOneOwner(t *testing.T) {
 		t.Fatalf("owners %v, want only %s", got, adminID)
 	}
 }
+
+func TestFormerOwnerCantChangeTheNewOwner(t *testing.T) {
+	e := newAuthEnv(t)
+	w := newTeamWorkspace(e)
+	_, adminID := w.join("admin")
+	ownerID := w.owners()[0]
+	stale := w.accessOf(ownerID)
+
+	ctx := context.Background()
+	if err := e.a.team.TransferOwnership(ctx, w.accessOf(ownerID), teammodel.Meta{}, uuid.MustParse(adminID)); err != nil {
+		t.Fatal(err)
+	}
+	// A request the former owner started before the transfer still holds Owner.
+	scope := authctx.ScopeAssigned
+	err := e.a.team.UpdateMemberAccess(ctx, stale, teammodel.Meta{}, uuid.MustParse(adminID), teammodel.AccessInput{ChatScope: &scope})
+	if !errors.Is(err, teammodel.ErrOwnerProtected) {
+		t.Fatalf("change the new owner's access: %v, want owner_protected", err)
+	}
+}
