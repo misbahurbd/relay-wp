@@ -102,7 +102,7 @@ func (a *App) registerRoutes(api huma.API) {
 	workspaceshandler.Register(api, workspaceshandler.NewHandler(a.workspaces), requireAuth, member, owner, authhandler.Security)
 	onboardinghandler.Register(api, onboardinghandler.NewHandler(a.onboarding), requireAuth, member, owner, authhandler.Security)
 	whatsapphandler.Register(api, whatsapphandler.NewHandler(a.whatsapp), requireAuth, member, integrations, authhandler.Security)
-	teamhandler.Register(api, teamhandler.NewHandler(a.team), teamhandler.Guards{Auth: requireAuth, Member: member, Can: can}, authhandler.Security)
+	teamhandler.Register(api, teamhandler.NewHandler(a.team), teamhandler.Guards{Auth: requireAuth, Session: middleware.RequireSession(api), Member: member, Can: can}, authhandler.Security)
 	billinghandler.Register(api, billinghandler.NewHandler(a.billing), billinghandler.Guards{
 		Auth: requireAuth, Member: member, Can: can, Staff: middleware.RequireStaff(api, a.staff()),
 	}, authhandler.Security)

@@ -422,3 +422,42 @@ func TestSignupFromInvite(t *testing.T) {
 		"token": e.inviteToken(other), "password": testPassword, "first_name": "Ada", "accept_terms": true,
 	}), http.StatusConflict, "account_exists")
 }
+
+func TestAPIKeysCantManageTheTeam(t *testing.T) {
+	e := newAuthEnv(t)
+	w := newTeamWorkspace(e)
+	admin, adminID := w.join("admin")
+	created := w.owner.do("POST", "/v1/workspace/integrations/api-keys", map[string]any{"name": "Zapier"})
+	expect(t, created, http.StatusCreated)
+	api := e.apiClient(created.body["key"].(string), w.id)
+	member := w.base + "/members/" + adminID
+
+	expect(t, api.do("GET", w.base+"/members", nil), http.StatusOK)
+	for _, c := range []struct {
+		method, path string
+		body         map[string]any
+	}{
+		{"POST", member + "/transfer-ownership", nil},
+		{"POST", w.base + "/invitations", map[string]any{"emails": []string{"x@example.com"}, "role_id": w.roles["admin"]}},
+		{"PUT", member + "/role", map[string]any{"role_id": w.roles["agent"]}},
+		{"PATCH", member + "/access", map[string]any{"chat_scope": "all"}},
+		{"POST", member + "/overrides", map[string]any{"permission_key": "team.invite", "effect": "grant"}},
+		{"POST", member + "/suspend", map[string]any{}},
+		{"POST", member + "/restore", nil},
+		{"POST", member + "/remove", map[string]any{"confirm_name": "Ada Lovelace"}},
+		{"POST", w.base + "/roles", map[string]any{"name": "Sneaky", "permissions": []string{}}},
+		{"PATCH", w.base + "/roles/" + w.roles["agent"], map[string]any{"name": "Agent"}},
+		{"POST", w.base + "/roles/" + w.roles["agent"] + "/reset", nil},
+		{"DELETE", w.base + "/roles/" + w.roles["agent"] + "?move_to_role_id=" + w.roles["viewer"], nil},
+		{"POST", w.base + "/teams", map[string]any{"name": "Night shift"}},
+		{"POST", w.base + "/me/leave", nil},
+	} {
+		t.Run(c.method+" "+c.path, func(t *testing.T) {
+			expect(t, api.do(c.method, c.path, c.body), http.StatusForbidden, "session_required")
+		})
+	}
+	if a := admin.do("GET", w.base+"/me/access", nil); a.body["is_owner"] != false || a.body["role_id"] != w.roles["admin"] {
+		t.Fatalf("the key changed the admin: %s", a.raw)
+	}
+	expect(t, w.owner.do("POST", member+"/transfer-ownership", nil), http.StatusNoContent)
+}
