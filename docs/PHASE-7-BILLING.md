@@ -30,7 +30,7 @@ This phase is **mostly web**. Two backend changes: reading the saved card from t
 | Meta message costs card                        | Preview         | Sample month; links to the Spending page                                                                 |
 | Wallet balance, auto-recharge, Top up          | Preview         | Sample values; buttons open the preview dialog, which charges nothing                                    |
 | Payment method card + Update                   | Real            | Card read live from the gateway; Update opens the gateway's portal (section 4)                           |
-| Backup payment method                          | Real            | "Add backup payment method" opens the same portal, where more cards can be added                         |
+| Backup payment method                          | Real            | "Add backup payment method" opens the same portal; shown only when the gateway reports `card_details`    |
 | Billing email, address, tax ID                 | Real            | `GET/PUT /v1/workspace/billing/profile`                                                                  |
 | Invoice history                                | Real            | `GET /v1/workspace/billing/invoices`, cursor paging                                                      |
 | Invoice download                               | Real            | The invoice's `receipt_url`; no button when it has none                                                  |
@@ -66,7 +66,8 @@ hooks/
   use-billing-preview.ts       reads VITE_BILLING_PREVIEW
 components/
   kit/preview-badge.tsx        the badge + tooltip
-  kit/meter.tsx                one usage row (label, used / limit, bar, 80% warning)
+  kit/meter.tsx                one usage row (label, used / limit, bar, almost / at / over the limit)
+  kit/limit-state.ts           classifies used against limit: ok, almost (80%), at, over, unlimited
   overview/                    the rebuilt /billing page (replaces settings/billing-page.tsx's overview tab)
     billing-overview.tsx
     current-plan-card.tsx      (from settings/current-plan.tsx + subscription-card.tsx)
