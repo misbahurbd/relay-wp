@@ -438,6 +438,7 @@ const getLatestSubscriptionInvoiceID = `-- name: GetLatestSubscriptionInvoiceID 
 SELECT id
 FROM invoices
 WHERE workspace_id = $1 AND subscription_id = $2 AND NOT proration
+  AND status IN ('paid', 'partially_refunded', 'refunded', 'disputed', 'dispute_lost')
 ORDER BY created_at DESC, id DESC
 LIMIT 1
 `
@@ -447,8 +448,9 @@ type GetLatestSubscriptionInvoiceIDParams struct {
 	SubscriptionID *uuid.UUID
 }
 
-// The subscription's newest period invoice: refunding it in full ends the
-// subscription. A proration (a mid-period plan change) never does.
+// The subscription's newest paid period invoice: refunding it in full ends
+// the subscription. A proration (a mid-period plan change) never does, and a
+// failed or unpaid invoice isn't a period the customer paid for.
 func (q *Queries) GetLatestSubscriptionInvoiceID(ctx context.Context, arg GetLatestSubscriptionInvoiceIDParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, getLatestSubscriptionInvoiceID, arg.WorkspaceID, arg.SubscriptionID)
 	var id uuid.UUID

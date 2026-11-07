@@ -513,6 +513,35 @@ func TestRefundingAnUnmarkedProrationKeepsThePlan(t *testing.T) {
 	e.wantCache(e.ws, model.FreePlan)
 }
 
+// A failed renewal records an invoice nobody paid. Refunding the period the
+// customer did pay still ends the subscription: the failed invoice isn't
+// the latest period invoice (G3b).
+func TestRefundingThePaidPeriodIgnoresAFailedRenewal(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	sub := e.subscribe(p.Monthly)
+	var periodPay string
+	if err := e.pool.QueryRow(e.ctx, `SELECT external_payment_id FROM invoices WHERE subscription_id = $1`,
+		sub.ID).Scan(&periodPay); err != nil {
+		t.Fatal(err)
+	}
+	next := sub.CurrentPeriodEnd.AddDate(0, 1, 0)
+	e.inTx(func(tx pgx.Tx) error {
+		return e.svc.ApplySubscriptionPayment(e.ctx, tx, e.ws, sub.ID, payment.Payment{
+			ExternalID: "pay_failed_" + uuid.NewString(), SubtotalMinor: 1000, TotalMinor: 1000, Currency: "USD",
+			PeriodStart: sub.CurrentPeriodEnd, PeriodEnd: &next,
+		}, false)
+	})
+
+	ev := refundEvent(periodPay, "re_"+uuid.NewString(), 1000, payment.RefundSucceeded)
+	ev.Provider = payment.Stripe
+	e.inTx(func(tx pgx.Tx) error { return e.svc.onRefund(e.ctx, tx, e.ws, ev) })
+	e.wantCache(e.ws, model.FreePlan)
+	if got, err := e.svc.Subscription(e.ctx, e.ws); err != nil || got.Status != model.SubscriptionCanceled {
+		t.Fatalf("subscription after refunding its paid period = %s, %v; want canceled", got.Status, err)
+	}
+}
+
 // A lost dispute on a subscription invoice stops the provider billing it:
 // the subscription is canceled now, and the plan stays suspended for support.
 func TestLostDisputeCancelsTheSubscription(t *testing.T) {

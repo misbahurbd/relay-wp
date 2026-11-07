@@ -216,10 +216,12 @@ SELECT EXISTS (
 );
 
 -- name: GetLatestSubscriptionInvoiceID :one
--- The subscription's newest period invoice: refunding it in full ends the
--- subscription. A proration (a mid-period plan change) never does.
+-- The subscription's newest paid period invoice: refunding it in full ends
+-- the subscription. A proration (a mid-period plan change) never does, and a
+-- failed or unpaid invoice isn't a period the customer paid for.
 SELECT id
 FROM invoices
 WHERE workspace_id = @workspace_id AND subscription_id = @subscription_id AND NOT proration
+  AND status IN ('paid', 'partially_refunded', 'refunded', 'disputed', 'dispute_lost')
 ORDER BY created_at DESC, id DESC
 LIMIT 1;
