@@ -61,8 +61,9 @@ func newEnv(t *testing.T, pool *pgxpool.Pool) *env {
 	}
 	svc := service.New(pool, payments, nil, service.Documents{Storage: store}, service.Config{}, slog.Default())
 	handler.Register(api, handler.NewHandler(svc), handler.Guards{
-		Auth:   e.auth,
-		Member: middleware.RequireWorkspace(api, e),
+		Auth:    e.auth,
+		Session: middleware.RequireSession(api),
+		Member:  middleware.RequireWorkspace(api, e),
 		Can: func(perms ...authctx.Permission) handler.Middleware {
 			return middleware.RequirePermission(api, perms...)
 		},

@@ -45,7 +45,7 @@ func TestReceiveWebhookRoute(t *testing.T) {
 
 	_, api := humatest.New(t)
 	pass := func(ctx huma.Context, next func(huma.Context)) { next(ctx) }
-	Register(api, NewHandler(svc), Guards{Auth: pass, Member: pass, Can: func(...authctx.Permission) Middleware { return pass }}, nil)
+	Register(api, NewHandler(svc), Guards{Auth: pass, Session: pass, Member: pass, Can: func(...authctx.Permission) Middleware { return pass }}, nil)
 
 	header, body, err := fake.Webhook(payment.Event{
 		ExternalID: "evt_" + uuid.NewString(), Type: payment.EventRefundUpdated, ProviderType: "charge.refunded",

@@ -609,3 +609,30 @@ func TestWooCommerceOAuthConnect(t *testing.T) {
 		t.Fatalf("woocommerce: %s", test.raw)
 	}
 }
+
+func TestAPIKeysCantPay(t *testing.T) {
+	e := newAuthEnv(t)
+	w := newTeamWorkspace(e)
+	created := w.owner.do("POST", "/v1/workspace/integrations/api-keys", map[string]any{"name": "Zapier"})
+	expect(t, created, http.StatusCreated)
+	api := e.apiClient(created.body["key"].(string), w.id)
+	base, id := "/v1/workspace/billing", "01a1b63c-0889-789b-a5e0-b9643d99280e"
+
+	expect(t, api.do("GET", base+"/subscription", nil), w.owner.do("GET", base+"/subscription", nil).code)
+	for _, c := range []struct{ method, path string }{
+		{"POST", base + "/checkout-sessions"},
+		{"POST", base + "/checkout-sessions/" + id + "/test-complete"},
+		{"POST", base + "/subscription/change"},
+		{"DELETE", base + "/subscription/pending-change"},
+		{"POST", base + "/subscription/cancel"},
+		{"POST", base + "/subscription/resume"},
+		{"POST", base + "/orders/" + id + "/installments/" + id + "/pay"},
+		{"POST", base + "/orders/" + id + "/resume"},
+		{"PUT", base + "/profile"},
+		{"POST", base + "/portal-session"},
+	} {
+		t.Run(c.method+" "+c.path, func(t *testing.T) {
+			expect(t, api.do(c.method, c.path, map[string]any{}), http.StatusForbidden, "session_required")
+		})
+	}
+}

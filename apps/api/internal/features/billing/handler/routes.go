@@ -14,8 +14,10 @@ type Middleware = func(huma.Context, func(huma.Context))
 
 // Guards are the middlewares the routes need, built in internal/app.
 type Guards struct {
-	Auth   Middleware
-	Member Middleware
+	Auth Middleware
+	// Session refuses API keys, on every route that spends or changes billing.
+	Session Middleware
+	Member  Middleware
 	// Can returns a middleware that requires every one of perms.
 	Can func(perms ...authctx.Permission) Middleware
 	// Staff admits Relay staff only, for the /v1/admin routes.
@@ -23,11 +25,15 @@ type Guards struct {
 }
 
 // Register adds the billing routes. Reads need billing.view; buying, changing
-// a plan and editing billing details need billing.pay (Q11). The pricing
-// catalog is public, and the payment webhook is signed by its provider.
+// a plan and editing billing details need billing.pay (Q11) and a session, so a
+// leaked API key can't spend, cancel, or open the provider's card page. The
+// pricing catalog is public, and the payment webhook is signed by its provider.
 func Register(api huma.API, h *Handler, g Guards, security []map[string][]string) {
 	tags := []string{"billing"}
-	view, pay := g.Can(authctx.PermBillingView), g.Can(authctx.PermBillingPay)
+	view, canPay := g.Can(authctx.PermBillingView), g.Can(authctx.PermBillingPay)
+	pay := func(ctx huma.Context, next func(huma.Context)) {
+		g.Session(ctx, func(ctx huma.Context) { canPay(ctx, next) })
+	}
 	ws := func(id, method, path, summary string, status int, perm Middleware) huma.Operation {
 		return huma.Operation{
 			OperationID: id, Method: method, Path: "/v1/workspace/billing" + path, Summary: summary,
