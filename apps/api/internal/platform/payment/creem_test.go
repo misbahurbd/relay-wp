@@ -122,8 +122,8 @@ func TestNewCreemPicksHostFromKey(t *testing.T) {
 func TestCreemCapabilities(t *testing.T) {
 	g, _ := newCreemWithAPI(t)
 	c := g.Capabilities()
-	if c.EmbeddedCheckout || c.Installments || c.PartialRefunds || c.PublishableKey != "" {
-		t.Errorf("Creem has no client secret, installments or partial refunds: %+v", c)
+	if c.EmbeddedCheckout || c.Installments || c.PartialRefunds || c.CheckoutTrials || c.PublishableKey != "" {
+		t.Errorf("Creem has no client secret, installments, partial refunds or per-checkout trials: %+v", c)
 	}
 	if !c.MerchantOfRecord || !c.RenewsSubscriptions || !c.Coupons {
 		t.Errorf("Creem is the merchant of record, renews subscriptions and takes discount codes: %+v", c)
@@ -212,6 +212,7 @@ func TestCreemCheckoutRejects(t *testing.T) {
 		{"no reference", func(r *CheckoutRequest) { r.Mode = ModePayment; r.Reference = uuid.Nil }, ErrInvalidRequest},
 		{"no product", func(r *CheckoutRequest) { r.Mode = ModeSubscription; r.ExternalPriceID = "" }, ErrInvalidRequest},
 		{"under Creem's minimum", func(r *CheckoutRequest) { r.Mode = ModePayment; r.AmountMinor = 99 }, ErrInvalidRequest},
+		{"trial per checkout", func(r *CheckoutRequest) { r.Mode = ModeSubscription; r.TrialDays = 14 }, ErrUnsupported},
 		{"no mode", func(*CheckoutRequest) {}, ErrInvalidRequest},
 	}
 	for _, tc := range cases {
@@ -420,9 +421,9 @@ func TestCreemCreateFixedCoupon(t *testing.T) {
 
 func TestCreemCreatePrice(t *testing.T) {
 	g, api := newCreemWithAPI(t)
-	api.handle("POST /v1/products", http.StatusOK, `{"id":"prod_growth_m","object":"product","trial_period_days":14,"tax_mode":"exclusive"}`)
+	api.handle("POST /v1/products", http.StatusOK, `{"id":"prod_growth_m","object":"product","tax_mode":"exclusive"}`)
 	id, err := g.CreatePrice(context.Background(), PriceRequest{
-		PlanPriceID: uuid.New(), Name: "Relay Growth (monthly)", AmountMinor: 2900, Currency: "usd", Interval: "month", TrialDays: 14,
+		PlanPriceID: uuid.New(), Name: "Relay Growth (monthly)", AmountMinor: 2900, Currency: "usd", Interval: "month",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -434,12 +435,15 @@ func TestCreemCreatePrice(t *testing.T) {
 	want := map[string]any{
 		"name": "Relay Growth (monthly)", "description": "Relay Growth (monthly)", "price": float64(2900), "currency": "USD",
 		"billing_type": "recurring", "billing_period": "every-month", "tax_mode": "exclusive", "tax_category": "saas",
-		"trial_period_days": float64(14),
 	}
 	for k, v := range want {
 		if b[k] != v {
 			t.Errorf("body[%s] = %v, want %v", k, b[k], v)
 		}
+	}
+	// A product trial would trial every checkout of it, a workspace's second one included.
+	if _, ok := b["trial_period_days"]; ok {
+		t.Errorf("a Creem product never carries a trial: body = %v", b)
 	}
 
 	api.handle("POST /v1/products", http.StatusOK, `{"id":"prod_growth_y"}`)
@@ -452,22 +456,16 @@ func TestCreemCreatePrice(t *testing.T) {
 	if b["billing_period"] != "every-year" || b["billing_type"] != "recurring" {
 		t.Errorf("yearly body = %v", b)
 	}
-	if _, ok := b["trial_period_days"]; ok {
-		t.Errorf("no trial: body = %v", b)
-	}
 
 	api.handle("POST /v1/products", http.StatusOK, `{"id":"prod_ltd"}`)
 	if _, err := g.CreatePrice(context.Background(), PriceRequest{
-		Name: "Relay Growth (lifetime)", AmountMinor: 29900, Currency: "USD", TrialDays: 14,
+		Name: "Relay Growth (lifetime)", AmountMinor: 29900, Currency: "USD",
 	}); err != nil {
 		t.Fatal(err)
 	}
 	b = api.last().Body
 	if b["billing_type"] != "onetime" || b["billing_period"] != "once" {
 		t.Errorf("one-time body = %v", b)
-	}
-	if _, ok := b["trial_period_days"]; ok {
-		t.Errorf("a one-time product has no trial: body = %v", b)
 	}
 
 	calls := api.count()

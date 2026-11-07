@@ -2440,6 +2440,10 @@ export type ProfileOutputBody = {
 };
 
 export type ProviderDto = {
+    /**
+     * A card-required trial is offered; false: the plan sells without one and the first period is charged
+     */
+    checkout_trials: boolean;
     currencies: Array<string> | null;
     /**
      * The checkout url may be shown in an iframe (Creem's embed.js) instead of a redirect

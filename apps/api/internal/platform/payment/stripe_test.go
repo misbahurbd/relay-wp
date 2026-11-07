@@ -522,7 +522,7 @@ func TestStripeCreatePrice(t *testing.T) {
 	api.on("POST /v1/prices", `{"id":"price_growth_m","object":"price"}`)
 	id := uuid.New()
 	got, err := g.CreatePrice(context.Background(), PriceRequest{
-		PlanPriceID: id, Name: "Relay Growth (monthly)", AmountMinor: 2900, Currency: "USD", Interval: "month", TrialDays: 14,
+		PlanPriceID: id, Name: "Relay Growth (monthly)", AmountMinor: 2900, Currency: "USD", Interval: "month",
 	})
 	if err != nil {
 		t.Fatal(err)

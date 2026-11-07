@@ -74,7 +74,7 @@ func NewFake(provider Provider, secret string) *Fake {
 		provider: provider,
 		secret:   []byte(secret),
 		caps: Capabilities{
-			EmbeddedCheckout: true, RenewsSubscriptions: true, Installments: true, Coupons: true,
+			EmbeddedCheckout: true, RenewsSubscriptions: true, Installments: true, CheckoutTrials: true, Coupons: true,
 			PartialRefunds: true, Currencies: []string{"USD"}, PublishableKey: "pk_fake",
 		},
 		now:           time.Now,

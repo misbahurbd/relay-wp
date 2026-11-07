@@ -151,9 +151,10 @@ func (s *Service) prepareSubscription(ctx context.Context, r repository.Reposito
 		c.params.DiscountID, c.params.DiscountMinor = &d.Discount.ID, d.DiscountMinor
 	}
 	c.params.AmountMinor = price.AmountMinor - c.params.DiscountMinor
-	if plan.TrialRequiresCard && plan.TrialDays > 0 {
+	if plan.TrialRequiresCard && plan.TrialDays > 0 && caps.CheckoutTrials {
 		// A trial with a card starts in trialing and charges nothing now (Q5).
-		// A workspace gets one trial; after it, the first period is paid.
+		// A workspace gets one trial; after it, the first period is paid. A
+		// provider that can't trial one checkout only (Creem) charges at once.
 		had, err := r.HasHadTrial(ctx, ws)
 		if err != nil {
 			return fmt.Errorf("has had trial: %w", err)

@@ -404,10 +404,6 @@ func (s *Service) createOnProvider(ctx context.Context, r repository.Repository,
 			req.Name = "Relay " + row.PlanName + " (yearly)"
 		}
 	}
-	// A card-less trial is a Relay grant, so a trial on the product would give a second one.
-	if row.TrialRequiresCard {
-		req.TrialDays = int(row.TrialDays)
-	}
 	external, err := g.CreatePrice(ctx, req)
 	if errors.Is(err, payment.ErrInvalidRequest) {
 		s.logger().Warn("payment provider refused a price", "provider", provider, "err", err)

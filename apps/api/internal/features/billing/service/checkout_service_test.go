@@ -98,6 +98,26 @@ func TestCardTrialStartsTrialing(t *testing.T) {
 	e.wantCache(e.ws, p.Code)
 }
 
+// A provider that keeps trials on the product (Creem) would trial every
+// checkout, so a card-required trial isn't offered there: the first period is charged.
+func TestCardTrialNeedsCheckoutTrials(t *testing.T) {
+	e := newT3Env(t)
+	caps := e.fake.Capabilities()
+	t.Cleanup(func() { e.fake.SetCapabilities(caps) })
+	noTrials := caps
+	noTrials.CheckoutTrials = false
+	e.fake.SetCapabilities(noTrials)
+
+	p := e.plan(t3PlanOpts{Monthly: 1000, TrialDays: 14, RequiresCard: true})
+	c := e.checkout(p.Monthly, "")
+	if c.Session.AmountMinor != 1000 {
+		t.Fatalf("charged now = %d, want the full 1000", c.Session.AmountMinor)
+	}
+	if fc, _ := e.fake.Checkout(*c.Session.ExternalSessionID); fc.Request.TrialDays != 0 || fc.Request.AmountMinor != 1000 {
+		t.Fatalf("request = %+v, want no trial", fc.Request)
+	}
+}
+
 func TestCompleteCheckoutTwiceIsANoOp(t *testing.T) {
 	e := newT3Env(t)
 	p := e.plan(t3PlanOpts{Monthly: 1000})

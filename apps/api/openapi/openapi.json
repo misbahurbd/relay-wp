@@ -7742,6 +7742,10 @@
       "ProviderDTO": {
         "additionalProperties": false,
         "properties": {
+          "checkout_trials": {
+            "description": "A card-required trial is offered; false: the plan sells without one and the first period is charged",
+            "type": "boolean"
+          },
           "currencies": {
             "items": {
               "type": "string"
@@ -7793,6 +7797,7 @@
           "embeddable_url",
           "renews_subscriptions",
           "installments",
+          "checkout_trials",
           "merchant_of_record",
           "currencies",
           "publishable_key"

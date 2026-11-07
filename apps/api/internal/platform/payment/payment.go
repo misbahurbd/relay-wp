@@ -117,6 +117,11 @@ type Capabilities struct {
 	// Installments: the provider runs an N-payment schedule itself
 	// (collection provider_schedule). Otherwise installments use app_link.
 	Installments bool `json:"installments"`
+	// CheckoutTrials: a subscription checkout can start a trial
+	// (CheckoutRequest.TrialDays), so one workspace trials once. Creem keeps
+	// trials on the product, so every checkout of it would trial: Relay offers
+	// no card-required trial there and charges the first period.
+	CheckoutTrials bool `json:"checkout_trials"`
 	// Coupons: CreateCoupon works, so discounts carry over to renewals.
 	Coupons bool `json:"coupons"`
 	// PartialRefunds: Refund accepts less than the payment's total.
@@ -163,6 +168,7 @@ type CheckoutRequest struct {
 	// ExternalCouponID is provider_discounts.external_coupon_id, for a discounted subscription.
 	ExternalCouponID string
 	// TrialDays starts a subscription in trialing (a trial that needs a card).
+	// Only set with Capabilities.CheckoutTrials.
 	TrialDays int
 	Customer  Customer
 	// Description is shown to the customer, e.g. "Growth, monthly".
@@ -340,9 +346,6 @@ type PriceRequest struct {
 	Currency    string
 	// Interval is "month" or "year". Empty means a one-time price.
 	Interval string
-	// TrialDays is the trial to put on the product, for a provider that
-	// keeps trials there (Creem). Providers that set trials per checkout ignore it.
-	TrialDays int
 }
 
 // validate checks what every provider needs to create a price.
@@ -356,8 +359,6 @@ func (r PriceRequest) validate(provider string) error {
 		return fmt.Errorf("%s: a price needs a currency: %w", provider, ErrInvalidRequest)
 	case r.Interval != "" && r.Interval != "month" && r.Interval != "year":
 		return fmt.Errorf("%s: price interval %q: %w", provider, r.Interval, ErrInvalidRequest)
-	case r.TrialDays < 0:
-		return fmt.Errorf("%s: price trial days %d: %w", provider, r.TrialDays, ErrInvalidRequest)
 	}
 	return nil
 }

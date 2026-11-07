@@ -385,7 +385,7 @@ func TestAdminCreatesProviderPricesOnTheProvider(t *testing.T) {
 	}
 	got := e.pricesFor(monthly)
 	want := payment.PriceRequest{
-		PlanPriceID: monthly, Name: "Relay Growth (monthly)", AmountMinor: 2900, Currency: "USD", Interval: "month", TrialDays: 14,
+		PlanPriceID: monthly, Name: "Relay Growth (monthly)", AmountMinor: 2900, Currency: "USD", Interval: "month",
 	}
 	if len(got) != 1 || got[0] != want {
 		t.Fatalf("monthly request = %+v, want %+v", got, want)
@@ -426,7 +426,7 @@ func TestAdminCreatesProviderPricesOnTheProvider(t *testing.T) {
 	}
 }
 
-func TestAdminProviderPriceKeepsTheManualPathAndSkipsCardlessTrials(t *testing.T) {
+func TestAdminProviderPriceKeepsTheManualPath(t *testing.T) {
 	e := newT3Env(t)
 	d := details("Starter")
 	d.TrialDays = 7
@@ -461,8 +461,8 @@ func TestAdminProviderPriceKeepsTheManualPathAndSkipsCardlessTrials(t *testing.T
 	if _, err := e.svc.CreateProviderPrice(e.ctx, model.NewProviderPrice{PlanPriceID: ltd, Provider: stripe, ExternalPriceID: &blank}); err != nil {
 		t.Fatal(err)
 	}
-	if got := e.pricesFor(ltd); len(got) != 1 || got[0].TrialDays != 0 {
-		t.Fatalf("a card-less trial must not become a product trial: %+v", got)
+	if got := e.pricesFor(ltd); len(got) != 1 {
+		t.Fatalf("ltd requests = %+v", got)
 	}
 
 	offer, err := e.svc.CreateInstallmentOffer(e.ctx, model.NewInstallmentOffer{

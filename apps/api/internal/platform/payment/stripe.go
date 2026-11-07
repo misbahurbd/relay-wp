@@ -77,7 +77,7 @@ func (g *stripeGateway) Provider() Provider { return Stripe }
 
 func (g *stripeGateway) Capabilities() Capabilities {
 	return Capabilities{
-		EmbeddedCheckout: true, RenewsSubscriptions: true, Installments: true, Coupons: true,
+		EmbeddedCheckout: true, RenewsSubscriptions: true, Installments: true, CheckoutTrials: true, Coupons: true,
 		PartialRefunds: true, Currencies: []string{"USD"}, PublishableKey: g.publishableKey,
 	}
 }
@@ -508,8 +508,7 @@ func (g *stripeGateway) CreateCoupon(ctx context.Context, req CouponRequest) (Co
 	return Coupon{ExternalCouponID: c.ID}, nil
 }
 
-// CreatePrice creates a Stripe price and its product in one call. Trials are
-// set per checkout on Stripe, so req.TrialDays is ignored.
+// CreatePrice creates a Stripe price and its product in one call.
 func (g *stripeGateway) CreatePrice(ctx context.Context, req PriceRequest) (string, error) {
 	if err := req.validate("stripe"); err != nil {
 		return "", err

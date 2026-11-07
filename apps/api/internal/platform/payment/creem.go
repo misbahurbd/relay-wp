@@ -120,6 +120,10 @@ func (g *creemGateway) CreateCheckout(ctx context.Context, req CheckoutRequest) 
 	}
 	switch req.Mode {
 	case ModeSubscription:
+		if req.TrialDays > 0 {
+			// Creem trials live on the product (Capabilities.CheckoutTrials is false).
+			return Checkout{}, fmt.Errorf("creem: trial per checkout: %w", ErrUnsupported)
+		}
 		body.DiscountCode = req.ExternalCouponID
 	case ModePayment:
 		// Relay has already taken any discount off AmountMinor.
@@ -318,20 +322,20 @@ func (g *creemGateway) CreateCoupon(ctx context.Context, req CouponRequest) (Cou
 
 // creemProductRequest is the body of POST /v1/products.
 type creemProductRequest struct {
-	Name            string `json:"name"`
-	Description     string `json:"description"`
-	Price           int64  `json:"price"`
-	Currency        string `json:"currency"`
-	BillingType     string `json:"billing_type"`
-	BillingPeriod   string `json:"billing_period"`
-	TaxMode         string `json:"tax_mode"`
-	TaxCategory     string `json:"tax_category"`
-	TrialPeriodDays int    `json:"trial_period_days,omitempty"`
+	Name          string `json:"name"`
+	Description   string `json:"description"`
+	Price         int64  `json:"price"`
+	Currency      string `json:"currency"`
+	BillingType   string `json:"billing_type"`
+	BillingPeriod string `json:"billing_period"`
+	TaxMode       string `json:"tax_mode"`
+	TaxCategory   string `json:"tax_category"`
 }
 
-// CreatePrice creates a Creem product, which is what Creem sells. Creem keeps
-// the trial on the product (a checkout can't set one), so req.TrialDays goes
-// there. Prices are tax exclusive, as the Relay catalog amounts are.
+// CreatePrice creates a Creem product, which is what Creem sells. It never
+// carries a trial: a product trial would apply to every checkout, a second
+// trial for a workspace included. Prices are tax exclusive, as the Relay
+// catalog amounts are.
 func (g *creemGateway) CreatePrice(ctx context.Context, req PriceRequest) (string, error) {
 	if err := req.validate("creem"); err != nil {
 		return "", err
@@ -345,9 +349,6 @@ func (g *creemGateway) CreatePrice(ctx context.Context, req PriceRequest) (strin
 		body.BillingType, body.BillingPeriod = "recurring", "every-month"
 	case "year":
 		body.BillingType, body.BillingPeriod = "recurring", "every-year"
-	}
-	if body.BillingType == "recurring" {
-		body.TrialPeriodDays = req.TrialDays
 	}
 	var out struct {
 		ID string `json:"id"`
