@@ -126,6 +126,7 @@ func (rc *receiver) last() (*http.Request, []byte) {
 func newIntegrationsEnv(t *testing.T) (*authEnv, *fakeStores) {
 	t.Helper()
 	e := newAuthEnv(t)
+	includeInPlans(e, "ecommerce")
 	stores := newFakeStores(t)
 	e.a.allowPrivateTargets, e.a.shopifyURL, e.a.googleURL = true, stores.srv.URL, stores.srv.URL+"/google"
 	e.a.cfg.Auth.GoogleClientID, e.a.cfg.Auth.GoogleClientSecret = "google-client", "google-secret"
@@ -149,6 +150,8 @@ func rebuildIntegrations(t *testing.T, e *authEnv) {
 
 // apiClient calls the API with an API key, the way a customer's server would.
 func (e *authEnv) apiClient(key, workspace string) *browser {
+	e.exec(`UPDATE plans SET limits = limits || '{"api_calls": -1}'`)
+	e.t.Cleanup(func() { e.exec(`UPDATE plans SET limits = limits - 'api_calls'`) })
 	b := e.browser("relay-test-client")
 	b.bearer = key
 	return b.in(workspace)
@@ -607,6 +610,25 @@ func TestWooCommerceOAuthConnect(t *testing.T) {
 	expect(t, test, http.StatusOK)
 	if test.body["status"] != "connected" {
 		t.Fatalf("woocommerce: %s", test.raw)
+	}
+}
+
+func TestAPIKeysCountAgainstTheMonthlyQuota(t *testing.T) {
+	e := newAuthEnv(t)
+	w := newTeamWorkspace(e)
+	created := w.owner.do("POST", "/v1/workspace/integrations/api-keys", map[string]any{"name": "Zapier"})
+	expect(t, created, http.StatusCreated)
+	api := e.apiClient(created.body["key"].(string), w.id)
+	e.exec(`UPDATE plans SET limits = limits || '{"api_calls": 2}'`)
+
+	expect(t, api.do("GET", "/v1/workspace/me/access", nil), http.StatusOK)
+	expect(t, api.do("GET", "/v1/workspace/me/access", nil), http.StatusOK)
+	expect(t, api.do("GET", "/v1/workspace/me/access", nil), http.StatusTooManyRequests, "plan_api_call_limit")
+	// The web app's own requests are not API calls.
+	usage := w.owner.do("GET", "/v1/workspace/billing/usage", nil)
+	expect(t, usage, http.StatusOK)
+	if !strings.Contains(usage.raw, `"resource":"api_calls","used":2`) {
+		t.Fatalf("usage: %s", usage.raw)
 	}
 }
 

@@ -706,7 +706,7 @@
             "type": "string"
           },
           "owner_email": {
-            "description": "Empty when the creator's account is gone",
+            "description": "The current owner's email; empty when there is none",
             "type": "string"
           },
           "plan": {
@@ -11360,12 +11360,12 @@
         "operationId": "admin-list-workspaces",
         "parameters": [
           {
-            "description": "Matches the workspace name or its creator's email",
+            "description": "Matches the workspace name or its current owner's email",
             "explode": false,
             "in": "query",
             "name": "search",
             "schema": {
-              "description": "Matches the workspace name or its creator's email",
+              "description": "Matches the workspace name or its current owner's email",
               "maxLength": 100,
               "type": "string"
             }

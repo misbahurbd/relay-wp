@@ -219,6 +219,7 @@ func TestInviteAcceptAndRoleChecks(t *testing.T) {
 
 func TestOverridesCustomRolesAndEscalation(t *testing.T) {
 	e := newAuthEnv(t)
+	includeInPlans(e, "team_controls")
 	w := newTeamWorkspace(e)
 	agent, agentID := w.join("agent")
 	member := w.base + "/members/" + agentID
@@ -549,5 +550,43 @@ func TestNewOwnerCantLeaveOnAStaleRequest(t *testing.T) {
 	}
 	if got := w.owners(); len(got) != 1 {
 		t.Fatalf("owners %v, want one", got)
+	}
+}
+
+// A role that can pay but not view can still see what it is buying.
+func TestBillingPayAloneCanReadBilling(t *testing.T) {
+	e := newAuthEnv(t)
+	includeInPlans(e, "team_controls")
+	w := newTeamWorkspace(e)
+	payer, payerID := w.join("viewer")
+	role := w.owner.do("POST", w.base+"/roles", map[string]any{
+		"name": "Payer", "color": "red", "chat_scope": "all", "permissions": []string{"billing.pay"},
+	})
+	expect(t, role, http.StatusCreated)
+	expect(t, w.owner.do("PUT", w.base+"/members/"+payerID+"/role", map[string]any{"role_id": role.body["id"]}), http.StatusNoContent)
+
+	for _, path := range []string{"", "/usage", "/subscription", "/profile", "/invoices"} {
+		expect(t, payer.do("GET", w.base+"/billing"+path, nil), w.owner.do("GET", w.base+"/billing"+path, nil).code)
+	}
+	agent, _ := w.join("agent")
+	expect(t, agent.do("GET", w.base+"/billing", nil), http.StatusForbidden, "permission_denied")
+}
+
+// The CRM shows who owns a workspace now, not who created it.
+func TestCRMShowsTheCurrentOwner(t *testing.T) {
+	e := newAuthEnv(t)
+	w := newTeamWorkspace(e)
+	_, heirID := w.join("admin")
+	expect(t, w.owner.do("POST", w.base+"/members/"+heirID+"/transfer-ownership", map[string]any{}), http.StatusNoContent)
+	var email string
+	if err := e.a.db.QueryRow(t.Context(), `SELECT email FROM users WHERE id = $1`, heirID).Scan(&email); err != nil {
+		t.Fatal(err)
+	}
+	list, err := e.a.billing.AdminWorkspaces(t.Context(), email)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 || list[0].ID.String() != w.id || list[0].OwnerEmail != email {
+		t.Fatalf("searching the new owner's email: %+v", list)
 	}
 }

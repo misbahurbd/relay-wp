@@ -73,8 +73,14 @@ func newEnv(t *testing.T) env {
 	t.Helper()
 	pool := dbtest.New(t)
 	usr, ws := seed(t, pool)
-	return env{svc: New(pool, nil), ws: ws, usr: usr}
+	svc := New(pool, nil)
+	svc.Connect(Deps{Plans: planIncluded{}})
+	return env{svc: svc, ws: ws, usr: usr}
 }
+
+type planIncluded struct{}
+
+func (planIncluded) HasAccess(context.Context, uuid.UUID, string) (bool, error) { return true, nil }
 
 func seed(t *testing.T, pool *pgxpool.Pool) (user, workspace uuid.UUID) {
 	t.Helper()

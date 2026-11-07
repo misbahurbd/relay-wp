@@ -295,7 +295,7 @@ type DeactivateDiscountInput struct {
 }
 
 type AdminWorkspacesInput struct {
-	Search string `query:"search" maxLength:"100" doc:"Matches the workspace name or its creator's email"`
+	Search string `query:"search" maxLength:"100" doc:"Matches the workspace name or its current owner's email"`
 }
 
 type AdminGrantDTO struct {
@@ -313,7 +313,7 @@ type AdminGrantDTO struct {
 type AdminWorkspaceDTO struct {
 	ID          uuid.UUID      `json:"id"`
 	Name        string         `json:"name"`
-	OwnerEmail  string         `json:"owner_email" doc:"Empty when the creator's account is gone"`
+	OwnerEmail  string         `json:"owner_email" doc:"The current owner's email; empty when there is none"`
 	Plan        string         `json:"plan" doc:"The cached plan code; free with no grant"`
 	TrialEndsAt *time.Time     `nullable:"true" json:"trial_ends_at"`
 	CreatedAt   time.Time      `json:"created_at"`

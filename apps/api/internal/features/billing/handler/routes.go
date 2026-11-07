@@ -24,13 +24,21 @@ type Guards struct {
 	Staff Middleware
 }
 
-// Register adds the billing routes. Reads need billing.view; buying, changing
+// Register adds the billing routes. Reads need billing.view or billing.pay; buying, changing
 // a plan and editing billing details need billing.pay (Q11) and a session, so a
 // leaked API key can't spend, cancel, or open the provider's card page. The
 // pricing catalog is public, and the payment webhook is signed by its provider.
 func Register(api huma.API, h *Handler, g Guards, security []map[string][]string) {
 	tags := []string{"billing"}
-	view, canPay := g.Can(authctx.PermBillingView), g.Can(authctx.PermBillingPay)
+	canView, canPay := g.Can(authctx.PermBillingView), g.Can(authctx.PermBillingPay)
+	// A member who can pay reads what they are buying, so billing.pay also lets reads through.
+	view := func(ctx huma.Context, next func(huma.Context)) {
+		if a, _ := authctx.AccessFrom(ctx.Context()); a.Can(authctx.PermBillingPay) {
+			next(ctx)
+			return
+		}
+		canView(ctx, next)
+	}
 	pay := func(ctx huma.Context, next func(huma.Context)) {
 		g.Session(ctx, func(ctx huma.Context) { canPay(ctx, next) })
 	}

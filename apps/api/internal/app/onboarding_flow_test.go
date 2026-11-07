@@ -417,6 +417,25 @@ func TestOneCardlessTrialPerOwner(t *testing.T) {
 	}
 }
 
+// A workspace handed to someone doesn't use up their trial: only ones they created do.
+func TestTrialCountsCreatedWorkspacesNotTransferredOnes(t *testing.T) {
+	e := newAuthEnv(t)
+	w := newTeamWorkspace(e)
+	heir, heirID := w.join("admin")
+	expect(t, w.owner.do("POST", w.base+"/members/"+heirID+"/transfer-ownership", map[string]any{}), http.StatusNoContent)
+	if _, err := e.a.directory.MarkActivated(t.Context(), uuid.MustParse(w.id)); err != nil {
+		t.Fatal(err)
+	}
+
+	created := heir.do("POST", "/v1/workspaces", map[string]any{"name": "Heir's own", "first_goal": "offers", "start_mode": "setup"})
+	expect(t, created, http.StatusCreated)
+	ws := heir.in(created.body["id"].(string)).do("GET", "/v1/workspace", nil)
+	expect(t, ws, http.StatusOK)
+	if ws.body["plan"] != "growth" || ws.body["trial_ends_at"] == nil {
+		t.Fatalf("heir's first own workspace: %s; want a growth trial", ws.raw)
+	}
+}
+
 func TestOnboardingReminders(t *testing.T) {
 	e := newAuthEnv(t)
 	b := e.signedIn()

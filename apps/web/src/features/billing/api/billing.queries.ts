@@ -294,7 +294,7 @@ export const seatsUsageQueryOptions = (workspaceId: string) =>
     },
   })
 
-/** WhatsApp numbers that count toward the plan's cap: every number not disconnected. */
+/** WhatsApp numbers that count toward the plan's cap: every stored number, disconnected ones too. */
 export const numbersUsageQueryOptions = (workspaceId: string) =>
   queryOptions({
     queryKey: billingKeys.numbers(workspaceId),
@@ -304,7 +304,7 @@ export const numbersUsageQueryOptions = (workspaceId: string) =>
         signal,
         throwOnError: true,
       })
-      return list(data.numbers).filter((n) => n.status !== 'disconnected').length
+      return list(data.numbers).length
     },
   })
 

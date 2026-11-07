@@ -337,7 +337,12 @@ SELECT w.id, w.name, w.plan, w.trial_ends_at, w.created_at, COALESCE(u.email, ''
        g.overrides AS grant_overrides, g.suspend_reasons AS grant_suspend_reasons, p.code AS grant_plan_code,
        p.name AS grant_plan_name, p.limits AS grant_plan_limits, s.status AS grant_subscription_status
 FROM workspaces w
-LEFT JOIN users u ON u.id = w.created_by
+LEFT JOIN LATERAL (
+    SELECT m.user_id FROM workspace_members m JOIN roles r ON r.id = m.role_id
+    WHERE m.workspace_id = w.id AND r.system_key = 'owner'
+    LIMIT 1
+) o ON true
+LEFT JOIN users u ON u.id = o.user_id
 LEFT JOIN plan_grants g ON g.workspace_id = w.id AND g.status IN ('active', 'suspended')
 LEFT JOIN plans p ON p.id = g.plan_id
 LEFT JOIN subscriptions s ON s.workspace_id = w.id AND s.id = g.subscription_id
@@ -366,7 +371,7 @@ type AdminListWorkspacesRow struct {
 	GrantSubscriptionStatus *string
 }
 
-// Newest first. search matches the workspace name or the creator's email.
+// Newest first. search matches the workspace name or the current owner's email.
 func (q *Queries) AdminListWorkspaces(ctx context.Context, search string) ([]AdminListWorkspacesRow, error) {
 	rows, err := q.db.Query(ctx, adminListWorkspaces, search)
 	if err != nil {

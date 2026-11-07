@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
@@ -37,6 +38,8 @@ var (
 	errAccessCheck      = apperr.Unavailable("membership_check_failed", "Could not check your workspace access. Try again.")
 	errPlanRequired     = apperr.PaymentRequired("plan_required", "Your plan doesn't include this. Upgrade to use it.")
 	errPlanCheck        = apperr.Unavailable("plan_check_failed", "Could not check your plan. Try again.")
+	errAPICallLimit     = apperr.RateLimited("plan_api_call_limit",
+		"You've used all the API calls your plan includes this month. Upgrade your plan for more.")
 )
 
 // RequireWorkspace is a huma middleware for routes under /v1/workspace. It runs
@@ -121,6 +124,37 @@ func RequirePlan(api huma.API, p PlanAccess, key string) func(huma.Context, func
 		case !ok:
 			_ = huma.WriteErr(api, ctx, http.StatusPaymentRequired, "",
 				errPlanRequired.WithDetails(apperr.Detail{Field: "resource", Message: key}))
+		default:
+			next(ctx)
+		}
+	}
+}
+
+// APICallsResource is the monthly plan resource API-key requests use (ADR 0008).
+const APICallsResource = "api_calls"
+
+// UsageMeter uses n of a monthly plan resource; ok is false at the plan's cap.
+// Implemented by features/billing.
+type UsageMeter interface {
+	Consume(ctx context.Context, workspaceID uuid.UUID, key string, n int) (period time.Time, ok bool, err error)
+}
+
+// CountAPICalls uses one of the plan's monthly API calls for each request made
+// with an API key, and answers 429 plan_api_call_limit once they are used up.
+// Signed-in requests are not counted. It runs after RequireWorkspace.
+func CountAPICalls(api huma.API, u UsageMeter) func(huma.Context, func(huma.Context)) {
+	return func(ctx huma.Context, next func(huma.Context)) {
+		workspaceID, byKey := authctx.APIKeyWorkspace(ctx.Context())
+		if !byKey {
+			next(ctx)
+			return
+		}
+		_, ok, err := u.Consume(ctx.Context(), workspaceID, APICallsResource, 1)
+		switch {
+		case err != nil:
+			_ = huma.WriteErr(api, ctx, http.StatusServiceUnavailable, "", errPlanCheck.Wrap(err))
+		case !ok:
+			_ = huma.WriteErr(api, ctx, http.StatusTooManyRequests, "", errAPICallLimit)
 		default:
 			next(ctx)
 		}

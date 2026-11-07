@@ -14,8 +14,8 @@ function Page() {
     <BillingPage
       workspaceId={workspaceId}
       // Until access loads, show the page: the API refuses what the member can't see anyway.
-      // Every read on the page (plan, usage, invoices, billing details) needs billing.view.
-      canView={!access || can('billing.view')}
+      // Every read on the page (plan, usage, invoices, billing details) needs billing.view or billing.pay.
+      canView={!access || can('billing.view') || can('billing.pay')}
       canPay={can('billing.pay')}
     />
   )

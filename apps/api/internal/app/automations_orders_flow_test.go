@@ -32,6 +32,7 @@ func newStoreEnv(t *testing.T) *storeEnv {
 	stores := newFakeStores(t)
 	t.Cleanup(stores.srv.Close)
 	e := v.e
+	includeInPlans(e, "ecommerce")
 	e.a.allowPrivateTargets, e.a.shopifyURL = true, stores.srv.URL
 	e.a.cfg.Integrations.ShopifyClientID, e.a.cfg.Integrations.ShopifyClientSecret = "shopify-client", shopifySecret
 	rebuildIntegrations(t, e)

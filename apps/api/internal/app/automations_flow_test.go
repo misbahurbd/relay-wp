@@ -13,7 +13,8 @@ func includeAutomations(e *authEnv) {
 func TestAutomationsNeedThePlan(t *testing.T) {
 	e := newAuthEnv(t)
 	w := newTeamWorkspace(e)
-	expect(t, w.owner.do("GET", "/v1/workspace/automations", nil), http.StatusPaymentRequired, "plan_required")
+	expect(t, w.owner.do("PUT", "/v1/workspace/automations/welcome/enabled", map[string]any{"enabled": true}),
+		http.StatusPaymentRequired, "plan_required")
 
 	includeAutomations(e)
 	list := w.owner.do("GET", "/v1/workspace/automations", nil)
@@ -28,6 +29,27 @@ func TestAutomationsNeedThePlan(t *testing.T) {
 			t.Fatalf("item %d: %v", i, got[i])
 		}
 	}
+}
+
+// A workspace that lost the plan can still see its automations and turn them off.
+func TestAutomationsOverPlanCanViewAndTurnOff(t *testing.T) {
+	e := newAuthEnv(t)
+	includeAutomations(e)
+	w := newTeamWorkspace(e)
+	base := "/v1/workspace/automations"
+	welcome := map[string]any{"welcome": map[string]any{"message": "Hi", "delay_minutes": 1, "first_time_only": true}}
+	expect(t, w.owner.do("PUT", base+"/welcome", welcome), http.StatusOK)
+	expect(t, w.owner.do("PUT", base+"/welcome/enabled", map[string]any{"enabled": true}), http.StatusOK)
+
+	e.exec(`UPDATE plans SET limits = limits - 'automations'`)
+	expect(t, w.owner.do("GET", base, nil), http.StatusOK)
+	expect(t, w.owner.do("PUT", base+"/welcome", welcome), http.StatusPaymentRequired, "plan_required")
+	off := w.owner.do("PUT", base+"/welcome/enabled", map[string]any{"enabled": false})
+	expect(t, off, http.StatusOK)
+	if off.body["enabled"] != false {
+		t.Fatalf("turn off: %s", off.raw)
+	}
+	expect(t, w.owner.do("PUT", base+"/welcome/enabled", map[string]any{"enabled": true}), http.StatusPaymentRequired, "plan_required")
 }
 
 func TestAutomationPermissions(t *testing.T) {

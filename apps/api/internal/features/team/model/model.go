@@ -11,6 +11,10 @@ import (
 // PlanResourceMembers is the billing resource that caps seat-using members (ADR 0008).
 const PlanResourceMembers = "members"
 
+// PlanResourceTeamControls is the billing resource that gates custom roles and
+// permission overrides (ADR 0008).
+const PlanResourceTeamControls = "team_controls"
+
 // System role keys. Every workspace has one role of each.
 const (
 	RoleOwner  = "owner"

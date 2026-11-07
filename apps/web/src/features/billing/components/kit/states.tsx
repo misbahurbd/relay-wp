@@ -56,7 +56,7 @@ export function EmptyState({
   )
 }
 
-/** The lock screen for a member whose role lacks billing.view, which every billing read needs. */
+/** The lock screen for a member whose role lacks billing.view and billing.pay; every billing read needs one. */
 export function NoViewPermission() {
   return (
     <EmptyState icon={<LockIcon className="size-5" />} title="Billing is limited to some members">

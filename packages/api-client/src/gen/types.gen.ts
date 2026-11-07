@@ -197,7 +197,7 @@ export type AdminWorkspaceDto = {
     };
     name: string;
     /**
-     * Empty when the creator's account is gone
+     * The current owner's email; empty when there is none
      */
     owner_email: string;
     /**
@@ -3845,7 +3845,7 @@ export type AdminListWorkspacesData = {
     path?: never;
     query?: {
         /**
-         * Matches the workspace name or its creator's email
+         * Matches the workspace name or its current owner's email
          */
         search?: string;
     };

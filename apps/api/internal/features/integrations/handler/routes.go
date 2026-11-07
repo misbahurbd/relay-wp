@@ -5,6 +5,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/misbahurbd/relay-wp/apps/api/internal/features/integrations/model"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/integrations/service"
 )
 
@@ -20,6 +21,9 @@ type Guards struct {
 	// Keys checks integrations.api_keys; Manage checks integrations.manage.
 	Keys   Middleware
 	Manage Middleware
+	// Ecommerce requires the plan to include store connections. Connecting a
+	// store needs it; testing and disconnecting one don't.
+	Ecommerce Middleware
 }
 
 // callbackPath is Google's redirect URI path: {API_BASE_URL}/v1/integrations/google/callback.
@@ -84,15 +88,23 @@ func Register(api huma.API, h *Handler, g Guards, security []map[string][]string
 	huma.Register(api, public("woocommerce-order-webhook", service.CommercePath+"/woocommerce/{connectionId}",
 		"An order event from a connected WooCommerce store"), h.wooWebhook)
 
+	// Connecting Google Sheets needs no plan; a store does.
+	store := func(ctx huma.Context, next func(huma.Context)) {
+		if p := ctx.Param("provider"); p == model.ProviderShopify || p == model.ProviderWooCommerce {
+			g.Ecommerce(ctx, next)
+			return
+		}
+		next(ctx)
+	}
 	// The static authorize routes are registered before {provider} so the router picks them.
 	huma.Register(api, op("authorize-google-sheets", http.MethodPost, ws+"/connections/google_sheets/authorize",
 		"Start connecting Google Sheets: returns Google's consent URL", http.StatusOK, g.Manage), h.authorizeGoogle)
 	huma.Register(api, op("authorize-shopify", http.MethodPost, ws+"/connections/shopify/authorize",
-		"Start connecting a Shopify store in one click: returns its install URL", http.StatusOK, g.Manage), h.authorizeShopify)
+		"Start connecting a Shopify store in one click: returns its install URL", http.StatusOK, g.Manage, g.Ecommerce), h.authorizeShopify)
 	huma.Register(api, op("authorize-woocommerce", http.MethodPost, ws+"/connections/woocommerce/authorize",
-		"Start connecting a WooCommerce store in one click: returns its approval URL", http.StatusOK, g.Manage), h.authorizeWoo)
+		"Start connecting a WooCommerce store in one click: returns its approval URL", http.StatusOK, g.Manage, g.Ecommerce), h.authorizeWoo)
 	huma.Register(api, op("connect-integration", http.MethodPut, ws+"/connections/{provider}",
-		"Connect a store; its credentials are checked first", http.StatusOK, g.Manage), h.connect)
+		"Connect a store; its credentials are checked first", http.StatusOK, g.Manage, store), h.connect)
 	huma.Register(api, op("test-integration", http.MethodPost, ws+"/connections/{provider}/test",
 		"Check a connection again and record the result", http.StatusOK, g.Manage), h.testConnection)
 	huma.Register(api, op("disconnect-integration", http.MethodDelete, ws+"/connections/{provider}",

@@ -17,13 +17,14 @@ import { Section, SectionHeader } from '../kit/section'
 const DAY = 24 * 60 * 60 * 1000
 
 type Load = { isPending: boolean; isError: boolean }
+const LOADED: Load = { isPending: false, isError: false }
 
 /** One meter: what the plan allows of a resource and how much is used, once loaded. */
 type Row = { resource: Resource; label: string; load: Load; used?: number; limit: number }
 
 /**
- * How much of each plan limit the workspace uses: a meter for every count and monthly resource Relay
- * enforces, then the features the plan includes. Each count comes from the feature that owns it.
+ * How much of each plan limit the workspace uses: a meter for every count and monthly resource, then
+ * the features the plan includes. Each count comes from the feature that owns it.
  */
 export function UsageCard({
   workspaceId,
@@ -48,10 +49,11 @@ export function UsageCard({
   }
 
   const catalog = resources.data ?? []
-  // Only what Relay counts gets a meter. A limit of 0 (not in the plan) shows only once something
-  // is used, as after a downgrade, so going over it is visible.
+  // Every limit gets a meter, including ones whose feature is still being built (nothing used yet).
+  // A limit of 0 (not in the plan) shows only once something is used, as after a downgrade, so
+  // going over it is visible.
   const rows: Row[] = catalog
-    .filter((r) => r.kind !== 'access' && r.enforced)
+    .filter((r) => r.kind !== 'access')
     .flatMap((resource): Row[] => {
       const limit = limits[resource.key] ?? 0
       if (resource.kind === 'monthly') {
@@ -66,8 +68,7 @@ export function UsageCard({
           },
         ]
       }
-      const c = counted[resource.key]
-      if (!c) return []
+      const c = counted[resource.key] ?? { load: LOADED, used: 0 }
       return [
         { resource, label: resource.label, load: c.load, used: c.used, limit: c.limit ?? limit },
       ]
