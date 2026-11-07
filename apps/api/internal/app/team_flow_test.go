@@ -3,11 +3,16 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"regexp"
 	"slices"
 	"testing"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+
+	teammodel "github.com/misbahurbd/relay-wp/apps/api/internal/features/team/model"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/shared/authctx"
 )
 
@@ -460,4 +465,50 @@ func TestAPIKeysCantManageTheTeam(t *testing.T) {
 		t.Fatalf("the key changed the admin: %s", a.raw)
 	}
 	expect(t, w.owner.do("POST", member+"/transfer-ownership", nil), http.StatusNoContent)
+}
+
+// owners returns the workspace's owners.
+func (w *teamWorkspace) owners() []uuid.UUID {
+	w.e.t.Helper()
+	rows, err := w.e.a.db.Query(context.Background(), `SELECT m.user_id FROM workspace_members m
+		JOIN roles r ON r.id = m.role_id WHERE m.workspace_id = $1 AND r.system_key = 'owner'`, w.id)
+	if err != nil {
+		w.e.t.Fatal(err)
+	}
+	ids, err := pgx.CollectRows(rows, pgx.RowTo[uuid.UUID])
+	if err != nil {
+		w.e.t.Fatal(err)
+	}
+	return ids
+}
+
+// accessOf resolves a member's access now, as RequireWorkspace does at the
+// start of a request; a request still running later holds this copy.
+func (w *teamWorkspace) accessOf(userID uuid.UUID) authctx.Access {
+	w.e.t.Helper()
+	a, _, ok, err := w.e.a.access.ResolveAccess(context.Background(), uuid.MustParse(w.id), userID)
+	if err != nil || !ok {
+		w.e.t.Fatalf("resolve access: %v %v", ok, err)
+	}
+	return a
+}
+
+func TestConcurrentTransfersLeaveOneOwner(t *testing.T) {
+	e := newAuthEnv(t)
+	w := newTeamWorkspace(e)
+	_, adminID := w.join("admin")
+	_, agentID := w.join("agent")
+	owner := w.accessOf(w.owners()[0])
+
+	// Both requests resolved the owner's access before either transferred.
+	ctx := context.Background()
+	if err := e.a.team.TransferOwnership(ctx, owner, teammodel.Meta{}, uuid.MustParse(adminID)); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.a.team.TransferOwnership(ctx, owner, teammodel.Meta{}, uuid.MustParse(agentID)); !errors.Is(err, teammodel.ErrOwnerOnly) {
+		t.Fatalf("second transfer: %v, want owner_only", err)
+	}
+	if got := w.owners(); len(got) != 1 || got[0] != uuid.MustParse(adminID) {
+		t.Fatalf("owners %v, want only %s", got, adminID)
+	}
 }

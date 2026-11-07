@@ -341,8 +341,16 @@ func (s *Service) TransferOwnership(ctx context.Context, actor authctx.Access, m
 		if m.Status != model.StatusActive {
 			return model.ErrMemberNotActive
 		}
-		if _, err := r.LockMember(ctx, gen.LockMemberParams{WorkspaceID: actor.WorkspaceID, UserID: actor.UserID}); err != nil {
+		// actor was resolved before this transaction; a transfer that committed
+		// since then may have made them an Admin.
+		owner, err := r.LockMember(ctx, gen.LockMemberParams{WorkspaceID: actor.WorkspaceID, UserID: actor.UserID})
+		switch {
+		case repository.IsNoRows(err):
+			return model.ErrOwnerOnly
+		case err != nil:
 			return fmt.Errorf("lock owner: %w", err)
+		case !owner.IsOwner:
+			return model.ErrOwnerOnly
 		}
 		if !m.UsesSeat {
 			// A Viewer becomes the owner and the old owner an Admin: one more seat.
