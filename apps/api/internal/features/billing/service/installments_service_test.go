@@ -14,19 +14,34 @@ import (
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/payment"
 )
 
-func TestApplyInstallmentPaymentRejectsOverpayment(t *testing.T) {
+// A provider-run installment charge for more than the balance (the schedule
+// charged after the order was paid off another way) is refunded in full, as
+// an app_link duplicate is: the event applies instead of failing on every
+// retry, and the order is left as it was.
+func TestOverpaidProviderInstallmentIsRefunded(t *testing.T) {
 	h := newLTDHarness(t, model.CollectionProviderSchedule)
 	q, err := h.quote(h.basic, &h.basic3, "")
 	h.must(err)
 	o := h.buy(q, "sub_sched_over")
 
-	// The orders CHECK refuses paying past the total, and nothing is kept.
-	if err := h.providerPayment(o.ID, h.payment(30000), true); !errors.Is(err, model.ErrOverpayment) {
-		t.Fatalf("pay more than the balance: %v, want ErrOverpayment", err)
+	over := h.payment(30000)
+	if err := h.providerPayment(o.ID, over, true); err != nil {
+		t.Fatalf("pay more than the balance: %v, want applied", err)
 	}
+	h.sendRefunds()
 	wantOrder(t, h.order(o.ID), model.OrderInInstallments, 10333, "paid", "scheduled", "scheduled")
-	if n := h.invoiceCount(o.ID); n != 1 {
-		t.Errorf("%d invoices, want 1", n)
+	if n := h.invoiceCount(o.ID); n != 2 {
+		t.Errorf("%d invoices, want 2: the overpayment is recorded", n)
+	}
+	refunds := h.fake.Refunds()
+	if len(refunds) != 1 || refunds[0].ExternalPaymentID != over.ExternalID || refunds[0].AmountMinor != 30000 {
+		t.Fatalf("refunds = %+v, want the overpayment refunded in full", refunds)
+	}
+	// The provider's retry of the same webhook refunds nothing more.
+	h.must(h.providerPayment(o.ID, over, true))
+	h.sendRefunds()
+	if n := len(h.fake.RefundRequests()); n != 1 {
+		t.Fatalf("%d refund requests after a replay, want 1", n)
 	}
 }
 

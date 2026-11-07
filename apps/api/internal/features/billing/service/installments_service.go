@@ -131,6 +131,11 @@ func (l lifetimeDeals) applyInstallmentPayment(ctx context.Context, tx pgx.Tx, w
 		}
 		return nil
 	}
+	if inst == nil || p.TotalMinor-p.TaxMinor > o.BalanceMinor() {
+		// Charged after the order was paid off another way (Pay now, a
+		// resumed balance): refunded, as a duplicate app_link payment is.
+		return l.refundDuplicate(ctx, tx, o, inst, nil, p)
+	}
 
 	recorded, o, err := l.recordPayment(ctx, tx, r, o, inst, nil, p)
 	if err != nil || !recorded {
