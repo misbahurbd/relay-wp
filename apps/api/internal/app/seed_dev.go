@@ -57,7 +57,7 @@ var seedPlans = []seedPlan{
 	{
 		code: "growth", name: "Growth", description: "Automations and store connections for growing teams.", sort: 20, trialDays: 14, recommended: true,
 		limits: map[string]int{
-			"members": 10, "whatsapp_numbers": 3, "contacts": 20000, "broadcasts": 50, "api_calls": 100000,
+			"members": 10, "whatsapp_numbers": 3, "contacts": 20000, "broadcasts": 50, "api_calls": 100000, "ai_replies": 500,
 			"automations": 1, "ecommerce": 1, "team_controls": 1,
 		},
 		prices: []seedPrice{{"month", 7900}, {"year", 79000}},
@@ -66,7 +66,7 @@ var seedPlans = []seedPlan{
 		code: "scale", name: "Scale", description: "Unlimited contacts and priority support.", sort: 30,
 		limits: map[string]int{
 			"members": -1, "whatsapp_numbers": 10, "contacts": -1, "broadcasts": -1, "api_calls": -1,
-			"automations": 1, "ai_replies": 1, "ecommerce": 1, "team_controls": 1, "priority_support": 1,
+			"ai_replies": 5000, "automations": 1, "ecommerce": 1, "team_controls": 1, "priority_support": 1,
 		},
 		prices: []seedPrice{{"month", 19900}, {"year", 199000}},
 	},

@@ -172,7 +172,11 @@ func TestUsageListsEveryMonthlyResource(t *testing.T) {
 	if !u.PeriodStart.Equal(time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)) || !u.PeriodEnd.Equal(time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)) {
 		t.Errorf("period = %v – %v, want October 2026", u.PeriodStart, u.PeriodEnd)
 	}
-	want := []model.MonthlyUsage{{Resource: "broadcasts", Used: 2, Limit: 30}, {Resource: "api_calls", Used: 0, Limit: model.Unlimited}}
+	want := []model.MonthlyUsage{
+		{Resource: "broadcasts", Used: 2, Limit: 30},
+		{Resource: "api_calls", Used: 0, Limit: model.Unlimited},
+		{Resource: "ai_replies", Used: 0, Limit: model.NotIncluded},
+	}
 	if len(u.Resources) != len(want) {
 		t.Fatalf("resources = %+v, want %+v", u.Resources, want)
 	}

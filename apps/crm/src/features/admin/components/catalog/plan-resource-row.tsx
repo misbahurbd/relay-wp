@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '#/components/ui/tooltip
 import { cn } from '#/lib/utils'
 import type { Resource } from '../../types'
 import { isIncluded, type ResourceEntry } from '../kit/limits'
+import { plural } from '../kit/plan-highlights'
 
 type Choice = 'off' | 'cap' | 'unlimited'
 
@@ -19,10 +20,6 @@ const CHOICES: { value: Choice; label: string }[] = [
 // Equal-width segments fill the control column, so two options (required rows) and three line up.
 const SEGMENT =
   'h-8 flex-1 rounded-md border-0 px-2 text-[13px] text-muted-foreground hover:bg-card/60 data-[state=on]:shadow-sm'
-
-function plural(unit: string) {
-  return unit.endsWith('s') ? unit : `${unit}s`
-}
 
 export function PlanResourceRow({
   resource: r,

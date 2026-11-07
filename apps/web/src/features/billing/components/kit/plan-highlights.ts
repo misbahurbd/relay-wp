@@ -55,11 +55,17 @@ function capOf(plan: PlanInput, r: PlanResource) {
   return plan.limits[r.key] ?? NOT_INCLUDED
 }
 
+/** "reply" → "replies", "contact" → "contacts". Catalog units are English nouns. */
+export function plural(unit: string) {
+  if (unit.endsWith('s')) return unit
+  return /[^aeiou]y$/.test(unit) ? `${unit.slice(0, -1)}ies` : `${unit}s`
+}
+
 /** "5,000 contacts", "30 broadcasts / month", "Unlimited broadcasts", or a feature's label. */
 export function lineOf(r: PlanResource, value: number) {
   if (r.kind === 'access') return r.label
   const n = value === UNLIMITED ? 'Unlimited' : value.toLocaleString()
-  const unit = value === 1 ? r.unit : `${r.unit}s`
+  const unit = value === 1 ? r.unit : plural(r.unit)
   return `${n} ${unit}${r.kind === 'monthly' && value !== UNLIMITED ? ' / month' : ''}`
 }
 
