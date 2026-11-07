@@ -22,10 +22,12 @@ export function PlanChoices({
   workspaceId,
   canPay,
   header,
+  comparison,
 }: {
   workspaceId: string
   canPay: boolean
   header?: (toggle: ReactNode) => ReactNode
+  comparison?: 'expanded' | 'collapsed'
 }) {
   const overview = useQuery(overviewQueryOptions(workspaceId))
   const [changeTo, setChangeTo] = useState<string>()
@@ -48,6 +50,7 @@ export function PlanChoices({
         // Until the overview says otherwise, promise nothing.
         hadTrial={overview.data ? hadTrial(overview.data) : true}
         header={header}
+        comparison={comparison}
         action={({ plan, price, selection, current }) => {
           if (current) {
             return (

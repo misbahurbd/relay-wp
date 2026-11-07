@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { TagIcon } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { Skeleton } from '#/components/ui/skeleton'
-import { onSale, plansQueryOptions } from '../../api/billing.queries'
+import { onSale, plansQueryOptions, resourcesQueryOptions } from '../../api/billing.queries'
 import type { Cadence, Catalog } from '../../types'
 import { EmptyState, ErrorState } from '../kit/states'
 import { cadencesOf, type PlanAction, PricingTable } from './pricing-table'
@@ -20,20 +20,24 @@ export function Catalogue({
   currentPriceId,
   hadTrial,
   header,
+  comparison,
 }: {
   action: PlanAction
   currentPriceId?: string
   /** See PricingTable. Leave it out without a workspace. */
   hadTrial?: boolean
   header?: (toggle: ReactNode) => ReactNode
+  comparison?: 'expanded' | 'collapsed'
 }) {
   const plans = useQuery({
     ...plansQueryOptions(),
     select: (catalog) => onSale(catalog, currentPriceId),
   })
+  // Without the resource catalog the cards still show staff's lines; they just lose the limits.
+  const resources = useQuery(resourcesQueryOptions())
   const [cadence, setCadence] = useCadence(plans.data)
 
-  if (plans.isPending) return <PricingSkeleton />
+  if (plans.isPending || resources.isPending) return <PricingSkeleton />
   if (plans.isError) {
     return (
       <ErrorState
@@ -53,12 +57,14 @@ export function Catalogue({
   return (
     <PricingTable
       catalog={plans.data}
+      resources={resources.data ?? []}
       cadence={cadence}
       onCadence={setCadence}
       currentPriceId={currentPriceId}
       action={action}
       hadTrial={hadTrial}
       header={header}
+      comparison={comparison}
     />
   )
 }

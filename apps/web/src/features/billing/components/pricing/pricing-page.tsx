@@ -34,6 +34,7 @@ export function PublicPricingPage() {
           </p>
         </div>
         <Catalogue
+          comparison="expanded"
           action={({ selection }) => (
             <Button asChild size="lg">
               <Link

@@ -5,10 +5,12 @@ import { Label } from '#/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '#/components/ui/radio-group'
 import { ToggleGroup, ToggleGroupItem } from '#/components/ui/toggle-group'
 import { cn } from '#/lib/utils'
-import type { Cadence, Catalog, Plan, Price, Provider, Selection } from '../../types'
+import type { Cadence, Catalog, Plan, Price, Provider, Resource, Selection } from '../../types'
 import { describeInstallments } from '../kit/installments'
-import { formatMoney, formatPrice, limitLines, yearlySaving } from '../kit/money'
+import { formatMoney, formatPrice, yearlySaving } from '../kit/money'
+import { type PlanSummary, planModel } from '../kit/plan-highlights'
 import { checkoutStartsTrial } from '../kit/trial'
+import { CompareTable } from './compare-table'
 
 const PAY_ONCE = 'once'
 
@@ -33,6 +35,8 @@ export type PlanAction = (input: {
 
 type Props = {
   catalog: Catalog
+  /** The resource catalog, which says what each limit is called and how it reads. */
+  resources: Resource[]
   cadence: Cadence
   onCadence: (cadence: Cadence) => void
   /** The price this workspace pays now, marked "Current plan". */
@@ -45,19 +49,25 @@ type Props = {
   hadTrial?: boolean
   /** Places the cadence toggle, e.g. beside a section title. Without it the toggle is centred. */
   header?: (toggle: ReactNode) => ReactNode
+  /** The full comparison under the cards: open on the public page, folded away in the app. */
+  comparison?: 'expanded' | 'collapsed'
 }
 
 export function PricingTable({
   catalog,
+  resources,
   cadence,
   onCadence,
   currentPriceId,
   action,
   hadTrial,
   header,
+  comparison = 'collapsed',
 }: Props) {
   const cadences = cadencesOf(catalog)
   const plans = catalog.plans.filter((plan) => priceFor(plan, cadence))
+  const model = planModel(plans, resources)
+  const currentPlanId = plans.find((plan) => plan.prices.some((p) => p.id === currentPriceId))?.id
   const bestSaving = Math.max(
     0,
     ...catalog.plans.map((p) => yearlySaving(priceFor(p, 'month'), priceFor(p, 'year'))),
@@ -93,13 +103,14 @@ export function PricingTable({
     <div className="flex flex-col gap-4">
       {header ? header(toggle) : toggle && <div className="self-center">{toggle}</div>}
       <ul className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
-        {plans.map((plan) => {
+        {plans.map((plan, i) => {
           const price = priceFor(plan, cadence)
           if (!price) return null
           return (
             <li key={plan.id} className="flex">
               <PlanCard
                 plan={plan}
+                summary={model.plans[i]}
                 price={price}
                 providers={catalog.providers}
                 hadTrial={hadTrial}
@@ -110,12 +121,19 @@ export function PricingTable({
           )
         })}
       </ul>
+      <CompareTable
+        plans={plans}
+        matrix={model.matrix}
+        currentPlanId={currentPlanId}
+        expanded={comparison === 'expanded'}
+      />
     </div>
   )
 }
 
 function PlanCard({
   plan,
+  summary,
   price,
   providers,
   hadTrial,
@@ -123,6 +141,7 @@ function PlanCard({
   action,
 }: {
   plan: Plan
+  summary: PlanSummary
   price: Price
   providers: Provider[]
   hadTrial?: boolean
@@ -134,7 +153,6 @@ function PlanCard({
   const offer = offers.find((o) => o.id === offerId)
   const headingId = useId()
   const selection: Selection = { priceId: price.id, offerId: offer?.id }
-  const features = plan.features.length > 0 ? plan.features : limitLines(plan.limits)
   const yearly = price.interval === 'year'
   // Yearly prices show what they come to each month, as the design does.
   const shown = yearly ? Math.round(price.amount_minor / 12) : price.amount_minor
@@ -217,15 +235,27 @@ function PlanCard({
 
       <div className="flex flex-col gap-2">{action({ plan, price, selection, current })}</div>
 
-      <ul className="flex flex-col gap-[9px] text-[13px]">
-        {features.map((line) => (
-          <li key={line} className="flex items-start gap-2">
-            <CheckIcon className="mt-0.5 size-4 flex-none text-brand" aria-hidden="true" />
-            <span>{line}</span>
-          </li>
-        ))}
-      </ul>
+      <div className="flex flex-col gap-2.5">
+        {summary.heading && <p className="text-[13px] font-bold">{summary.heading}</p>}
+        <ul className="flex flex-col gap-[9px] text-[13px]">
+          {summary.highlights.map((line) => (
+            <Feature key={`h:${line}`}>{line}</Feature>
+          ))}
+          {summary.extras.map((line) => (
+            <Feature key={`x:${line}`}>{line}</Feature>
+          ))}
+        </ul>
+      </div>
     </article>
+  )
+}
+
+function Feature({ children }: { children: ReactNode }) {
+  return (
+    <li className="flex items-start gap-2">
+      <CheckIcon className="mt-0.5 size-4 flex-none text-brand" aria-hidden="true" />
+      <span>{children}</span>
+    </li>
   )
 }
 
