@@ -344,6 +344,21 @@ func TestLimitEditsAreChecked(t *testing.T) {
 	}
 }
 
+// Only USD is sold, so a price in another currency is refused before it is
+// stored: checkout, invoices and discounts all assume USD.
+func TestAdminPriceMustBeUSD(t *testing.T) {
+	e := newT3Env(t)
+	planID, err := e.svc.CreatePlan(e.ctx, model.NewPlan{Code: "eur_" + uuid.NewString()[:8], PlanDetails: details("EUR plan")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.CreatePrice(e.ctx, model.NewPrice{
+		PlanID: planID, BillingType: model.BillingRecurring, Interval: model.IntervalMonth, Currency: "EUR", AmountMinor: 2900,
+	}); !errors.Is(err, model.ErrUnsupportedCurrency) {
+		t.Errorf("EUR price: err = %v, want unsupported_currency", err)
+	}
+}
+
 // details are valid plan details named name: the required resources and nothing else.
 func details(name string) model.PlanDetails {
 	return model.PlanDetails{Name: name, Limits: model.Limits{"members": 5, "whatsapp_numbers": 1}}

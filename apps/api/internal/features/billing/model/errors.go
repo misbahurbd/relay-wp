@@ -26,6 +26,7 @@ var (
 	ErrPaymentProviderRefused = apperr.Validation("payment_provider_refused", "The payment provider couldn't do this. Contact support.")
 	ErrBelowProviderMinimum   = apperr.Validation("amount_below_provider_minimum",
 		"This payment is smaller than the payment provider can take. Pay in full or use another payment method.")
+	ErrUnsupportedCurrency = apperr.BadRequest("unsupported_currency", "Only USD prices are supported.")
 	ErrPaymentProviderDown = apperr.Unavailable("payment_provider_unavailable", "The payment provider isn't answering. Try again in a minute.")
 
 	// Subscriptions.

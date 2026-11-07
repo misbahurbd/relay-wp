@@ -283,6 +283,9 @@ func (s *Service) CreatePrice(ctx context.Context, in model.NewPrice) (uuid.UUID
 	if len(details) > 0 {
 		return uuid.Nil, model.ErrInvalidInput.WithDetails(details...)
 	}
+	if params.Currency != "USD" {
+		return uuid.Nil, model.ErrUnsupportedCurrency
+	}
 	r := repository.NewRepository(s.pool)
 	plan, err := r.GetPlan(ctx, in.PlanID)
 	if repository.IsNoRows(err) {
