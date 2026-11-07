@@ -9,6 +9,13 @@ export const Route = createFileRoute('/_app/_workspace/_shell/billing/plans')({
 
 function Page() {
   const { workspaceId } = Route.useRouteContext()
-  const { can } = useAccess(workspaceId)
-  return <PlanPicker workspaceId={workspaceId} canPay={can('billing.pay')} />
+  const { access, can } = useAccess(workspaceId)
+  return (
+    <PlanPicker
+      workspaceId={workspaceId}
+      // The current plan and change previews need billing.view; until access loads, show the page.
+      canView={!access || can('billing.view')}
+      canPay={can('billing.pay')}
+    />
+  )
 }

@@ -1,4 +1,4 @@
-import { CircleAlertIcon } from 'lucide-react'
+import { CircleAlertIcon, LockIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Alert, AlertDescription, AlertTitle } from '#/components/ui/alert'
 import { Button } from '#/components/ui/button'
@@ -53,6 +53,15 @@ export function EmptyState({
       {children && <p className="max-w-prose text-[13px] text-muted-foreground">{children}</p>}
       {action && <div className="mt-2">{action}</div>}
     </div>
+  )
+}
+
+/** The lock screen for a member whose role lacks billing.view, which every billing read needs. */
+export function NoViewPermission() {
+  return (
+    <EmptyState icon={<LockIcon className="size-5" />} title="Billing is limited to some members">
+      Ask the workspace owner for the “View billing” permission to see plans and invoices.
+    </EmptyState>
   )
 }
 

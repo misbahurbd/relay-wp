@@ -1,9 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { LockIcon } from 'lucide-react'
 import { Skeleton } from '#/components/ui/skeleton'
 import { overviewQueryOptions } from '../../api/billing.queries'
 import { useBillingPreview } from '../../hooks/use-billing-preview'
-import { EmptyState, ErrorState } from '../kit/states'
+import { ErrorState, NoViewPermission } from '../kit/states'
 import { ComparePlans } from '../pricing/compare-plans'
 import { Invoices } from '../settings/invoices'
 import { LtdOrder } from '../settings/ltd-order'
@@ -30,12 +29,7 @@ export function BillingPage({ workspaceId, canView, canPay }: Props) {
       {canView ? (
         <Overview workspaceId={workspaceId} canPay={canPay} preview={preview} />
       ) : (
-        <EmptyState
-          icon={<LockIcon className="size-5" />}
-          title="Billing is limited to some members"
-        >
-          Ask the workspace owner for the “View billing” permission to see plans and invoices.
-        </EmptyState>
+        <NoViewPermission />
       )}
     </main>
   )
