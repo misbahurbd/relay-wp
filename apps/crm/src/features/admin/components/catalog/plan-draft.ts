@@ -50,6 +50,8 @@ export type PlanDraft = {
   trialDays: string
   requiresCard: boolean
   reason: string
+  /** Sent with the new plan, so a retried publish finds the plan it already created. */
+  publishKey: string
 }
 
 export type Errors = Record<string, string>
@@ -96,6 +98,7 @@ export function initialDraft(
     trialDays: String(source?.trial_days ?? 0),
     requiresCard: source?.trial_requires_card ?? false,
     reason: '',
+    publishKey: crypto.randomUUID(),
   }
 }
 
@@ -231,7 +234,7 @@ export function planBody(draft: PlanDraft): CreatePlanInputBody {
 export function publishSteps(draft: PlanDraft, providers: Provider[]): PublishStep[] {
   const prices = enteredCadences(draft)
   return [
-    { id: 'plan', kind: 'plan', body: planBody(draft) },
+    { id: 'plan', kind: 'plan', body: { ...planBody(draft), publish_key: draft.publishKey } },
     ...prices.map((c): PublishStep => {
       const lifetime = c.id === 'lifetime'
       return {
