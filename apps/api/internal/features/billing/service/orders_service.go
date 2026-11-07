@@ -353,11 +353,10 @@ func (l lifetimeDeals) startOrder(ctx context.Context, tx pgx.Tx, r repository.R
 			return fmt.Errorf("cancel upgraded order's installments: %w", err)
 		}
 	}
-	if o.ReplacedSubscriptionID != nil {
-		// Q13. The credit was fixed on the order when it was quoted.
-		if _, err := l.t3.cancelForLTD(ctx, tx, o.WorkspaceID); err != nil {
-			return err
-		}
+	// Q13. Whatever subscription is live now ends, even one that went live
+	// after the quote; the credit was fixed on the order when it was quoted.
+	if _, err := l.t3.cancelForLTD(ctx, tx, o.WorkspaceID); err != nil {
+		return err
 	}
 
 	var first *model.Installment

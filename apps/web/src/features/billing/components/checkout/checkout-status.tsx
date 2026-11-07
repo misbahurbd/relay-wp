@@ -9,6 +9,9 @@ import { Section } from '../kit/section'
 import { ErrorState } from '../kit/states'
 import { rememberedCheckout } from './checkout-return'
 
+/** How long an expired or failed checkout is still watched: a late payment can complete it. */
+const LATE_PAYMENT_WINDOW_MS = 2 * 60_000
+
 /** After paying: waits for the provider's webhook to complete the checkout, then says so. */
 export function CheckoutStatus({
   workspaceId,
@@ -42,10 +45,20 @@ const WAIT_MS = 60_000
 function SessionState({ workspaceId, sessionId }: { workspaceId: string; sessionId: string }) {
   const queryClient = useQueryClient()
   const [gaveUp, setGaveUp] = useState(false)
+  const [openedAt] = useState(() => Date.now())
   const options = checkoutSessionQueryOptions(workspaceId, sessionId)
   const session = useQuery({
     ...options,
-    refetchInterval: gaveUp ? false : options.refetchInterval,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
+      if ((status === 'expired' || status === 'failed') && query.state.status !== 'error') {
+        return Date.now() - openedAt < LATE_PAYMENT_WINDOW_MS ? 5000 : false
+      }
+      if (gaveUp) return false
+      return typeof options.refetchInterval === 'function'
+        ? options.refetchInterval(query)
+        : options.refetchInterval
+    },
   })
   const status = session.data?.status
   const waiting = !session.isError && (!status || status === 'pending')
@@ -136,7 +149,9 @@ function SessionState({ workspaceId, sessionId }: { workspaceId: string; session
         </p>
       </div>
       <p className="text-sm text-muted-foreground">
-        You haven’t been charged for this checkout. Start again to pay with another card or method.
+        If you finished paying just now, the payment may still be on its way, and this page updates
+        when it arrives. A charge for a checkout we can’t use is refunded automatically. Otherwise,
+        start again to pay with another card or method.
       </p>
       <div className="flex flex-wrap gap-2">
         <Button asChild>

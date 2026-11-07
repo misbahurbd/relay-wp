@@ -366,10 +366,11 @@ func (s *Service) SubscriptionCredit(ctx context.Context, workspaceID uuid.UUID)
 }
 
 // credit is the unused time on sub at its discounted price, if a discount still applies.
-// Trials and subscriptions without a period have none.
+// Trials, past-due subscriptions (their period is unpaid) and subscriptions without a period have none.
 func (s *Service) credit(ctx context.Context, r repository.Repository, sub model.Subscription) (model.SubscriptionCredit, error) {
 	out := model.SubscriptionCredit{SubscriptionID: &sub.ID, Currency: sub.Price.Currency}
-	if sub.Status == model.SubscriptionTrialing || sub.CurrentPeriodStart == nil || sub.CurrentPeriodEnd == nil {
+	if sub.Status == model.SubscriptionTrialing || sub.Status == model.SubscriptionPastDue ||
+		sub.CurrentPeriodStart == nil || sub.CurrentPeriodEnd == nil {
 		return out, nil
 	}
 	now := s.now()
@@ -560,7 +561,11 @@ func (s *Service) ApplySubscriptionPayment(ctx context.Context, tx pgx.Tx, works
 // settleRenewal records what a paid renewal proves: a past-due subscription is
 // paid up again, and the paid period is the current one. Without it the
 // PastDueGrace sweep would suspend a plan the customer has just paid for.
+// A late payment for an older period proves neither, so it changes nothing.
 func settleRenewal(ctx context.Context, r repository.Repository, sub model.Subscription, p payment.Payment) (model.Subscription, error) {
+	if p.PeriodEnd != nil && sub.CurrentPeriodEnd != nil && p.PeriodEnd.Before(*sub.CurrentPeriodEnd) {
+		return sub, nil
+	}
 	next := sub
 	if next.Status == model.SubscriptionPastDue {
 		next.Status, next.GraceEndsAt = model.SubscriptionActive, nil
@@ -695,12 +700,26 @@ func (s *Service) SuspendPastDue(ctx context.Context) (int, error) {
 			return suspended, fmt.Errorf("list past-due subscriptions: %w", err)
 		}
 		for _, row := range rows {
+			// A renewal may have been paid since the list was read: check again under the lock.
+			due := false
 			if err := database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+				locked, err := repository.NewRepository(tx).LockSubscription(ctx, gen.LockSubscriptionParams{
+					WorkspaceID: row.WorkspaceID, SubscriptionID: row.ID,
+				})
+				if err != nil {
+					return fmt.Errorf("lock subscription: %w", err)
+				}
+				due = locked.Status == model.SubscriptionPastDue && locked.GraceEndsAt != nil && !now.Before(*locked.GraceEndsAt)
+				if !due {
+					return nil
+				}
 				return s.suspendPastDue(ctx, tx, row.WorkspaceID, row.ID)
 			}); err != nil {
 				return suspended, err
 			}
-			suspended++
+			if due {
+				suspended++
+			}
 		}
 		if len(rows) < jobBatch {
 			return suspended, nil

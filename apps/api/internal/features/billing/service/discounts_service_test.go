@@ -10,7 +10,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/misbahurbd/relay-wp/apps/api/db/gen"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/model"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/repository"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/database"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/payment"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/shared/apperr"
 )
@@ -44,6 +47,49 @@ func (e *t3Env) redemption(sessionID uuid.UUID) (status string, count int) {
 		e.t.Fatal(err)
 	}
 	return status, count
+}
+
+// A checkout that reserves a code while another checkout of the same
+// workspace holds it still sees that use, so per_workspace_limit holds.
+func TestReserveDiscountHoldsPerWorkspaceLimitUnderConcurrency(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	d := e.discount(nil) // per_workspace_limit 1
+	r := repository.NewRepository(e.pool)
+	var sessions []uuid.UUID
+	for range 2 {
+		s, err := r.CreateCheckoutSession(e.ctx, gen.CreateCheckoutSessionParams{
+			WorkspaceID: e.ws, PlanPriceID: p.Monthly, Purpose: model.PurposeNew, Provider: "stripe", AmountMinor: 1000,
+			Currency: "USD", IdempotencyKey: uuid.NewString(), ExpiresAt: e.clock.Add(time.Hour),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		sessions = append(sessions, s.ID)
+	}
+	applied := model.AppliedDiscount{Discount: d, DiscountMinor: 200}
+
+	first, err := e.pool.Begin(e.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = first.Rollback(e.ctx) }()
+	if err := e.svc.ReserveDiscount(e.ctx, first, e.ws, sessions[0], applied); err != nil {
+		t.Fatal(err)
+	}
+	second := make(chan error, 1)
+	go func() {
+		second <- database.WithTx(e.ctx, e.pool, func(tx pgx.Tx) error {
+			return e.svc.ReserveDiscount(e.ctx, tx, e.ws, sessions[1], applied)
+		})
+	}()
+	time.Sleep(300 * time.Millisecond) // the second reservation now waits on the first
+	if err := first.Commit(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-second; !errors.Is(err, model.ErrDiscountUsedUp) {
+		t.Fatalf("second reservation in the workspace: %v, want ErrDiscountUsedUp", err)
+	}
 }
 
 func TestApplyDiscountRejections(t *testing.T) {

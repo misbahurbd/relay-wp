@@ -485,6 +485,7 @@ type Invoice struct {
 	UpdatedAt         time.Time
 	PdfKey            *string
 	EmailedAt         *time.Time
+	Proration         bool
 	PlanPriceID       *uuid.UUID
 	DocumentSweeps    int32
 	DocumentSweptAt   *time.Time
@@ -640,6 +641,7 @@ type PaymentEvent struct {
 	ProcessedAt       *time.Time
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
+	ReportedAt        *time.Time
 }
 
 type Permission struct {

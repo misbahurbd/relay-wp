@@ -8,11 +8,11 @@
 -- period starts it (the renewal applies it next, in this transaction).
 INSERT INTO invoices (workspace_id, subscription_id, order_id, installment_id, checkout_session_id, provider,
                       external_payment_id, status, subtotal_minor, tax_minor, total_minor, currency, period_start,
-                      period_end, bill_to, discount_id, discount_minor, paid_at, plan_price_id)
+                      period_end, bill_to, discount_id, discount_minor, paid_at, proration, plan_price_id)
 VALUES (@workspace_id, sqlc.narg('subscription_id'), sqlc.narg('order_id'), sqlc.narg('installment_id'),
         sqlc.narg('checkout_session_id'), @provider, sqlc.narg('external_payment_id'), @status, @subtotal_minor,
         @tax_minor, @total_minor, @currency, sqlc.narg('period_start'), sqlc.narg('period_end'), @bill_to,
-        sqlc.narg('discount_id'), @discount_minor, sqlc.narg('paid_at'),
+        sqlc.narg('discount_id'), @discount_minor, sqlc.narg('paid_at'), @proration,
         COALESCE(
             (SELECT cs.plan_price_id FROM checkout_sessions cs
              WHERE cs.workspace_id = @workspace_id AND cs.id = sqlc.narg('checkout_session_id')),
@@ -117,9 +117,16 @@ LIMIT @max_rows;
 
 -- name: FindInvoiceByExternalPaymentID :one
 -- Webhooks only: refunds and disputes name the provider's payment.
-SELECT id, workspace_id, subscription_id, order_id, total_minor, status
+SELECT id, workspace_id, subscription_id, order_id, installment_id, total_minor, tax_minor, status
 FROM invoices
 WHERE provider = @provider AND external_payment_id = @external_payment_id;
+
+-- name: LockInvoiceByExternalPaymentID :one
+-- Webhooks only: refunds and disputes on one invoice apply one at a time.
+SELECT id, workspace_id, subscription_id, order_id, installment_id, total_minor, tax_minor, status
+FROM invoices
+WHERE provider = @provider AND external_payment_id = @external_payment_id
+FOR UPDATE;
 
 -- name: SetInvoiceStatus :execrows
 UPDATE invoices
@@ -156,10 +163,20 @@ SELECT COALESCE((SELECT sum(i.total_minor) FROM invoices i
                  WHERE i.workspace_id = @workspace_id AND i.order_id = @order_id
                    AND r.status = 'succeeded'), 0)::bigint AS refunded_minor;
 
+-- name: HasOtherInstallmentPayment :one
+-- Whether another invoice still pays for the installment (it was paid again
+-- after a refund, or twice at once).
+SELECT EXISTS (
+    SELECT 1 FROM invoices
+    WHERE workspace_id = @workspace_id AND installment_id = @installment_id AND id <> @invoice_id
+      AND status IN ('paid', 'partially_refunded', 'disputed')
+);
+
 -- name: GetLatestSubscriptionInvoiceID :one
--- The subscription's newest invoice: refunding it in full ends the subscription.
+-- The subscription's newest period invoice: refunding it in full ends the
+-- subscription. A proration (a mid-period plan change) never does.
 SELECT id
 FROM invoices
-WHERE workspace_id = @workspace_id AND subscription_id = @subscription_id
+WHERE workspace_id = @workspace_id AND subscription_id = @subscription_id AND NOT proration
 ORDER BY created_at DESC, id DESC
 LIMIT 1;

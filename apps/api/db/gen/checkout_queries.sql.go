@@ -292,6 +292,27 @@ func (q *Queries) GetCheckoutSessionByIdempotencyKey(ctx context.Context, arg Ge
 	return i, err
 }
 
+const hasPendingCheckout = `-- name: HasPendingCheckout :one
+SELECT EXISTS (
+    SELECT 1 FROM checkout_sessions
+    WHERE workspace_id = $1 AND purpose = $2 AND status = 'pending' AND expires_at > $3
+)
+`
+
+type HasPendingCheckoutParams struct {
+	WorkspaceID uuid.UUID
+	Purpose     string
+	Now         time.Time
+}
+
+// Whether the workspace has an open checkout of this purpose.
+func (q *Queries) HasPendingCheckout(ctx context.Context, arg HasPendingCheckoutParams) (bool, error) {
+	row := q.db.QueryRow(ctx, hasPendingCheckout, arg.WorkspaceID, arg.Purpose, arg.Now)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const linkCheckoutSession = `-- name: LinkCheckoutSession :execrows
 UPDATE checkout_sessions
 SET subscription_id = COALESCE($1, subscription_id),
@@ -363,6 +384,39 @@ func (q *Queries) ListOpenCheckoutSessions(ctx context.Context, arg ListOpenChec
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOtherPendingCheckouts = `-- name: ListOtherPendingCheckouts :many
+SELECT id
+FROM checkout_sessions
+WHERE workspace_id = $1 AND purpose = $2 AND status = 'pending' AND id <> $3
+`
+
+type ListOtherPendingCheckoutsParams struct {
+	WorkspaceID       uuid.UUID
+	Purpose           string
+	CheckoutSessionID uuid.UUID
+}
+
+// The workspace's other open checkouts of this purpose.
+func (q *Queries) ListOtherPendingCheckouts(ctx context.Context, arg ListOtherPendingCheckoutsParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listOtherPendingCheckouts, arg.WorkspaceID, arg.Purpose, arg.CheckoutSessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

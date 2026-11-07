@@ -480,3 +480,150 @@ func TestChangeKeyRepeatsUntilAChangeIsLogged(t *testing.T) {
 		t.Fatal("key unchanged after a logged change")
 	}
 }
+
+// Refunding a plan change's proration in full gives back the change, not the
+// period: the plan stays. Refunding the period's invoice still ends it.
+func TestRefundingAProrationKeepsThePlan(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	sub := e.subscribe(p.Monthly)
+	var periodPay string
+	if err := e.pool.QueryRow(e.ctx, `SELECT external_payment_id FROM invoices WHERE subscription_id = $1`,
+		sub.ID).Scan(&periodPay); err != nil {
+		t.Fatal(err)
+	}
+	e.tick(time.Hour)
+	prorationPay := "pay_" + uuid.NewString()
+	e.inTx(func(tx pgx.Tx) error {
+		return e.svc.ApplySubscriptionPayment(e.ctx, tx, e.ws, sub.ID, payment.Payment{
+			ExternalID: prorationPay, SubtotalMinor: 500, TotalMinor: 500, Currency: "USD", Proration: true,
+			PeriodStart: &e.clock, PeriodEnd: sub.CurrentPeriodEnd,
+		}, true)
+	})
+	refund := func(pay string, amount int64) {
+		ev := refundEvent(pay, "re_"+uuid.NewString(), amount, payment.RefundSucceeded)
+		ev.Provider = payment.Stripe
+		e.inTx(func(tx pgx.Tx) error { return e.svc.onRefund(e.ctx, tx, e.ws, ev) })
+	}
+
+	refund(prorationPay, 500)
+	e.wantCache(e.ws, p.Code)
+	if got, err := e.svc.Subscription(e.ctx, e.ws); err != nil || got.Status != model.SubscriptionActive {
+		t.Fatalf("after refunding the proration: %s, %v; want active", got.Status, err)
+	}
+
+	refund(periodPay, 1000)
+	e.wantCache(e.ws, model.FreePlan)
+}
+
+// A lost dispute on a subscription invoice stops the provider billing it:
+// the subscription is canceled now, and the plan stays suspended for support.
+func TestLostDisputeCancelsTheSubscription(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	sub := e.subscribe(p.Monthly)
+	var pay string
+	if err := e.pool.QueryRow(e.ctx, `SELECT external_payment_id FROM invoices WHERE subscription_id = $1`,
+		sub.ID).Scan(&pay); err != nil {
+		t.Fatal(err)
+	}
+	dispute := func(typ payment.EventType, outcome string) payment.Event {
+		return payment.Event{Provider: payment.Stripe, Type: typ, Payment: &payment.Payment{ExternalID: pay, Status: outcome}}
+	}
+	e.inTx(func(tx pgx.Tx) error {
+		return e.svc.onDisputeOpened(e.ctx, tx, e.ws, dispute(payment.EventDisputeOpened, ""))
+	})
+	e.inTx(func(tx pgx.Tx) error {
+		return e.svc.onDisputeClosed(e.ctx, tx, e.ws, dispute(payment.EventDisputeClosed, "lost"))
+	})
+
+	if fs, _ := e.fake.Subscription(*sub.ExternalSubscriptionID); fs.Status != payment.SubscriptionCanceled {
+		t.Errorf("provider subscription %s after a lost dispute, want canceled", fs.Status)
+	}
+	if got, err := e.svc.Subscription(e.ctx, e.ws); err != nil || got.Status != model.SubscriptionCanceled {
+		t.Errorf("subscription %s, %v after a lost dispute, want canceled", got.Status, err)
+	}
+	if g := e.grant(e.ws); g == nil || g.Status != model.GrantSuspended || g.SuspendReason != model.SuspendDispute {
+		t.Errorf("grant = %+v, want suspended for the dispute", g)
+	}
+}
+
+// A past-due period was never paid, so a lifetime deal gets no credit for it.
+func TestPastDueSubscriptionHasNoCredit(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	sub := e.subscribe(p.Monthly)
+	e.midPeriod(sub)
+	e.pastDue(sub)
+	if c, err := e.svc.SubscriptionCredit(e.ctx, e.ws); err != nil || c.CreditMinor != 0 {
+		t.Fatalf("credit for a past-due subscription = %+v, %v; want 0", c, err)
+	}
+}
+
+// renew pays sub's next period, as the provider's renewal webhook would.
+func (e *t3Env) renew(sub model.Subscription, start, end time.Time) {
+	e.t.Helper()
+	e.inTx(func(tx pgx.Tx) error {
+		return e.svc.ApplySubscriptionPayment(e.ctx, tx, e.ws, sub.ID, payment.Payment{
+			ExternalID: "pay_" + uuid.NewString(), SubtotalMinor: 1000, TotalMinor: 1000, Currency: "USD",
+			PeriodStart: &start, PeriodEnd: &end,
+		}, true)
+	})
+}
+
+func (e *t3Env) pastDue(sub model.Subscription) {
+	e.t.Helper()
+	ps := payment.Subscription{ExternalID: *sub.ExternalSubscriptionID, Status: payment.SubscriptionPastDue}
+	e.inTx(func(tx pgx.Tx) error { return e.svc.SyncSubscription(e.ctx, tx, e.ws, sub.ID, ps) })
+}
+
+// A renewal paid while past due makes the subscription active with its new
+// period, so the grace sweep never suspends a customer who paid.
+func TestPaidRenewalClearsPastDueAndSavesThePeriod(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	sub := e.subscribe(p.Monthly)
+	e.clock = sub.CurrentPeriodEnd.Add(time.Hour)
+	e.pastDue(sub)
+
+	e.tick(24 * time.Hour)
+	start, end := *sub.CurrentPeriodEnd, sub.CurrentPeriodEnd.AddDate(0, 1, 0)
+	e.renew(sub, start, end)
+	got, err := e.svc.Subscription(e.ctx, e.ws)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != model.SubscriptionActive || got.GraceEndsAt != nil {
+		t.Errorf("after a paid renewal: status %s, grace ends %v; want active with no grace", got.Status, got.GraceEndsAt)
+	}
+	if got.CurrentPeriodStart == nil || !got.CurrentPeriodStart.Equal(start) || got.CurrentPeriodEnd == nil ||
+		!got.CurrentPeriodEnd.Equal(end) {
+		t.Errorf("period after renewal = %v to %v, want %v to %v", got.CurrentPeriodStart, got.CurrentPeriodEnd, start, end)
+	}
+
+	e.tick(pastDueGrace + time.Hour)
+	if _, err := e.svc.SuspendPastDue(e.ctx); err != nil { // the sweep covers every workspace in the shared database
+		t.Fatal(err)
+	}
+	e.wantCache(e.ws, p.Code)
+}
+
+// A renewal paid after grace ran out restores the suspended plan and the status.
+func TestPaidRenewalAfterGraceRestoresThePlan(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	sub := e.subscribe(p.Monthly)
+	e.clock = sub.CurrentPeriodEnd.Add(time.Hour)
+	e.pastDue(sub)
+	e.tick(pastDueGrace + time.Hour)
+	if _, err := e.svc.SuspendPastDue(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	e.wantCache(e.ws, model.FreePlan)
+
+	e.renew(sub, *sub.CurrentPeriodEnd, sub.CurrentPeriodEnd.AddDate(0, 1, 0))
+	e.wantCache(e.ws, p.Code)
+	if got, err := e.svc.Subscription(e.ctx, e.ws); err != nil || got.Status != model.SubscriptionActive {
+		t.Fatalf("after paying: %s, %v; want active", got.Status, err)
+	}
+}

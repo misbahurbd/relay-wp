@@ -92,6 +92,9 @@ type Querier interface {
 	ClaimRecipients(ctx context.Context, arg ClaimRecipientsParams) ([]ClaimRecipientsRow, error)
 	// A due run, locked; another worker holding it means nothing to do here.
 	ClaimRun(ctx context.Context, arg ClaimRunParams) (ClaimRunRow, error)
+	// Job only (all workspaces): events still unprocessed long after they
+	// arrived and not reported yet, stamped as reported so each is reported once.
+	ClaimStuckPaymentEvents(ctx context.Context, arg ClaimStuckPaymentEventsParams) ([]ClaimStuckPaymentEventsRow, error)
 	ClearContactTags(ctx context.Context, arg ClearContactTagsParams) error
 	ClearUnread(ctx context.Context, arg ClearUnreadParams) (ClearUnreadRow, error)
 	CompleteBroadcast(ctx context.Context, arg CompleteBroadcastParams) (CompleteBroadcastRow, error)
@@ -353,7 +356,8 @@ type Querier interface {
 	GetInvoiceDocument(ctx context.Context, arg GetInvoiceDocumentParams) (GetInvoiceDocumentRow, error)
 	// The workspace's live subscription if it has one, else its most recent.
 	GetLatestSubscription(ctx context.Context, workspaceID uuid.UUID) (GetLatestSubscriptionRow, error)
-	// The subscription's newest invoice: refunding it in full ends the subscription.
+	// The subscription's newest period invoice: refunding it in full ends the
+	// subscription. A proration (a mid-period plan change) never does.
 	GetLatestSubscriptionInvoiceID(ctx context.Context, arg GetLatestSubscriptionInvoiceIDParams) (uuid.UUID, error)
 	// The workspace's one in_installments, paid or defaulted order.
 	GetLiveOrder(ctx context.Context, workspaceID uuid.UUID) (GetLiveOrderRow, error)
@@ -418,6 +422,11 @@ type Querier interface {
 	// Whether the workspace has used its one trial: it had a subscription that
 	// started (trialing or paid), or a card-less trial grant.
 	HasHadTrial(ctx context.Context, workspaceID uuid.UUID) (bool, error)
+	// Whether another invoice still pays for the installment (it was paid again
+	// after a refund, or twice at once).
+	HasOtherInstallmentPayment(ctx context.Context, arg HasOtherInstallmentPaymentParams) (bool, error)
+	// Whether the workspace has an open checkout of this purpose.
+	HasPendingCheckout(ctx context.Context, arg HasPendingCheckoutParams) (bool, error)
 	// ---------- Access log ----------
 	InsertAccessLog(ctx context.Context, arg InsertAccessLogParams) error
 	InsertAuthEvent(ctx context.Context, arg InsertAuthEventParams) error
@@ -532,6 +541,8 @@ type Querier interface {
 	// @started_before, in ID order after @after_id.
 	ListOpenCheckoutSessions(ctx context.Context, arg ListOpenCheckoutSessionsParams) ([]ListOpenCheckoutSessionsRow, error)
 	ListOrderInstallments(ctx context.Context, arg ListOrderInstallmentsParams) ([]ListOrderInstallmentsRow, error)
+	// The workspace's other open checkouts of this purpose.
+	ListOtherPendingCheckouts(ctx context.Context, arg ListOtherPendingCheckoutsParams) ([]uuid.UUID, error)
 	// Job only (all workspaces): live provider-renewed subscriptions whose period
 	// ended at or before @ended_before with no news, in ID order after @after_id.
 	ListOverdueSubscriptions(ctx context.Context, arg ListOverdueSubscriptionsParams) ([]ListOverdueSubscriptionsRow, error)
@@ -552,8 +563,6 @@ type Querier interface {
 	// ---------- Segments (ADR 0014) ----------
 	// Who matches a segment is compiled from its rules in segments_match.go.
 	ListSegments(ctx context.Context, workspaceID uuid.UUID) ([]ListSegmentsRow, error)
-	// Job only (all workspaces): events still unprocessed long after they arrived.
-	ListStuckPaymentEvents(ctx context.Context, arg ListStuckPaymentEventsParams) ([]ListStuckPaymentEventsRow, error)
 	ListSubscribedEndpoints(ctx context.Context, arg ListSubscribedEndpointsParams) ([]uuid.UUID, error)
 	ListSubscriptionChanges(ctx context.Context, arg ListSubscriptionChangesParams) ([]ListSubscriptionChangesRow, error)
 	ListTagsOfContacts(ctx context.Context, arg ListTagsOfContactsParams) ([]ListTagsOfContactsRow, error)
@@ -579,8 +588,14 @@ type Querier interface {
 	LockContactCap(ctx context.Context, workspaceID uuid.UUID) error
 	LockConversation(ctx context.Context, arg LockConversationParams) (LockConversationRow, error)
 	LockCurrentGrant(ctx context.Context, workspaceID uuid.UUID) (LockCurrentGrantRow, error)
+	// Run before ReserveDiscount in the same transaction: ReserveDiscount counts
+	// the workspace's uses with its statement's snapshot, so a reservation that
+	// waited on another must start that statement after the other has committed.
+	LockDiscount(ctx context.Context, discountID uuid.UUID) error
 	LockInstallment(ctx context.Context, arg LockInstallmentParams) (LockInstallmentRow, error)
 	LockInvitation(ctx context.Context, arg LockInvitationParams) (LockInvitationRow, error)
+	// Webhooks only: refunds and disputes on one invoice apply one at a time.
+	LockInvoiceByExternalPaymentID(ctx context.Context, arg LockInvoiceByExternalPaymentIDParams) (LockInvoiceByExternalPaymentIDRow, error)
 	LockMember(ctx context.Context, arg LockMemberParams) (LockMemberRow, error)
 	// Every balance change locks the order first.
 	LockOrder(ctx context.Context, arg LockOrderParams) (LockOrderRow, error)
@@ -643,6 +658,8 @@ type Querier interface {
 	RemoveContactTagLinks(ctx context.Context, arg RemoveContactTagLinksParams) (int64, error)
 	// A payment arrived for a failed or expired session: it completes after all.
 	ReopenCheckoutSession(ctx context.Context, arg ReopenCheckoutSessionParams) (int64, error)
+	// A paid installment whose payment was refunded in full is owed again.
+	ReopenInstallment(ctx context.Context, arg ReopenInstallmentParams) (int64, error)
 	// Chats whose snooze has ended, a batch at a time, across workspaces.
 	ReopenSnoozed(ctx context.Context, arg ReopenSnoozedParams) ([]ReopenSnoozedRow, error)
 	RequestInvitationRenewal(ctx context.Context, invitationID uuid.UUID) (int64, error)
@@ -756,6 +773,8 @@ type Querier interface {
 	// Moves a due broadcast to sending, once: no row once its audience is taken or it was cancelled.
 	StartBroadcast(ctx context.Context, arg StartBroadcastParams) ([]byte, error)
 	StartContactImport(ctx context.Context, arg StartContactImportParams) (int64, error)
+	// A refunded installment's payment comes off the order again.
+	SubtractOrderPayment(ctx context.Context, arg SubtractOrderPaymentParams) (int64, error)
 	// Pending and succeeded refunds; never more than the invoice total.
 	SumInvoiceRefunds(ctx context.Context, arg SumInvoiceRefundsParams) (int64, error)
 	SuspendGrant(ctx context.Context, arg SuspendGrantParams) (int64, error)

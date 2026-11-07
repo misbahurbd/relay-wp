@@ -354,3 +354,24 @@ func (q *Queries) SetOrderStatus(ctx context.Context, arg SetOrderStatusParams) 
 	}
 	return result.RowsAffected(), nil
 }
+
+const subtractOrderPayment = `-- name: SubtractOrderPayment :execrows
+UPDATE orders
+SET paid_minor = paid_minor - $1
+WHERE workspace_id = $2 AND id = $3
+`
+
+type SubtractOrderPaymentParams struct {
+	AmountMinor int64
+	WorkspaceID uuid.UUID
+	OrderID     uuid.UUID
+}
+
+// A refunded installment's payment comes off the order again.
+func (q *Queries) SubtractOrderPayment(ctx context.Context, arg SubtractOrderPaymentParams) (int64, error) {
+	result, err := q.db.Exec(ctx, subtractOrderPayment, arg.AmountMinor, arg.WorkspaceID, arg.OrderID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}

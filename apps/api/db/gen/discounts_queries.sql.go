@@ -427,6 +427,18 @@ func (q *Queries) ListUndeletedRetiredProviderDiscounts(ctx context.Context, arg
 	return items, nil
 }
 
+const lockDiscount = `-- name: LockDiscount :exec
+SELECT id FROM discounts WHERE id = $1 FOR UPDATE
+`
+
+// Run before ReserveDiscount in the same transaction: ReserveDiscount counts
+// the workspace's uses with its statement's snapshot, so a reservation that
+// waited on another must start that statement after the other has committed.
+func (q *Queries) LockDiscount(ctx context.Context, discountID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, lockDiscount, discountID)
+	return err
+}
+
 const markProviderDiscountDeleted = `-- name: MarkProviderDiscountDeleted :execrows
 UPDATE provider_discounts SET deleted_on_provider_at = now() WHERE id = $1 AND NOT is_active
 `

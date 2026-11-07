@@ -10,6 +10,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -112,6 +113,12 @@ func (e *eventsEnv) webhook(ev payment.Event) (http.Header, []byte) {
 	if ev.OccurredAt.IsZero() {
 		ev.OccurredAt = time.Now().UTC()
 	}
+	return e.signed(ev)
+}
+
+// signed is ev as the fake provider delivers it, OccurredAt as given.
+func (e *eventsEnv) signed(ev payment.Event) (http.Header, []byte) {
+	e.t.Helper()
 	raw, err := json.Marshal(ev)
 	if err != nil {
 		e.t.Fatal(err)
@@ -613,6 +620,31 @@ func TestPurgeEventPayloads(t *testing.T) {
 	}
 }
 
+// Each stuck event is reported once, not on every hourly run.
+func TestStuckEventIsReportedOnce(t *testing.T) {
+	e := newEventsEnv(t)
+	ev := refundEvent("pay_x", e.id("re_s"), 100, payment.RefundSucceeded)
+	e.receive(ev)
+	if _, err := e.pool.Exec(e.ctx, `UPDATE payment_events SET received_at = now() - interval '2 days'
+		WHERE provider = 'stripe' AND external_event_id = $1`, ev.ExternalID); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		if _, err := e.svc.ReportStuckPaymentEvents(e.ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	n := 0
+	for line := range strings.Lines(e.logs.String()) {
+		if strings.Contains(line, "still unprocessed") && strings.Contains(line, ev.ExternalID) {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Errorf("stuck event reported %d times, want once", n)
+	}
+}
+
 func TestCheckPlanCacheDrift(t *testing.T) {
 	e := newEventsEnv(t)
 	// The workspace caches "growth" but has no grant, so it is on free.
@@ -633,5 +665,136 @@ func TestCheckPlanCacheDrift(t *testing.T) {
 	}
 	if strings.Contains(logs, "Events test") {
 		t.Error("the workspace name reached the logs")
+	}
+}
+
+// A refund that waits on the invoice's lock must not write back the status it
+// read before a dispute changed it.
+func TestRefundKeepsAConcurrentDispute(t *testing.T) {
+	e := newEventsEnv(t)
+	ws := e.workspace()
+	invoiceID, payID := e.invoice(ws, 1000)
+	args := e.receive(refundEvent(payID, e.id("re_1"), 300, payment.RefundSucceeded))
+
+	tx, err := e.pool.Begin(e.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback(e.ctx) }()
+	if _, err := tx.Exec(e.ctx, `UPDATE invoices SET status = 'disputed' WHERE id = $1`, invoiceID); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- e.svc.ProcessPaymentEvent(e.ctx, args.PaymentEventID, args.Event) }()
+	time.Sleep(300 * time.Millisecond) // the refund is now waiting on the invoice
+	if err := tx.Commit(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if s := e.invoiceStatus(invoiceID); s != model.InvoiceDisputed {
+		t.Errorf("invoice %s after a refund raced a dispute, want disputed", s)
+	}
+}
+
+// A lost dispute on an installment order stops the provider's schedule.
+func TestLostDisputeStopsTheInstallmentSchedule(t *testing.T) {
+	e := newEventsEnv(t)
+	ws := e.workspace()
+	invoiceID, payID := e.invoice(ws, 500)
+	schedule := "sched_" + uuid.NewString()
+	if _, err := e.pool.Exec(e.ctx, `UPDATE orders SET status = 'in_installments', external_ref = $1
+		WHERE id = (SELECT order_id FROM invoices WHERE id = $2)`, schedule, invoiceID); err != nil {
+		t.Fatal(err)
+	}
+	for _, typ := range []payment.EventType{payment.EventDisputeOpened, payment.EventDisputeClosed} {
+		e.mustProcess(e.receive(payment.Event{
+			ExternalID: "evt_" + uuid.NewString(), Type: typ, ProviderType: string(typ), OccurredAt: time.Now().UTC(),
+			Payment: &payment.Payment{ExternalID: payID, Status: "lost"},
+		}))
+	}
+	if !slices.Contains(e.fake.CanceledSchedules(), schedule) {
+		t.Errorf("schedule %s still runs after a lost dispute", schedule)
+	}
+}
+
+// An event without a time is as young as its delivery, so it gets the retry window.
+func TestEventWithoutATimeIsRetried(t *testing.T) {
+	e := newEventsEnv(t)
+	ev := refundEvent("pay_nobody_"+uuid.NewString(), e.id("re_z"), 100, payment.RefundSucceeded)
+	ev.OccurredAt = time.Time{}
+	header, body := e.signed(ev)
+	if err := e.svc.ReceiveWebhook(e.ctx, "stripe", header, body); err != nil {
+		t.Fatal(err)
+	}
+	jobs := e.queue.all()
+	args := jobs[len(jobs)-1].(model.ProcessPaymentEventArgs)
+	if args.Event.OccurredAt.IsZero() {
+		t.Error("the event kept a zero time")
+	}
+	if err := e.process(args); err == nil {
+		t.Error("an event without a time that matches nothing was not retried")
+	}
+}
+
+// checkoutSession stores a pending purpose-new checkout session for ws.
+func (e *eventsEnv) checkoutSession(ws uuid.UUID) uuid.UUID {
+	e.t.Helper()
+	s, err := e.repo.CreateCheckoutSession(e.ctx, gen.CreateCheckoutSessionParams{
+		WorkspaceID: ws, PlanPriceID: e.price(), Purpose: "new", Provider: "stripe", AmountMinor: 1000,
+		Currency: "USD", IdempotencyKey: uuid.NewString(), ExpiresAt: time.Now().Add(time.Hour),
+	})
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	return s.ID
+}
+
+// Events arrive out of order: one whose workspace is known (through our
+// checkout session) but whose subscription or invoice isn't stored yet is
+// retried, then given up once it is old.
+func TestOutOfOrderEventsRetryUntilOld(t *testing.T) {
+	e := newEventsEnv(t)
+	ws := e.workspace()
+	ref := e.checkoutSession(ws)
+	unknown := "unknown_" + uuid.NewString()
+	for name, ev := range map[string]payment.Event{
+		"subscription": {
+			Type: payment.EventSubscriptionUpdated, ProviderType: "customer.subscription.updated",
+			Subscription: &payment.Subscription{ExternalID: unknown, Status: payment.SubscriptionActive},
+		},
+		"payment": {
+			Type: payment.EventPaymentSucceeded, ProviderType: "invoice.paid",
+			Payment: &payment.Payment{ExternalID: "pay_" + uuid.NewString(), ExternalSubscriptionID: unknown, TotalMinor: 1000, Currency: "USD"},
+		},
+		"refund": {
+			Type: payment.EventRefundUpdated, ProviderType: "charge.refund.updated",
+			Refund: &payment.Refund{ExternalID: e.id("re_" + uuid.NewString()[:4]), ExternalPaymentID: unknown, AmountMinor: 100, Currency: "USD", Status: payment.RefundSucceeded},
+		},
+		"dispute opened": {
+			Type: payment.EventDisputeOpened, ProviderType: "charge.dispute.created",
+			Payment: &payment.Payment{ExternalID: unknown},
+		},
+		"dispute closed": {
+			Type: payment.EventDisputeClosed, ProviderType: "charge.dispute.closed",
+			Payment: &payment.Payment{ExternalID: unknown, Status: "lost"},
+		},
+	} {
+		ev.ExternalID, ev.Reference, ev.OccurredAt = "evt_"+uuid.NewString(), &ref, time.Now().UTC()
+		args := e.receive(ev)
+		if err := e.process(args); err == nil {
+			t.Errorf("%s: a recent event naming nothing stored yet was not retried", name)
+		}
+		if e.stored(ev.ExternalID).processed {
+			t.Errorf("%s: a retried event was marked processed", name)
+		}
+		args.Event.OccurredAt = time.Now().Add(-2 * unmatchedRetryWindow)
+		if err := e.process(args); err != nil {
+			t.Errorf("%s: an old event was retried: %v", name, err)
+		}
+		if !e.stored(ev.ExternalID).processed {
+			t.Errorf("%s: an old event was not given up", name)
+		}
 	}
 }

@@ -93,6 +93,10 @@ func (s *Service) ReceiveWebhook(ctx context.Context, provider string, header ma
 // through here, so they are applied the same way. False means an event with
 // its ID is already stored: a replay, which changes nothing.
 func (s *Service) ingest(ctx context.Context, ev payment.Event) (bool, error) {
+	if ev.OccurredAt.IsZero() {
+		// Without the provider's time, the retry window runs from delivery.
+		ev.OccurredAt = s.now()
+	}
 	_, handled := s.events[ev.Type]
 	var stored bool
 	err := database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
@@ -168,6 +172,17 @@ func (s *Service) ProcessPaymentEvent(ctx context.Context, paymentEventID uuid.U
 		s.log.InfoContext(ctx, "billing: payment event applied", "event", ev, "workspace_id", workspaceID)
 		return nil
 	})
+}
+
+// notStoredYet handles an event of a known workspace that names a subscription,
+// order or invoice we haven't stored yet. Providers send events out of order,
+// so it is retried for unmatchedRetryWindow, then logged and given up.
+func (s *Service) notStoredYet(ctx context.Context, ev payment.Event, workspaceID uuid.UUID, msg string) error {
+	if s.now().Sub(ev.OccurredAt) < unmatchedRetryWindow {
+		return fmt.Errorf("%s yet; retrying", msg)
+	}
+	s.log.WarnContext(ctx, "billing: "+msg, "event", ev, "workspace_id", workspaceID)
+	return nil
 }
 
 func markProcessed(ctx context.Context, repo repository.Repository, id uuid.UUID, now time.Time) error {
@@ -317,9 +332,7 @@ func (s *Service) onPayment(paid bool) eventHandler {
 				return fmt.Errorf("find order: %w", err)
 			}
 		}
-		s.log.WarnContext(ctx, "billing: payment names no subscription or order of the workspace",
-			"event", ev, "workspace_id", workspaceID)
-		return nil
+		return s.notStoredYet(ctx, ev, workspaceID, "payment names no subscription or order of the workspace")
 	}
 }
 
@@ -332,9 +345,7 @@ func (s *Service) onSubscription(ctx context.Context, tx pgx.Tx, workspaceID uui
 		Provider: string(ev.Provider), ExternalSubscriptionID: &ev.Subscription.ExternalID,
 	})
 	if repository.IsNoRows(err) || (err == nil && row.WorkspaceID != workspaceID) {
-		s.log.WarnContext(ctx, "billing: subscription event names no subscription of the workspace",
-			"event", ev, "workspace_id", workspaceID)
-		return nil
+		return s.notStoredYet(ctx, ev, workspaceID, "subscription event names no subscription of the workspace")
 	}
 	if err != nil {
 		return fmt.Errorf("find subscription: %w", err)
@@ -348,27 +359,15 @@ func (s *Service) onSubscription(ctx context.Context, tx pgx.Tx, workspaceID uui
 // refunds and disputes on one invoice apply one at a time. ok is false when
 // the workspace has no such invoice.
 func lockedInvoice(ctx context.Context, repo repository.Repository, provider payment.Provider, workspaceID uuid.UUID, externalPaymentID string) (gen.FindInvoiceByExternalPaymentIDRow, bool, error) {
-	find := func() (gen.FindInvoiceByExternalPaymentIDRow, error) {
-		return repo.FindInvoiceByExternalPaymentID(ctx, gen.FindInvoiceByExternalPaymentIDParams{
-			Provider: string(provider), ExternalPaymentID: &externalPaymentID,
-		})
-	}
-	inv, err := find()
+	row, err := repo.LockInvoiceByExternalPaymentID(ctx, gen.LockInvoiceByExternalPaymentIDParams{
+		Provider: string(provider), ExternalPaymentID: &externalPaymentID,
+	})
+	inv := gen.FindInvoiceByExternalPaymentIDRow(row)
 	if repository.IsNoRows(err) || (err == nil && inv.WorkspaceID != workspaceID) {
 		return inv, false, nil
 	}
 	if err != nil {
-		return inv, false, fmt.Errorf("find invoice: %w", err)
-	}
-	// Writing the status it already has takes the row lock; then read it again,
-	// as another refund may have changed it while we waited.
-	if _, err := repo.SetInvoiceStatus(ctx, gen.SetInvoiceStatusParams{
-		Status: inv.Status, WorkspaceID: workspaceID, InvoiceID: inv.ID,
-	}); err != nil {
 		return inv, false, fmt.Errorf("lock invoice: %w", err)
-	}
-	if inv, err = find(); err != nil {
-		return inv, false, fmt.Errorf("find invoice: %w", err)
 	}
 	return inv, true, nil
 }
@@ -388,8 +387,7 @@ func (s *Service) onRefund(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID
 		return err
 	}
 	if !ok {
-		s.log.WarnContext(ctx, "billing: refund names no invoice of the workspace", "event", ev, "workspace_id", workspaceID)
-		return nil
+		return s.notStoredYet(ctx, ev, workspaceID, "refund names no invoice of the workspace")
 	}
 
 	n, err := repo.SetRefundStatus(ctx, gen.SetRefundStatusParams{
@@ -435,7 +433,7 @@ func (s *Service) endRefundedPlan(ctx context.Context, tx pgx.Tx, workspaceID uu
 			return fmt.Errorf("order refund totals: %w", err)
 		}
 		if totals.PaidMinor <= 0 || totals.RefundedMinor < totals.PaidMinor {
-			return nil
+			return s.reopenRefundedInstallment(ctx, repo, workspaceID, o, inv)
 		}
 		if err := s.ltd().stopSchedule(ctx, o); err != nil {
 			return err
@@ -465,34 +463,89 @@ func (s *Service) endRefundedPlan(ctx context.Context, tx pgx.Tx, workspaceID uu
 	if latest != inv.ID {
 		return nil
 	}
-	locked, err := repo.LockSubscription(ctx, gen.LockSubscriptionParams{WorkspaceID: workspaceID, SubscriptionID: *inv.SubscriptionID})
+	canceled, err := s.cancelLiveSubscriptionNow(ctx, repo, workspaceID, *inv.SubscriptionID)
+	if err != nil || !canceled {
+		return err
+	}
+	s.log.InfoContext(ctx, "billing: subscription invoice refunded; subscription canceled",
+		"workspace_id", workspaceID, "subscription_id", *inv.SubscriptionID)
+	return s.endSubscriptionGrant(ctx, tx, workspaceID, *inv.SubscriptionID)
+}
+
+// cancelLiveSubscriptionNow cancels a started subscription now, at its provider
+// and here, and leaves its grant to the caller. False if it was not live.
+func (s *Service) cancelLiveSubscriptionNow(ctx context.Context, repo repository.Repository, workspaceID, subscriptionID uuid.UUID) (bool, error) {
+	locked, err := repo.LockSubscription(ctx, gen.LockSubscriptionParams{WorkspaceID: workspaceID, SubscriptionID: subscriptionID})
 	if err != nil {
-		return fmt.Errorf("lock subscription: %w", err)
+		return false, fmt.Errorf("lock subscription: %w", err)
 	}
 	sub := toSubscription(gen.GetSubscriptionRow(locked))
 	if sub.Status == model.SubscriptionCanceled || sub.Status == model.SubscriptionIncomplete {
-		return nil
+		return false, nil
 	}
 	if sub.RenewalMode == model.RenewalProvider && sub.ExternalSubscriptionID != nil {
 		g, err := s.gateway(sub.Provider)
 		if err != nil {
-			return err
+			return false, err
 		}
 		if _, err := g.CancelSubscription(ctx, payment.CancelRequest{
 			ExternalSubscriptionID: *sub.ExternalSubscriptionID, Mode: payment.CancelNow,
 		}); err != nil && !errors.Is(err, payment.ErrNotFound) {
-			return s.gatewayErr("cancel refunded subscription", err)
+			return false, s.gatewayErr("cancel subscription now", err)
 		}
 	}
 	now := s.now()
 	if _, err := repo.CancelSubscriptionNow(ctx, gen.CancelSubscriptionNowParams{
 		CanceledAt: &now, WorkspaceID: workspaceID, SubscriptionID: sub.ID,
 	}); err != nil {
-		return fmt.Errorf("cancel subscription: %w", err)
+		return false, fmt.Errorf("cancel subscription: %w", err)
 	}
-	s.log.InfoContext(ctx, "billing: subscription invoice refunded; subscription canceled",
-		"workspace_id", workspaceID, "subscription_id", sub.ID)
-	return s.endSubscriptionGrant(ctx, tx, workspaceID, sub.ID)
+	return true, nil
+}
+
+// reopenRefundedInstallment takes a fully refunded installment payment off the
+// order and makes the installment owed again (due, or scheduled before its
+// date), so the due and overdue flow collects it. A partial refund is a
+// concession and leaves the installment paid. Nothing changes while another
+// invoice still pays for the installment.
+func (s *Service) reopenRefundedInstallment(ctx context.Context, repo repository.Repository, workspaceID uuid.UUID, o model.Order, inv gen.FindInvoiceByExternalPaymentIDRow) error {
+	if inv.InstallmentID == nil {
+		return nil
+	}
+	other, err := repo.HasOtherInstallmentPayment(ctx, gen.HasOtherInstallmentPaymentParams{
+		WorkspaceID: workspaceID, InstallmentID: inv.InstallmentID, InvoiceID: inv.ID,
+	})
+	if err != nil || other {
+		return err
+	}
+	inst, err := repo.LockInstallment(ctx, gen.LockInstallmentParams{WorkspaceID: workspaceID, InstallmentID: *inv.InstallmentID})
+	if err != nil {
+		return fmt.Errorf("lock installment: %w", err)
+	}
+	status := model.InstallmentDue
+	if inst.DueAt.After(s.now()) {
+		status = model.InstallmentScheduled
+	}
+	n, err := repo.ReopenInstallment(ctx, gen.ReopenInstallmentParams{
+		Status: status, WorkspaceID: workspaceID, InstallmentID: inst.ID,
+	})
+	if err != nil {
+		return fmt.Errorf("reopen installment: %w", err)
+	}
+	if n == 0 {
+		return nil // not paid: already reopened
+	}
+	if _, err := repo.SubtractOrderPayment(ctx, gen.SubtractOrderPaymentParams{
+		AmountMinor: inv.TotalMinor - inv.TaxMinor, WorkspaceID: workspaceID, OrderID: o.ID,
+	}); err != nil {
+		return fmt.Errorf("subtract order payment: %w", err)
+	}
+	s.log.InfoContext(ctx, "billing: installment refunded; owed again", "workspace_id", workspaceID, "order_id", o.ID,
+		"installment_id", inst.ID)
+	if o.Status == model.OrderPaid {
+		return setOrderStatus(ctx, repo, o, model.OrderInInstallments, s.now())
+	}
+	return nil
 }
 
 // createRefund records a refund we haven't seen, unless it would take the
@@ -574,11 +627,11 @@ func (s *Service) onDisputeOpened(ctx context.Context, tx pgx.Tx, workspaceID uu
 	}
 	repo := repository.NewRepository(tx)
 	inv, ok, err := lockedInvoice(ctx, repo, ev.Provider, workspaceID, ev.Payment.ExternalID)
-	if err != nil || !ok {
-		if !ok && err == nil {
-			s.log.WarnContext(ctx, "billing: dispute names no invoice of the workspace", "event", ev, "workspace_id", workspaceID)
-		}
+	if err != nil {
 		return err
+	}
+	if !ok {
+		return s.notStoredYet(ctx, ev, workspaceID, "dispute names no invoice of the workspace")
 	}
 	if inv.Status == model.InvoiceDisputed {
 		return nil
@@ -589,7 +642,8 @@ func (s *Service) onDisputeOpened(ctx context.Context, tx pgx.Tx, workspaceID uu
 
 // onDisputeClosed ends a dispute. Won: the invoice goes back to paid (or
 // partially_refunded / refunded, by its refunds). Lost: the money went back
-// to the customer, so the invoice stays disputed for support to follow up.
+// to the customer, so the invoice stays disputed for support to follow up,
+// and the provider stops billing what it paid for.
 func (s *Service) onDisputeClosed(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID, ev payment.Event) error {
 	if ev.Payment == nil || ev.Payment.ExternalID == "" {
 		s.log.WarnContext(ctx, "billing: dispute event without a payment", "event", ev)
@@ -597,11 +651,11 @@ func (s *Service) onDisputeClosed(ctx context.Context, tx pgx.Tx, workspaceID uu
 	}
 	repo := repository.NewRepository(tx)
 	inv, ok, err := lockedInvoice(ctx, repo, ev.Provider, workspaceID, ev.Payment.ExternalID)
-	if err != nil || !ok {
-		if !ok && err == nil {
-			s.log.WarnContext(ctx, "billing: dispute names no invoice of the workspace", "event", ev, "workspace_id", workspaceID)
-		}
+	if err != nil {
 		return err
+	}
+	if !ok {
+		return s.notStoredYet(ctx, ev, workspaceID, "dispute names no invoice of the workspace")
 	}
 	if inv.Status != model.InvoiceDisputed {
 		return nil
@@ -611,6 +665,9 @@ func (s *Service) onDisputeClosed(ctx context.Context, tx pgx.Tx, workspaceID uu
 		// Support can restore the grant once it is settled.
 		s.log.WarnContext(ctx, "billing: dispute lost", "event", ev, "workspace_id", workspaceID, "invoice_id", inv.ID,
 			"outcome", ev.Payment.Status)
+		if err := s.stopDisputedBilling(ctx, repo, workspaceID, inv); err != nil {
+			return err
+		}
 		g, err := currentGrant(ctx, repo, workspaceID)
 		if err != nil || g == nil || g.Status != model.GrantActive {
 			return err
@@ -628,19 +685,39 @@ func (s *Service) onDisputeClosed(ctx context.Context, tx pgx.Tx, workspaceID uu
 	return setInvoiceStatus(ctx, repo, workspaceID, inv.ID, status)
 }
 
+// stopDisputedBilling stops the provider charging again for what a lost
+// dispute paid for: the subscription is canceled now, or the order's
+// installment schedule is stopped (as a default does). The grant is left to
+// the caller, which suspends it for support.
+func (s *Service) stopDisputedBilling(ctx context.Context, repo repository.Repository, workspaceID uuid.UUID, inv gen.FindInvoiceByExternalPaymentIDRow) error {
+	if inv.OrderID != nil {
+		o, err := lockOrder(ctx, repo, workspaceID, *inv.OrderID)
+		if err != nil || o.Status != model.OrderInInstallments {
+			return err
+		}
+		return s.ltd().stopSchedule(ctx, o)
+	}
+	if inv.SubscriptionID == nil {
+		return nil
+	}
+	_, err := s.cancelLiveSubscriptionNow(ctx, repo, workspaceID, *inv.SubscriptionID)
+	return err
+}
+
 // ---------- Periodic jobs ----------
 
 // stuckEventAge is how long an event may stay unprocessed before it is reported.
 // River retries a failing event for weeks; a day of failures already needs a person.
 const stuckEventAge = 24 * time.Hour
 
-// ReportStuckPaymentEvents logs an error for each webhook event still
+// ReportStuckPaymentEvents logs an error, once, for each webhook event still
 // unprocessed a day after it arrived, so alerting picks it up and support can
 // look at it (the event's job has been failing all that time). It returns how
 // many it found. Run by the StuckPaymentEvents worker. The payload is never read.
 func (s *Service) ReportStuckPaymentEvents(ctx context.Context) (int, error) {
-	rows, err := repository.NewRepository(s.pool).ListStuckPaymentEvents(ctx, gen.ListStuckPaymentEventsParams{
-		Before: s.now().Add(-stuckEventAge), MaxRows: jobBatch,
+	now := s.now()
+	rows, err := repository.NewRepository(s.pool).ClaimStuckPaymentEvents(ctx, gen.ClaimStuckPaymentEventsParams{
+		Now: &now, Before: now.Add(-stuckEventAge), MaxRows: jobBatch,
 	})
 	if err != nil {
 		return 0, fmt.Errorf("list stuck payment events: %w", err)

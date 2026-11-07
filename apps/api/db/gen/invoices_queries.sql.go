@@ -72,11 +72,11 @@ const createInvoice = `-- name: CreateInvoice :one
 
 INSERT INTO invoices (workspace_id, subscription_id, order_id, installment_id, checkout_session_id, provider,
                       external_payment_id, status, subtotal_minor, tax_minor, total_minor, currency, period_start,
-                      period_end, bill_to, discount_id, discount_minor, paid_at, plan_price_id)
+                      period_end, bill_to, discount_id, discount_minor, paid_at, proration, plan_price_id)
 VALUES ($1, $2, $3, $4,
         $5, $6, $7, $8, $9,
         $10, $11, $12, $13, $14, $15,
-        $16, $17, $18,
+        $16, $17, $18, $19,
         COALESCE(
             (SELECT cs.plan_price_id FROM checkout_sessions cs
              WHERE cs.workspace_id = $1 AND cs.id = $5),
@@ -113,6 +113,7 @@ type CreateInvoiceParams struct {
 	DiscountID        *uuid.UUID
 	DiscountMinor     int64
 	PaidAt            *time.Time
+	Proration         bool
 }
 
 // ---------- Invoices (kept forever) ----------
@@ -141,6 +142,7 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (u
 		arg.DiscountID,
 		arg.DiscountMinor,
 		arg.PaidAt,
+		arg.Proration,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -183,7 +185,7 @@ func (q *Queries) CreateRefund(ctx context.Context, arg CreateRefundParams) (uui
 }
 
 const findInvoiceByExternalPaymentID = `-- name: FindInvoiceByExternalPaymentID :one
-SELECT id, workspace_id, subscription_id, order_id, total_minor, status
+SELECT id, workspace_id, subscription_id, order_id, installment_id, total_minor, tax_minor, status
 FROM invoices
 WHERE provider = $1 AND external_payment_id = $2
 `
@@ -198,7 +200,9 @@ type FindInvoiceByExternalPaymentIDRow struct {
 	WorkspaceID    uuid.UUID
 	SubscriptionID *uuid.UUID
 	OrderID        *uuid.UUID
+	InstallmentID  *uuid.UUID
 	TotalMinor     int64
+	TaxMinor       int64
 	Status         string
 }
 
@@ -211,7 +215,9 @@ func (q *Queries) FindInvoiceByExternalPaymentID(ctx context.Context, arg FindIn
 		&i.WorkspaceID,
 		&i.SubscriptionID,
 		&i.OrderID,
+		&i.InstallmentID,
 		&i.TotalMinor,
+		&i.TaxMinor,
 		&i.Status,
 	)
 	return i, err
@@ -364,7 +370,7 @@ func (q *Queries) GetInvoiceDocument(ctx context.Context, arg GetInvoiceDocument
 const getLatestSubscriptionInvoiceID = `-- name: GetLatestSubscriptionInvoiceID :one
 SELECT id
 FROM invoices
-WHERE workspace_id = $1 AND subscription_id = $2
+WHERE workspace_id = $1 AND subscription_id = $2 AND NOT proration
 ORDER BY created_at DESC, id DESC
 LIMIT 1
 `
@@ -374,7 +380,8 @@ type GetLatestSubscriptionInvoiceIDParams struct {
 	SubscriptionID *uuid.UUID
 }
 
-// The subscription's newest invoice: refunding it in full ends the subscription.
+// The subscription's newest period invoice: refunding it in full ends the
+// subscription. A proration (a mid-period plan change) never does.
 func (q *Queries) GetLatestSubscriptionInvoiceID(ctx context.Context, arg GetLatestSubscriptionInvoiceIDParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, getLatestSubscriptionInvoiceID, arg.WorkspaceID, arg.SubscriptionID)
 	var id uuid.UUID
@@ -408,6 +415,29 @@ func (q *Queries) GetOrderRefundTotals(ctx context.Context, arg GetOrderRefundTo
 	var i GetOrderRefundTotalsRow
 	err := row.Scan(&i.PaidMinor, &i.RefundedMinor)
 	return i, err
+}
+
+const hasOtherInstallmentPayment = `-- name: HasOtherInstallmentPayment :one
+SELECT EXISTS (
+    SELECT 1 FROM invoices
+    WHERE workspace_id = $1 AND installment_id = $2 AND id <> $3
+      AND status IN ('paid', 'partially_refunded', 'disputed')
+)
+`
+
+type HasOtherInstallmentPaymentParams struct {
+	WorkspaceID   uuid.UUID
+	InstallmentID *uuid.UUID
+	InvoiceID     uuid.UUID
+}
+
+// Whether another invoice still pays for the installment (it was paid again
+// after a refund, or twice at once).
+func (q *Queries) HasOtherInstallmentPayment(ctx context.Context, arg HasOtherInstallmentPaymentParams) (bool, error) {
+	row := q.db.QueryRow(ctx, hasOtherInstallmentPayment, arg.WorkspaceID, arg.InstallmentID, arg.InvoiceID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const listInvoices = `-- name: ListInvoices :many
@@ -490,6 +520,46 @@ func (q *Queries) ListInvoices(ctx context.Context, arg ListInvoicesParams) ([]L
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockInvoiceByExternalPaymentID = `-- name: LockInvoiceByExternalPaymentID :one
+SELECT id, workspace_id, subscription_id, order_id, installment_id, total_minor, tax_minor, status
+FROM invoices
+WHERE provider = $1 AND external_payment_id = $2
+FOR UPDATE
+`
+
+type LockInvoiceByExternalPaymentIDParams struct {
+	Provider          string
+	ExternalPaymentID *string
+}
+
+type LockInvoiceByExternalPaymentIDRow struct {
+	ID             uuid.UUID
+	WorkspaceID    uuid.UUID
+	SubscriptionID *uuid.UUID
+	OrderID        *uuid.UUID
+	InstallmentID  *uuid.UUID
+	TotalMinor     int64
+	TaxMinor       int64
+	Status         string
+}
+
+// Webhooks only: refunds and disputes on one invoice apply one at a time.
+func (q *Queries) LockInvoiceByExternalPaymentID(ctx context.Context, arg LockInvoiceByExternalPaymentIDParams) (LockInvoiceByExternalPaymentIDRow, error) {
+	row := q.db.QueryRow(ctx, lockInvoiceByExternalPaymentID, arg.Provider, arg.ExternalPaymentID)
+	var i LockInvoiceByExternalPaymentIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.SubscriptionID,
+		&i.OrderID,
+		&i.InstallmentID,
+		&i.TotalMinor,
+		&i.TaxMinor,
+		&i.Status,
+	)
+	return i, err
 }
 
 const markInvoiceEmailed = `-- name: MarkInvoiceEmailed :execrows
