@@ -412,3 +412,71 @@ func TestChangeKeyRepeatsUntilAChangeIsLogged(t *testing.T) {
 		t.Fatal("key unchanged after a logged change")
 	}
 }
+
+// renew pays sub's next period, as the provider's renewal webhook would.
+func (e *t3Env) renew(sub model.Subscription, start, end time.Time) {
+	e.t.Helper()
+	e.inTx(func(tx pgx.Tx) error {
+		return e.svc.ApplySubscriptionPayment(e.ctx, tx, e.ws, sub.ID, payment.Payment{
+			ExternalID: "pay_" + uuid.NewString(), SubtotalMinor: 1000, TotalMinor: 1000, Currency: "USD",
+			PeriodStart: &start, PeriodEnd: &end,
+		}, true)
+	})
+}
+
+func (e *t3Env) pastDue(sub model.Subscription) {
+	e.t.Helper()
+	ps := payment.Subscription{ExternalID: *sub.ExternalSubscriptionID, Status: payment.SubscriptionPastDue}
+	e.inTx(func(tx pgx.Tx) error { return e.svc.SyncSubscription(e.ctx, tx, e.ws, sub.ID, ps) })
+}
+
+// A renewal paid while past due makes the subscription active with its new
+// period, so the grace sweep never suspends a customer who paid.
+func TestPaidRenewalClearsPastDueAndSavesThePeriod(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	sub := e.subscribe(p.Monthly)
+	e.clock = sub.CurrentPeriodEnd.Add(time.Hour)
+	e.pastDue(sub)
+
+	e.tick(24 * time.Hour)
+	start, end := *sub.CurrentPeriodEnd, sub.CurrentPeriodEnd.AddDate(0, 1, 0)
+	e.renew(sub, start, end)
+	got, err := e.svc.Subscription(e.ctx, e.ws)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != model.SubscriptionActive || got.GraceEndsAt != nil {
+		t.Errorf("after a paid renewal: status %s, grace ends %v; want active with no grace", got.Status, got.GraceEndsAt)
+	}
+	if got.CurrentPeriodStart == nil || !got.CurrentPeriodStart.Equal(start) || got.CurrentPeriodEnd == nil ||
+		!got.CurrentPeriodEnd.Equal(end) {
+		t.Errorf("period after renewal = %v to %v, want %v to %v", got.CurrentPeriodStart, got.CurrentPeriodEnd, start, end)
+	}
+
+	e.tick(pastDueGrace + time.Hour)
+	if n, err := e.svc.SuspendPastDue(e.ctx); err != nil || n != 0 {
+		t.Fatalf("sweep after payment suspended %d, %v", n, err)
+	}
+	e.wantCache(e.ws, p.Code)
+}
+
+// A renewal paid after grace ran out restores the suspended plan and the status.
+func TestPaidRenewalAfterGraceRestoresThePlan(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	sub := e.subscribe(p.Monthly)
+	e.clock = sub.CurrentPeriodEnd.Add(time.Hour)
+	e.pastDue(sub)
+	e.tick(pastDueGrace + time.Hour)
+	if _, err := e.svc.SuspendPastDue(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	e.wantCache(e.ws, model.FreePlan)
+
+	e.renew(sub, *sub.CurrentPeriodEnd, sub.CurrentPeriodEnd.AddDate(0, 1, 0))
+	e.wantCache(e.ws, p.Code)
+	if got, err := e.svc.Subscription(e.ctx, e.ws); err != nil || got.Status != model.SubscriptionActive {
+		t.Fatalf("after paying: %s, %v; want active", got.Status, err)
+	}
+}

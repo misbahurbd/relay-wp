@@ -550,7 +550,27 @@ func (s *Service) ApplySubscriptionPayment(ctx context.Context, tx pgx.Tx, works
 	if sub.Status == model.SubscriptionIncomplete {
 		return nil
 	}
+	if err := syncPaidPeriod(ctx, r, sub, p); err != nil {
+		return err
+	}
 	return s.ensurePriceGrant(ctx, tx, workspaceID, sub.ID, planPriceID)
+}
+
+// syncPaidPeriod saves the period a renewal paid for and, as that period is
+// paid, ends past_due and its grace. A late payment for an older period
+// changes neither; one that ends with the current period (a proration) keeps it.
+func syncPaidPeriod(ctx context.Context, r repository.Repository, sub model.Subscription, p payment.Payment) error {
+	if p.PeriodEnd != nil && sub.CurrentPeriodEnd != nil && p.PeriodEnd.Before(*sub.CurrentPeriodEnd) {
+		return nil
+	}
+	next := sub
+	if p.PeriodStart != nil && p.PeriodEnd != nil && (sub.CurrentPeriodEnd == nil || p.PeriodEnd.After(*sub.CurrentPeriodEnd)) {
+		next.CurrentPeriodStart, next.CurrentPeriodEnd = p.PeriodStart, p.PeriodEnd
+	}
+	if next.Status == model.SubscriptionPastDue {
+		next.Status, next.GraceEndsAt = model.SubscriptionActive, nil
+	}
+	return syncPeriod(ctx, r, next)
 }
 
 // applyPendingChange moves sub to its scheduled price once at reaches the
@@ -673,12 +693,26 @@ func (s *Service) SuspendPastDue(ctx context.Context) (int, error) {
 			return suspended, fmt.Errorf("list past-due subscriptions: %w", err)
 		}
 		for _, row := range rows {
+			// A renewal may have been paid since the list was read: check again under the lock.
+			due := false
 			if err := database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+				locked, err := repository.NewRepository(tx).LockSubscription(ctx, gen.LockSubscriptionParams{
+					WorkspaceID: row.WorkspaceID, SubscriptionID: row.ID,
+				})
+				if err != nil {
+					return fmt.Errorf("lock subscription: %w", err)
+				}
+				due = locked.Status == model.SubscriptionPastDue && locked.GraceEndsAt != nil && !now.Before(*locked.GraceEndsAt)
+				if !due {
+					return nil
+				}
 				return s.suspendPastDue(ctx, tx, row.WorkspaceID, row.ID)
 			}); err != nil {
 				return suspended, err
 			}
-			suspended++
+			if due {
+				suspended++
+			}
 		}
 		if len(rows) < jobBatch {
 			return suspended, nil
