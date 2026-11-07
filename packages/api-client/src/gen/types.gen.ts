@@ -658,7 +658,7 @@ export type CheckoutSessionDto = {
 
 export type CloseDisputeInputBody = {
     /**
-     * won: the invoice is paid again; lost: the plan it paid for is suspended
+     * won: the invoice is paid again; lost (final): the subscription it paid for is canceled or the installments stopped, and the plan suspended
      */
     outcome: 'won' | 'lost';
     /**

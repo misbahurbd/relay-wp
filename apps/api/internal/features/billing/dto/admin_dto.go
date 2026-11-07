@@ -414,7 +414,7 @@ func ToDisputedInvoicesOutput(invs []model.DisputedInvoice) *DisputedInvoicesOut
 type CloseDisputeInput struct {
 	InvoiceID uuid.UUID `path:"invoice_id"`
 	Body      struct {
-		Outcome string `json:"outcome" enum:"won,lost" doc:"won: the invoice is paid again; lost: the plan it paid for is suspended"`
+		Outcome string `json:"outcome" enum:"won,lost" doc:"won: the invoice is paid again; lost (final): the subscription it paid for is canceled or the installments stopped, and the plan suspended"`
 		Reason  string `json:"reason" minLength:"1" maxLength:"300" doc:"How it was settled, for the record"`
 	}
 }
