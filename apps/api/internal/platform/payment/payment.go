@@ -124,6 +124,10 @@ type Capabilities struct {
 	CheckoutTrials bool `json:"checkout_trials"`
 	// Coupons: CreateCoupon works, so discounts carry over to renewals.
 	Coupons bool `json:"coupons"`
+	// CouponsPerProduct: a coupon covers only the products named when it was
+	// created (CouponRequest.ExternalProductIDs), so a new recurring product
+	// needs every coupon mirrored again (Creem).
+	CouponsPerProduct bool `json:"coupons_per_product"`
 	// PaymentNeedsProduct: a payment-mode checkout charges a provider product
 	// (CheckoutRequest.ExternalPriceID), so a one-time price sells in full or by
 	// app_link installments only once it has a plain provider price (Creem).

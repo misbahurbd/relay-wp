@@ -128,6 +128,9 @@ func TestCreemCapabilities(t *testing.T) {
 	if !c.MerchantOfRecord || !c.RenewsSubscriptions || !c.Coupons {
 		t.Errorf("Creem is the merchant of record, renews subscriptions and takes discount codes: %+v", c)
 	}
+	if !c.CouponsPerProduct {
+		t.Errorf("a Creem discount covers only the products it names: %+v", c)
+	}
 	if !c.PaymentNeedsProduct || c.MinChargeMinor != 100 {
 		t.Errorf("a Creem one-off payment charges a product, at least 100 cents: %+v", c)
 	}

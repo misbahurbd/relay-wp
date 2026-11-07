@@ -114,6 +114,8 @@ type Querier interface {
 	// Wrong passwords for one email (metadata.key) since @since and since its last
 	// successful sign-in: from this IP, and from anywhere.
 	CountPasswordFailures(ctx context.Context, arg CountPasswordFailuresParams) (CountPasswordFailuresRow, error)
+	// Every mirror of a discount on a provider, retired ones included: names the next one.
+	CountProviderDiscounts(ctx context.Context, arg CountProviderDiscountsParams) (int64, error)
 	CountQueued(ctx context.Context, arg CountQueuedParams) (int32, error)
 	// Codes sent to a user lately: resends are capped per account, not just per IP.
 	CountRecentEmailCodes(ctx context.Context, arg CountRecentEmailCodesParams) (int32, error)
@@ -622,6 +624,8 @@ type Querier interface {
 	// ---------- Access (ADR 0002: one query per request) ----------
 	ResolveAccess(ctx context.Context, arg ResolveAccessParams) (ResolveAccessRow, error)
 	RestoreGrant(ctx context.Context, arg RestoreGrantParams) (int64, error)
+	// The provider's product set changed: the next use mirrors each discount again.
+	RetireProviderDiscounts(ctx context.Context, provider string) (int64, error)
 	RevokeAPIKey(ctx context.Context, arg RevokeAPIKeyParams) (int64, error)
 	// Clears an active override for the same permission before a new one is added.
 	RevokeActiveOverride(ctx context.Context, arg RevokeActiveOverrideParams) error

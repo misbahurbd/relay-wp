@@ -116,3 +116,11 @@ RETURNING id, discount_id, provider, external_coupon_id, external_promotion_code
 
 -- name: DeactivateProviderDiscounts :execrows
 UPDATE provider_discounts SET is_active = false WHERE discount_id = @discount_id AND is_active;
+
+-- name: CountProviderDiscounts :one
+-- Every mirror of a discount on a provider, retired ones included: names the next one.
+SELECT count(id) FROM provider_discounts WHERE discount_id = @discount_id AND provider = @provider;
+
+-- name: RetireProviderDiscounts :execrows
+-- The provider's product set changed: the next use mirrors each discount again.
+UPDATE provider_discounts SET is_active = false WHERE provider = @provider AND is_active;

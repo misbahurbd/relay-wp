@@ -12,6 +12,23 @@ import (
 	"github.com/google/uuid"
 )
 
+const countProviderDiscounts = `-- name: CountProviderDiscounts :one
+SELECT count(id) FROM provider_discounts WHERE discount_id = $1 AND provider = $2
+`
+
+type CountProviderDiscountsParams struct {
+	DiscountID uuid.UUID
+	Provider   string
+}
+
+// Every mirror of a discount on a provider, retired ones included: names the next one.
+func (q *Queries) CountProviderDiscounts(ctx context.Context, arg CountProviderDiscountsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countProviderDiscounts, arg.DiscountID, arg.Provider)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countWorkspaceRedemptions = `-- name: CountWorkspaceRedemptions :one
 
 SELECT count(*)::int
@@ -495,4 +512,17 @@ func (q *Queries) ReserveDiscount(ctx context.Context, arg ReserveDiscountParams
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const retireProviderDiscounts = `-- name: RetireProviderDiscounts :execrows
+UPDATE provider_discounts SET is_active = false WHERE provider = $1 AND is_active
+`
+
+// The provider's product set changed: the next use mirrors each discount again.
+func (q *Queries) RetireProviderDiscounts(ctx context.Context, provider string) (int64, error) {
+	result, err := q.db.Exec(ctx, retireProviderDiscounts, provider)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

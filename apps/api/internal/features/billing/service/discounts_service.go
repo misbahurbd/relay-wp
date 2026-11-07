@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -181,7 +182,8 @@ func (s *Service) ReleaseDiscount(ctx context.Context, tx pgx.Tx, workspaceID, s
 }
 
 // providerCoupon returns the provider coupon mirroring d, creating it through
-// the gateway the first time a subscription the provider renews uses d.
+// the gateway the first time a subscription the provider renews uses d, or
+// the first time after its mirror was retired (RetireProviderDiscounts).
 func (s *Service) providerCoupon(ctx context.Context, g payment.Gateway, d model.Discount) (string, error) {
 	r := repository.NewRepository(s.pool)
 	params := gen.GetProviderDiscountParams{DiscountID: d.ID, Provider: string(g.Provider())}
@@ -201,12 +203,25 @@ func (s *Service) providerCoupon(ctx context.Context, g payment.Gateway, d model
 	} else {
 		req.AmountOffMinor = deref(d.AmountOffMinor)
 	}
+	// A retired mirror stays on the provider for the subscriptions it already
+	// discounts, and codes are unique there: a new mirror takes the next suffix.
+	mirrors, err := r.CountProviderDiscounts(ctx, gen.CountProviderDiscountsParams{DiscountID: d.ID, Provider: params.Provider})
+	if err != nil {
+		return "", fmt.Errorf("count provider discounts: %w", err)
+	}
+	if mirrors > 0 {
+		req.Code = d.Code + "-" + strconv.FormatInt(mirrors+1, 10)
+	}
 	// Coupons are only for renewals the provider charges, so they cover its recurring products.
 	if req.ExternalProductIDs, err = r.ListRecurringExternalPriceIDs(ctx, string(g.Provider())); err != nil {
 		return "", fmt.Errorf("list recurring provider prices: %w", err)
 	}
 	c, err := g.CreateCoupon(ctx, req)
 	if err != nil {
+		// Another checkout may have mirrored it under this code first.
+		if pd, again := r.GetProviderDiscount(ctx, params); again == nil {
+			return pd.ExternalCouponID, nil
+		}
 		return "", s.gatewayErr("create coupon", err)
 	}
 	created, err := r.CreateProviderDiscount(ctx, gen.CreateProviderDiscountParams{

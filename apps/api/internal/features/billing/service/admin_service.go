@@ -360,14 +360,44 @@ func (s *Service) CreateProviderPrice(ctx context.Context, in model.NewProviderP
 		}
 		ext = &created
 	}
-	id, err := r.CreateProviderPrice(ctx, gen.CreateProviderPriceParams{
-		PlanPriceID: in.PlanPriceID, InstallmentOfferID: in.InstallmentOfferID, Provider: in.Provider,
-		ExternalPriceID: ext, Collection: in.Collection,
+	var id uuid.UUID
+	err := database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+		r := repository.NewRepository(tx)
+		var err error
+		if id, err = r.CreateProviderPrice(ctx, gen.CreateProviderPriceParams{
+			PlanPriceID: in.PlanPriceID, InstallmentOfferID: in.InstallmentOfferID, Provider: in.Provider,
+			ExternalPriceID: ext, Collection: in.Collection,
+		}); err != nil {
+			return err
+		}
+		return s.retireCoupons(ctx, r, in)
 	})
 	if repository.IsForeignKey(err) {
 		return uuid.Nil, model.ErrPriceNotFound
 	}
 	return id, catalogErr("create provider price", err)
+}
+
+// retireCoupons retires the provider's mirrored coupons when a recurring price
+// gets a product on a provider whose coupons cover only the products they were
+// made for (Creem). The next checkout with each code mirrors it again, over
+// the current products.
+func (s *Service) retireCoupons(ctx context.Context, r repository.Repository, in model.NewProviderPrice) error {
+	g, ok := s.payments.Get(payment.Provider(in.Provider))
+	if in.InstallmentOfferID != nil || !ok || !g.Capabilities().CouponsPerProduct {
+		return nil
+	}
+	price, err := r.GetPlanPrice(ctx, in.PlanPriceID)
+	if err != nil {
+		return fmt.Errorf("get price: %w", err)
+	}
+	if price.BillingType != model.BillingRecurring {
+		return nil
+	}
+	if _, err := r.RetireProviderDiscounts(ctx, in.Provider); err != nil {
+		return fmt.Errorf("retire provider discounts: %w", err)
+	}
+	return nil
 }
 
 // ensureOfferProduct gives an installment offer link the plain provider price

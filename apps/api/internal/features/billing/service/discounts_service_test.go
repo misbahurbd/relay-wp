@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/model"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/payment"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/shared/apperr"
 )
 
@@ -243,5 +244,62 @@ func TestCreateDiscountValidates(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("new code not listed")
+	}
+}
+
+// On a provider whose coupons cover only the products they were made for
+// (Creem), a new recurring product retires the mirrors, and the next use of a
+// code mirrors it again over every product, under a new code.
+func TestNewRecurringProductRemirrorsProductScopedCoupons(t *testing.T) {
+	e := newT3Env(t)
+	caps := e.fake.Capabilities()
+	t.Cleanup(func() { e.fake.SetCapabilities(caps) })
+	scoped := caps
+	scoped.CouponsPerProduct = true
+	e.fake.SetCapabilities(scoped)
+
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	d := e.discount(func(d *model.NewDiscount) { d.PerWorkspaceLimit = 5 })
+	e.checkout(p.Monthly, d.Code)
+	coupons := len(e.fake.Coupons())
+
+	e.exec(`UPDATE plan_prices SET is_active = false WHERE id = $1`, p.Yearly) // frees the plan's yearly slot
+	yearly, err := e.svc.CreatePrice(e.ctx, model.NewPrice{
+		PlanID: p.ID, BillingType: model.BillingRecurring, Interval: model.IntervalYear, Currency: "USD", AmountMinor: 12000,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A one-time product changes nothing a coupon covers.
+	ltd, err := e.svc.CreatePrice(e.ctx, model.NewPrice{PlanID: p.ID, BillingType: model.BillingOneTime, Currency: "USD", AmountMinor: 50000})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.CreateProviderPrice(e.ctx, model.NewProviderPrice{PlanPriceID: ltd, Provider: string(payment.Stripe)}); err != nil {
+		t.Fatal(err)
+	}
+	e.checkout(p.Monthly, d.Code)
+	if n := len(e.fake.Coupons()); n != coupons {
+		t.Fatalf("a one-time product re-mirrored the coupon: %d, want %d", n, coupons)
+	}
+
+	if _, err := e.svc.CreateProviderPrice(e.ctx, model.NewProviderPrice{PlanPriceID: yearly, Provider: string(payment.Stripe)}); err != nil {
+		t.Fatal(err)
+	}
+	product := e.pricesFor(yearly)
+	if len(product) != 1 {
+		t.Fatalf("provider requests for the new price = %+v", product)
+	}
+	e.checkout(p.Monthly, d.Code)
+	all := e.fake.Coupons()
+	if len(all) != coupons+1 {
+		t.Fatalf("coupons = %d, want one new mirror after %d", len(all), coupons)
+	}
+	if got := all[len(all)-1]; got.Code != d.Code+"-2" || len(got.ExternalProductIDs) == 0 {
+		t.Fatalf("new mirror = %+v, want code %s-2 over the current products", got, d.Code)
+	}
+	e.checkout(p.Monthly, d.Code)
+	if n := len(e.fake.Coupons()); n != coupons+1 {
+		t.Fatalf("the new mirror wasn't reused: %d coupons", n)
 	}
 }
