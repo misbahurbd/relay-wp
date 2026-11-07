@@ -41,6 +41,10 @@ type NewAPIKey struct {
 	Key string
 }
 
+// PlanResourceEcommerce is the billing resource that gates connecting Shopify
+// and WooCommerce stores (ADR 0008).
+const PlanResourceEcommerce = "ecommerce"
+
 // Providers a workspace connects with stored credentials.
 const (
 	ProviderShopify      = "shopify"

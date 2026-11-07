@@ -15,9 +15,11 @@ import (
 	contactshandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/contacts/handler"
 	inboxhandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/inbox/handler"
 	integrationshandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/integrations/handler"
+	integrationsmodel "github.com/misbahurbd/relay-wp/apps/api/internal/features/integrations/model"
 	onboardinghandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/onboarding/handler"
 	profileshandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/profiles/handler"
 	teamhandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/team/handler"
+	teammodel "github.com/misbahurbd/relay-wp/apps/api/internal/features/team/model"
 	templateshandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/templates/handler"
 	whatsapphandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/whatsapp/handler"
 	workspaceshandler "github.com/misbahurbd/relay-wp/apps/api/internal/features/workspaces/handler"
@@ -107,7 +109,10 @@ func (a *App) registerRoutes(api huma.API) {
 	workspaceshandler.Register(api, workspaceshandler.NewHandler(a.workspaces), requireAuth, member, owner, authhandler.Security)
 	onboardinghandler.Register(api, onboardinghandler.NewHandler(a.onboarding), requireAuth, member, owner, authhandler.Security)
 	whatsapphandler.Register(api, whatsapphandler.NewHandler(a.whatsapp), requireAuth, member, integrations, authhandler.Security)
-	teamhandler.Register(api, teamhandler.NewHandler(a.team), teamhandler.Guards{Auth: requireAuth, Session: middleware.RequireSession(api), Member: member, Can: can}, authhandler.Security)
+	teamhandler.Register(api, teamhandler.NewHandler(a.team), teamhandler.Guards{
+		Auth: requireAuth, Session: middleware.RequireSession(api), Member: member, Can: can,
+		TeamControls: middleware.RequirePlan(api, plans, teammodel.PlanResourceTeamControls),
+	}, authhandler.Security)
 	billinghandler.Register(api, billinghandler.NewHandler(a.billing), billinghandler.Guards{
 		Auth: requireAuth, Session: middleware.RequireSession(api), Member: member, Can: can,
 		Staff: middleware.RequireStaff(api, a.staff()),
@@ -127,7 +132,8 @@ func (a *App) registerRoutes(api huma.API) {
 	}), integrationshandler.Guards{
 		Auth: requireAuth, Session: middleware.RequireSession(api), Member: member,
 		Keys:   chain(member, can(authctx.PermIntegrationsAPIKeys)),
-		Manage: integrations,
+		Manage:    integrations,
+		Ecommerce: middleware.RequirePlan(api, plans, integrationsmodel.PlanResourceEcommerce),
 	}, authhandler.Security)
 }
 

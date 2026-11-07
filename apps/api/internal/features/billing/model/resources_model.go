@@ -44,8 +44,8 @@ var Resources = []Resource{
 	{Key: "api_calls", Kind: KindMonthly, Unit: "API call", Label: "API calls", Enforced: true},
 	{Key: "ai_replies", Kind: KindMonthly, Unit: "AI reply", Label: "AI replies"},
 	{Key: "automations", Kind: KindAccess, Label: "Automations & drip campaigns", Enforced: true},
-	{Key: "ecommerce", Kind: KindAccess, Label: "Shopify & WooCommerce"},
-	{Key: "team_controls", Kind: KindAccess, Label: "Roles, audit log & SSO"},
+	{Key: "ecommerce", Kind: KindAccess, Label: "Shopify & WooCommerce", Enforced: true},
+	{Key: "team_controls", Kind: KindAccess, Label: "Roles, audit log & SSO", Enforced: true},
 	{Key: "priority_support", Kind: KindAccess, Label: "Priority support"},
 }
 

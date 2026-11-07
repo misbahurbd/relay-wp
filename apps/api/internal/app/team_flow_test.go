@@ -219,6 +219,7 @@ func TestInviteAcceptAndRoleChecks(t *testing.T) {
 
 func TestOverridesCustomRolesAndEscalation(t *testing.T) {
 	e := newAuthEnv(t)
+	includeInPlans(e, "team_controls")
 	w := newTeamWorkspace(e)
 	agent, agentID := w.join("agent")
 	member := w.base + "/members/" + agentID

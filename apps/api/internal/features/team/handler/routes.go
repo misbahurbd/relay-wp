@@ -19,6 +19,9 @@ type Guards struct {
 	Member  Middleware
 	// Can returns a middleware that requires every one of perms.
 	Can func(perms ...authctx.Permission) Middleware
+	// TeamControls requires the plan to include custom roles and overrides.
+	// Only making or changing them needs it; reading, resetting and deleting don't.
+	TeamControls Middleware
 }
 
 // Register adds the team routes. Writes that change who can do what need a
@@ -49,11 +52,11 @@ func Register(api huma.API, h *Handler, g Guards, security []map[string][]string
 	}, h.permissions)
 
 	huma.Register(api, ws("list-roles", http.MethodGet, "/roles", "Roles with their permissions", ok), h.listRoles)
-	huma.Register(api, ws("create-role", http.MethodPost, "/roles", "Create a custom role", created, g.Session, roles), h.createRole)
+	huma.Register(api, ws("create-role", http.MethodPost, "/roles", "Create a custom role", created, g.Session, roles, g.TeamControls), h.createRole)
 	huma.Register(api, ws("preview-role", http.MethodPost, "/roles/{roleId}/preview",
 		"What an edit would give and take away, and from whom", ok, roles), h.previewRole)
 	huma.Register(api, ws("update-role", http.MethodPatch, "/roles/{roleId}",
-		"Edit a role; its members get the change on their next request", ok, g.Session, roles), h.updateRole)
+		"Edit a role; its members get the change on their next request", ok, g.Session, roles, g.TeamControls), h.updateRole)
 	huma.Register(api, ws("reset-role", http.MethodPost, "/roles/{roleId}/reset",
 		"Restore a system role's defaults", ok, g.Session, roles), h.resetRole)
 	huma.Register(api, ws("delete-role", http.MethodDelete, "/roles/{roleId}",
@@ -69,7 +72,7 @@ func Register(api huma.API, h *Handler, g Guards, security []map[string][]string
 	huma.Register(api, ws("update-member-access", http.MethodPatch, "/members/{userId}/access",
 		"Change a member's chat scope, teams or WhatsApp numbers", none, g.Session, roles), h.updateMemberAccess)
 	huma.Register(api, ws("add-member-override", http.MethodPost, "/members/{userId}/overrides",
-		"Give or take away one permission for one member", none, g.Session, roles), h.addOverride)
+		"Give or take away one permission for one member", none, g.Session, roles, g.TeamControls), h.addOverride)
 	huma.Register(api, ws("revoke-member-override", http.MethodDelete, "/members/{userId}/overrides/{overrideId}",
 		"Remove an extra or removed permission", none, g.Session, roles), h.revokeOverride)
 	huma.Register(api, ws("suspend-member", http.MethodPost, "/members/{userId}/suspend",

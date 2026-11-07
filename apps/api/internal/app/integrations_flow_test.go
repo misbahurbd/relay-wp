@@ -126,6 +126,7 @@ func (rc *receiver) last() (*http.Request, []byte) {
 func newIntegrationsEnv(t *testing.T) (*authEnv, *fakeStores) {
 	t.Helper()
 	e := newAuthEnv(t)
+	includeInPlans(e, "ecommerce")
 	stores := newFakeStores(t)
 	e.a.allowPrivateTargets, e.a.shopifyURL, e.a.googleURL = true, stores.srv.URL, stores.srv.URL+"/google"
 	e.a.cfg.Auth.GoogleClientID, e.a.cfg.Auth.GoogleClientSecret = "google-client", "google-secret"
