@@ -92,6 +92,14 @@ Plus:
 
 The billing page's tabs (Overview, Invoices, Details) become one page in the design's order: current plan next to usage, compare plans, Meta costs (with the wallet) next to payment details, then invoices. Old `?tab=` links still open the page. Phase 6's `/billing/plans` and `/billing/checkout` routes stay as they are; compare plans links into them.
 
+**Checkout in one place.** `/billing/checkout` collects the billing details itself, then pays:
+
+- A **Billing details** card sits above Payment. A saved profile shows as name, email and country with an Edit link. With no profile the form is open and shows only name and email, with the address, country and tax ID fields behind a link (they open by themselves when the profile already has any). It reuses `ProfileFields` and `useProfileForm`, so the validation is the settings form's.
+- **Continue to payment** is the form's submit. It validates first, then saves the profile with `PUT /v1/workspace/billing/profile` when it is new or changed, then creates the checkout session. Nothing is sent while a required field is invalid. API errors show in the card or above the button. Members without `billing.pay` see the same message as before and no form.
+- A provider whose `embeddable_url` capability is true (Creem) opens its checkout **over the page** with `https://www.creem.io/embed.js` (`Creem.openCheckout`), loaded on first use. `onComplete` is UX only: it closes the overlay, cancels Creem's own redirect and goes to the existing status step, which polls until the webhook confirms the payment. If the member closes the window, the page says so and offers "Open Creem checkout"; once the session has expired it offers "Start again", which makes a fresh session. If the script can't load, the page redirects to the session `url` as before. Stripe (`client_secret`) is untouched, and the installment pay dialog uses the same step.
+- The note under the provider says how paying works. For a merchant of record it reads "Secure checkout · sales tax is added at checkout based on your location", because Relay's Creem products are tax-exclusive.
+- The order summary lists the plan's included lines from the resource catalog (`planLines`), the first six with a "+N more" toggle.
+
 Seat and number counts come from the team and WhatsApp **endpoints** through `@relay/api-client`, with billing's own query keys. Billing never imports the `team` or `whatsapp` web features.
 
 ## 4. Saved card, read from the gateway
