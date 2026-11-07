@@ -730,9 +730,11 @@ func (s creemSubscription) normalise() Subscription {
 	case "trialing":
 		out.Status = SubscriptionTrialing
 		out.TrialEnd = out.CurrentPeriodEnd
-	case "past_due", "unpaid", "paused":
+	case "past_due", "unpaid", "paused", "expired":
+		// expired: a renewal wasn't paid and Creem is still retrying it. Relay's
+		// grace window applies, and a later subscription.paid restores it.
 		out.Status = SubscriptionPastDue
-	case "canceled", "expired":
+	case "canceled":
 		out.Status = SubscriptionCanceled
 	default:
 		out.Status = SubscriptionIncomplete

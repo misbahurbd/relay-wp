@@ -528,6 +528,17 @@ func parseCreemFixture(t *testing.T, name string) Event {
 	return ev
 }
 
+// parseCreemBody signs and parses an inline Creem webhook body.
+func parseCreemBody(t *testing.T, body []byte) Event {
+	t.Helper()
+	g, _ := newCreemWithAPI(t)
+	ev, err := g.ParseWebhook(context.Background(), signCreem(body), body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ev
+}
+
 func checkReference(t *testing.T, ev Event) {
 	t.Helper()
 	if ev.Reference == nil || ev.Reference.String() != creemFixtureRef {
@@ -602,6 +613,19 @@ func TestCreemWebhookSubscriptionChanges(t *testing.T) {
 	if ev.Type != EventSubscriptionCanceled || ev.Subscription == nil ||
 		ev.Subscription.Status != SubscriptionCanceled || ev.Subscription.CanceledAt == nil {
 		t.Errorf("canceled = %+v, %+v", ev, ev.Subscription)
+	}
+	checkReference(t, ev)
+}
+
+// expired means a renewal is unpaid while Creem retries it: past due, with
+// Relay's grace window, never the end of the subscription.
+func TestCreemWebhookSubscriptionExpiredIsPastDue(t *testing.T) {
+	ev := parseCreemBody(t, []byte(`{"id":"evt_exp","eventType":"subscription.expired","created_at":1731412725123,
+		"object":{"id":"sub_1","object":"subscription","product":"prod_1","customer":"cust_1","status":"expired",
+		"metadata":{"relay_reference":"`+creemFixtureRef+`"}}}`))
+	if ev.Type != EventSubscriptionUpdated || ev.Subscription == nil || ev.Subscription.Status != SubscriptionPastDue ||
+		ev.Subscription.ProviderStatus != "expired" {
+		t.Errorf("expired = %+v, %+v", ev, ev.Subscription)
 	}
 	checkReference(t, ev)
 }
