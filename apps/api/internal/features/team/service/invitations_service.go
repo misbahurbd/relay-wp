@@ -86,28 +86,11 @@ func (s *Service) Invite(ctx context.Context, actor authctx.Access, meta model.M
 	if err != nil {
 		return nil, err
 	}
-	planLimit := -1
-	if role.UsesSeat {
-		if planLimit, err = s.memberLimit(ctx, actor.WorkspaceID); err != nil {
-			return nil, err
-		}
-	}
-
 	err = database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
 		r := repository.NewRepository(tx)
 		if role.UsesSeat {
-			seats, err := s.seats(ctx, tx, actor.WorkspaceID)
-			if err != nil {
+			if err := s.takeSeats(ctx, tx, actor.WorkspaceID, int64(len(emails))); err != nil {
 				return err
-			}
-			if err := overMemberLimit(planLimit, seats.Used+seats.Reserved, int64(len(emails))); err != nil {
-				return err
-			}
-			if seats.Limit >= 0 && seats.Available < int64(len(emails)) {
-				return model.ErrNotEnoughSeats.WithDetails(apperr.Detail{
-					Field:   "emails",
-					Message: fmt.Sprintf("%d seats needed, %d available", len(emails), seats.Available),
-				})
 			}
 		}
 		if n, err := r.CountWorkspaceNumbers(ctx, gen.CountWorkspaceNumbersParams{
@@ -280,6 +263,12 @@ func (s *Service) ResendInvitation(ctx context.Context, actor authctx.Access, me
 		role, err := s.getRole(ctx, tx, actor.WorkspaceID, inv.RoleID)
 		if err != nil {
 			return err
+		}
+		// An expired invite gave up its seat; resending takes one again.
+		if role.UsesSeat && !inv.ExpiresAt.After(s.now()) {
+			if err := s.takeSeats(ctx, tx, actor.WorkspaceID, 1); err != nil {
+				return err
+			}
 		}
 		raw, hash, err := newToken()
 		if err != nil {

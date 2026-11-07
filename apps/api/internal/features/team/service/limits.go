@@ -7,6 +7,7 @@ import (
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/team/model"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/misbahurbd/relay-wp/apps/api/internal/shared/apperr"
 )
@@ -31,6 +32,29 @@ func (s *Service) memberLimit(ctx context.Context, workspaceID uuid.UUID) (int, 
 		return 0, fmt.Errorf("plan member limit: %w", err)
 	}
 	return limit, nil
+}
+
+// takeSeats checks, under the workspace's seat lock in tx, that n more
+// seat-using invites fit the plan's member cap and the workspace's seats.
+func (s *Service) takeSeats(ctx context.Context, tx pgx.Tx, workspaceID uuid.UUID, n int64) error {
+	planLimit, err := s.memberLimit(ctx, workspaceID)
+	if err != nil {
+		return err
+	}
+	seats, err := s.seats(ctx, tx, workspaceID)
+	if err != nil {
+		return err
+	}
+	if err := overMemberLimit(planLimit, seats.Used+seats.Reserved, n); err != nil {
+		return err
+	}
+	if seats.Limit >= 0 && seats.Available < n {
+		return model.ErrNotEnoughSeats.WithDetails(apperr.Detail{
+			Field:   "emails",
+			Message: fmt.Sprintf("%d seats needed, %d available", n, seats.Available),
+		})
+	}
+	return nil
 }
 
 // overMemberLimit fails when adding more seat-using people to the taken ones

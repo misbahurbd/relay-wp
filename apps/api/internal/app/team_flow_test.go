@@ -309,6 +309,24 @@ func TestSuspendRestoreRemove(t *testing.T) {
 	expect(t, w.owner.do("POST", w.base+"/me/leave", nil), http.StatusConflict, "owner_must_transfer")
 }
 
+func TestResendingAnExpiredInviteChecksTheMemberLimit(t *testing.T) {
+	e := newAuthEnv(t)
+	w := newTeamWorkspace(e)
+	e.a.team.SetPlanLimits(planCap(2)) // the owner and one more
+
+	invite := func(email string) string {
+		t.Helper()
+		created := w.owner.do("POST", w.base+"/invitations", map[string]any{"emails": []string{email}, "role_id": w.roles["agent"]})
+		expect(t, created, http.StatusCreated)
+		return created.body["invitations"].([]any)[0].(map[string]any)["id"].(string)
+	}
+	expired := invite(newEmail())
+	e.exec(`UPDATE invitations SET expires_at = now() - interval '1 hour' WHERE id = $1`, expired)
+	invite(newEmail()) // takes the seat the expired invite gave up
+
+	expect(t, w.owner.do("POST", w.base+"/invitations/"+expired+"/resend", nil), http.StatusConflict, "plan_member_limit")
+}
+
 func TestTeamsScopeMembers(t *testing.T) {
 	e := newAuthEnv(t)
 	w := newTeamWorkspace(e)
