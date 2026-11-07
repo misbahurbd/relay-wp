@@ -305,11 +305,19 @@ func (s *Service) Remove(ctx context.Context, actor authctx.Access, meta model.M
 
 // Leave takes the signed-in member out of the workspace.
 func (s *Service) Leave(ctx context.Context, me authctx.Access, meta model.Meta) error {
-	if me.Owner {
-		return model.ErrOwnerMustLeave
-	}
 	return database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
 		r := repository.NewRepository(tx)
+		// me was resolved before this transaction; a transfer that committed
+		// since then may have made them the owner.
+		m, err := r.LockMember(ctx, gen.LockMemberParams{WorkspaceID: me.WorkspaceID, UserID: me.UserID})
+		switch {
+		case repository.IsNoRows(err):
+			return nil // already gone
+		case err != nil:
+			return fmt.Errorf("lock member: %w", err)
+		case m.IsOwner:
+			return model.ErrOwnerMustLeave
+		}
 		if _, err := r.DeleteMember(ctx, gen.DeleteMemberParams{WorkspaceID: me.WorkspaceID, UserID: me.UserID}); err != nil {
 			return fmt.Errorf("leave: %w", err)
 		}

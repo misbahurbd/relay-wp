@@ -531,3 +531,23 @@ func TestFormerOwnerCantChangeTheNewOwner(t *testing.T) {
 		t.Fatalf("change the new owner's access: %v, want owner_protected", err)
 	}
 }
+
+func TestNewOwnerCantLeaveOnAStaleRequest(t *testing.T) {
+	e := newAuthEnv(t)
+	w := newTeamWorkspace(e)
+	_, adminID := w.join("admin")
+	ownerID := w.owners()[0]
+	stale := w.accessOf(uuid.MustParse(adminID))
+
+	ctx := context.Background()
+	if err := e.a.team.TransferOwnership(ctx, w.accessOf(ownerID), teammodel.Meta{}, uuid.MustParse(adminID)); err != nil {
+		t.Fatal(err)
+	}
+	// The admin's leave request resolved their access before they became owner.
+	if err := e.a.team.Leave(ctx, stale, teammodel.Meta{}); !errors.Is(err, teammodel.ErrOwnerMustLeave) {
+		t.Fatalf("leave: %v, want owner_must_transfer", err)
+	}
+	if got := w.owners(); len(got) != 1 {
+		t.Fatalf("owners %v, want one", got)
+	}
+}
