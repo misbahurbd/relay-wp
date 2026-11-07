@@ -79,10 +79,10 @@ func (q *Queries) ClaimInvoicesToDeliver(ctx context.Context, arg ClaimInvoicesT
 
 const claimRequestedRefund = `-- name: ClaimRequestedRefund :execrows
 UPDATE refunds
-SET external_refund_id = $1, status = $2, amount_minor = $3
+SET external_refund_id = $1, status = $2
 WHERE id = (SELECT r.id FROM refunds r
-            WHERE r.workspace_id = $4 AND r.invoice_id = $5 AND r.provider = $6
-              AND r.external_refund_id IS NULL AND r.status <> 'failed'
+            WHERE r.workspace_id = $3 AND r.invoice_id = $4 AND r.provider = $5
+              AND r.amount_minor = $6 AND r.external_refund_id IS NULL AND r.status <> 'failed'
             ORDER BY r.created_at, r.id
             LIMIT 1
             FOR UPDATE)
@@ -91,22 +91,24 @@ WHERE id = (SELECT r.id FROM refunds r
 type ClaimRequestedRefundParams struct {
 	ExternalRefundID *string
 	Status           string
-	AmountMinor      int64
 	WorkspaceID      uuid.UUID
 	InvoiceID        uuid.UUID
 	Provider         string
+	AmountMinor      int64
 }
 
 // A provider refund we have no row for is the oldest refund Relay asked for
-// on the invoice that no webhook has named yet (Creem's refund reply has no ID).
+// on the invoice, of the same amount, that no webhook has named yet (Creem's
+// refund reply has no ID). A refund of another amount is not one Relay asked
+// for (staff made it in the provider's dashboard) and claims nothing.
 func (q *Queries) ClaimRequestedRefund(ctx context.Context, arg ClaimRequestedRefundParams) (int64, error) {
 	result, err := q.db.Exec(ctx, claimRequestedRefund,
 		arg.ExternalRefundID,
 		arg.Status,
-		arg.AmountMinor,
 		arg.WorkspaceID,
 		arg.InvoiceID,
 		arg.Provider,
+		arg.AmountMinor,
 	)
 	if err != nil {
 		return 0, err
@@ -873,6 +875,27 @@ type SumInvoiceRefundsParams struct {
 // Pending and succeeded refunds; never more than the invoice total.
 func (q *Queries) SumInvoiceRefunds(ctx context.Context, arg SumInvoiceRefundsParams) (int64, error) {
 	row := q.db.QueryRow(ctx, sumInvoiceRefunds, arg.WorkspaceID, arg.InvoiceID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const sumProviderInvoiceRefunds = `-- name: SumProviderInvoiceRefunds :one
+SELECT COALESCE(sum(amount_minor), 0)::bigint
+FROM refunds
+WHERE workspace_id = $1 AND invoice_id = $2 AND status <> 'failed'
+  AND (external_refund_id IS NOT NULL OR issued_at IS NOT NULL)
+`
+
+type SumProviderInvoiceRefundsParams struct {
+	WorkspaceID uuid.UUID
+	InvoiceID   uuid.UUID
+}
+
+// Pending and succeeded refunds the provider has made: named by its webhook
+// or accepted by it. A refund Relay asked for and hasn't sent yet is left out.
+func (q *Queries) SumProviderInvoiceRefunds(ctx context.Context, arg SumProviderInvoiceRefundsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, sumProviderInvoiceRefunds, arg.WorkspaceID, arg.InvoiceID)
 	var column_1 int64
 	err := row.Scan(&column_1)
 	return column_1, err

@@ -94,7 +94,9 @@ type Querier interface {
 	// contact's current attributes fill variables; a deleted contact has none.
 	ClaimRecipients(ctx context.Context, arg ClaimRecipientsParams) ([]ClaimRecipientsRow, error)
 	// A provider refund we have no row for is the oldest refund Relay asked for
-	// on the invoice that no webhook has named yet (Creem's refund reply has no ID).
+	// on the invoice, of the same amount, that no webhook has named yet (Creem's
+	// refund reply has no ID). A refund of another amount is not one Relay asked
+	// for (staff made it in the provider's dashboard) and claims nothing.
 	ClaimRequestedRefund(ctx context.Context, arg ClaimRequestedRefundParams) (int64, error)
 	// A due run, locked; another worker holding it means nothing to do here.
 	ClaimRun(ctx context.Context, arg ClaimRunParams) (ClaimRunRow, error)
@@ -809,6 +811,9 @@ type Querier interface {
 	SubtractOrderPayment(ctx context.Context, arg SubtractOrderPaymentParams) (int64, error)
 	// Pending and succeeded refunds; never more than the invoice total.
 	SumInvoiceRefunds(ctx context.Context, arg SumInvoiceRefundsParams) (int64, error)
+	// Pending and succeeded refunds the provider has made: named by its webhook
+	// or accepted by it. A refund Relay asked for and hasn't sent yet is left out.
+	SumProviderInvoiceRefunds(ctx context.Context, arg SumProviderInvoiceRefundsParams) (int64, error)
 	// Adds a cause to the grant; it is suspended while it has any. No row when
 	// the cause already holds.
 	SuspendGrant(ctx context.Context, arg SuspendGrantParams) (int64, error)

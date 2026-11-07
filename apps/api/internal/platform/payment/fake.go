@@ -45,6 +45,7 @@ type Fake struct {
 	refunds        []Refund
 	refundCalls    []RefundRequest
 	refundsByKey   map[string]Refund // idempotency key → the refund it made
+	paid           map[string]int64  // external payment ID → amount paid, once SetPaid named it
 	coupons        []CouponRequest
 	deletedCoupons []string
 	prices         []PriceRequest
@@ -87,7 +88,40 @@ func NewFake(provider Provider, secret string) *Fake {
 		byIdempotency: map[string]string{},
 		subscriptions: map[string]Subscription{},
 		refundsByKey:  map[string]Refund{},
+		paid:          map[string]int64{},
 	}
+}
+
+// SetPaid tells the fake a payment's amount, so Refund refuses to give back
+// more than is left of it, as a real provider does.
+func (f *Fake) SetPaid(externalPaymentID string, amountMinor int64) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.paid[externalPaymentID] = amountMinor
+}
+
+// RefundInDashboard refunds part of a payment outside Relay, as staff can in
+// the provider's dashboard, and returns the refund its webhook reports.
+func (f *Fake) RefundInDashboard(externalRefundID, externalPaymentID string, amountMinor int64) Refund {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	r := Refund{
+		ExternalID: externalRefundID, ExternalPaymentID: externalPaymentID,
+		AmountMinor: amountMinor, Currency: "USD", Status: RefundSucceeded,
+	}
+	f.refunds = append(f.refunds, r)
+	return r
+}
+
+// refunded is how much of a payment the fake has refunded. Call with f.mu held.
+func (f *Fake) refunded(externalPaymentID string) int64 {
+	var sum int64
+	for _, r := range f.refunds {
+		if r.ExternalPaymentID == externalPaymentID {
+			sum += r.AmountMinor
+		}
+	}
+	return sum
 }
 
 // SetCapabilities replaces what the fake claims to support.
@@ -320,6 +354,9 @@ func (f *Fake) Refund(_ context.Context, req RefundRequest) (Refund, error) {
 				return r, nil
 			}
 		}
+	}
+	if paid, ok := f.paid[req.ExternalPaymentID]; ok && f.refunded(req.ExternalPaymentID)+req.AmountMinor > paid {
+		return Refund{}, fmt.Errorf("fake: refund is more than is left of the payment: %w", ErrInvalidRequest)
 	}
 	r := Refund{
 		ExternalID: f.nextID("re"), ExternalPaymentID: req.ExternalPaymentID,

@@ -175,12 +175,14 @@ WHERE workspace_id = @workspace_id AND id = @refund_id AND issued_at IS NULL AND
 
 -- name: ClaimRequestedRefund :execrows
 -- A provider refund we have no row for is the oldest refund Relay asked for
--- on the invoice that no webhook has named yet (Creem's refund reply has no ID).
+-- on the invoice, of the same amount, that no webhook has named yet (Creem's
+-- refund reply has no ID). A refund of another amount is not one Relay asked
+-- for (staff made it in the provider's dashboard) and claims nothing.
 UPDATE refunds
-SET external_refund_id = @external_refund_id, status = @status, amount_minor = @amount_minor
+SET external_refund_id = @external_refund_id, status = @status
 WHERE id = (SELECT r.id FROM refunds r
             WHERE r.workspace_id = @workspace_id AND r.invoice_id = @invoice_id AND r.provider = @provider
-              AND r.external_refund_id IS NULL AND r.status <> 'failed'
+              AND r.amount_minor = @amount_minor AND r.external_refund_id IS NULL AND r.status <> 'failed'
             ORDER BY r.created_at, r.id
             LIMIT 1
             FOR UPDATE);
@@ -195,6 +197,14 @@ WHERE workspace_id = @workspace_id AND provider = @provider AND external_refund_
 SELECT COALESCE(sum(amount_minor), 0)::bigint
 FROM refunds
 WHERE workspace_id = @workspace_id AND invoice_id = @invoice_id AND status <> 'failed';
+
+-- name: SumProviderInvoiceRefunds :one
+-- Pending and succeeded refunds the provider has made: named by its webhook
+-- or accepted by it. A refund Relay asked for and hasn't sent yet is left out.
+SELECT COALESCE(sum(amount_minor), 0)::bigint
+FROM refunds
+WHERE workspace_id = @workspace_id AND invoice_id = @invoice_id AND status <> 'failed'
+  AND (external_refund_id IS NOT NULL OR issued_at IS NOT NULL);
 
 -- name: GetOrderRefundTotals :one
 -- What a lifetime deal has been paid across its invoices, and how much of it

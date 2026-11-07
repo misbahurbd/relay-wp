@@ -568,7 +568,9 @@ func (s *Service) createRefund(ctx context.Context, repo repository.Repository, 
 		return nil
 	}
 	if r.Status != payment.RefundFailed {
-		refunded, err := repo.SumInvoiceRefunds(ctx, gen.SumInvoiceRefundsParams{WorkspaceID: workspaceID, InvoiceID: inv.ID})
+		// Checked against what the provider has refunded: a refund Relay has
+		// only asked for may never happen, and this one has.
+		refunded, err := repo.SumProviderInvoiceRefunds(ctx, gen.SumProviderInvoiceRefundsParams{WorkspaceID: workspaceID, InvoiceID: inv.ID})
 		if err != nil {
 			return fmt.Errorf("sum invoice refunds: %w", err)
 		}

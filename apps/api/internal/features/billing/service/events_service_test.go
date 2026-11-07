@@ -899,3 +899,41 @@ func TestRequestedRefundIsNamedByItsWebhook(t *testing.T) {
 		t.Errorf("invoice %s, want refunded", s)
 	}
 }
+
+// A refund staff make in the provider's dashboard while Relay's own full
+// refund waits to be sent is its own refund: it never stands in for the
+// requested one, so the job still asks for the whole payment, and when the
+// provider refuses (part of it is gone) a person is told.
+func TestDashboardRefundNeverClaimsARequestedRefund(t *testing.T) {
+	e := newEventsEnv(t)
+	ws := e.workspace()
+	invoiceID, payID := e.invoice(ws, 1000)
+	e.fake.SetPaid(payID, 1000)
+	job := e.requestRefund(ws, payID)
+
+	dash := e.fake.RefundInDashboard(e.id("re_dash"), payID, 400)
+	e.mustProcess(e.receive(refundEvent(payID, dash.ExternalID, 400, payment.RefundSucceeded)))
+	var named, requested int64
+	if err := e.pool.QueryRow(e.ctx, `SELECT
+		COALESCE(sum(amount_minor) FILTER (WHERE external_refund_id = $2), 0)::bigint,
+		COALESCE(sum(amount_minor) FILTER (WHERE id = $3 AND external_refund_id IS NULL), 0)::bigint
+		FROM refunds WHERE invoice_id = $1`, invoiceID, dash.ExternalID, job.RefundID).Scan(&named, &requested); err != nil {
+		t.Fatal(err)
+	}
+	if named != 400 || requested != 1000 {
+		t.Fatalf("dashboard refund recorded as %d, requested refund left at %d; want 400 and an unclaimed 1000", named, requested)
+	}
+
+	if err := e.svc.IssueRefund(e.ctx, job.WorkspaceID, job.RefundID); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(e.fake.RefundRequests()); n != 1 {
+		t.Fatalf("provider asked %d times, want once for the requested refund", n)
+	}
+	if n, sum := e.refunds(invoiceID); n != 1 || sum != 400 || e.invoiceStatus(invoiceID) != model.InvoicePartiallyRefunded {
+		t.Errorf("%d refunds of %d, invoice %s; want the dashboard's 400, partially_refunded", n, sum, e.invoiceStatus(invoiceID))
+	}
+	if !strings.Contains(e.logs.String(), "refused a refund") {
+		t.Error("the refused rest of the refund isn't logged for a person")
+	}
+}
