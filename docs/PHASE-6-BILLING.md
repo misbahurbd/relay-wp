@@ -160,9 +160,14 @@ account whose email is in `ADMIN_EMAILS`; anyone else gets 403 `staff_only`. Emp
 Replace it with a real back office (roles, an audit log) before there are several staff.
 
 - **Catalog**: add a plan (a used code publishes its next version), prices, installment offers on
-  one-time prices, and provider links (the provider's price or product ID). Rows are never edited:
-  deactivate one and add its replacement. A price is on sale only once it has an active provider
-  link.
+  one-time prices, and provider links. Rows are never edited: deactivate one and add its
+  replacement. A price is on sale only once it has an active provider link. A link for a plain
+  price is created on the provider from the CRM (the provider's price or product ID is left empty):
+  Stripe gets one price with its product, Creem gets a product that is tax exclusive (`tax_mode`
+  `exclusive`, `saas` category). Creem keeps the trial on the product, so it carries the plan's
+  `trial_days` only when `trial_requires_card` is set. A card-less trial is a Relay grant, and a
+  product trial would give a second one. Staff can still paste an ID made in the provider's
+  dashboard, and installment offer links still take a pasted ID or none.
 - **Discount codes**: the same create, list and deactivate as `relay billing discounts`.
 - **Workspaces**: list with the current grant; grant a plan by hand (`source = manual`, a reason
   is required, an end date is optional), end a manual grant or trial, or restore a suspended
