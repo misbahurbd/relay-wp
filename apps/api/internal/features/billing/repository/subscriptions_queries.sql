@@ -124,11 +124,14 @@ LIMIT @max_rows;
 
 -- name: ListPastDueGraceEnded :many
 -- Job only (all workspaces): past-due subscriptions whose grace has run out
--- and whose plan is still active.
+-- and whose current grant doesn't hold past_due yet, even if another cause
+-- already suspends it. A row leaves the list once past_due is added.
 SELECT s.id, s.workspace_id
 FROM subscriptions s
 WHERE s.status = 'past_due' AND s.grace_ends_at <= @now
-  AND EXISTS (SELECT 1 FROM plan_grants g WHERE g.subscription_id = s.id AND g.status = 'active')
+  AND EXISTS (SELECT 1 FROM plan_grants g
+              WHERE g.workspace_id = s.workspace_id AND g.subscription_id = s.id
+                AND g.status IN ('active', 'suspended') AND NOT ('past_due' = ANY (g.suspend_reasons)))
 ORDER BY s.grace_ends_at
 LIMIT @max_rows;
 

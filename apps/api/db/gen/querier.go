@@ -585,7 +585,8 @@ type Querier interface {
 	// been over then: at least an hour, at most a day.
 	ListOverdueSubscriptions(ctx context.Context, arg ListOverdueSubscriptionsParams) ([]ListOverdueSubscriptionsRow, error)
 	// Job only (all workspaces): past-due subscriptions whose grace has run out
-	// and whose plan is still active.
+	// and whose current grant doesn't hold past_due yet, even if another cause
+	// already suspends it. A row leaves the list once past_due is added.
 	ListPastDueGraceEnded(ctx context.Context, arg ListPastDueGraceEndedParams) ([]ListPastDueGraceEndedRow, error)
 	ListPermissions(ctx context.Context) ([]ListPermissionsRow, error)
 	// Job only (all workspaces): workspaces whose cached plan disagrees with their grant.

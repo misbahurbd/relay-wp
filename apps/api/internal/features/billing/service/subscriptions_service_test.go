@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/misbahurbd/relay-wp/apps/api/db/gen"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/model"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/repository"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/database"
@@ -954,4 +955,37 @@ func TestRefundAfterAnIntervalSwitchFollowsTheYearlyPeriod(t *testing.T) {
 			}
 		})
 	}
+}
+
+// A grant already suspended for another cause still gets past_due once grace
+// runs out, so lifting that cause doesn't hand back a plan nobody paid for.
+// Once added, the sweep no longer lists the subscription.
+func TestPastDueSweepAddsPastDueToAGrantSuspendedForAnotherCause(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	sub := e.subscribe(p.Monthly)
+	ps := payment.Subscription{ExternalID: *sub.ExternalSubscriptionID, Status: payment.SubscriptionPastDue}
+	e.inTx(func(tx pgx.Tx) error { return e.svc.SyncSubscription(e.ctx, tx, e.ws, sub.ID, ps) })
+	g := e.grant(e.ws)
+	e.inTx(func(tx pgx.Tx) error { return e.svc.SuspendGrant(e.ctx, tx, e.ws, g.ID, model.SuspendDispute) })
+
+	e.tick(pastDueGrace + time.Hour)
+	if _, err := e.svc.SuspendPastDue(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	if g := e.grant(e.ws); g == nil || !g.SuspendedFor(model.SuspendPastDue) || !g.SuspendedFor(model.SuspendDispute) {
+		t.Fatalf("grant = %+v, want suspended for the dispute and past_due", g)
+	}
+	now := e.clock
+	rows, err := repository.NewRepository(e.pool).ListPastDueGraceEnded(e.ctx, gen.ListPastDueGraceEndedParams{Now: &now, MaxRows: 1000})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range rows {
+		if r.ID == sub.ID {
+			t.Fatal("the sweep lists a subscription whose grant already holds past_due")
+		}
+	}
+	e.inTx(func(tx pgx.Tx) error { return e.svc.LiftSuspension(e.ctx, tx, e.ws, g.ID, model.SuspendDispute) })
+	e.wantCache(e.ws, model.FreePlan)
 }
