@@ -875,3 +875,29 @@ func TestStripePortalURL(t *testing.T) {
 		t.Fatalf("no customer: err = %v", err)
 	}
 }
+
+// Stripe refuses to cancel a canceled subscription or schedule. A refusal
+// counts as done once a read shows it canceled, so a second cancel (a lost
+// dispute, then a default) never fails every hour.
+func TestStripeCancelOfACanceledObjectIsDone(t *testing.T) {
+	refused := `{"error":{"type":"invalid_request_error","message":"already canceled"}}`
+	g, api := newTestStripe(t)
+	api.respond("DELETE /v1/subscriptions/sub_1", http.StatusBadRequest, refused)
+	api.on("GET /v1/subscriptions/sub_1", strings.Replace(
+		fmt.Sprintf(stripeSubscriptionJSON, false, "1761700000", "price_growth", ""), `"active"`, `"canceled"`, 1))
+	s, err := g.CancelSubscription(context.Background(), CancelRequest{ExternalSubscriptionID: "sub_1", Mode: CancelNow})
+	if err != nil || s.Status != SubscriptionCanceled {
+		t.Fatalf("cancel of a canceled subscription = %+v, %v; want canceled", s, err)
+	}
+
+	api.respond("POST /v1/subscription_schedules/sched_1/cancel", http.StatusBadRequest, refused)
+	api.on("GET /v1/subscription_schedules/sched_1", `{"id":"sched_1","object":"subscription_schedule","status":"canceled"}`)
+	if err := g.CancelSchedule(context.Background(), "sched_1"); err != nil {
+		t.Fatalf("cancel of a canceled schedule: %v", err)
+	}
+
+	api.on("GET /v1/subscription_schedules/sched_1", `{"id":"sched_1","object":"subscription_schedule","status":"active"}`)
+	if err := g.CancelSchedule(context.Background(), "sched_1"); !Permanent(err) {
+		t.Fatalf("refused cancel of an active schedule: err = %v, want permanent", err)
+	}
+}

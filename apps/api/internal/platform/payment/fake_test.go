@@ -126,8 +126,8 @@ func TestFakeCancelModes(t *testing.T) {
 	if err != nil || s.Status != payment.SubscriptionCanceled || s.CanceledAt == nil {
 		t.Fatalf("now: %+v, %v", s, err)
 	}
-	if _, err := f.CancelSubscription(ctx, payment.CancelRequest{ExternalSubscriptionID: id, Mode: payment.CancelNow}); !errors.Is(err, payment.ErrNotFound) {
-		t.Errorf("cancel twice: err = %v", err)
+	if s, err := f.CancelSubscription(ctx, payment.CancelRequest{ExternalSubscriptionID: id, Mode: payment.CancelNow}); err != nil || s.Status != payment.SubscriptionCanceled {
+		t.Errorf("cancel twice = %+v, %v; want canceled, as a retried cancel is", s, err)
 	}
 	if _, err := f.ChangeSubscription(ctx, payment.ChangeRequest{ExternalSubscriptionID: id, ExternalPriceID: "x"}); !errors.Is(err, payment.ErrNotFound) {
 		t.Errorf("change a canceled subscription: err = %v", err)

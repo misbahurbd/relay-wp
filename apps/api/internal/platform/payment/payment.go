@@ -61,6 +61,14 @@ var (
 	ErrUnavailable = errors.New("payment: provider unavailable")
 )
 
+// Permanent says the provider refused a call and will refuse it again:
+// ErrInvalidRequest or ErrDeclined, a 4xx other than 404 and 429. A job stops
+// retrying it and logs it once. Anything else (ErrUnavailable, a network
+// error) may succeed on a retry; ErrNotFound is the caller's to judge.
+func Permanent(err error) bool {
+	return errors.Is(err, ErrInvalidRequest) || errors.Is(err, ErrDeclined)
+}
+
 // Gateway is one payment provider. Implementations are safe for concurrent use.
 type Gateway interface {
 	// Provider is the name rows are stored under.
@@ -74,11 +82,14 @@ type Gateway interface {
 	CreateCheckout(ctx context.Context, req CheckoutRequest) (Checkout, error)
 	// ChangeSubscription moves a provider-renewed subscription to another price.
 	ChangeSubscription(ctx context.Context, req ChangeRequest) (Subscription, error)
-	// CancelSubscription cancels now, at the period end, or undoes a cancel at the period end.
+	// CancelSubscription cancels now, at the period end, or undoes a cancel at
+	// the period end. Canceling now a subscription already canceled returns it,
+	// so a retried cancel succeeds.
 	CancelSubscription(ctx context.Context, req CancelRequest) (Subscription, error)
 	// CancelSchedule stops a provider-run installment schedule
 	// (Checkout.ExternalScheduleID) so it charges nothing more: the order was
-	// upgraded or defaulted. ErrUnsupported without Capabilities.Installments.
+	// upgraded or defaulted. A schedule already canceled or completed is no
+	// error. ErrUnsupported without Capabilities.Installments.
 	CancelSchedule(ctx context.Context, externalScheduleID string) error
 	// Refund refunds all or part of a payment.
 	Refund(ctx context.Context, req RefundRequest) (Refund, error)

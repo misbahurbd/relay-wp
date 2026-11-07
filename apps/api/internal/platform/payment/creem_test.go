@@ -313,6 +313,7 @@ func TestCreemCancelSubscription(t *testing.T) {
 		t.Run(string(tc.mode), func(t *testing.T) {
 			g, api := newCreemWithAPI(t)
 			api.handle("POST "+tc.path, http.StatusOK, subscriptionResponse(tc.status, tc.canceledAt))
+			api.handle("GET /v1/subscriptions", http.StatusOK, subscriptionResponse("active", "null"))
 			s, err := g.CancelSubscription(context.Background(), CancelRequest{ExternalSubscriptionID: "sub_1", Mode: tc.mode})
 			if err != nil {
 				t.Fatal(err)
@@ -904,5 +905,51 @@ func TestCreemFetchSubscription(t *testing.T) {
 	sched, err := g.FetchSubscription(context.Background(), "sub_1")
 	if err != nil || sched.Subscription == nil || !sched.Subscription.CancelAtPeriodEnd {
 		t.Errorf("scheduled cancel: %+v, %v", sched, err)
+	}
+}
+
+// Creem doesn't document canceling a canceled subscription, so a cancel reads
+// the subscription first and leaves one already canceled alone.
+func TestCreemCancelOfACanceledSubscriptionIsDone(t *testing.T) {
+	g, api := newCreemWithAPI(t)
+	api.handle("GET /v1/subscriptions", http.StatusOK, subscriptionResponse("canceled", `"2024-11-20T10:00:00.000Z"`))
+	api.handle("POST /v1/subscriptions/sub_1/cancel", http.StatusBadRequest, `{"trace_id":"t","status":400}`)
+	s, err := g.CancelSubscription(context.Background(), CancelRequest{ExternalSubscriptionID: "sub_1", Mode: CancelNow})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Status != SubscriptionCanceled {
+		t.Errorf("subscription = %+v, want canceled", s)
+	}
+	if c := api.last(); c.Method != http.MethodGet {
+		t.Errorf("last call = %s %s, want no cancel of a canceled subscription", c.Method, c.Path)
+	}
+}
+
+// A cancel Creem refuses counts as done once a read shows the subscription
+// canceled (a cancel that raced ours).
+func TestCreemCancelRefusedButCanceledIsDone(t *testing.T) {
+	g, api := newCreemWithAPI(t)
+	reads := 0
+	api.routes["GET /v1/subscriptions"] = func(w http.ResponseWriter, _ creemCall) {
+		status := "active"
+		if reads++; reads > 1 {
+			status = "canceled"
+		}
+		_, _ = io.WriteString(w, subscriptionResponse(status, "null"))
+	}
+	api.handle("POST /v1/subscriptions/sub_1/cancel", http.StatusBadRequest, `{"trace_id":"t","status":400}`)
+	s, err := g.CancelSubscription(context.Background(), CancelRequest{ExternalSubscriptionID: "sub_1", Mode: CancelNow})
+	if err != nil || s.Status != SubscriptionCanceled {
+		t.Fatalf("cancel = %+v, %v; want canceled", s, err)
+	}
+
+	// Still active after the refusal: the refusal stands, and it is permanent.
+	g, api = newCreemWithAPI(t)
+	api.handle("GET /v1/subscriptions", http.StatusOK, subscriptionResponse("active", "null"))
+	api.handle("POST /v1/subscriptions/sub_1/cancel", http.StatusBadRequest, `{"trace_id":"t","status":400}`)
+	_, err = g.CancelSubscription(context.Background(), CancelRequest{ExternalSubscriptionID: "sub_1", Mode: CancelNow})
+	if !errors.Is(err, ErrInvalidRequest) || !Permanent(err) {
+		t.Fatalf("refused cancel: err = %v, want a permanent ErrInvalidRequest", err)
 	}
 }

@@ -255,6 +255,9 @@ func (f *Fake) CancelSubscription(_ context.Context, req CancelRequest) (Subscri
 		return Subscription{}, err
 	}
 	s, ok := f.subscription(req.ExternalSubscriptionID)
+	if ok && s.Status == SubscriptionCanceled && req.Mode == CancelNow {
+		return s, nil // canceled is canceled, as on every provider
+	}
 	if !ok || s.Status == SubscriptionCanceled {
 		return Subscription{}, fmt.Errorf("fake: subscription %q: %w", req.ExternalSubscriptionID, ErrNotFound)
 	}
@@ -286,7 +289,9 @@ func (f *Fake) CancelSchedule(_ context.Context, externalScheduleID string) erro
 	if externalScheduleID == "" {
 		return fmt.Errorf("fake: cancel needs a schedule: %w", ErrInvalidRequest)
 	}
-	f.canceled = append(f.canceled, externalScheduleID)
+	if !slices.Contains(f.canceled, externalScheduleID) {
+		f.canceled = append(f.canceled, externalScheduleID)
+	}
 	return nil
 }
 

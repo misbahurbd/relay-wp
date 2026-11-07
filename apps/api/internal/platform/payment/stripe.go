@@ -395,7 +395,15 @@ func (g *stripeGateway) CancelSubscription(ctx context.Context, req CancelReques
 		return Subscription{}, fmt.Errorf("stripe: cancel mode %q: %w", req.Mode, ErrInvalidRequest)
 	}
 	if err != nil {
-		return Subscription{}, stripeError("cancel subscription", err)
+		err = stripeError("cancel subscription", err)
+		if req.Mode == CancelNow && Permanent(err) {
+			// Stripe refuses to cancel a canceled subscription: canceled is canceled.
+			if cur, rerr := g.sc.V1Subscriptions.Retrieve(ctx, req.ExternalSubscriptionID, nil); rerr == nil &&
+				cur.Status == stripe.SubscriptionStatusCanceled {
+				return stripeSubscription(cur), nil
+			}
+		}
+		return Subscription{}, err
 	}
 	return stripeSubscription(sub), nil
 }
@@ -409,7 +417,15 @@ func (g *stripeGateway) CancelSchedule(ctx context.Context, externalScheduleID s
 	if _, err := g.sc.V1SubscriptionSchedules.Cancel(ctx, externalScheduleID, &stripe.SubscriptionScheduleCancelParams{
 		Prorate: stripe.Bool(false),
 	}); err != nil {
-		return stripeError("cancel subscription schedule", err)
+		err = stripeError("cancel subscription schedule", err)
+		if Permanent(err) {
+			// Stripe refuses to cancel a schedule that already ended: it charges nothing more.
+			if cur, rerr := g.sc.V1SubscriptionSchedules.Retrieve(ctx, externalScheduleID, nil); rerr == nil &&
+				(cur.Status == stripe.SubscriptionScheduleStatusCanceled || cur.Status == stripe.SubscriptionScheduleStatusCompleted) {
+				return nil
+			}
+		}
+		return err
 	}
 	return nil
 }

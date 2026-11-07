@@ -199,11 +199,36 @@ func (g *creemGateway) CancelSubscription(ctx context.Context, req CancelRequest
 	default:
 		return Subscription{}, fmt.Errorf("creem: cancel mode %q: %w", req.Mode, ErrInvalidRequest)
 	}
+	if req.Mode == CancelNow {
+		// Creem doesn't say what canceling a canceled subscription does:
+		// one already canceled is left alone.
+		if cur, err := g.subscription(ctx, req.ExternalSubscriptionID); err != nil {
+			return Subscription{}, fmt.Errorf("creem: cancel subscription: %w", err)
+		} else if cur.Status == "canceled" {
+			return cur.normalise(), nil
+		}
+	}
 	var out creemSubscription
-	if err := g.do(ctx, http.MethodPost, path, body, &out); err != nil {
+	err := g.do(ctx, http.MethodPost, path, body, &out)
+	if err != nil && req.Mode == CancelNow && Permanent(err) {
+		// Refused, maybe because a cancel raced ours: canceled is canceled.
+		if cur, rerr := g.subscription(ctx, req.ExternalSubscriptionID); rerr == nil && cur.Status == "canceled" {
+			return cur.normalise(), nil
+		}
+	}
+	if err != nil {
 		return Subscription{}, fmt.Errorf("creem: cancel subscription: %w", err)
 	}
 	return out.normalise(), nil
+}
+
+// subscription reads a subscription from GET /v1/subscriptions.
+func (g *creemGateway) subscription(ctx context.Context, id string) (creemSubscription, error) {
+	var s creemSubscription
+	if err := g.do(ctx, http.MethodGet, "/v1/subscriptions?subscription_id="+url.QueryEscape(id), nil, &s); err != nil {
+		return creemSubscription{}, err
+	}
+	return s, nil
 }
 
 // Refund refunds a transaction in full: Creem's API has no partial refunds.
