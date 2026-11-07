@@ -91,6 +91,20 @@ func (f *devWhatsApp) FetchMedia(context.Context, uuid.UUID, uuid.UUID, string) 
 	return nil, "", 0, errors.New("fake whatsapp has no media to download")
 }
 
+// SimulateInbound delivers one customer text to a workspace's fake number through
+// the normal ingest, as if they had just written on WhatsApp.
+func (a *App) SimulateInbound(ctx context.Context, workspaceID uuid.UUID, phone, name, text string) error {
+	if !a.cfg.IsDevelopment() {
+		return errors.New("simulated messages run only in development")
+	}
+	return a.inbox.InboundMessage(ctx, inboxmodel.Inbound{
+		WorkspaceID: workspaceID, ChannelType: inboxmodel.ChannelWhatsApp, ChannelID: devChannelID(workspaceID),
+		ExternalID: "dev." + uuid.Must(uuid.NewV7()).String(),
+		Sender:     inboxmodel.Sender{ExternalID: phone, Phone: phone, Name: name},
+		Timestamp:  time.Now().UTC(), Type: "text", Text: text,
+	})
+}
+
 // SeedInbox adds sample WhatsApp chats to a workspace through the normal ingest:
 // a few open ones with growing waits, one from an ad, a location, a reaction and
 // one whose 24-hour window has closed. Running it again adds nothing new.

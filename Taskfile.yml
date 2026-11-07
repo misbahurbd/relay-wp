@@ -92,11 +92,33 @@ tasks:
     cmds:
       - pnpm dev
 
+  dev:tunnel:
+    desc: Expose the API at https://$NGROK_DOMAIN so Meta's webhooks reach it
+    preconditions:
+      - sh: command -v ngrok
+        msg: "ngrok is not installed: brew install ngrok"
+      - sh: test -n "$NGROK_DOMAIN"
+        msg: "Set NGROK_DOMAIN in .env to your free static domain (ngrok dashboard › Domains)"
+    cmds:
+      - ngrok http --url="$NGROK_DOMAIN" "${HTTP_ADDR##*:}"
+
   dev:seed:
     desc: Fill the local database with CRM staff, plans and sample tenants
     dir: "{{.API_DIR}}"
     cmds:
       - go run ./cmd/relay dev seed
+
+  dev:inbound:
+    desc: 'A customer writes to the fake number: task dev:inbound -- [-from +1… -name …] <workspace-id> "text"'
+    dir: "{{.API_DIR}}"
+    cmds:
+      - go run ./cmd/relay dev inbound {{.CLI_ARGS}}
+
+  dev:webhook:
+    desc: 'Post a signed Meta webhook to the local API: task dev:webhook -- [-from … -file …] <workspace-id> "text"'
+    dir: "{{.API_DIR}}"
+    cmds:
+      - go run ./cmd/relay dev webhook {{.CLI_ARGS}}
 
   # --- Build ---
   build:
