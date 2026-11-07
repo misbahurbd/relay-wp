@@ -589,3 +589,51 @@ func TestRefundedDuplicateGetsNoReceipt(t *testing.T) {
 		t.Errorf("duplicate's document queued %d times, want once: a sweep has nothing to deliver", queued)
 	}
 }
+
+// A lifetime deal a discount makes free charged nothing: its invoice and
+// receipt must not say it was paid with a card (X6).
+func TestFreeOrderInvoiceSaysNothingWasCharged(t *testing.T) {
+	e := newDocsEnv(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	ltd := e.price(p.ID, model.BillingOneTime, "", 5000)
+	d := e.discount(func(d *model.NewDiscount) { d.PercentBps = ptrTo(10000) })
+	if _, err := e.svc.CreateCheckout(e.ctx, e.ws, e.user, model.CheckoutInput{
+		PlanPriceID: ltd, DiscountCode: d.Code, IdempotencyKey: uuid.NewString(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	e.wantNothingCharged()
+}
+
+// A card trial's first invoice is for $0 too.
+func TestCardTrialInvoiceSaysNothingWasCharged(t *testing.T) {
+	e := newDocsEnv(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000, TrialDays: 14, RequiresCard: true})
+	e.pay(e.checkout(p.Monthly, ""))
+	e.wantNothingCharged()
+}
+
+// wantNothingCharged delivers the workspace's one invoice document and checks
+// neither its PDF nor its email says money was paid.
+func (e *docsEnv) wantNothingCharged() {
+	e.t.Helper()
+	jobs := e.documentJobs()
+	if len(jobs) != 1 {
+		e.t.Fatalf("document jobs = %d, want one", len(jobs))
+	}
+	if err := e.svc.DeliverInvoiceDocument(e.ctx, e.ws, jobs[0]); err != nil {
+		e.t.Fatal(err)
+	}
+	if len(e.renderer.pages) != 1 {
+		e.t.Fatalf("rendered %d pages, want 1", len(e.renderer.pages))
+	}
+	if page := e.renderer.pages[0]; strings.Contains(page, "Paid with card") || !strings.Contains(page, "Nothing was charged") {
+		e.t.Errorf("$0 invoice PDF says it was paid with a card:\n%s", page)
+	}
+	if len(e.mail.sent) != 1 {
+		e.t.Fatalf("sent %d emails, want the receipt", len(e.mail.sent))
+	}
+	if m := e.mail.sent[0]; strings.Contains(m.Text, "Thanks for your payment") || strings.Contains(m.Text, "Amount paid") {
+		e.t.Errorf("$0 invoice email thanks for a payment:\n%s", m.Text)
+	}
+}

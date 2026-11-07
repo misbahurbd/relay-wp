@@ -72,7 +72,7 @@
     <tr class="total"><td>Total</td><td class="amount">{{.Total}}</td></tr>
   </table>
 
-  <p class="paid">{{.Total}} paid on {{.IssueDate}}. Paid with card via {{.Provider}}.{{if .Refunded}} Refunded in full.{{end}}</p>
+  <p class="paid">{{if .Charged}}{{.Total}} paid on {{.IssueDate}}. Paid with card via {{.Provider}}.{{else}}Issued on {{.IssueDate}}. Nothing was charged.{{end}}{{if .Refunded}} Refunded in full.{{end}}</p>
 
   <div class="foot">Thank you for your business. Questions about this invoice? {{if .Seller.Email}}Write to {{.Seller.Email}}.{{else}}Reply to the receipt email.{{end}}</div>
 </body>

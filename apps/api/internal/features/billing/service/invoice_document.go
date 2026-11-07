@@ -41,6 +41,8 @@ type invoiceDoc struct {
 	Discount string
 	Tax      string
 	Total    string
+	// Charged: money was taken. A discount can make an invoice free.
+	Charged  bool
 	Provider string
 	// Refunded: the payment was refunded in full before the document was
 	// made (a duplicate payment). It says so, and no receipt is emailed.
@@ -185,7 +187,7 @@ func (s *Service) invoiceDoc(row gen.GetInvoiceDocumentRow) (invoiceDoc, error) 
 	doc := invoiceDoc{
 		Number: *row.Number, IssueDate: row.PaidAt.UTC().Format("January 2, 2006"), Seller: s.cfg.Seller,
 		BillTo: billToLines(billTo), Email: billTo.Email, Description: invoiceDescription(row),
-		Subtotal: money(row.SubtotalMinor, row.Currency), Total: money(row.TotalMinor, row.Currency),
+		Subtotal: money(row.SubtotalMinor, row.Currency), Total: money(row.TotalMinor, row.Currency), Charged: row.TotalMinor > 0,
 		Provider: providerName(payment.Provider(row.Provider)), Refunded: row.Status == model.InvoiceRefunded,
 	}
 	if row.DiscountMinor > 0 {

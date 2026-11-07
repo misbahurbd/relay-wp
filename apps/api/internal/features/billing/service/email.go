@@ -23,17 +23,23 @@ func installmentDueEmail(to string, seq, count int, amountMinor int64, currency 
 	}
 }
 
-// invoiceReceiptEmail is the "payment received" email, with the invoice PDF attached.
+// invoiceReceiptEmail is the "payment received" email, with the invoice PDF
+// attached. An invoice a discount made free thanks nobody for a payment.
 func invoiceReceiptEmail(doc invoiceDoc, file []byte, link string) mailer.Message {
 	intro := fmt.Sprintf("Thanks for your payment of %s. Your invoice %s is attached.", doc.Total, doc.Number)
+	amountLabel, dateLabel := "Amount paid", "Paid on"
+	if !doc.Charged {
+		intro = fmt.Sprintf("Your invoice %s is attached. Nothing was charged.", doc.Number)
+		amountLabel, dateLabel = "Amount", "Issued on"
+	}
 	return mailer.Message{
 		To:      []string{doc.Email},
 		Subject: fmt.Sprintf("Relay receipt %s · %s", doc.Number, doc.Total),
-		Text: fmt.Sprintf("%s\n\nAmount paid: %s\nFor: %s\nPaid on: %s\n\nBilling settings: %s\n",
-			intro, doc.Total, doc.Description, doc.IssueDate, link),
-		HTML: fmt.Sprintf(`<p>%s</p><p>Amount paid: <strong>%s</strong><br>For: %s<br>Paid on: %s</p><p><a href="%s">Billing settings</a></p>`,
-			html.EscapeString(intro), html.EscapeString(doc.Total), html.EscapeString(doc.Description),
-			html.EscapeString(doc.IssueDate), html.EscapeString(link)),
+		Text: fmt.Sprintf("%s\n\n%s: %s\nFor: %s\n%s: %s\n\nBilling settings: %s\n",
+			intro, amountLabel, doc.Total, doc.Description, dateLabel, doc.IssueDate, link),
+		HTML: fmt.Sprintf(`<p>%s</p><p>%s: <strong>%s</strong><br>For: %s<br>%s: %s</p><p><a href="%s">Billing settings</a></p>`,
+			html.EscapeString(intro), amountLabel, html.EscapeString(doc.Total), html.EscapeString(doc.Description),
+			dateLabel, html.EscapeString(doc.IssueDate), html.EscapeString(link)),
 		Attachments: []mailer.Attachment{{Filename: doc.Number + ".pdf", ContentType: "application/pdf", Data: file}},
 	}
 }
