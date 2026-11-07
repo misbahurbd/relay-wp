@@ -16,8 +16,9 @@ const CHOICES: { value: Choice; label: string }[] = [
   { value: 'unlimited', label: 'Unlimited' },
 ]
 
+// Equal-width segments fill the control column, so two options (required rows) and three line up.
 const SEGMENT =
-  'h-8 rounded-md border-0 px-3 text-[13px] text-muted-foreground hover:bg-card/60 data-[state=on]:shadow-sm'
+  'h-8 flex-1 rounded-md border-0 px-2 text-[13px] text-muted-foreground hover:bg-card/60 data-[state=on]:shadow-sm'
 
 function plural(unit: string) {
   return unit.endsWith('s') ? unit : `${unit}s`
@@ -46,7 +47,7 @@ export function PlanResourceRow({
   return (
     <li
       className={cn(
-        'flex flex-col gap-3 px-4 py-3 transition-colors sm:flex-row sm:items-center sm:justify-between',
+        'grid gap-3 px-4 py-3 transition-colors md:grid-cols-[minmax(0,1fr)_18rem_15rem] md:items-center md:gap-4',
         !included && 'bg-secondary/60',
       )}
     >
@@ -87,7 +88,7 @@ export function PlanResourceRow({
       </div>
 
       {r.kind === 'access' ? (
-        <div className="flex items-center gap-2.5 pl-6.5 sm:pl-0">
+        <div className="flex items-center gap-2.5 pl-6.5 md:pl-0">
           <Switch
             aria-labelledby={id}
             checked={included}
@@ -101,14 +102,14 @@ export function PlanResourceRow({
           </span>
         </div>
       ) : (
-        <div className="flex flex-col gap-1.5 pl-6.5 sm:items-end sm:pl-0">
-          <div className="flex flex-wrap items-center gap-2">
+        <>
+          <div className="pl-6.5 md:pl-0">
             <ToggleGroup
               type="single"
               value={entry.mode}
               onValueChange={(v) => v && choose(v)}
               aria-labelledby={id}
-              className="rounded-lg bg-secondary p-1"
+              className="w-full rounded-lg bg-secondary p-1"
             >
               {choices.map((c) => (
                 <ToggleGroupItem
@@ -125,32 +126,35 @@ export function PlanResourceRow({
                 </ToggleGroupItem>
               ))}
             </ToggleGroup>
-            {entry.mode === 'cap' && (
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  step={1}
-                  aria-label={`${r.label} limit`}
-                  aria-invalid={error ? true : undefined}
-                  value={entry.cap}
-                  placeholder="Amount"
-                  onChange={(e) => onChange({ mode: 'cap', cap: e.target.value })}
-                  className="h-9 w-28"
-                />
-                <span className="text-[13px] text-muted-foreground">
-                  {plural(r.unit)}
-                  {r.kind === 'monthly' && ' per month'}
-                </span>
-              </div>
-            )}
-            {entry.mode === 'unlimited' && r.kind === 'monthly' && (
-              <span className="text-[13px] text-muted-foreground">per month</span>
-            )}
           </div>
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
+          {(entry.mode === 'cap' || (entry.mode === 'unlimited' && r.kind === 'monthly')) && (
+            <div className="flex flex-col gap-1.5 pl-6.5 md:pl-0">
+              {entry.mode === 'cap' ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    step={1}
+                    aria-label={`${r.label} limit`}
+                    aria-invalid={error ? true : undefined}
+                    value={entry.cap}
+                    placeholder="Amount"
+                    onChange={(e) => onChange({ mode: 'cap', cap: e.target.value })}
+                    className="h-9 w-24 shrink-0"
+                  />
+                  <span className="min-w-0 text-[13px] text-muted-foreground">
+                    {plural(r.unit)}
+                    {r.kind === 'monthly' && ' per month'}
+                  </span>
+                </div>
+              ) : (
+                <span className="text-[13px] text-muted-foreground">per month</span>
+              )}
+              {error && <p className="text-xs text-destructive">{error}</p>}
+            </div>
+          )}
+        </>
       )}
     </li>
   )
