@@ -73,8 +73,9 @@ func TestPayInstallmentOnlyTheNextDueAppLinkOne(t *testing.T) {
 		t.Errorf("pay-now checkout %+v", s)
 	}
 	in := h.paymentInputs[len(h.paymentInputs)-1]
-	if !strings.Contains(in.ReturnURL, "workspace="+h.ws.String()) || strings.Contains(in.ReturnURL, "/w/") {
-		t.Errorf("return URL %q should name the workspace in a query parameter", in.ReturnURL)
+	// The same page a plan checkout returns to, which shows the remembered session.
+	if want := "https://app.test/billing/checkout?session=return"; in.ReturnURL != want {
+		t.Errorf("return URL = %q, want %q", in.ReturnURL, want)
 	}
 }
 

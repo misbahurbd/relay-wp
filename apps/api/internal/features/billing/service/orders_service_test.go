@@ -526,6 +526,9 @@ func TestLifetimeDealLifecycle(t *testing.T) {
 			if started.Session.AmountMinor != 20667 {
 				t.Errorf("resume checkout for %d, want the balance 20667", started.Session.AmountMinor)
 			}
+			if got := h.paymentInputs[len(h.paymentInputs)-1].ReturnURL; got != "https://app.test/billing/checkout?session=return" {
+				t.Errorf("resume return URL = %q", got)
+			}
 			h.complete(started.Session, h.payment(20667))
 			o = h.order(o.ID)
 			wantOrder(t, o, model.OrderPaid, 31000, "paid", "paid", "canceled")

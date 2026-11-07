@@ -362,7 +362,7 @@ func (s *Service) openCheckout(ctx context.Context, workspaceID uuid.UUID, c che
 	req.Customer = toCustomer(workspaceID, deref(customer.ExternalCustomerID), c.profile)
 	req.ReturnURL = c.returnURL
 	if req.ReturnURL == "" {
-		req.ReturnURL = strings.TrimRight(s.cfg.AppBaseURL, "/") + "/billing"
+		req.ReturnURL = s.checkoutReturnURL()
 	}
 	started, err := c.gateway.CreateCheckout(ctx, req)
 	if err != nil {
@@ -429,6 +429,12 @@ func (s *Service) openCheckout(ctx context.Context, workspaceID uuid.UUID, c che
 		Session: session, ClientSecret: started.ClientSecret, URL: started.URL,
 		PublishableKey: c.gateway.Capabilities().PublishableKey,
 	}, nil
+}
+
+// checkoutReturnURL is the web page a hosted checkout returns to. It shows
+// the checkout the browser remembered starting until its webhook lands.
+func (s *Service) checkoutReturnURL() string {
+	return strings.TrimRight(s.cfg.AppBaseURL, "/") + "/billing/checkout?session=return"
 }
 
 // halfOpen says whether a replayed session never got the provider's checkout

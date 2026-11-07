@@ -61,7 +61,7 @@ func (l lifetimeDeals) payInstallment(ctx context.Context, workspaceID, userID, 
 		return model.StartedCheckout{}, model.ErrInstallmentNotDue
 	}
 	return l.t3.startPaymentCheckout(ctx, workspaceID, userID, installmentCheckout(o, *inst, len(insts), idempotencyKey,
-		l.billingURL(workspaceID)))
+		l.checkoutReturnURL()))
 }
 
 func installmentCheckout(o model.Order, inst model.Installment, count int, idempotencyKey, returnURL string) model.PaymentCheckoutInput {

@@ -573,11 +573,10 @@ func (l lifetimeDeals) resumeOrder(ctx context.Context, workspaceID, userID, ord
 	return l.t3.startPaymentCheckout(ctx, workspaceID, userID, model.PaymentCheckoutInput{
 		OrderID: o.ID, InstallmentID: &open.ID, AmountMinor: o.BalanceMinor(), Currency: o.Currency,
 		Provider: o.Provider, IdempotencyKey: idempotencyKey, Description: "Lifetime deal, remaining balance",
-		ReturnURL: l.billingURL(workspaceID),
+		ReturnURL: l.checkoutReturnURL(),
 	})
 }
 
-// billingURL is the billing settings page of one workspace.
 // stopSchedule cancels the order's provider-run schedule, if it has one, so
 // the provider charges nothing more. It runs in the transaction that ends the
 // order: a failure rolls that back, and the job retries.
@@ -595,6 +594,7 @@ func (l lifetimeDeals) stopSchedule(ctx context.Context, o model.Order) error {
 	return nil
 }
 
+// billingURL is the billing settings page of one workspace, for emails.
 func (l lifetimeDeals) billingURL(workspaceID uuid.UUID) string {
 	return l.cfg.AppBaseURL + "/billing?workspace=" + workspaceID.String()
 }
