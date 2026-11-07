@@ -73,6 +73,13 @@ UPDATE checkout_sessions
 SET expires_at = @expires_at
 WHERE workspace_id = @workspace_id AND id = @checkout_session_id AND status = 'pending';
 
+-- name: HasPendingCheckout :one
+-- Whether the workspace has an open checkout of this purpose.
+SELECT EXISTS (
+    SELECT 1 FROM checkout_sessions
+    WHERE workspace_id = @workspace_id AND purpose = @purpose AND status = 'pending' AND expires_at > @now
+);
+
 -- name: ListExpiredCheckoutSessions :many
 -- Job only (all workspaces): pending sessions past their expiry, oldest first.
 SELECT id, workspace_id, discount_id

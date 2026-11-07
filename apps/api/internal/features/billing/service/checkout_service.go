@@ -112,6 +112,9 @@ func (s *Service) prepareSubscription(ctx context.Context, r repository.Reposito
 	} else if !repository.IsNoRows(err) {
 		return fmt.Errorf("get live order: %w", err)
 	}
+	if err := s.refusePendingCheckout(ctx, r, ws, model.PurposeLTD); err != nil {
+		return err
+	}
 	caps := c.gateway.Capabilities()
 	if !caps.RenewsSubscriptions {
 		// Relay-renewed (app) subscriptions come with SSLCommerz.
@@ -169,6 +172,9 @@ func (s *Service) prepareSubscription(ctx context.Context, r repository.Reposito
 // prepareOrder fills in a checkout for a one-time price, in full or through an
 // installment offer (purpose ltd). Track T4's QuoteOrder works out the money.
 func (s *Service) prepareOrder(ctx context.Context, r repository.Repository, c *checkoutStart, price loadedPrice, offer *model.InstallmentOffer, collection, code string) error {
+	if err := s.refusePendingCheckout(ctx, r, c.params.WorkspaceID, model.PurposeNew); err != nil {
+		return err
+	}
 	in := model.QuoteInput{PlanPriceID: price.ID, DiscountCode: code}
 	if offer != nil {
 		in.InstallmentOfferID = &offer.ID
@@ -212,6 +218,22 @@ func (s *Service) prepareOrder(ctx context.Context, r repository.Repository, c *
 	c.req.Mode, c.req.ExternalPriceID = payment.ModeInstallments, *pp.ExternalPriceID
 	for _, p := range q.Schedule {
 		c.req.Schedule = append(c.req.Schedule, p.AmountMinor)
+	}
+	return nil
+}
+
+// refusePendingCheckout is model.ErrCheckoutPending while the workspace has an
+// open checkout of purpose. A subscription and a lifetime deal are never open
+// at once: both paid would leave two plans charging.
+func (s *Service) refusePendingCheckout(ctx context.Context, r repository.Repository, workspaceID uuid.UUID, purpose string) error {
+	pending, err := r.HasPendingCheckout(ctx, gen.HasPendingCheckoutParams{
+		WorkspaceID: workspaceID, Purpose: purpose, Now: s.now(),
+	})
+	if err != nil {
+		return fmt.Errorf("has pending checkout: %w", err)
+	}
+	if pending {
+		return model.ErrCheckoutPending
 	}
 	return nil
 }

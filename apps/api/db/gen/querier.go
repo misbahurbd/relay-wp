@@ -400,6 +400,8 @@ type Querier interface {
 	// Whether another invoice still pays for the installment (it was paid again
 	// after a refund, or twice at once).
 	HasOtherInstallmentPayment(ctx context.Context, arg HasOtherInstallmentPaymentParams) (bool, error)
+	// Whether the workspace has an open checkout of this purpose.
+	HasPendingCheckout(ctx context.Context, arg HasPendingCheckoutParams) (bool, error)
 	// ---------- Access log ----------
 	InsertAccessLog(ctx context.Context, arg InsertAccessLogParams) error
 	InsertAuthEvent(ctx context.Context, arg InsertAuthEventParams) error

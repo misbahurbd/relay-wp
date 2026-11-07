@@ -71,6 +71,64 @@ func TestCreateCheckoutRefusals(t *testing.T) {
 	}
 }
 
+// A subscription checkout and a lifetime-deal checkout are never open at once:
+// both paid would leave two plans billing.
+func TestSubscriptionAndLifetimeCheckoutsDoNotOverlap(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	lifetime := e.price(p.ID, model.BillingOneTime, "", 30000)
+	try := func(priceID uuid.UUID) error {
+		_, err := e.svc.CreateCheckout(e.ctx, e.ws, e.user, model.CheckoutInput{PlanPriceID: priceID, IdempotencyKey: uuid.NewString()})
+		return err
+	}
+
+	ltd := e.checkout(lifetime, "")
+	if err := try(p.Monthly); !errors.Is(err, model.ErrCheckoutPending) {
+		t.Errorf("subscription while a lifetime checkout is open: %v, want ErrCheckoutPending", err)
+	}
+	e.inTx(func(tx pgx.Tx) error { return e.svc.FailCheckout(e.ctx, tx, e.ws, ltd.Session.ID, model.CheckoutExpired) })
+	e.checkout(p.Monthly, "")
+	if err := try(lifetime); !errors.Is(err, model.ErrCheckoutPending) {
+		t.Errorf("lifetime deal while a subscription checkout is open: %v, want ErrCheckoutPending", err)
+	}
+}
+
+// A lifetime deal paid while a subscription is live (here a late payment for
+// an expired subscription checkout) cancels that subscription, with no credit
+// beyond the deal's quote.
+func TestLifetimeDealCancelsTheSubscriptionLiveAtPayment(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	lifetime := e.price(p.ID, model.BillingOneTime, "", 30000)
+	sub := e.checkout(p.Monthly, "")
+	e.inTx(func(tx pgx.Tx) error { return e.svc.FailCheckout(e.ctx, tx, e.ws, sub.Session.ID, model.CheckoutExpired) })
+	ltd := e.checkout(lifetime, "")
+
+	e.pay(sub)
+	live, err := e.svc.Subscription(e.ctx, e.ws)
+	if err != nil || live.Status != model.SubscriptionActive {
+		t.Fatalf("late subscription payment: %s, %v", live.Status, err)
+	}
+	e.pay(ltd)
+
+	if got, err := e.svc.Subscription(e.ctx, e.ws); err != nil || got.Status != model.SubscriptionCanceled {
+		t.Errorf("subscription %s, %v after the lifetime deal, want canceled", got.Status, err)
+	}
+	if fs, _ := e.fake.Subscription(*live.ExternalSubscriptionID); fs.Status != payment.SubscriptionCanceled {
+		t.Errorf("provider subscription %s, want canceled", fs.Status)
+	}
+	if g := e.grant(e.ws); g == nil || g.OrderID == nil || g.Status != model.GrantActive {
+		t.Errorf("grant = %+v, want the lifetime deal's", g)
+	}
+	var credit int64
+	if err := e.pool.QueryRow(e.ctx, `SELECT credit_minor FROM orders WHERE id = $1`, *ltd.Session.OrderID).Scan(&credit); err != nil {
+		t.Fatal(err)
+	}
+	if credit != 0 {
+		t.Errorf("order credit %d, want 0 (none was quoted)", credit)
+	}
+}
+
 func TestCardTrialStartsTrialing(t *testing.T) {
 	e := newT3Env(t)
 	p := e.plan(t3PlanOpts{Monthly: 1000, TrialDays: 14, RequiresCard: true})

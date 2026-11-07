@@ -292,6 +292,27 @@ func (q *Queries) GetCheckoutSessionByIdempotencyKey(ctx context.Context, arg Ge
 	return i, err
 }
 
+const hasPendingCheckout = `-- name: HasPendingCheckout :one
+SELECT EXISTS (
+    SELECT 1 FROM checkout_sessions
+    WHERE workspace_id = $1 AND purpose = $2 AND status = 'pending' AND expires_at > $3
+)
+`
+
+type HasPendingCheckoutParams struct {
+	WorkspaceID uuid.UUID
+	Purpose     string
+	Now         time.Time
+}
+
+// Whether the workspace has an open checkout of this purpose.
+func (q *Queries) HasPendingCheckout(ctx context.Context, arg HasPendingCheckoutParams) (bool, error) {
+	row := q.db.QueryRow(ctx, hasPendingCheckout, arg.WorkspaceID, arg.Purpose, arg.Now)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const linkCheckoutSession = `-- name: LinkCheckoutSession :execrows
 UPDATE checkout_sessions
 SET subscription_id = COALESCE($1, subscription_id),
