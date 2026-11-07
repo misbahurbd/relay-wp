@@ -86,7 +86,9 @@ func TestSubscriptionAndLifetimeCheckoutsDoNotOverlap(t *testing.T) {
 	if err := try(p.Monthly); !errors.Is(err, model.ErrCheckoutPending) {
 		t.Errorf("subscription while a lifetime checkout is open: %v, want ErrCheckoutPending", err)
 	}
-	e.inTx(func(tx pgx.Tx) error { return e.svc.FailCheckout(e.ctx, tx, e.ws, ltd.Session.ID, model.CheckoutExpired) })
+	e.inTx(func(tx pgx.Tx) error {
+		return e.svc.FailCheckout(e.ctx, tx, e.ws, ltd.Session.ID, model.CheckoutExpired)
+	})
 	e.checkout(p.Monthly, "")
 	if err := try(lifetime); !errors.Is(err, model.ErrCheckoutPending) {
 		t.Errorf("lifetime deal while a subscription checkout is open: %v, want ErrCheckoutPending", err)
@@ -140,7 +142,9 @@ func TestLifetimeDealCancelsTheSubscriptionLiveAtPayment(t *testing.T) {
 	p := e.plan(t3PlanOpts{Monthly: 1000})
 	lifetime := e.price(p.ID, model.BillingOneTime, "", 30000)
 	sub := e.checkout(p.Monthly, "")
-	e.inTx(func(tx pgx.Tx) error { return e.svc.FailCheckout(e.ctx, tx, e.ws, sub.Session.ID, model.CheckoutExpired) })
+	e.inTx(func(tx pgx.Tx) error {
+		return e.svc.FailCheckout(e.ctx, tx, e.ws, sub.Session.ID, model.CheckoutExpired)
+	})
 	ltd := e.checkout(lifetime, "")
 
 	e.pay(sub)

@@ -462,8 +462,12 @@ func TestLostDisputeCancelsTheSubscription(t *testing.T) {
 	dispute := func(typ payment.EventType, outcome string) payment.Event {
 		return payment.Event{Provider: payment.Stripe, Type: typ, Payment: &payment.Payment{ExternalID: pay, Status: outcome}}
 	}
-	e.inTx(func(tx pgx.Tx) error { return e.svc.onDisputeOpened(e.ctx, tx, e.ws, dispute(payment.EventDisputeOpened, "")) })
-	e.inTx(func(tx pgx.Tx) error { return e.svc.onDisputeClosed(e.ctx, tx, e.ws, dispute(payment.EventDisputeClosed, "lost")) })
+	e.inTx(func(tx pgx.Tx) error {
+		return e.svc.onDisputeOpened(e.ctx, tx, e.ws, dispute(payment.EventDisputeOpened, ""))
+	})
+	e.inTx(func(tx pgx.Tx) error {
+		return e.svc.onDisputeClosed(e.ctx, tx, e.ws, dispute(payment.EventDisputeClosed, "lost"))
+	})
 
 	if fs, _ := e.fake.Subscription(*sub.ExternalSubscriptionID); fs.Status != payment.SubscriptionCanceled {
 		t.Errorf("provider subscription %s after a lost dispute, want canceled", fs.Status)
