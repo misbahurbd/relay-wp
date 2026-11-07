@@ -418,6 +418,81 @@ func TestCreemCreateFixedCoupon(t *testing.T) {
 	}
 }
 
+func TestCreemCreatePrice(t *testing.T) {
+	g, api := newCreemWithAPI(t)
+	api.handle("POST /v1/products", http.StatusOK, `{"id":"prod_growth_m","object":"product","trial_period_days":14,"tax_mode":"exclusive"}`)
+	id, err := g.CreatePrice(context.Background(), PriceRequest{
+		PlanPriceID: uuid.New(), Name: "Relay Growth (monthly)", AmountMinor: 2900, Currency: "usd", Interval: "month", TrialDays: 14,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id != "prod_growth_m" {
+		t.Fatalf("product id = %q", id)
+	}
+	b := api.last().Body
+	want := map[string]any{
+		"name": "Relay Growth (monthly)", "description": "Relay Growth (monthly)", "price": float64(2900), "currency": "USD",
+		"billing_type": "recurring", "billing_period": "every-month", "tax_mode": "exclusive", "tax_category": "saas",
+		"trial_period_days": float64(14),
+	}
+	for k, v := range want {
+		if b[k] != v {
+			t.Errorf("body[%s] = %v, want %v", k, b[k], v)
+		}
+	}
+
+	api.handle("POST /v1/products", http.StatusOK, `{"id":"prod_growth_y"}`)
+	if _, err := g.CreatePrice(context.Background(), PriceRequest{
+		Name: "Relay Growth (yearly)", AmountMinor: 29000, Currency: "USD", Interval: "year",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	b = api.last().Body
+	if b["billing_period"] != "every-year" || b["billing_type"] != "recurring" {
+		t.Errorf("yearly body = %v", b)
+	}
+	if _, ok := b["trial_period_days"]; ok {
+		t.Errorf("no trial: body = %v", b)
+	}
+
+	api.handle("POST /v1/products", http.StatusOK, `{"id":"prod_ltd"}`)
+	if _, err := g.CreatePrice(context.Background(), PriceRequest{
+		Name: "Relay Growth (lifetime)", AmountMinor: 29900, Currency: "USD", TrialDays: 14,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	b = api.last().Body
+	if b["billing_type"] != "onetime" || b["billing_period"] != "once" {
+		t.Errorf("one-time body = %v", b)
+	}
+	if _, ok := b["trial_period_days"]; ok {
+		t.Errorf("a one-time product has no trial: body = %v", b)
+	}
+
+	calls := api.count()
+	for name, req := range map[string]PriceRequest{
+		"no name":      {AmountMinor: 100, Currency: "USD"},
+		"no amount":    {Name: "x", Currency: "USD"},
+		"no currency":  {Name: "x", AmountMinor: 100},
+		"bad interval": {Name: "x", AmountMinor: 100, Currency: "USD", Interval: "week"},
+	} {
+		if _, err := g.CreatePrice(context.Background(), req); !errors.Is(err, ErrInvalidRequest) {
+			t.Errorf("%s: err = %v, want ErrInvalidRequest", name, err)
+		}
+	}
+	if api.count() != calls {
+		t.Error("an invalid request reached Creem")
+	}
+
+	api.handle("POST /v1/products", http.StatusBadGateway, `{}`)
+	if _, err := g.CreatePrice(context.Background(), PriceRequest{
+		Name: "x", AmountMinor: 100, Currency: "USD",
+	}); !errors.Is(err, ErrUnavailable) {
+		t.Errorf("5xx: err = %v, want ErrUnavailable", err)
+	}
+}
+
 // signCreem signs body as Creem does: hex HMAC-SHA256 of the raw body.
 func signCreem(body []byte) http.Header {
 	h := hmac.New(sha256.New, []byte(creemTestSecret))

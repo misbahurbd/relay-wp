@@ -86,6 +86,9 @@ type Gateway interface {
 	// subscriptions the provider renews. One-time payments never need one:
 	// Relay charges the reduced amount.
 	CreateCoupon(ctx context.Context, req CouponRequest) (Coupon, error)
+	// CreatePrice creates the provider object a plan price sells through
+	// (provider_prices.external_price_id) and returns its ID.
+	CreatePrice(ctx context.Context, req PriceRequest) (string, error)
 	// Card returns the card the provider charges next, or nil when the
 	// customer has none. ErrUnsupported when the provider doesn't share card
 	// details. Nothing it returns is stored or logged.
@@ -325,6 +328,38 @@ type CouponRequest struct {
 type Coupon struct {
 	ExternalCouponID        string
 	ExternalPromotionCodeID string
+}
+
+// PriceRequest describes a plan price to create on a provider.
+type PriceRequest struct {
+	// PlanPriceID is our plan_prices.id: the idempotency key and the metadata a provider object carries back.
+	PlanPriceID uuid.UUID
+	// Name is what the provider shows for the product, such as "Relay Growth (monthly)".
+	Name        string
+	AmountMinor int64
+	Currency    string
+	// Interval is "month" or "year". Empty means a one-time price.
+	Interval string
+	// TrialDays is the trial to put on the product, for a provider that
+	// keeps trials there (Creem). Providers that set trials per checkout ignore it.
+	TrialDays int
+}
+
+// validate checks what every provider needs to create a price.
+func (r PriceRequest) validate(provider string) error {
+	switch {
+	case strings.TrimSpace(r.Name) == "":
+		return fmt.Errorf("%s: a price needs a name: %w", provider, ErrInvalidRequest)
+	case r.AmountMinor <= 0:
+		return fmt.Errorf("%s: a price needs an amount: %w", provider, ErrInvalidRequest)
+	case r.Currency == "":
+		return fmt.Errorf("%s: a price needs a currency: %w", provider, ErrInvalidRequest)
+	case r.Interval != "" && r.Interval != "month" && r.Interval != "year":
+		return fmt.Errorf("%s: price interval %q: %w", provider, r.Interval, ErrInvalidRequest)
+	case r.TrialDays < 0:
+		return fmt.Errorf("%s: price trial days %d: %w", provider, r.TrialDays, ErrInvalidRequest)
+	}
+	return nil
 }
 
 // CardRequest names the customer whose card to read.

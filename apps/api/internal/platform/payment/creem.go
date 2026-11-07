@@ -316,6 +316,51 @@ func (g *creemGateway) CreateCoupon(ctx context.Context, req CouponRequest) (Cou
 	return Coupon{ExternalCouponID: out.Code, ExternalPromotionCodeID: out.ID}, nil
 }
 
+// creemProductRequest is the body of POST /v1/products.
+type creemProductRequest struct {
+	Name            string `json:"name"`
+	Description     string `json:"description"`
+	Price           int64  `json:"price"`
+	Currency        string `json:"currency"`
+	BillingType     string `json:"billing_type"`
+	BillingPeriod   string `json:"billing_period"`
+	TaxMode         string `json:"tax_mode"`
+	TaxCategory     string `json:"tax_category"`
+	TrialPeriodDays int    `json:"trial_period_days,omitempty"`
+}
+
+// CreatePrice creates a Creem product, which is what Creem sells. Creem keeps
+// the trial on the product (a checkout can't set one), so req.TrialDays goes
+// there. Prices are tax exclusive, as the Relay catalog amounts are.
+func (g *creemGateway) CreatePrice(ctx context.Context, req PriceRequest) (string, error) {
+	if err := req.validate("creem"); err != nil {
+		return "", err
+	}
+	body := creemProductRequest{
+		Name: req.Name, Description: req.Name, Price: req.AmountMinor, Currency: strings.ToUpper(req.Currency),
+		BillingType: "onetime", BillingPeriod: "once", TaxMode: "exclusive", TaxCategory: "saas",
+	}
+	switch req.Interval {
+	case "month":
+		body.BillingType, body.BillingPeriod = "recurring", "every-month"
+	case "year":
+		body.BillingType, body.BillingPeriod = "recurring", "every-year"
+	}
+	if body.BillingType == "recurring" {
+		body.TrialPeriodDays = req.TrialDays
+	}
+	var out struct {
+		ID string `json:"id"`
+	}
+	if err := g.do(ctx, http.MethodPost, "/v1/products", body, &out); err != nil {
+		return "", fmt.Errorf("creem: create price: %w", err)
+	}
+	if out.ID == "" {
+		return "", fmt.Errorf("creem: create price: no product id in the response: %w", ErrUnavailable)
+	}
+	return out.ID, nil
+}
+
 // recurringProducts lists the IDs of the store's active recurring products.
 func (g *creemGateway) recurringProducts(ctx context.Context) ([]string, error) {
 	var ids []string

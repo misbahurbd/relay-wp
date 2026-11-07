@@ -25,6 +25,7 @@ const (
 	stripeMetaSchedule  = "relay_schedule"
 	stripeMetaDiscount  = "relay_discount_id"
 	stripeMetaReason    = "relay_reason"
+	stripeMetaPrice     = "relay_plan_price_id"
 )
 
 // stripeSignatureHeader carries Stripe's webhook signature.
@@ -505,6 +506,31 @@ func (g *stripeGateway) CreateCoupon(ctx context.Context, req CouponRequest) (Co
 		return Coupon{}, stripeError("create coupon", err)
 	}
 	return Coupon{ExternalCouponID: c.ID}, nil
+}
+
+// CreatePrice creates a Stripe price and its product in one call. Trials are
+// set per checkout on Stripe, so req.TrialDays is ignored.
+func (g *stripeGateway) CreatePrice(ctx context.Context, req PriceRequest) (string, error) {
+	if err := req.validate("stripe"); err != nil {
+		return "", err
+	}
+	p := &stripe.PriceCreateParams{
+		Currency:    stripe.String(strings.ToLower(req.Currency)),
+		UnitAmount:  stripe.Int64(req.AmountMinor),
+		ProductData: &stripe.PriceCreateProductDataParams{Name: stripe.String(req.Name)},
+		Metadata:    map[string]string{stripeMetaPrice: req.PlanPriceID.String()},
+	}
+	if req.Interval != "" {
+		p.Recurring = &stripe.PriceCreateRecurringParams{Interval: stripe.String(req.Interval)}
+	}
+	if req.PlanPriceID != uuid.Nil {
+		setIdempotency(&p.Params, "price:"+req.PlanPriceID.String(), "")
+	}
+	price, err := g.sc.V1Prices.Create(ctx, p)
+	if err != nil {
+		return "", stripeError("create price", err)
+	}
+	return price.ID, nil
 }
 
 // Card reads the subscription's default card (subscriptions save the

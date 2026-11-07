@@ -152,6 +152,21 @@ func TestFakeRefundsCouponsAndFailures(t *testing.T) {
 		t.Errorf("coupon = %+v, %v", c, err)
 	}
 
+	if _, err := f.CreatePrice(ctx, payment.PriceRequest{Name: "x", Currency: "USD"}); !errors.Is(err, payment.ErrInvalidRequest) {
+		t.Errorf("price without an amount: err = %v", err)
+	}
+	priceReq := payment.PriceRequest{Name: "Relay Growth (monthly)", AmountMinor: 2900, Currency: "USD", Interval: "month"}
+	if id, err := f.CreatePrice(ctx, priceReq); err != nil || id == "" {
+		t.Errorf("price = %q, %v", id, err)
+	}
+	if got := f.Prices(); len(got) != 1 || got[0] != priceReq {
+		t.Errorf("prices = %+v", got)
+	}
+	f.FailNext(payment.ErrUnavailable)
+	if _, err := f.CreatePrice(ctx, priceReq); !errors.Is(err, payment.ErrUnavailable) {
+		t.Errorf("price FailNext: err = %v", err)
+	}
+
 	f.FailNext(payment.ErrUnavailable)
 	if _, err := f.CreateCheckout(ctx, subscriptionCheckout()); !errors.Is(err, payment.ErrUnavailable) {
 		t.Errorf("FailNext: err = %v", err)

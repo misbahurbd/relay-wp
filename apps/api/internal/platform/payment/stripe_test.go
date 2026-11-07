@@ -517,6 +517,53 @@ func TestStripeCreateCoupon(t *testing.T) {
 	}
 }
 
+func TestStripeCreatePrice(t *testing.T) {
+	g, api := newTestStripe(t)
+	api.on("POST /v1/prices", `{"id":"price_growth_m","object":"price"}`)
+	id := uuid.New()
+	got, err := g.CreatePrice(context.Background(), PriceRequest{
+		PlanPriceID: id, Name: "Relay Growth (monthly)", AmountMinor: 2900, Currency: "USD", Interval: "month", TrialDays: 14,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "price_growth_m" {
+		t.Fatalf("price id = %q", got)
+	}
+	call := api.call(t, "POST /v1/prices")
+	wantField(t, call, "product_data[name]", "Relay Growth (monthly)")
+	wantField(t, call, "unit_amount", "2900")
+	wantField(t, call, "currency", "usd")
+	wantField(t, call, "recurring[interval]", "month")
+	wantField(t, call, "recurring[trial_period_days]", "")
+	wantField(t, call, "metadata[relay_plan_price_id]", id.String())
+	if call.IdempotencyKey != "price:"+id.String() {
+		t.Errorf("idempotency key = %q", call.IdempotencyKey)
+	}
+
+	g2, api2 := newTestStripe(t)
+	api2.on("POST /v1/prices", `{"id":"price_ltd","object":"price"}`)
+	if _, err := g2.CreatePrice(context.Background(), PriceRequest{
+		PlanPriceID: id, Name: "Relay Growth (lifetime)", AmountMinor: 29900, Currency: "usd",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	call = api2.call(t, "POST /v1/prices")
+	wantField(t, call, "recurring[interval]", "")
+	wantField(t, call, "unit_amount", "29900")
+
+	for name, req := range map[string]PriceRequest{
+		"no name":      {AmountMinor: 100, Currency: "USD"},
+		"no amount":    {Name: "x", Currency: "USD"},
+		"no currency":  {Name: "x", AmountMinor: 100},
+		"bad interval": {Name: "x", AmountMinor: 100, Currency: "USD", Interval: "week"},
+	} {
+		if _, err := g.CreatePrice(context.Background(), req); !errors.Is(err, ErrInvalidRequest) {
+			t.Errorf("%s: err = %v, want ErrInvalidRequest", name, err)
+		}
+	}
+}
+
 func TestStripeErrorsMapToGatewayErrors(t *testing.T) {
 	cases := []struct {
 		name   string

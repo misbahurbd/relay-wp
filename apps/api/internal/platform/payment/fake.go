@@ -44,6 +44,7 @@ type Fake struct {
 	subscriptions map[string]Subscription // by external ID
 	refunds       []Refund
 	coupons       []CouponRequest
+	prices        []PriceRequest
 	canceled      []string // canceled schedule IDs
 	failNext      error
 	// adopt makes Change and Cancel accept subscriptions the fake hasn't seen, which
@@ -321,6 +322,20 @@ func (f *Fake) CreateCoupon(_ context.Context, req CouponRequest) (Coupon, error
 	return Coupon{ExternalCouponID: f.nextID("coupon")}, nil
 }
 
+// CreatePrice implements Gateway.
+func (f *Fake) CreatePrice(_ context.Context, req PriceRequest) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.takeFailure(); err != nil {
+		return "", err
+	}
+	if err := req.validate("fake"); err != nil {
+		return "", err
+	}
+	f.prices = append(f.prices, req)
+	return f.nextID("price"), nil
+}
+
 // FakeCard is the card every fake customer has: Stripe's test Visa.
 var FakeCard = Card{Brand: "visa", Last4: "4242", ExpMonth: 12, ExpYear: 2030}
 
@@ -484,6 +499,13 @@ func (f *Fake) Refunds() []Refund {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return slices.Clone(f.refunds)
+}
+
+// Prices returns every price CreatePrice made, oldest first.
+func (f *Fake) Prices() []PriceRequest {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.prices)
 }
 
 // CanceledSchedules returns every schedule ID CancelSchedule stopped, oldest first.
