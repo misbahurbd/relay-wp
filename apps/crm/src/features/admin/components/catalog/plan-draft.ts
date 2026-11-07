@@ -7,10 +7,10 @@ import {
   isIncluded,
   limitsOf,
   planEntries,
-  pricingLines,
   type ResourceEntries,
 } from '../kit/limits'
 import { toMinor } from '../kit/money'
+import { extrasOf, planLines } from '../kit/plan-highlights'
 
 /** Add a plan, publish the next version of one, or edit one version in place. */
 export type PlanEditorMode =
@@ -42,9 +42,8 @@ export type PlanDraft = {
   recommended: boolean
   sortOrder: string
   entries: ResourceEntries
+  /** Extra highlights, one per line: what limits can't say. The limits list themselves. */
   features: string
-  /** Until staff edit the list it follows what's included. */
-  featuresEdited: boolean
   /** Dollars as typed, by cadence; empty means no such price. */
   prices: Record<Cadence, string>
   sell: boolean
@@ -92,7 +91,6 @@ export function initialDraft(
     sortOrder: String(source?.sort_order ?? 0),
     entries: planEntries(resources, source?.limits),
     features: (source?.features ?? []).join('\n'),
-    featuresEdited: !!source,
     prices: { month: '', year: '', lifetime: '' },
     sell: sellable,
     trialDays: String(source?.trial_days ?? 0),
@@ -109,13 +107,23 @@ export function includedCount(resources: Resource[], entries: ResourceEntries) {
   return resources.filter((r) => isIncluded(entries[r.key])).length
 }
 
-/** The pricing card's bullets: the staff's own list, or what's included until they write one. */
-export function featureLines(draft: PlanDraft, resources: Resource[]) {
-  if (!draft.featuresEdited) return pricingLines(resources, draftLimits(draft))
+/** The extra highlights staff typed, one per non-empty line. */
+export function featureLines(draft: PlanDraft) {
   return draft.features
     .split('\n')
     .map((f) => f.trim())
     .filter(Boolean)
+}
+
+/** Extra highlights that only say again what a limit already says. The pricing card leaves them out. */
+export function repeatedLines(draft: PlanDraft, resources: Resource[]) {
+  const keep = extrasOf(featureLines(draft), planLines(resources, draftLimits(draft)))
+  return featureLines(draft).length - keep.length
+}
+
+/** The extra highlights as text, without the lines that repeat a limit. */
+export function withoutRepeats(draft: PlanDraft, resources: Resource[]) {
+  return extrasOf(featureLines(draft), planLines(resources, draftLimits(draft))).join('\n')
 }
 
 /** Dollars typed into a price field as minor units, or undefined when the field is empty or not a price. */
@@ -189,7 +197,7 @@ const ERRORS: Record<StepId, (d: PlanDraft, ctx: Context) => Errors> = {
   trial: trialErrors,
   review(d, { mode, resources }) {
     const e: Errors = {}
-    const lines = featureLines(d, resources)
+    const lines = featureLines(d)
     if (lines.length > MAX_FEATURES) e.features = `Keep it to ${MAX_FEATURES} lines`
     else if (lines.some((l) => l.length > MAX_FEATURE_LENGTH)) {
       e.features = `Keep each line to ${MAX_FEATURE_LENGTH} characters`
@@ -205,12 +213,12 @@ export function stepErrors(step: StepId, draft: PlanDraft, ctx: Context): Errors
   return ERRORS[step](draft, ctx)
 }
 
-export function planBody(draft: PlanDraft, resources: Resource[]): CreatePlanInputBody {
+export function planBody(draft: PlanDraft): CreatePlanInputBody {
   return {
     code: draft.code.trim(),
     name: draft.name.trim(),
     description: draft.description.trim(),
-    features: featureLines(draft, resources),
+    features: featureLines(draft),
     recommended: draft.recommended,
     trial_days: Number(draft.trialDays) || 0,
     trial_requires_card: draft.requiresCard,
@@ -220,14 +228,10 @@ export function planBody(draft: PlanDraft, resources: Resource[]): CreatePlanInp
 }
 
 /** The calls a create or a new version makes, in order: the plan, each price, then each price on each provider. */
-export function publishSteps(
-  draft: PlanDraft,
-  resources: Resource[],
-  providers: Provider[],
-): PublishStep[] {
+export function publishSteps(draft: PlanDraft, providers: Provider[]): PublishStep[] {
   const prices = enteredCadences(draft)
   return [
-    { id: 'plan', kind: 'plan', body: planBody(draft, resources) },
+    { id: 'plan', kind: 'plan', body: planBody(draft) },
     ...prices.map((c): PublishStep => {
       const lifetime = c.id === 'lifetime'
       return {

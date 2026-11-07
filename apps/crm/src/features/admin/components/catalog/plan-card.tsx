@@ -12,6 +12,7 @@ import { ActiveBadge } from '../kit/active-badge'
 import { DeactivateButton } from '../kit/deactivate-button'
 import { FREE_PLAN, limitsSummary } from '../kit/limits'
 import { formatMoney } from '../kit/money'
+import { extrasOf, planLines } from '../kit/plan-highlights'
 
 export type PlanAction =
   | { kind: 'version'; plan: Plan }
@@ -42,6 +43,9 @@ export function PlanCard({
   const d = useDeactivate()
   const prices = plan.prices.filter((p) => showInactive || p.is_active)
   const free = plan.code === FREE_PLAN
+  const stored = plan.features ?? []
+  const extras = extrasOf(stored, planLines(resources, plan.limits)).length
+  const repeats = stored.length - extras
   const reach = plan.workspaces === 1 ? '1 workspace' : `${plan.workspaces} workspaces`
   return (
     <section className="flex flex-col gap-4 rounded-xl border bg-card p-5 shadow-card">
@@ -57,6 +61,17 @@ export function PlanCard({
           <p className="text-[13px] text-muted-foreground">
             {limitsSummary(resources, plan.limits)}
           </p>
+          {!free && (extras > 0 || repeats > 0) && (
+            <p className="text-[13px] text-muted-foreground">
+              {extras > 0 && `${extras} extra ${extras === 1 ? 'highlight' : 'highlights'}`}
+              {extras > 0 && repeats > 0 && ' · '}
+              {repeats > 0 && (
+                <span className="text-warning">
+                  {repeats === 1 ? '1 line repeats' : `${repeats} lines repeat`} the limits
+                </span>
+              )}
+            </p>
+          )}
           <p className="text-[13px] text-muted-foreground">
             {reach} ·{' '}
             {free

@@ -118,7 +118,7 @@ export function PlanEditor({
   const pending = running || update.isPending
 
   const planCreated = !!ids.plan
-  const steps = editing ? [] : publishSteps(draft, resources, draft.sell ? sellWith : [])
+  const steps = editing ? [] : publishSteps(draft, draft.sell ? sellWith : [])
   const labels = steps.map((s) => stepLabel(s, draft, (m) => formatPrice(m, CURRENCY)))
   const doneCount = steps.filter((s) => ids[s.id]).length
   const createdPrices = (['month', 'year', 'lifetime'] as const).filter((c) => ids[`price:${c}`])
@@ -160,7 +160,7 @@ export function PlanEditor({
     update.mutate(
       {
         planId: editing.id,
-        ...planBody(draft, resources),
+        ...planBody(draft),
         reason: draft.reason.trim(),
       },
       {
@@ -305,6 +305,7 @@ export function PlanEditor({
                 mode={mode}
                 draft={draft}
                 resources={resources}
+                plans={plans}
                 errors={errors}
                 steps={steps}
                 labels={labels}

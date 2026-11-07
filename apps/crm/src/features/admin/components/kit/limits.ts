@@ -1,4 +1,5 @@
 import type { Limits, Resource } from '../../types'
+import { planLines } from './plan-highlights'
 
 /** The plan a workspace with no grant uses. It can be edited but not sold. */
 export const FREE_PLAN = 'free'
@@ -75,25 +76,9 @@ export function limitsOf(entries: ResourceEntries, keepOff: boolean): Limits {
   return out
 }
 
-/** How a count or monthly resource reads in a sentence: "5,000 contacts", "30 broadcasts / month". */
-function amount(r: Resource, value: number) {
-  const n = value === UNLIMITED ? 'Unlimited' : value.toLocaleString()
-  const unit = value === 1 ? r.unit : `${r.unit}s`
-  return `${n} ${unit}${r.kind === 'monthly' ? ' / month' : ''}`
-}
-
 /** "5 team seats · 1 WhatsApp number · Automations & drip campaigns", leaving out what isn't included. */
 export function limitsSummary(resources: Resource[], limits: Limits) {
-  return pricingLines(resources, limits).join(' · ') || 'Nothing included'
-}
-
-/** Pricing table bullets for what a plan includes, in catalog order. */
-export function pricingLines(resources: Resource[], limits: Limits) {
-  return resources.flatMap((r) => {
-    const v = limits[r.key] ?? NOT_INCLUDED
-    if (v === NOT_INCLUDED) return []
-    return [r.kind === 'access' ? r.label : amount(r, v)]
-  })
+  return planLines(resources, limits).join(' · ') || 'Nothing included'
 }
 
 /** Every resource set to its widest: unlimited counts, features on. */

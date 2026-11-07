@@ -3,24 +3,26 @@ import { Button } from '#/components/ui/button'
 import { Label } from '#/components/ui/label'
 import { Textarea } from '#/components/ui/textarea'
 import type { PublishStep, StepState } from '../../api/plan-publish'
-import type { Resource } from '../../types'
-import { pricingLines } from '../kit/limits'
+import type { Plan, Resource } from '../../types'
 import { TextField } from '../kit/text-field'
+import { PlanColumnPreview } from './plan-column-preview'
 import {
-  draftLimits,
   type Errors,
-  featureLines,
   limitsChanged,
   type PlanDraft,
   type PlanEditorMode,
+  repeatedLines,
+  withoutRepeats,
 } from './plan-draft'
 import { PlanPreviewCard } from './plan-preview-card'
+import { previewCatalog } from './plan-preview-model'
 import { PlanPublishList } from './plan-publish-list'
 
 export function PlanReviewStep({
   mode,
   draft,
   resources,
+  plans,
   errors,
   steps,
   labels,
@@ -31,6 +33,8 @@ export function PlanReviewStep({
   mode: PlanEditorMode
   draft: PlanDraft
   resources: Resource[]
+  /** Every plan in the catalog, so the preview can compare this one with its neighbour. */
+  plans: Plan[]
   errors: Errors
   steps: PublishStep[]
   labels: string[]
@@ -40,8 +44,8 @@ export function PlanReviewStep({
   onChange: (patch: Partial<PlanDraft>) => void
 }) {
   const free = draft.code === 'free'
-  const auto = pricingLines(resources, draftLimits(draft))
-  const lines = featureLines(draft, resources)
+  const { model, index } = previewCatalog(draft, mode, plans, resources)
+  const repeats = repeatedLines(draft, resources)
   const edit = mode.kind === 'edit' ? mode.plan : undefined
   const changed = limitsChanged(mode, resources, draft)
 
@@ -50,37 +54,43 @@ export function PlanReviewStep({
       <div className="flex min-w-0 flex-col gap-6">
         {!free && (
           <div className="flex flex-col gap-1.5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <Label htmlFor="plan-features">Features on the pricing card</Label>
-              {draft.featuresEdited && (
-                <Button
-                  type="button"
-                  size="xs"
-                  variant="outline"
-                  onClick={() => onChange({ featuresEdited: false })}
-                >
-                  Fill from what's included
-                </Button>
-              )}
-            </div>
+            <Label htmlFor="plan-features">Extra highlights</Label>
             <Textarea
               id="plan-features"
-              rows={Math.min(Math.max(lines.length + 1, 6), 12)}
-              value={draft.featuresEdited ? draft.features : auto.join('\n')}
-              onChange={(e) => onChange({ features: e.target.value, featuresEdited: true })}
+              rows={6}
+              value={draft.features}
+              onChange={(e) => onChange({ features: e.target.value })}
               aria-invalid={errors.features ? true : undefined}
               aria-describedby="plan-features-note"
-              placeholder={'10,000 contacts\n5 team seats\nEverything in Starter'}
+              placeholder={'Onboarding call\nDedicated success manager'}
             />
             <p
               id="plan-features-note"
               className={`text-xs ${errors.features ? 'text-destructive' : 'text-muted-foreground'}`}
             >
               {errors.features ??
-                (draft.featuresEdited
-                  ? 'One per line, up to 20. Your own wording; it no longer follows what is included.'
-                  : "Filled from what's included. Change any line to write your own.")}
+                "Lines your limits can't say, like 'Onboarding call'. Limits are listed automatically."}
             </p>
+            {repeats > 0 && (
+              <Alert variant="warning">
+                <AlertDescription>
+                  <p>
+                    {repeats === 1 ? '1 line repeats' : `${repeats} lines repeat`} your limits, so
+                    the pricing card leaves {repeats === 1 ? 'it' : 'them'} out. Remove{' '}
+                    {repeats === 1 ? 'it' : 'them'}?
+                  </p>
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="outline"
+                    className="mt-2"
+                    onClick={() => onChange({ features: withoutRepeats(draft, resources) })}
+                  >
+                    Remove repeats
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
         )}
 
@@ -148,7 +158,10 @@ export function PlanReviewStep({
           <p className="mb-2 text-xs font-bold tracking-wide text-muted-foreground uppercase">
             What customers see
           </p>
-          <PlanPreviewCard draft={draft} features={lines} />
+          <div className="flex flex-col gap-5">
+            <PlanPreviewCard draft={draft} summary={model.plans[index]} />
+            <PlanColumnPreview matrix={model.matrix} index={index} />
+          </div>
         </div>
       )}
     </div>

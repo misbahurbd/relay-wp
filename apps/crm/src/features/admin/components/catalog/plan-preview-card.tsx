@@ -1,13 +1,15 @@
 import { CheckIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { ToggleGroup, ToggleGroupItem } from '#/components/ui/toggle-group'
 import type { Cadence } from '../../api/plan-publish'
 import { formatPrice, yearlySaving } from '../kit/money'
+import type { PlanSummary } from '../kit/plan-highlights'
 import { CADENCES, CURRENCY, minorOf, type PlanDraft } from './plan-draft'
 
 /** The customer's pricing card as it will read, from the same fields staff are filling in. */
-export function PlanPreviewCard({ draft, features }: { draft: PlanDraft; features: string[] }) {
+export function PlanPreviewCard({ draft, summary }: { draft: PlanDraft; summary: PlanSummary }) {
   const cadences = CADENCES.filter((c) => minorOf(draft.prices[c.id]))
   const [picked, setPicked] = useState<Cadence>('month')
   const cadence = cadences.find((c) => c.id === picked)?.id ?? cadences[0]?.id
@@ -90,20 +92,32 @@ export function PlanPreviewCard({ draft, features }: { draft: PlanDraft; feature
             </p>
           )}
         </div>
-        {features.length > 0 ? (
-          <ul className="flex flex-col gap-[9px] text-[13px]">
-            {features.map((line, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: lines can repeat while staff type
-              <li key={`${i}-${line}`} className="flex items-start gap-2">
-                <CheckIcon className="mt-0.5 size-4 flex-none text-brand" aria-hidden="true" />
-                <span className="min-w-0 break-words">{line}</span>
-              </li>
-            ))}
-          </ul>
+        {summary.highlights.length + summary.extras.length > 0 || summary.heading ? (
+          <div className="flex flex-col gap-2.5">
+            {summary.heading && <p className="text-[13px] font-bold">{summary.heading}</p>}
+            <ul className="flex flex-col gap-[9px] text-[13px]">
+              {summary.highlights.map((line) => (
+                <Feature key={`h:${line}`}>{line}</Feature>
+              ))}
+              {summary.extras.map((line, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: lines can repeat while staff type
+                <Feature key={`x${i}:${line}`}>{line}</Feature>
+              ))}
+            </ul>
+          </div>
         ) : (
-          <p className="text-[13px] text-muted-foreground">No features listed.</p>
+          <p className="text-[13px] text-muted-foreground">Nothing included yet.</p>
         )}
       </article>
     </div>
+  )
+}
+
+function Feature({ children }: { children: ReactNode }) {
+  return (
+    <li className="flex items-start gap-2">
+      <CheckIcon className="mt-0.5 size-4 flex-none text-brand" aria-hidden="true" />
+      <span className="min-w-0 break-words">{children}</span>
+    </li>
   )
 }
