@@ -145,7 +145,19 @@ The design's plan cards show a one-line description, a feature list and a "Recom
 | `features`    | `text[]` | Up to 20 lines of up to 80 characters, in order |
 | `recommended` | `bool`   | Shows the "Recommended" badge                   |
 
-Like everything on a plan, they are set when a plan or a new version is created (the CRM's plan dialog has the fields) and never edited. `GET /v1/billing/plans` and the admin catalog return them. A plan with no features falls back to its limits ("5 team members", …).
+Like everything on a plan, they are set when a plan or a new version is created (the CRM's plan dialog has the fields) and edited in place with the rest of it. `GET /v1/billing/plans` and the admin catalog return them.
+
+**What a pricing card shows.** Staff never retype limits as marketing lines. The web and the CRM each build the card from the plan's `limits` and the resource catalog (`GET /v1/billing/resources`) with one pure model, `plan-highlights.ts` (the two copies are identical, since the apps never import each other). Paid plans are compared in display order (`sort_order`), cheapest first:
+
+| Part         | What it holds                                                                                                                                                                                                              |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lines`      | Everything the plan includes, in catalog order: "3 team seats", "Unlimited contacts", "50 broadcasts / month", "Shopify & WooCommerce"                                                                                     |
+| `highlights` | The cheapest plan shows all its lines. Every other plan shows "Everything in <previous plan>, plus:" and only what beats the previous plan: a higher cap, unlimited, or a resource it lacked. Nothing worse is ever listed |
+| `extras`     | The plan's `features`, now called "Extra highlights" in the CRM: lines limits can't say ("Onboarding call"), shown after the highlights. A line that repeats one of the plan's own lines is left out                       |
+
+Because the lines come from the limits, a card can't disagree with what the plan enforces, and changing a limit in the CRM changes the card with no second edit. The CRM no longer fills `features` from the limits. For plans saved before this, the editor counts the stored lines that repeat a limit and offers "Remove repeats" (an edit of the field, saved with Save changes).
+
+**Compare all features.** Under the cards, a table lists every resource a paid plan includes, grouped Limits and Features, one column per plan: the cap ("10,000 / month"), "Unlimited", a tick for an included feature, a dash for one the plan leaves out. A resource no shown plan includes gets no row. The label column stays pinned and the table scrolls inside its own box on phones. The recommended column is tinted, and in the app the workspace's plan is marked "Current plan". The public `/pricing` page shows it open. `/billing` and the change-plan page fold it behind a "Compare all features" button. The CRM's review step previews the card and this plan's column of the table as customers will see them.
 
 The plan buttons follow the design: the current price says "Your current plan", a dearer one "Upgrade to <plan>" (filled), a cheaper one "Downgrade", the same plan at another interval "Switch to yearly/monthly". Yearly prices show their monthly equivalent with "Billed $X yearly".
 
