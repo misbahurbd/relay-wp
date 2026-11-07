@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { CircleCheckIcon, CircleXIcon, LoaderCircleIcon } from 'lucide-react'
-import { useEffect } from 'react'
+import { CircleCheckIcon, CircleXIcon, ClockIcon, LoaderCircleIcon } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Button } from '#/components/ui/button'
 import { invalidateBilling } from '../../api/billing.keys'
 import { checkoutSessionQueryOptions } from '../../api/billing.queries'
@@ -36,10 +36,25 @@ export function CheckoutStatus({
   )
 }
 
+/** How long to poll a pending checkout before telling the member to check back later. */
+const WAIT_MS = 60_000
+
 function SessionState({ workspaceId, sessionId }: { workspaceId: string; sessionId: string }) {
   const queryClient = useQueryClient()
-  const session = useQuery(checkoutSessionQueryOptions(workspaceId, sessionId))
+  const [gaveUp, setGaveUp] = useState(false)
+  const options = checkoutSessionQueryOptions(workspaceId, sessionId)
+  const session = useQuery({
+    ...options,
+    refetchInterval: gaveUp ? false : options.refetchInterval,
+  })
   const status = session.data?.status
+  const waiting = !session.isError && (!status || status === 'pending')
+
+  useEffect(() => {
+    if (!waiting || gaveUp) return
+    const timer = setTimeout(() => setGaveUp(true), WAIT_MS)
+    return () => clearTimeout(timer)
+  }, [waiting, gaveUp])
 
   useEffect(() => {
     if (status === 'completed') void invalidateBilling(queryClient, workspaceId)
@@ -55,7 +70,33 @@ function SessionState({ workspaceId, sessionId }: { workspaceId: string; session
     )
   }
 
-  if (!status || status === 'pending') {
+  if (waiting && gaveUp) {
+    return (
+      <Section role="status" aria-live="polite">
+        <div className="flex items-center gap-3">
+          <ClockIcon className="size-5 text-warning" aria-hidden="true" />
+          <p className="font-bold">Still waiting for the payment provider</p>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Your plan updates as soon as it confirms. Check Billing in a minute, or contact support.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            disabled={session.isFetching}
+            onClick={() => {
+              setGaveUp(false)
+              void session.refetch()
+            }}
+          >
+            {session.isFetching ? 'Checking…' : 'Check again'}
+          </Button>
+          <BillingLink variant="outline" />
+        </div>
+      </Section>
+    )
+  }
+
+  if (waiting) {
     return (
       <Section role="status" aria-live="polite">
         <div className="flex items-center gap-3">
