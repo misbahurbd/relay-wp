@@ -386,6 +386,8 @@ type Querier interface {
 	// the subscription. A proration (a mid-period plan change) never does, and a
 	// failed or unpaid invoice isn't a period the customer paid for.
 	GetLatestSubscriptionInvoiceID(ctx context.Context, arg GetLatestSubscriptionInvoiceIDParams) (uuid.UUID, error)
+	// The provider payment behind the subscription's newest paid period invoice.
+	GetLatestSubscriptionPayment(ctx context.Context, arg GetLatestSubscriptionPaymentParams) (GetLatestSubscriptionPaymentRow, error)
 	// The workspace's one in_installments, paid or defaulted order.
 	GetLiveOrder(ctx context.Context, workspaceID uuid.UUID) (GetLiveOrderRow, error)
 	// The workspace's one trialing, active or past_due subscription.

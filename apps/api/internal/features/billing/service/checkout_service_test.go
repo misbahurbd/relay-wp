@@ -281,6 +281,17 @@ func TestLifetimeDealCancelsTheSubscriptionLiveAtPayment(t *testing.T) {
 	if credit != 0 {
 		t.Errorf("order credit %d, want 0 (none was quoted)", credit)
 	}
+	// The subscription went live after the quote, so its paid period was
+	// never credited: it is refunded in full instead.
+	var refunded int64
+	if err := e.pool.QueryRow(e.ctx, `
+		SELECT coalesce(sum(r.amount_minor), 0) FROM refunds r JOIN invoices i ON i.id = r.invoice_id
+		WHERE i.subscription_id = $1 AND r.status <> 'failed'`, live.ID).Scan(&refunded); err != nil {
+		t.Fatal(err)
+	}
+	if refunded != 1000 {
+		t.Errorf("late subscription's period refunded %d, want 1000", refunded)
+	}
 }
 
 func TestCardTrialStartsTrialing(t *testing.T) {

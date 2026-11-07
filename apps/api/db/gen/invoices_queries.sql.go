@@ -531,6 +531,33 @@ func (q *Queries) GetLatestSubscriptionInvoiceID(ctx context.Context, arg GetLat
 	return id, err
 }
 
+const getLatestSubscriptionPayment = `-- name: GetLatestSubscriptionPayment :one
+SELECT provider, external_payment_id
+FROM invoices
+WHERE workspace_id = $1 AND subscription_id = $2 AND NOT proration
+  AND status = 'paid' AND external_payment_id IS NOT NULL
+ORDER BY created_at DESC, id DESC
+LIMIT 1
+`
+
+type GetLatestSubscriptionPaymentParams struct {
+	WorkspaceID    uuid.UUID
+	SubscriptionID *uuid.UUID
+}
+
+type GetLatestSubscriptionPaymentRow struct {
+	Provider          string
+	ExternalPaymentID *string
+}
+
+// The provider payment behind the subscription's newest paid period invoice.
+func (q *Queries) GetLatestSubscriptionPayment(ctx context.Context, arg GetLatestSubscriptionPaymentParams) (GetLatestSubscriptionPaymentRow, error) {
+	row := q.db.QueryRow(ctx, getLatestSubscriptionPayment, arg.WorkspaceID, arg.SubscriptionID)
+	var i GetLatestSubscriptionPaymentRow
+	err := row.Scan(&i.Provider, &i.ExternalPaymentID)
+	return i, err
+}
+
 const getOrderRefundTotals = `-- name: GetOrderRefundTotals :one
 SELECT COALESCE((SELECT sum(i.total_minor) FROM invoices i
                  WHERE i.workspace_id = $1 AND i.order_id = $2

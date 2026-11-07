@@ -245,6 +245,15 @@ SELECT EXISTS (
       AND status IN ('paid', 'partially_refunded', 'disputed')
 );
 
+-- name: GetLatestSubscriptionPayment :one
+-- The provider payment behind the subscription's newest paid period invoice.
+SELECT provider, external_payment_id
+FROM invoices
+WHERE workspace_id = @workspace_id AND subscription_id = @subscription_id AND NOT proration
+  AND status = 'paid' AND external_payment_id IS NOT NULL
+ORDER BY created_at DESC, id DESC
+LIMIT 1;
+
 -- name: GetLatestSubscriptionInvoiceID :one
 -- The subscription's newest paid period invoice: refunding it in full ends
 -- the subscription. A proration (a mid-period plan change) never does, and a

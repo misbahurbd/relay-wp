@@ -354,9 +354,26 @@ func (l lifetimeDeals) startOrder(ctx context.Context, tx pgx.Tx, r repository.R
 		}
 	}
 	// Q13. Whatever subscription is live now ends, even one that went live
-	// after the quote; the credit was fixed on the order when it was quoted.
-	if _, err := l.t3.cancelForLTD(ctx, tx, o.WorkspaceID); err != nil {
+	// after the quote. The order's credit was fixed when it was quoted, so a
+	// subscription owed more than that (one paid after the quote) gets its
+	// paid period refunded instead.
+	credit, err := l.t3.cancelForLTD(ctx, tx, o.WorkspaceID)
+	if err != nil {
 		return err
+	}
+	if credit.SubscriptionID != nil && credit.CreditMinor > o.CreditMinor {
+		last, err := r.GetLatestSubscriptionPayment(ctx, gen.GetLatestSubscriptionPaymentParams{
+			WorkspaceID: o.WorkspaceID, SubscriptionID: credit.SubscriptionID,
+		})
+		switch {
+		case repository.IsNoRows(err):
+		case err != nil:
+			return fmt.Errorf("get the subscription's last payment: %w", err)
+		default:
+			if err := l.requestRefund(ctx, tx, o.WorkspaceID, payment.Provider(last.Provider), *last.ExternalPaymentID, "lifetime_deal"); err != nil {
+				return err
+			}
+		}
 	}
 
 	var first *model.Installment
