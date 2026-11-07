@@ -751,6 +751,13 @@ func (s *Service) refundDuplicateSubscription(ctx context.Context, tx pgx.Tx, se
 		}
 		if row.ExternalSubscriptionID != nil {
 			extSub = *row.ExternalSubscriptionID
+		} else if extSub != "" {
+			// A refused cancel is retried by this ID (RetryRefusedCancels).
+			if _, err := r.SetSubscriptionExternalID(ctx, gen.SetSubscriptionExternalIDParams{
+				ExternalSubscriptionID: &extSub, WorkspaceID: ws, SubscriptionID: subID,
+			}); err != nil {
+				return fmt.Errorf("set subscription external id: %w", err)
+			}
 		}
 	} else {
 		customer, err := r.EnsureBillingCustomer(ctx, gen.EnsureBillingCustomerParams{WorkspaceID: ws, Provider: string(session.Provider)})

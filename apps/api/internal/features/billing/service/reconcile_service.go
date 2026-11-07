@@ -168,12 +168,16 @@ func (s *Service) ReconcileSubscriptions(ctx context.Context) (int, error) {
 	}
 }
 
+// errNoExternalID says a refused cancel has no provider ID to send again.
+var errNoExternalID = errors.New("no provider id")
+
 // RetryRefusedCancels asks the provider again to stop billing for each
 // subscription and installment schedule it refused for good to cancel after
 // Relay ended it (stopProviderSubscription, stopSchedule). One the provider
-// now takes, or no longer has, is cleared; one still refused stays for the
+// now takes, or no longer has, is cleared. One still refused stays for the
 // next run, so it keeps being asked until a person fixes what the provider
-// objects to. It returns how many it cleared. Run hourly by the
+// objects to; one with no provider ID to send stays and is logged for a
+// person to cancel at the provider. It returns how many it cleared. Run hourly by the
 // ReconcileSubscriptions worker.
 func (s *Service) RetryRefusedCancels(ctx context.Context) (int, error) {
 	repo := repository.NewRepository(s.pool)
@@ -183,7 +187,13 @@ func (s *Service) RetryRefusedCancels(ctx context.Context) (int, error) {
 		if !ok {
 			return nil
 		}
-		if err := call(g); err != nil && !errors.Is(err, payment.ErrNotFound) {
+		err := call(g)
+		if errors.Is(err, errNoExternalID) {
+			s.logger().ErrorContext(ctx, "billing: a refused cancel has no provider ID to send; a person must cancel it at the provider",
+				"op", op, "id", id)
+			return nil
+		}
+		if err != nil && !errors.Is(err, payment.ErrNotFound) {
 			s.logger().WarnContext(ctx, "billing: payment provider still refuses to "+op+"; trying next run", "id", id, "err", err)
 			return nil
 		}
@@ -204,7 +214,7 @@ func (s *Service) RetryRefusedCancels(ctx context.Context) (int, error) {
 			after = row.ID
 			if err := retry("cancel a subscription", row.ID, row.Provider, func(g payment.Gateway) error {
 				if row.ExternalSubscriptionID == nil {
-					return nil
+					return errNoExternalID
 				}
 				_, err := g.CancelSubscription(ctx, payment.CancelRequest{ExternalSubscriptionID: *row.ExternalSubscriptionID, Mode: payment.CancelNow})
 				return err
@@ -227,7 +237,7 @@ func (s *Service) RetryRefusedCancels(ctx context.Context) (int, error) {
 			after = row.ID
 			if err := retry("cancel an installment schedule", row.ID, row.Provider, func(g payment.Gateway) error {
 				if row.ExternalRef == nil {
-					return nil
+					return errNoExternalID
 				}
 				return g.CancelSchedule(ctx, *row.ExternalRef)
 			}, func() (int64, error) {

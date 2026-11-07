@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -196,6 +197,48 @@ func TestDuplicateSubscriptionCheckoutRefundsOnce(t *testing.T) {
 	}
 	if asked != 1 {
 		t.Errorf("refund requests for the duplicate payment = %d, want 1", asked)
+	}
+}
+
+// A duplicate subscription whose provider refuses for good to cancel it is
+// canceled by the hourly sweep even when its row never got the provider's ID
+// at checkout start: the ID comes from the payment, and the sweep never
+// forgets a refused cancel it couldn't send.
+func TestRefusedDuplicateCancelIsRetriedWithoutAStoredID(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	first := e.checkout(p.Monthly, "")
+	second := e.checkout(p.Monthly, "")
+	e.pay(second)
+	e.exec(`UPDATE subscriptions SET external_subscription_id = NULL WHERE id = $1`, *first.Session.SubscriptionID)
+
+	e.fake.FailNext(fmt.Errorf("fake: %w", payment.ErrInvalidRequest))
+	ev := e.pay(first)
+	if _, err := e.svc.RetryRefusedCancels(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	if fs, _ := e.fake.Subscription(ev.Payment.ExternalSubscriptionID); fs.Status != payment.SubscriptionCanceled {
+		t.Errorf("duplicate provider subscription after the sweep = %s, want canceled", fs.Status)
+	}
+}
+
+// A refused cancel on a subscription with no provider ID stays for a person:
+// the sweep can't send it, so it doesn't clear it.
+func TestRefusedCancelWithoutAnIDStays(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	sub := e.subscribe(p.Monthly)
+	e.exec(`UPDATE subscriptions SET external_subscription_id = NULL, provider_cancel_refused_at = now() WHERE id = $1`, sub.ID)
+	if _, err := e.svc.RetryRefusedCancels(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	var outstanding bool
+	if err := e.pool.QueryRow(e.ctx, `SELECT provider_cancel_refused_at IS NOT NULL FROM subscriptions WHERE id = $1`,
+		sub.ID).Scan(&outstanding); err != nil {
+		t.Fatal(err)
+	}
+	if !outstanding {
+		t.Error("the sweep cleared a refused cancel it never sent")
 	}
 }
 
