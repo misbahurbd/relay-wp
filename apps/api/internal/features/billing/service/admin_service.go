@@ -349,6 +349,9 @@ func (s *Service) CreateProviderPrice(ctx context.Context, in model.NewProviderP
 		if err != nil {
 			return uuid.Nil, fmt.Errorf("get installment offer: %w", err)
 		}
+		if err := s.ensureOfferProduct(ctx, r, in); err != nil {
+			return uuid.Nil, err
+		}
 	}
 	if ext == nil && in.InstallmentOfferID == nil {
 		created, err := s.createOnProvider(ctx, r, in.PlanPriceID, in.Provider)
@@ -365,6 +368,43 @@ func (s *Service) CreateProviderPrice(ctx context.Context, in model.NewProviderP
 		return uuid.Nil, model.ErrPriceNotFound
 	}
 	return id, catalogErr("create provider price", err)
+}
+
+// ensureOfferProduct gives an installment offer link the plain provider price
+// its one-by-one payments charge through, on a provider whose payment-mode
+// checkout needs a product (Creem): it creates one on the provider when the
+// price has none, so staff get both links from one request.
+func (s *Service) ensureOfferProduct(ctx context.Context, r repository.Repository, in model.NewProviderPrice) error {
+	if !s.needsProduct(model.OfferProvider{Provider: payment.Provider(in.Provider), Collection: deref(in.Collection)}) {
+		return nil
+	}
+	if _, err := r.GetProviderPrice(ctx, gen.GetProviderPriceParams{
+		PlanPriceID: in.PlanPriceID, InstallmentOfferID: in.InstallmentOfferID, Provider: in.Provider,
+	}); err == nil {
+		return model.ErrCatalogDuplicate // checked first, so a refused link leaves no product behind
+	} else if !repository.IsNoRows(err) {
+		return fmt.Errorf("get provider price: %w", err)
+	}
+	pp, err := r.GetProviderPrice(ctx, gen.GetProviderPriceParams{PlanPriceID: in.PlanPriceID, Provider: in.Provider})
+	switch {
+	case err == nil && deref(pp.ExternalPriceID) != "":
+		return nil
+	case err == nil:
+		// A plain link with no product: staff must replace it, as rows are never edited.
+		return model.ErrInvalidInput.WithDetails(apperr.Detail{
+			Field: "provider", Message: "The price's " + in.Provider + " link has no product. Deactivate it and add it again first.",
+		})
+	case !repository.IsNoRows(err):
+		return fmt.Errorf("get provider price: %w", err)
+	}
+	created, err := s.createOnProvider(ctx, r, in.PlanPriceID, in.Provider)
+	if err != nil {
+		return err
+	}
+	_, err = r.CreateProviderPrice(ctx, gen.CreateProviderPriceParams{
+		PlanPriceID: in.PlanPriceID, Provider: in.Provider, ExternalPriceID: &created,
+	})
+	return catalogErr("create provider price", err)
 }
 
 // createOnProvider has the provider create the product or price a plain plan

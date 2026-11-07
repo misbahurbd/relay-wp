@@ -38,8 +38,13 @@ func (s *Service) Catalog(ctx context.Context) (model.Catalog, error) {
 	}
 
 	// Who sells what, keeping only enabled providers.
+	type sale struct {
+		price    uuid.UUID
+		provider payment.Provider
+	}
 	priceProviders := map[uuid.UUID][]payment.Provider{}
 	offerProviders := map[uuid.UUID][]model.OfferProvider{}
+	products := map[sale]bool{}
 	for _, pp := range providerPrices {
 		p := payment.Provider(pp.Provider)
 		if _, ok := s.payments.Get(p); !ok {
@@ -47,6 +52,7 @@ func (s *Service) Catalog(ctx context.Context) (model.Catalog, error) {
 		}
 		if pp.InstallmentOfferID == nil {
 			priceProviders[pp.PlanPriceID] = append(priceProviders[pp.PlanPriceID], p)
+			products[sale{pp.PlanPriceID, p}] = deref(pp.ExternalPriceID) != ""
 			continue
 		}
 		offerProviders[*pp.InstallmentOfferID] = append(offerProviders[*pp.InstallmentOfferID],
@@ -54,9 +60,17 @@ func (s *Service) Catalog(ctx context.Context) (model.Catalog, error) {
 	}
 	priceOffers := map[uuid.UUID][]model.InstallmentOffer{}
 	for _, o := range offers {
+		var sellers []model.OfferProvider
+		for _, op := range offerProviders[o.ID] {
+			// Relay charges these installments one by one, through the price's product.
+			if s.needsProduct(op) && !products[sale{o.PlanPriceID, op.Provider}] {
+				continue
+			}
+			sellers = append(sellers, op)
+		}
 		priceOffers[o.PlanPriceID] = append(priceOffers[o.PlanPriceID], model.InstallmentOffer{
 			ID: o.ID, PlanPriceID: o.PlanPriceID, Count: int(o.Count), Interval: o.Interval, TotalMinor: o.TotalMinor,
-			GraceDays: int(o.GraceDays), MaxMissed: int(o.MaxMissed), Providers: offerProviders[o.ID],
+			GraceDays: int(o.GraceDays), MaxMissed: int(o.MaxMissed), Providers: sellers,
 		})
 	}
 
@@ -91,6 +105,14 @@ func (s *Service) Catalog(ctx context.Context) (model.Catalog, error) {
 		out.Providers = append(out.Providers, model.ProviderInfo{Provider: p, Capabilities: g.Capabilities()})
 	}
 	return out, nil
+}
+
+// needsProduct says whether Relay charges an offer's installments through the
+// price's provider product: one by one (not provider_schedule) on a provider
+// with Capabilities.PaymentNeedsProduct.
+func (s *Service) needsProduct(op model.OfferProvider) bool {
+	g, ok := s.payments.Get(op.Provider)
+	return ok && op.Collection != model.CollectionProviderSchedule && g.Capabilities().PaymentNeedsProduct
 }
 
 // Price returns one price, active or not, with its plan code and the enabled
@@ -181,17 +203,19 @@ func externalPriceID(ctx context.Context, r repository.Repository, planPriceID u
 }
 
 // oneTimeProduct is the provider product a payment-mode checkout of
-// planPriceID charges, for providers that need one (Creem); "" when the price
-// has none on p, which providers that charge a bare amount (Stripe) accept.
-func oneTimeProduct(ctx context.Context, r repository.Repository, planPriceID uuid.UUID, p payment.Provider) (string, error) {
-	pp, err := externalPriceID(ctx, r, planPriceID, nil, p)
-	if errors.Is(err, model.ErrNoProviderForPrice) {
-		return "", nil
-	}
-	if err != nil {
+// planPriceID charges through g. It is "" when the price has none, which a
+// provider that charges a bare amount (Stripe) accepts; one with
+// Capabilities.PaymentNeedsProduct (Creem) can't sell it: model.ErrNoProviderForPrice.
+func oneTimeProduct(ctx context.Context, r repository.Repository, planPriceID uuid.UUID, g payment.Gateway) (string, error) {
+	pp, err := externalPriceID(ctx, r, planPriceID, nil, g.Provider())
+	if err != nil && !errors.Is(err, model.ErrNoProviderForPrice) {
 		return "", err
 	}
-	return deref(pp.ExternalPriceID), nil
+	product := deref(pp.ExternalPriceID)
+	if product == "" && g.Capabilities().PaymentNeedsProduct {
+		return "", model.ErrNoProviderForPrice
+	}
+	return product, nil
 }
 
 // deref returns *p, or the zero value for nil.

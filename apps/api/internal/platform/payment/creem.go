@@ -69,7 +69,7 @@ func (g *creemGateway) Provider() Provider { return Creem }
 func (g *creemGateway) Capabilities() Capabilities {
 	return Capabilities{
 		EmbeddableURL: true, RenewsSubscriptions: true, Coupons: true, MerchantOfRecord: true, Currencies: []string{"USD"},
-		MinChargeMinor: creemMinCustomPrice,
+		PaymentNeedsProduct: true, MinChargeMinor: creemMinCustomPrice,
 	}
 }
 

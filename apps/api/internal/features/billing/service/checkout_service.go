@@ -188,20 +188,17 @@ func (s *Service) prepareOrder(ctx context.Context, r repository.Repository, c *
 	if err := checkMinCharge(c.gateway, q, offer, collection); err != nil {
 		return err
 	}
-	product, err := oneTimeProduct(ctx, r, price.ID, c.gateway.Provider())
-	if err != nil {
-		return err
-	}
 	c.req = payment.CheckoutRequest{
-		Mode: payment.ModePayment, ExternalPriceID: product, AmountMinor: q.DueNowMinor, Currency: q.Currency,
+		Mode: payment.ModePayment, AmountMinor: q.DueNowMinor, Currency: q.Currency,
 		Description: price.PlanName + ", lifetime",
 	}
-	if offer == nil {
-		return nil
+	if offer != nil {
+		c.req.Description = fmt.Sprintf("%s, lifetime in %d payments", price.PlanName, offer.Count)
 	}
-	c.req.Description = fmt.Sprintf("%s, lifetime in %d payments", price.PlanName, offer.Count)
-	if collection != model.CollectionProviderSchedule {
-		return nil // app_link and provider_financed take the first payment as a one-off
+	if offer == nil || collection != model.CollectionProviderSchedule {
+		// Relay charges it as a one-off: in full, or the first app_link or provider_financed payment.
+		c.req.ExternalPriceID, err = oneTimeProduct(ctx, r, price.ID, c.gateway)
+		return err
 	}
 	if !c.gateway.Capabilities().Installments {
 		return model.ErrNoProviderForPrice
@@ -284,7 +281,7 @@ func (s *Service) StartPaymentCheckout(ctx context.Context, workspaceID, userID 
 	if currency == "" {
 		currency = order.Currency
 	}
-	product, err := oneTimeProduct(ctx, r, order.PlanPriceID, provider)
+	product, err := oneTimeProduct(ctx, r, order.PlanPriceID, g)
 	if err != nil {
 		return model.StartedCheckout{}, err
 	}

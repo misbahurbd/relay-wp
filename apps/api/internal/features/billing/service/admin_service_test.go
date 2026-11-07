@@ -524,3 +524,44 @@ func TestAdminProviderPriceFailuresLeaveNoLink(t *testing.T) {
 		t.Fatalf("an inactive price reached the provider: %d", n)
 	}
 }
+
+// On a provider whose one-off payments charge a product (Creem), linking an
+// app_link offer creates the price's product too, once.
+func TestAdminOfferLinkCreatesThePriceProduct(t *testing.T) {
+	e := newT3Env(t)
+	e.needsProductCaps()
+	planID, err := e.svc.CreatePlan(e.ctx, model.NewPlan{Code: "adm_" + uuid.NewString()[:8], PlanDetails: details("Offer")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ltd, err := e.svc.CreatePrice(e.ctx, model.NewPrice{PlanID: planID, BillingType: model.BillingOneTime, Currency: "USD", AmountMinor: 19900})
+	if err != nil {
+		t.Fatal(err)
+	}
+	offer, err := e.svc.CreateInstallmentOffer(e.ctx, model.NewInstallmentOffer{
+		PlanPriceID: ltd, Count: 3, TotalMinor: 21000, GraceDays: 7, MaxMissed: 2,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stripe, link := string(payment.Stripe), model.CollectionAppLink
+	in := model.NewProviderPrice{PlanPriceID: ltd, InstallmentOfferID: &offer, Provider: stripe, Collection: &link}
+	if _, err := e.svc.CreateProviderPrice(e.ctx, in); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.pricesFor(ltd); len(got) != 1 || got[0].Name != "Relay Offer (lifetime)" || got[0].AmountMinor != 19900 {
+		t.Fatalf("provider requests = %+v, want the lifetime product", got)
+	}
+	r := repository.NewRepository(e.pool)
+	if pp, err := r.GetProviderPrice(e.ctx, gen.GetProviderPriceParams{PlanPriceID: ltd, Provider: stripe}); err != nil ||
+		!strings.HasPrefix(deref(pp.ExternalPriceID), "fake_price_") {
+		t.Fatalf("plain link = %+v, %v", pp, err)
+	}
+
+	if _, err := e.svc.CreateProviderPrice(e.ctx, in); !errors.Is(err, model.ErrCatalogDuplicate) {
+		t.Fatalf("second offer link: err = %v", err)
+	}
+	if n := len(e.pricesFor(ltd)); n != 1 {
+		t.Fatalf("a refused link still reached the provider: %d requests", n)
+	}
+}

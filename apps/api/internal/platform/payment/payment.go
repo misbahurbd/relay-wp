@@ -124,6 +124,10 @@ type Capabilities struct {
 	CheckoutTrials bool `json:"checkout_trials"`
 	// Coupons: CreateCoupon works, so discounts carry over to renewals.
 	Coupons bool `json:"coupons"`
+	// PaymentNeedsProduct: a payment-mode checkout charges a provider product
+	// (CheckoutRequest.ExternalPriceID), so a one-time price sells in full or by
+	// app_link installments only once it has a plain provider price (Creem).
+	PaymentNeedsProduct bool `json:"payment_needs_product"`
 	// MinChargeMinor is the smallest amount a payment-mode checkout may charge,
 	// in minor units; 0 means Relay enforces no floor.
 	MinChargeMinor int64 `json:"min_charge_minor"`

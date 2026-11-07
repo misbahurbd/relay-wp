@@ -170,7 +170,11 @@ Replace it with a real back office (roles, an audit log) before there are severa
   Stripe gets one price with its product, Creem gets a product that is tax exclusive (`tax_mode`
   `exclusive`, `saas` category). A Creem product never carries a trial: Creem would trial every
   checkout of it, so a workspace could trial again and again. Staff can still paste an ID made in the provider's
-  dashboard, and installment offer links still take a pasted ID or none.
+  dashboard, and installment offer links still take a pasted ID or none. On a provider with
+  `Capabilities.PaymentNeedsProduct` (Creem), an `app_link` or `provider_financed` offer link also
+  needs the price's own product, which its one-by-one payments charge: when the price has no link on
+  that provider, the same request creates the product and adds that link too. Until it has one, the
+  catalog lists the offer without that provider and checkout refuses it (`no_payment_provider`).
 - **Discount codes**: the same create, list and deactivate as `relay billing discounts`.
 - **Workspaces**: list with the current grant; grant a plan by hand (`source = manual`, a reason
   is required, an end date is optional), end a manual grant or trial, or restore a suspended

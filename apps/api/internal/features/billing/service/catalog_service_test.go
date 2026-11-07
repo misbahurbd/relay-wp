@@ -75,3 +75,76 @@ func TestCatalogListsEnabledProvidersOnly(t *testing.T) {
 		t.Fatalf("unknown price: %v", err)
 	}
 }
+
+// needsProductCaps makes the shared fake charge one-off payments through a
+// provider product, as Creem does, until the test ends.
+func (e *t3Env) needsProductCaps() {
+	e.t.Helper()
+	caps := e.fake.Capabilities()
+	e.t.Cleanup(func() { e.fake.SetCapabilities(caps) })
+	creemLike := caps
+	creemLike.PaymentNeedsProduct = true
+	e.fake.SetCapabilities(creemLike)
+}
+
+// On a provider whose one-off payments charge a product (Creem), an app_link
+// offer is on sale only once its price has that product.
+func TestCatalogHidesAnOfferWithoutItsPriceProduct(t *testing.T) {
+	e := newT3Env(t)
+	e.needsProductCaps()
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	r := repository.NewRepository(e.pool)
+	lifetime, err := r.CreatePlanPrice(e.ctx, gen.CreatePlanPriceParams{
+		PlanID: p.ID, BillingType: model.BillingOneTime, Currency: "USD", AmountMinor: 30000,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	offerID, err := r.CreateInstallmentOffer(e.ctx, gen.CreateInstallmentOfferParams{
+		PlanPriceID: lifetime, Count: 3, TotalMinor: 33000, GraceDays: 7, MaxMissed: 2,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	link := model.CollectionAppLink
+	if _, err := r.CreateProviderPrice(e.ctx, gen.CreateProviderPriceParams{
+		PlanPriceID: lifetime, InstallmentOfferID: &offerID, Provider: string(payment.Stripe), Collection: &link,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	offerSellers := func() []model.OfferProvider {
+		c, err := e.svc.Catalog(e.ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, pl := range c.Plans {
+			for _, pr := range pl.Prices {
+				for _, o := range pr.InstallmentOffers {
+					if o.ID == offerID {
+						return o.Providers
+					}
+				}
+			}
+		}
+		t.Fatal("offer not in the catalog")
+		return nil
+	}
+	if got := offerSellers(); len(got) != 0 {
+		t.Fatalf("offer sold by %+v without its price's product", got)
+	}
+	if _, err := e.svc.CreateCheckout(e.ctx, e.ws, e.user, model.CheckoutInput{
+		PlanPriceID: lifetime, InstallmentOfferID: &offerID, IdempotencyKey: uuid.NewString(),
+	}); !errors.Is(err, model.ErrNoProviderForPrice) {
+		t.Fatalf("checkout without the product: err = %v", err)
+	}
+
+	ext := "prod_" + uuid.NewString()
+	if _, err := r.CreateProviderPrice(e.ctx, gen.CreateProviderPriceParams{
+		PlanPriceID: lifetime, Provider: string(payment.Stripe), ExternalPriceID: &ext,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := offerSellers(); len(got) != 1 || got[0].Collection != model.CollectionAppLink {
+		t.Fatalf("offer sellers with the product = %+v", got)
+	}
+}
