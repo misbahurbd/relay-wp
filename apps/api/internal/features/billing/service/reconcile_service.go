@@ -28,7 +28,8 @@ const (
 // applied as its webhook would be, and an unpaid one past expires_at is
 // expired, releasing its discount. A provider that can't be asked right now
 // leaves its sessions for the next run, so "you haven't been charged" is only
-// ever said of a checkout the provider confirmed open. It returns how many
+// ever said of a checkout the provider confirmed open, or one it refuses for
+// good to read back (a 4xx), whose payment would still come by webhook. It returns how many
 // it settled. Run by the ReconcileCheckouts worker.
 func (s *Service) ReconcileCheckouts(ctx context.Context) (int, error) {
 	settled := 0
@@ -58,11 +59,16 @@ func (s *Service) ReconcileCheckouts(ctx context.Context) (int, error) {
 }
 
 func (s *Service) reconcileCheckout(ctx context.Context, row gen.ListOpenCheckoutSessionsRow, now time.Time) (bool, error) {
+	var refused error
 	if row.ExternalSessionID != nil {
 		ev, err := s.fetchCheckout(ctx, row.Provider, *row.ExternalSessionID)
 		switch {
 		case errors.Is(err, payment.ErrUnsupported), errors.Is(err, payment.ErrNotFound):
 			// Nothing to ask, or nothing was ever opened: expiry decides.
+		case payment.Permanent(err):
+			// Asking again gets the same refusal: expiry decides, and the
+			// refusal is logged once, when the session expires.
+			refused = err
 		case err != nil:
 			s.log.WarnContext(ctx, "billing: couldn't read a checkout back; trying next run",
 				"checkout_session_id", row.ID, "error", err)
@@ -81,6 +87,10 @@ func (s *Service) reconcileCheckout(ctx context.Context, row gen.ListOpenCheckou
 	}
 	if row.ExpiresAt.After(now) {
 		return false, nil
+	}
+	if refused != nil {
+		s.log.ErrorContext(ctx, "billing: payment provider refused to read a checkout back; expiring it",
+			"checkout_session_id", row.ID, "error", refused)
 	}
 	err := database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
 		return s.FailCheckout(ctx, tx, row.WorkspaceID, row.ID, model.CheckoutExpired)

@@ -2,6 +2,9 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,6 +24,13 @@ func (unreachable) FetchCheckout(context.Context, string) (payment.Event, error)
 
 func (unreachable) FetchSubscription(context.Context, string) (payment.Event, error) {
 	return payment.Event{}, payment.ErrUnavailable
+}
+
+// refusing is a provider that answers every read back with a 4xx.
+type refusing struct{ *payment.Fake }
+
+func (refusing) FetchCheckout(context.Context, string) (payment.Event, error) {
+	return payment.Event{}, fmt.Errorf("refusing: %w", payment.ErrInvalidRequest)
 }
 
 // runQueued processes every payment event queued since the queue held seen jobs.
@@ -155,5 +165,47 @@ func TestLostCancelWebhookIsReconciled(t *testing.T) {
 	e.wantCache(e.ws, model.FreePlan)
 	if got, err := e.svc.Subscription(e.ctx, e.ws); err != nil || got.Status != model.SubscriptionCanceled {
 		t.Fatalf("subscription after the provider canceled it: %+v, %v", got.Status, err)
+	}
+}
+
+// A checkout the provider refuses to read back (a 4xx) can't be settled by
+// asking, so expiry decides, quietly until then: it expires, its discount is
+// released, and the refusal is logged once.
+func TestCheckoutTheProviderRefusesToReadBackExpires(t *testing.T) {
+	e := newT3Env(t)
+	logs := &syncBuffer{}
+	e.svc.log = slog.New(slog.NewJSONHandler(logs, nil))
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	c := e.checkout(p.Monthly, "")
+	refused, err := payment.NewRegistry(refusing{e.fake})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.svc.payments = refused
+
+	for range 3 {
+		e.tick(checkoutSettle + time.Minute)
+		if _, err := e.svc.ReconcileCheckouts(e.ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := e.sessionStatus(c.Session.ID); got != model.CheckoutPending {
+		t.Fatalf("session %s before its expiry, want pending", got)
+	}
+	if strings.Contains(logs.String(), c.Session.ID.String()) {
+		t.Errorf("logged before expiry: %s", logs.String())
+	}
+
+	e.tick(24 * time.Hour)
+	for range 2 {
+		if _, err := e.svc.ReconcileCheckouts(e.ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := e.sessionStatus(c.Session.ID); got != model.CheckoutExpired {
+		t.Fatalf("session %s past expiry, want expired", got)
+	}
+	if n := strings.Count(logs.String(), c.Session.ID.String()); n != 1 {
+		t.Errorf("session logged %d times, want once", n)
 	}
 }
