@@ -319,9 +319,13 @@ func TestInvoiceDescriptions(t *testing.T) {
 			PeriodStart: at(2026, 12, 7), PeriodEnd: at(2027, 12, 7),
 		}, "Growth plan · yearly · Dec 7, 2026 – Dec 7, 2027"},
 		{"proration", gen.GetInvoiceDocumentRow{
-			PlanName: "Growth", PlanInterval: &month,
+			PlanName: "Growth", PlanInterval: &month, Prorated: true,
 			PeriodStart: at(2026, 11, 20), PeriodEnd: at(2026, 12, 7),
 		}, "Growth plan · change of plan (prorated)"},
+		{"short period, not a plan change", gen.GetInvoiceDocumentRow{
+			PlanName: "Growth", PlanInterval: &month,
+			PeriodStart: at(2026, 11, 20), PeriodEnd: at(2026, 12, 7),
+		}, "Growth plan · monthly · Nov 20 – Dec 7, 2026"},
 		{"proration over the full period", gen.GetInvoiceDocumentRow{
 			PlanName: "Growth", PlanInterval: &month, SubtotalMinor: 5000, Prorated: true,
 			PeriodStart: at(2026, 11, 7), PeriodEnd: at(2026, 12, 7),

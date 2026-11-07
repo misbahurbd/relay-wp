@@ -1033,7 +1033,6 @@ func (s *Service) createInvoice(ctx context.Context, tx pgx.Tx, workspaceID uuid
 		SubtotalMinor: p.TotalMinor - p.TaxMinor + discount, TaxMinor: p.TaxMinor, TotalMinor: p.TotalMinor,
 		Currency: p.Currency, PeriodStart: p.PeriodStart, PeriodEnd: p.PeriodEnd, BillTo: billTo,
 		DiscountID: discountID, DiscountMinor: discount, PaidAt: paidAt,
-		Proration: p.Proration,
 	})
 }
 

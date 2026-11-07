@@ -183,6 +183,9 @@ type Querier interface {
 	// plan_price_id is what the payment bought: the checkout's price, else the
 	// order's, else the subscription's, or its scheduled downgrade when this
 	// period starts it (the renewal applies it next, in this transaction).
+	// proration is Relay's one rule for a mid-period plan change, since Creem
+	// marks none: a subscription payment whose period starts inside a period the
+	// subscription was already invoiced for. Refunds and the PDF read it.
 	CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (uuid.UUID, error)
 	CreateOAuthFlow(ctx context.Context, arg CreateOAuthFlowParams) error
 	CreateOnboarding(ctx context.Context, arg CreateOnboardingParams) error
@@ -362,8 +365,7 @@ type Querier interface {
 	GetInvitationByTokenHash(ctx context.Context, tokenHash []byte) (GetInvitationByTokenHashRow, error)
 	GetInvoice(ctx context.Context, arg GetInvoiceParams) (GetInvoiceRow, error)
 	// Everything the invoice PDF and its email show. The plan is the price the
-	// invoice was paid for. A subscription invoice that starts inside a period an
-	// earlier one already paid for is a plan change (a proration).
+	// invoice was paid for.
 	GetInvoiceDocument(ctx context.Context, arg GetInvoiceDocumentParams) (GetInvoiceDocumentRow, error)
 	// The workspace's live subscription if it has one, else its most recent.
 	GetLatestSubscription(ctx context.Context, workspaceID uuid.UUID) (GetLatestSubscriptionRow, error)

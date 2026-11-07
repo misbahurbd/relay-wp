@@ -6,13 +6,21 @@
 -- plan_price_id is what the payment bought: the checkout's price, else the
 -- order's, else the subscription's, or its scheduled downgrade when this
 -- period starts it (the renewal applies it next, in this transaction).
+-- proration is Relay's one rule for a mid-period plan change, since Creem
+-- marks none: a subscription payment whose period starts inside a period the
+-- subscription was already invoiced for. Refunds and the PDF read it.
 INSERT INTO invoices (workspace_id, subscription_id, order_id, installment_id, checkout_session_id, provider,
                       external_payment_id, status, subtotal_minor, tax_minor, total_minor, currency, period_start,
                       period_end, bill_to, discount_id, discount_minor, paid_at, proration, plan_price_id)
 VALUES (@workspace_id, sqlc.narg('subscription_id'), sqlc.narg('order_id'), sqlc.narg('installment_id'),
         sqlc.narg('checkout_session_id'), @provider, sqlc.narg('external_payment_id'), @status, @subtotal_minor,
         @tax_minor, @total_minor, @currency, sqlc.narg('period_start'), sqlc.narg('period_end'), @bill_to,
-        sqlc.narg('discount_id'), @discount_minor, sqlc.narg('paid_at'), @proration,
+        sqlc.narg('discount_id'), @discount_minor, sqlc.narg('paid_at'),
+        EXISTS (SELECT 1 FROM invoices prev
+                WHERE prev.workspace_id = @workspace_id AND prev.subscription_id = sqlc.narg('subscription_id')
+                  AND prev.status IN ('paid', 'partially_refunded', 'refunded', 'disputed', 'dispute_lost')
+                  AND prev.period_start <= sqlc.narg('period_start')
+                  AND sqlc.narg('period_start') < prev.period_end),
         COALESCE(
             (SELECT cs.plan_price_id FROM checkout_sessions cs
              WHERE cs.workspace_id = @workspace_id AND cs.id = sqlc.narg('checkout_session_id')),
@@ -44,16 +52,11 @@ WHERE workspace_id = @workspace_id AND id = @invoice_id AND number IS NULL;
 
 -- name: GetInvoiceDocument :one
 -- Everything the invoice PDF and its email show. The plan is the price the
--- invoice was paid for. A subscription invoice that starts inside a period an
--- earlier one already paid for is a plan change (a proration).
+-- invoice was paid for.
 SELECT i.id, i.number, i.provider, i.status, i.subtotal_minor, i.discount_minor, i.tax_minor, i.total_minor,
        i.currency, i.period_start, i.period_end, i.bill_to, i.paid_at, i.pdf_key, i.emailed_at,
        i.order_id, i.installment_id, w.name AS workspace_name, pl.name AS plan_name, pp.interval AS plan_interval,
-       EXISTS (SELECT 1 FROM invoices prev
-               WHERE prev.workspace_id = i.workspace_id AND prev.subscription_id = i.subscription_id
-                 AND prev.id <> i.id AND prev.created_at <= i.created_at
-                 AND prev.status IN ('paid', 'partially_refunded', 'refunded', 'disputed')
-                 AND prev.period_start <= i.period_start AND i.period_start < prev.period_end) AS prorated,
+       i.proration AS prorated,
        inst.seq AS installment_seq,
        (SELECT count(*) FROM installments c WHERE c.workspace_id = i.workspace_id AND c.order_id = i.order_id)::int
            AS installment_count

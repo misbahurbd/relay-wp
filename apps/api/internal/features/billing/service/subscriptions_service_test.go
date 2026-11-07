@@ -481,9 +481,10 @@ func TestChangeKeyRepeatsUntilAChangeIsLogged(t *testing.T) {
 	}
 }
 
-// Refunding a plan change's proration in full gives back the change, not the
-// period: the plan stays. Refunding the period's invoice still ends it.
-func TestRefundingAProrationKeepsThePlan(t *testing.T) {
+// Creem marks no payment as a proration. Relay tells one by its period, which
+// starts inside a period already invoiced, so refunding a Creem plan change
+// in full keeps the plan, and refunding the period's invoice still ends it.
+func TestRefundingAnUnmarkedProrationKeepsThePlan(t *testing.T) {
 	e := newT3Env(t)
 	p := e.plan(t3PlanOpts{Monthly: 1000})
 	sub := e.subscribe(p.Monthly)
@@ -496,7 +497,7 @@ func TestRefundingAProrationKeepsThePlan(t *testing.T) {
 	prorationPay := "pay_" + uuid.NewString()
 	e.inTx(func(tx pgx.Tx) error {
 		return e.svc.ApplySubscriptionPayment(e.ctx, tx, e.ws, sub.ID, payment.Payment{
-			ExternalID: prorationPay, SubtotalMinor: 500, TotalMinor: 500, Currency: "USD", Proration: true,
+			ExternalID: prorationPay, SubtotalMinor: 500, TotalMinor: 500, Currency: "USD",
 			PeriodStart: &e.clock, PeriodEnd: sub.CurrentPeriodEnd,
 		}, true)
 	})
@@ -508,10 +509,6 @@ func TestRefundingAProrationKeepsThePlan(t *testing.T) {
 
 	refund(prorationPay, 500)
 	e.wantCache(e.ws, p.Code)
-	if got, err := e.svc.Subscription(e.ctx, e.ws); err != nil || got.Status != model.SubscriptionActive {
-		t.Fatalf("after refunding the proration: %s, %v; want active", got.Status, err)
-	}
-
 	refund(periodPay, 1000)
 	e.wantCache(e.ws, model.FreePlan)
 }

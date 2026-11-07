@@ -207,27 +207,19 @@ func invoiceDescription(row gen.GetInvoiceDocumentRow) string {
 		if row.InstallmentSeq != nil && row.InstallmentCount > 1 {
 			parts = append(parts, fmt.Sprintf("installment %d of %d", *row.InstallmentSeq, row.InstallmentCount))
 		}
+	case row.Prorated:
+		// The invoice's stored proration flag, the rule refunds use too.
+		parts = append(parts, "change of plan (prorated)")
 	case row.PlanInterval != nil:
-		years, months := 0, 1
 		cadence := "monthly"
 		if *row.PlanInterval == "year" {
-			years, months, cadence = 1, 0, "yearly"
+			cadence = "yearly"
 		}
 		if row.PeriodStart == nil || row.PeriodEnd == nil {
 			parts = append(parts, cadence)
 			break
 		}
-		start, end := row.PeriodStart.UTC(), row.PeriodEnd.UTC()
-		// A proration is charged for part of a period, or inside a period an
-		// earlier invoice paid for (Creem reports the full period then). Its
-		// amount says nothing: a provider-side discount lowers a full period's
-		// too. Providers clamp month ends (Jan 31 → Feb 28), so the dates allow a few days.
-		drift := end.Sub(start.AddDate(years, months, 0))
-		if drift < -72*time.Hour || drift > 72*time.Hour || row.Prorated {
-			parts = append(parts, "change of plan (prorated)")
-			break
-		}
-		parts = append(parts, cadence, dateRange(start, end))
+		parts = append(parts, cadence, dateRange(row.PeriodStart.UTC(), row.PeriodEnd.UTC()))
 	}
 	return strings.Join(parts, " · ")
 }
