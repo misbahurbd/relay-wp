@@ -6,6 +6,7 @@ const count = new Intl.NumberFormat()
 
 const TONE: Record<LimitState['kind'], { count: string; note: string; bar: string }> = {
   unlimited: { count: 'text-foreground', note: 'text-muted-foreground', bar: 'bg-brand' },
+  not_included: { count: 'text-muted-foreground', note: 'text-muted-foreground', bar: '' },
   ok: { count: 'text-foreground', note: 'text-muted-foreground', bar: 'bg-brand' },
   almost: { count: 'text-warning', note: 'text-warning', bar: 'bg-warning-bar' },
   at: { count: 'text-warning', note: 'text-warning', bar: 'bg-warning-bar' },
@@ -16,6 +17,8 @@ function note(state: LimitState, used: number, limit: number) {
   switch (state.kind) {
     case 'unlimited':
       return 'No limit on your plan'
+    case 'not_included':
+      return 'Not in your plan'
     case 'ok':
       return `${state.pct}% used`
     case 'almost':
@@ -28,7 +31,8 @@ function note(state: LimitState, used: number, limit: number) {
 }
 
 /**
- * One usage row: label, used of limit, a bar, and a warning from 80%. limit -1 is unlimited.
+ * One usage row: label, used of limit, a bar, and a warning from 80%. limit -1 is unlimited;
+ * limit 0 with nothing used shows a dash and "Not in your plan".
  * The numbers are in the text, so the bar itself is decorative.
  */
 export function Meter({
@@ -54,13 +58,19 @@ export function Meter({
           {label}
           {tag}
         </span>
-        <span className="text-muted-foreground tabular-nums">
-          <span className={cn('font-bold', tone.count)}>{count.format(used)}</span> /{' '}
-          {state.kind === 'unlimited' ? 'Unlimited' : count.format(limit)}
-        </span>
+        {state.kind === 'not_included' ? (
+          <span aria-hidden="true" className="text-muted-foreground">
+            —
+          </span>
+        ) : (
+          <span className="text-muted-foreground tabular-nums">
+            <span className={cn('font-bold', tone.count)}>{count.format(used)}</span> /{' '}
+            {state.kind === 'unlimited' ? 'Unlimited' : count.format(limit)}
+          </span>
+        )}
       </div>
       <div aria-hidden="true" className="h-2 rounded-sm bg-secondary">
-        {state.kind !== 'unlimited' && (
+        {state.kind !== 'unlimited' && state.kind !== 'not_included' && (
           <div className={cn('h-2 rounded-sm', tone.bar)} style={{ width: `${width}%` }} />
         )}
       </div>
