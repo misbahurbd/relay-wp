@@ -1,5 +1,5 @@
 import { revalidateLogic, useForm } from '@tanstack/react-form'
-import { type ReactNode, useRef } from 'react'
+import { type ReactNode, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { describedBy, FormField, fieldError, focusFirstInvalid } from '#/components/form'
 import { Alert, AlertDescription } from '#/components/ui/alert'
@@ -53,6 +53,8 @@ const FIELDS: {
     hint: 'Shown on future invoices. Past invoices keep the details they were issued with.',
   },
 ]
+
+const REQUIRED: Key[] = ['legal_name', 'email']
 
 function toValues(p: BillingProfile | null): BillingProfileValues {
   return {
@@ -132,11 +134,19 @@ export type ProfileFormState = ReturnType<typeof useProfileForm>
 /** The fields, the API's error and a form element; `children` (the submit button) sit inside it. */
 export function ProfileFields({
   profile: { form, formRef, update },
+  collapsible,
   children,
 }: {
   profile: ProfileFormState
+  /** Show only the required fields until the member asks for the rest (or already has some). */
+  collapsible?: boolean
   children?: ReactNode
 }) {
+  const [expanded, setExpanded] = useState(
+    () =>
+      !collapsible ||
+      FIELDS.some((f) => !REQUIRED.includes(f.name) && form.state.values[f.name] !== ''),
+  )
   const details = isApiError(update.error) ? (update.error.details ?? []) : []
 
   return (
@@ -163,7 +173,7 @@ export function ProfileFields({
           </AlertDescription>
         </Alert>
       )}
-      {FIELDS.map((f) => (
+      {FIELDS.filter((f) => expanded || REQUIRED.includes(f.name)).map((f) => (
         <form.Field key={f.name} name={f.name}>
           {(field) => {
             const id = `billing-${f.name}`
@@ -187,6 +197,17 @@ export function ProfileFields({
           }}
         </form.Field>
       ))}
+      {!expanded && (
+        <Button
+          type="button"
+          variant="link"
+          className="h-auto self-start p-0"
+          aria-expanded={false}
+          onClick={() => setExpanded(true)}
+        >
+          Add address, country and tax ID (optional)
+        </Button>
+      )}
       {children}
     </form>
   )

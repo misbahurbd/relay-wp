@@ -14,11 +14,14 @@ import { useCreateCheckout } from '../../api/billing.mutations'
 import {
   overviewQueryOptions,
   plansQueryOptions,
+  profileQueryOptions,
   quoteQueryOptions,
+  resourcesQueryOptions,
 } from '../../api/billing.queries'
 import { useIdempotencyKey } from '../../hooks/use-idempotency-key'
 import { PROVIDER_LABEL } from '../../schemas/billing.schema'
 import type {
+  BillingProfile,
   Catalog,
   DiscountPreview,
   InstallmentOffer,
@@ -31,8 +34,11 @@ import type {
 } from '../../types'
 import { formatDate } from '../kit/format'
 import { formatMoney, limitLines, perInterval } from '../kit/money'
+import { planLines } from '../kit/plan-highlights'
 import { Section, SectionHeader } from '../kit/section'
 import { ErrorState, NoPayPermission } from '../kit/states'
+import { useProfileForm } from '../settings/profile-form'
+import { BillingDetails } from './billing-details'
 import { checkoutReturnUrl } from './checkout-return'
 import { DiscountField } from './discount-field'
 import { PaymentStep } from './payment-step'
@@ -124,21 +130,41 @@ function CheckoutSkeleton() {
   )
 }
 
-function Checkout({
-  workspaceId,
-  canPay,
-  plan,
-  price,
-  offer,
-  providers,
-}: {
+type CheckoutProps = {
   workspaceId: string
   canPay: boolean
   plan: Plan
   price: Price
   offer?: InstallmentOffer
   providers: Provider[]
-}) {
+}
+
+/** Waits for the saved billing details, which the form below starts from. */
+function Checkout(props: CheckoutProps) {
+  const { workspaceId, canPay } = props
+  const profile = useQuery({ ...profileQueryOptions(workspaceId), enabled: canPay })
+  if (canPay && profile.isPending) return <CheckoutSkeleton />
+  if (canPay && profile.isError) {
+    return (
+      <ErrorState
+        title="Couldn’t load your billing details"
+        error={profile.error}
+        onRetry={() => void profile.refetch()}
+      />
+    )
+  }
+  return <CheckoutBody {...props} profile={profile.data ?? null} />
+}
+
+function CheckoutBody({
+  workspaceId,
+  canPay,
+  plan,
+  price,
+  offer,
+  providers,
+  profile,
+}: CheckoutProps & { profile: BillingProfile | null }) {
   const navigate = useNavigate()
   const overview = useQuery(overviewQueryOptions(workspaceId))
   const [discount, setDiscount] = useState<DiscountPreview>()
@@ -171,6 +197,19 @@ function Checkout({
       { onSuccess: setStarted },
     )
 
+  const [editingProfile, setEditingProfile] = useState(false)
+  const profileForm = useProfileForm({
+    workspaceId,
+    initial: profile,
+    onSaved: () => {
+      setEditingProfile(false)
+      start()
+    },
+  })
+  const detailsOpen = editingProfile || profile === null
+  const proceed = () => (detailsOpen ? void profileForm.form.handleSubmit() : start())
+  const busy = create.isPending || profileForm.update.isPending
+
   const dueNow = started
     ? started.session.amount_minor
     : lifetime && quote.data
@@ -196,6 +235,20 @@ function Checkout({
           </Alert>
         )}
 
+        {canPay && providers.length > 0 && (
+          <BillingDetails
+            profile={profile}
+            form={profileForm}
+            editing={editingProfile}
+            locked={!!started}
+            onEdit={() => setEditingProfile(true)}
+            onCancel={() => {
+              profileForm.form.reset()
+              setEditingProfile(false)
+            }}
+          />
+        )}
+
         <Section aria-labelledby="pay-heading">
           <SectionHeader
             id="pay-heading"
@@ -217,6 +270,10 @@ function Checkout({
               started={started}
               payLabel={`Pay ${formatMoney(started.session.amount_minor, started.session.currency)}`}
               onPaid={(session) => navigate({ to: '/billing/checkout', search: { session } })}
+              onRestart={() => {
+                idem.renew()
+                setStarted(undefined)
+              }}
             />
           ) : providers.length === 0 ? (
             <Alert variant="danger">
@@ -250,8 +307,8 @@ function Checkout({
                   <AlertDescription>{errorMessage(create.error)}</AlertDescription>
                 </Alert>
               )}
-              <Button size="lg" onClick={start} disabled={create.isPending}>
-                {create.isPending ? 'Starting checkout…' : 'Continue to payment'}
+              <Button size="lg" onClick={proceed} disabled={busy}>
+                {busy ? 'Starting checkout…' : 'Continue to payment'}
               </Button>
             </div>
           )}
@@ -270,10 +327,16 @@ function Checkout({
   )
 }
 
-/** "Opens a secure checkout page · sales tax included": how paying with a provider goes. */
+/** How paying with a provider goes. A merchant of record adds tax by the buyer's location on top. */
 function howItPays(p: Provider) {
-  const where = p.embedded_checkout ? 'Pay on this page' : 'Opens a secure checkout page'
-  return p.merchant_of_record ? `${where} · sales tax included` : where
+  const where = p.embedded_checkout
+    ? 'Pay on this page'
+    : p.embeddable_url
+      ? 'Secure checkout'
+      : 'Opens a secure checkout page'
+  return p.merchant_of_record
+    ? `${where} · sales tax is added at checkout based on your location`
+    : where
 }
 
 function ProviderChoice({
@@ -324,6 +387,45 @@ function Line({ label, value, strong }: { label: string; value: string; strong?:
   )
 }
 
+const SUMMARY_LINES = 6
+
+/** What the plan includes, from the resource catalog; the first few, with the rest on request. */
+function IncludedLines({ plan }: { plan: Plan }) {
+  const resources = useQuery(resourcesQueryOptions())
+  const [all, setAll] = useState(false)
+  if (resources.isPending) {
+    return (
+      <div className="flex flex-col gap-2" role="status" aria-busy="true" aria-label="Loading plan">
+        <Skeleton className="h-4 w-2/3" />
+        <Skeleton className="h-4 w-1/2" />
+        <Skeleton className="h-4 w-3/5" />
+      </div>
+    )
+  }
+  const lines = resources.data ? planLines(resources.data, plan.limits) : limitLines(plan.limits)
+  const shown = all ? lines : lines.slice(0, SUMMARY_LINES)
+  return (
+    <div className="flex flex-col gap-1">
+      <ul className="flex flex-col gap-1 text-[13px] text-muted-foreground">
+        {shown.map((l) => (
+          <li key={l}>{l}</li>
+        ))}
+      </ul>
+      {lines.length > SUMMARY_LINES && (
+        <Button
+          variant="link"
+          size="sm"
+          className="h-auto self-start p-0 text-[13px]"
+          aria-expanded={all}
+          onClick={() => setAll(!all)}
+        >
+          {all ? 'Show fewer' : `+${lines.length - SUMMARY_LINES} more`}
+        </Button>
+      )}
+    </div>
+  )
+}
+
 function Summary({
   plan,
   price,
@@ -369,11 +471,7 @@ function Summary({
               : 'billed monthly'
         }`}
       />
-      <ul className="flex flex-col gap-1 text-[13px] text-muted-foreground">
-        {limitLines(plan.limits).map((l) => (
-          <li key={l}>{l}</li>
-        ))}
-      </ul>
+      <IncludedLines plan={plan} />
       <Separator />
       <dl className="flex flex-col gap-2">
         <Line
