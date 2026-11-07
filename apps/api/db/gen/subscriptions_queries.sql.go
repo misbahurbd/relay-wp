@@ -582,6 +582,65 @@ func (q *Queries) ListSubscriptionChanges(ctx context.Context, arg ListSubscript
 	return items, nil
 }
 
+const lockLiveSubscription = `-- name: LockLiveSubscription :one
+SELECT id, workspace_id, plan_price_id, billing_customer_id, provider, external_subscription_id, renewal_mode, status,
+       provider_status, current_period_start, current_period_end, grace_ends_at, cancel_at_period_end, canceled_at,
+       pending_plan_price_id, pending_change_at, discount_id, discount_ends_at, created_at
+FROM subscriptions
+WHERE workspace_id = $1 AND status IN ('trialing', 'active', 'past_due')
+FOR UPDATE
+`
+
+type LockLiveSubscriptionRow struct {
+	ID                     uuid.UUID
+	WorkspaceID            uuid.UUID
+	PlanPriceID            uuid.UUID
+	BillingCustomerID      uuid.UUID
+	Provider               string
+	ExternalSubscriptionID *string
+	RenewalMode            string
+	Status                 string
+	ProviderStatus         *string
+	CurrentPeriodStart     *time.Time
+	CurrentPeriodEnd       *time.Time
+	GraceEndsAt            *time.Time
+	CancelAtPeriodEnd      bool
+	CanceledAt             *time.Time
+	PendingPlanPriceID     *uuid.UUID
+	PendingChangeAt        *time.Time
+	DiscountID             *uuid.UUID
+	DiscountEndsAt         *time.Time
+	CreatedAt              time.Time
+}
+
+// GetLiveSubscription, locked until the transaction ends.
+func (q *Queries) LockLiveSubscription(ctx context.Context, workspaceID uuid.UUID) (LockLiveSubscriptionRow, error) {
+	row := q.db.QueryRow(ctx, lockLiveSubscription, workspaceID)
+	var i LockLiveSubscriptionRow
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.PlanPriceID,
+		&i.BillingCustomerID,
+		&i.Provider,
+		&i.ExternalSubscriptionID,
+		&i.RenewalMode,
+		&i.Status,
+		&i.ProviderStatus,
+		&i.CurrentPeriodStart,
+		&i.CurrentPeriodEnd,
+		&i.GraceEndsAt,
+		&i.CancelAtPeriodEnd,
+		&i.CanceledAt,
+		&i.PendingPlanPriceID,
+		&i.PendingChangeAt,
+		&i.DiscountID,
+		&i.DiscountEndsAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const lockSubscription = `-- name: LockSubscription :one
 SELECT id, workspace_id, plan_price_id, billing_customer_id, provider, external_subscription_id, renewal_mode, status,
        provider_status, current_period_start, current_period_end, grace_ends_at, cancel_at_period_end, canceled_at,

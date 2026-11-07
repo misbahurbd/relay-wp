@@ -148,50 +148,59 @@ func prorate(amount int64, start, end, now time.Time) int64 {
 // ChangePlan moves the live subscription to planPriceID: an upgrade applies now
 // (prorated, with a new grant), a downgrade is scheduled through
 // pending_plan_price_id. Both are logged in subscription_changes.
+//
+// The subscription stays locked across the provider call: the upgrade's own
+// payment webhook locks it too (ApplySubscriptionPayment), so its invoice is
+// written after this change and names the new price.
 func (s *Service) ChangePlan(ctx context.Context, workspaceID, _, planPriceID uuid.UUID) (model.Subscription, error) {
-	r := repository.NewRepository(s.pool)
-	sub, err := s.liveSubscription(ctx, r, workspaceID)
-	if err != nil {
-		return model.Subscription{}, err
-	}
-	target, err := s.loadPrice(ctx, r, planPriceID)
-	if err != nil {
-		return model.Subscription{}, err
-	}
-	now := s.now()
-	q, err := quoteChange(sub, target, now)
-	if err != nil {
-		return model.Subscription{}, err
-	}
-	immediate := q.EffectiveAt.Equal(now)
-	g, extSub, err := s.providerSubscription(sub)
-	if err != nil {
-		return model.Subscription{}, err
-	}
-	pp, err := externalPriceID(ctx, r, target.ID, nil, sub.Provider)
-	if err != nil || pp.ExternalPriceID == nil {
-		return model.Subscription{}, model.ErrChangeNotSupported
-	}
-	key, err := changeKey(ctx, r, sub, "change", target.ID)
-	if err != nil {
-		return model.Subscription{}, err
-	}
-	changed, err := g.ChangeSubscription(ctx, payment.ChangeRequest{
-		ExternalSubscriptionID: extSub, ExternalPriceID: *pp.ExternalPriceID, ProrateNow: immediate,
-		IdempotencyKey: key,
-	})
-	if err != nil {
-		return model.Subscription{}, s.gatewayErr("change subscription", err)
-	}
-	if changed.ProrationMinor != 0 {
-		q.ProrationMinor = changed.ProrationMinor
-	}
-
-	err = database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+	var subID uuid.UUID
+	err := database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
 		r := repository.NewRepository(tx)
-		if _, err := r.LockSubscription(ctx, gen.LockSubscriptionParams{WorkspaceID: workspaceID, SubscriptionID: sub.ID}); err != nil {
-			return fmt.Errorf("lock subscription: %w", err)
+		row, err := r.LockLiveSubscription(ctx, workspaceID)
+		if repository.IsNoRows(err) {
+			return model.ErrNoSubscription
 		}
+		if err != nil {
+			return fmt.Errorf("lock live subscription: %w", err)
+		}
+		sub, err := s.withPrice(ctx, r, toSubscription(gen.GetSubscriptionRow(row)))
+		if err != nil {
+			return err
+		}
+		subID = sub.ID
+		target, err := s.loadPrice(ctx, r, planPriceID)
+		if err != nil {
+			return err
+		}
+		now := s.now()
+		q, err := quoteChange(sub, target, now)
+		if err != nil {
+			return err
+		}
+		immediate := q.EffectiveAt.Equal(now)
+		g, extSub, err := s.providerSubscription(sub)
+		if err != nil {
+			return err
+		}
+		pp, err := externalPriceID(ctx, r, target.ID, nil, sub.Provider)
+		if err != nil || pp.ExternalPriceID == nil {
+			return model.ErrChangeNotSupported
+		}
+		key, err := changeKey(ctx, r, sub, "change", target.ID)
+		if err != nil {
+			return err
+		}
+		changed, err := g.ChangeSubscription(ctx, payment.ChangeRequest{
+			ExternalSubscriptionID: extSub, ExternalPriceID: *pp.ExternalPriceID, ProrateNow: immediate,
+			IdempotencyKey: key,
+		})
+		if err != nil {
+			return s.gatewayErr("change subscription", err)
+		}
+		if changed.ProrationMinor != 0 {
+			q.ProrationMinor = changed.ProrationMinor
+		}
+
 		if err := r.CreateSubscriptionChange(ctx, gen.CreateSubscriptionChangeParams{
 			SubscriptionID: sub.ID, WorkspaceID: workspaceID, FromPriceID: q.FromPriceID, ToPriceID: q.ToPriceID,
 			Kind: q.Kind, EffectiveAt: q.EffectiveAt, ProrationMinor: q.ProrationMinor,
@@ -223,7 +232,7 @@ func (s *Service) ChangePlan(ctx context.Context, workspaceID, _, planPriceID uu
 	if err != nil {
 		return model.Subscription{}, err
 	}
-	return s.subscriptionByID(ctx, r, workspaceID, sub.ID)
+	return s.subscriptionByID(ctx, repository.NewRepository(s.pool), workspaceID, subID)
 }
 
 // syncPeriod writes sub's periods back, keeping everything else as it is.

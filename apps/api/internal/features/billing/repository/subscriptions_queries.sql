@@ -32,6 +32,15 @@ SELECT id, workspace_id, plan_price_id, billing_customer_id, provider, external_
 FROM subscriptions
 WHERE workspace_id = @workspace_id AND status IN ('trialing', 'active', 'past_due');
 
+-- name: LockLiveSubscription :one
+-- GetLiveSubscription, locked until the transaction ends.
+SELECT id, workspace_id, plan_price_id, billing_customer_id, provider, external_subscription_id, renewal_mode, status,
+       provider_status, current_period_start, current_period_end, grace_ends_at, cancel_at_period_end, canceled_at,
+       pending_plan_price_id, pending_change_at, discount_id, discount_ends_at, created_at
+FROM subscriptions
+WHERE workspace_id = @workspace_id AND status IN ('trialing', 'active', 'past_due')
+FOR UPDATE;
+
 -- name: GetLatestSubscription :one
 -- The workspace's live subscription if it has one, else its most recent.
 SELECT id, workspace_id, plan_price_id, billing_customer_id, provider, external_subscription_id, renewal_mode, status,

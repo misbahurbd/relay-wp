@@ -618,6 +618,8 @@ type Querier interface {
 	LockInvitation(ctx context.Context, arg LockInvitationParams) (LockInvitationRow, error)
 	// Webhooks only: refunds and disputes on one invoice apply one at a time.
 	LockInvoiceByExternalPaymentID(ctx context.Context, arg LockInvoiceByExternalPaymentIDParams) (LockInvoiceByExternalPaymentIDRow, error)
+	// GetLiveSubscription, locked until the transaction ends.
+	LockLiveSubscription(ctx context.Context, workspaceID uuid.UUID) (LockLiveSubscriptionRow, error)
 	LockMember(ctx context.Context, arg LockMemberParams) (LockMemberRow, error)
 	// Every balance change locks the order first.
 	LockOrder(ctx context.Context, arg LockOrderParams) (LockOrderRow, error)

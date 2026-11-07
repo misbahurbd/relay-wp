@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/model"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/features/billing/repository"
+	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/database"
 	"github.com/misbahurbd/relay-wp/apps/api/internal/platform/payment"
 )
 
@@ -92,6 +94,68 @@ func TestUpgradeAppliesNowWithProration(t *testing.T) {
 	if len(ch) != 1 || ch[0].Kind != model.ChangeUpgrade || ch[0].ProrationMinor != 1000 || ch[0].ToPriceID != pro.Monthly {
 		t.Fatalf("changes = %+v", ch)
 	}
+}
+
+// racingChange is a provider whose proration payment webhook is processed
+// while ChangeSubscription is still answering, as Stripe's invoice.paid for
+// an upgrade can be. It gives the payment a moment to land first.
+type racingChange struct {
+	*payment.Fake
+	pay    func() error
+	result chan error
+}
+
+func (g racingChange) ChangeSubscription(ctx context.Context, req payment.ChangeRequest) (payment.Subscription, error) {
+	out, err := g.Fake.ChangeSubscription(ctx, req)
+	go func() { g.result <- g.pay() }()
+	select {
+	case res := <-g.result:
+		g.result <- res
+	case <-time.After(300 * time.Millisecond):
+	}
+	return out, err
+}
+
+// The upgrade's proration invoice names the plan it paid for, even when its
+// webhook is processed before ChangePlan records the change (G3c).
+func TestUpgradeInvoiceNamesTheNewPlanWhenItsWebhookWins(t *testing.T) {
+	e := newT3Env(t)
+	basic := e.plan(t3PlanOpts{Monthly: 1000})
+	pro := e.plan(t3PlanOpts{Monthly: 3000})
+	sub := e.subscribe(basic.Monthly)
+	e.midPeriod(sub)
+	prorationPay := "pay_" + uuid.NewString()
+	g := racingChange{Fake: e.fake, result: make(chan error, 1), pay: func() error {
+		return database.WithTx(e.ctx, e.pool, func(tx pgx.Tx) error {
+			return e.svc.ApplySubscriptionPayment(e.ctx, tx, e.ws, sub.ID, payment.Payment{
+				ExternalID: prorationPay, SubtotalMinor: 1000, TotalMinor: 1000, Currency: "USD",
+				PeriodStart: &e.clock, PeriodEnd: sub.CurrentPeriodEnd,
+			}, true)
+		})
+	}}
+	reg, err := payment.NewRegistry(g)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.svc.payments = reg
+
+	if _, err := e.svc.ChangePlan(e.ctx, e.ws, e.user, pro.Monthly); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-g.result; err != nil {
+		t.Fatalf("proration webhook: %v", err)
+	}
+	var priceID uuid.UUID
+	var proration bool
+	if err := e.pool.QueryRow(e.ctx, `SELECT plan_price_id, proration FROM invoices WHERE external_payment_id = $1`,
+		prorationPay).Scan(&priceID, &proration); err != nil {
+		t.Fatal(err)
+	}
+	if priceID != pro.Monthly || !proration {
+		t.Errorf("upgrade invoice: price %s (pro %s, basic %s), proration %v; want pro, prorated",
+			priceID, pro.Monthly, basic.Monthly, proration)
+	}
+	e.wantCache(e.ws, pro.Code)
 }
 
 func TestDowngradeWaitsForPeriodEnd(t *testing.T) {
