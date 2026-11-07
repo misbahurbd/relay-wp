@@ -15,26 +15,26 @@ This phase is **mostly web**. Two backend changes: reading the saved card from t
 
 ### Billing page (`/billing`)
 
-| Section                                        | Real or preview | Data                                                                                                     |
-| ---------------------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------- |
-| Current plan: name, price, status, renews on   | Real            | `GET /v1/workspace/billing` (plan, subscription or lifetime order)                                       |
-| Next charge amount and date                    | Real            | Subscription price + `current_period_end`; hidden with no subscription, or when it cancels at period end |
-| Next charge card "•••• 4242"                   | Real            | Read live from the gateway (section 4); omitted when the gateway shares no card details                  |
-| Member since                                   | Real            | When the current plan started (the grant's `starts_at`); hidden on the free plan                         |
-| Change plan, cancel, resume, pending downgrade | Real            | Existing Phase 6 flows (change-plan dialog, cancel and resume)                                           |
-| Usage: team seats                              | Real            | Plan `limits.members` + the team seats endpoint                                                          |
-| Usage: WhatsApp numbers                        | Real            | Plan `limits.whatsapp_numbers` + `GET /v1/workspace/whatsapp/numbers`                                    |
-| Usage: contacts, broadcasts, flows, API calls  | Preview         | Sample numbers; no limits or counters for these yet                                                      |
-| Compare plans + Monthly/Yearly + "Save N%"     | Real            | `GET /v1/billing/plans`; Save % = 1 - yearly / (monthly × 12), shown only when a plan has both prices    |
-| Plan buttons (upgrade, downgrade, switch)      | Real            | Existing checkout and change-plan flows                                                                  |
-| Meta message costs card                        | Preview         | Sample month; links to the Spending page                                                                 |
-| Wallet balance, auto-recharge, Top up          | Preview         | Sample values; buttons open the preview dialog, which charges nothing                                    |
-| Payment method card + Update                   | Real            | Card read live from the gateway; Update opens the gateway's portal (section 4)                           |
-| Backup payment method                          | Real            | "Add backup payment method" opens the same portal; shown only when the gateway reports `card_details`    |
-| Billing email, address, tax ID                 | Real            | `GET/PUT /v1/workspace/billing/profile`                                                                  |
-| Invoice history                                | Real            | `GET /v1/workspace/billing/invoices`, cursor paging                                                      |
-| Invoice download                               | Real            | The invoice's `receipt_url`; no button when it has none                                                  |
-| Download all                                   | Preview         | Disabled with "Coming soon"                                                                              |
+| Section                                        | Real or preview | Data                                                                                                                                                                             |
+| ---------------------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Current plan: name, price, status, renews on   | Real            | `GET /v1/workspace/billing` (plan, subscription or lifetime order)                                                                                                               |
+| Next charge amount and date                    | Real            | Subscription price + `current_period_end`; hidden with no subscription, or when it cancels at period end                                                                         |
+| Next charge card "•••• 4242"                   | Real            | Read live from the gateway (section 4); omitted when the gateway shares no card details                                                                                          |
+| Member since                                   | Real            | When the current plan started (the grant's `starts_at`); hidden on the free plan                                                                                                 |
+| Change plan, cancel, resume, pending downgrade | Real            | Existing Phase 6 flows (change-plan dialog, cancel and resume)                                                                                                                   |
+| Usage: team seats                              | Real            | Plan `limits.members` + the team seats endpoint                                                                                                                                  |
+| Usage: WhatsApp numbers                        | Real            | Plan `limits.whatsapp_numbers` + `GET /v1/workspace/whatsapp/numbers`                                                                                                            |
+| Usage: contacts, broadcasts, flows, API calls  | Preview         | Sample numbers; no limits or counters for these yet                                                                                                                              |
+| Compare plans + Monthly/Yearly + "Save N%"     | Real            | `GET /v1/billing/plans`; Save % = 1 - yearly / (monthly × 12), shown only when a plan has both prices                                                                            |
+| Plan buttons (upgrade, downgrade, switch)      | Real            | Existing checkout and change-plan flows                                                                                                                                          |
+| Meta message costs card                        | Preview         | Sample month; links to the Spending page                                                                                                                                         |
+| Wallet balance, auto-recharge, Top up          | Preview         | Sample values; buttons open the preview dialog, which charges nothing                                                                                                            |
+| Payment method card + Update                   | Real            | Card read live from the gateway; Update opens the gateway's portal (section 4)                                                                                                   |
+| Backup payment method                          | Real            | "Add backup payment method" opens the same portal; shown only when the gateway reports `card_details`                                                                            |
+| Billing email, address, tax ID                 | Real            | `GET/PUT /v1/workspace/billing/profile`                                                                                                                                          |
+| Invoice history                                | Real            | `GET /v1/workspace/billing/invoices`, cursor paging                                                                                                                              |
+| Invoice download                               | Real            | Relay's own PDF through `pdf_url`, a 15-minute signed storage link ([ADR 0016](adr/0016-invoice-pdf-renderer.md)); a numbered invoice shows "Preparing…" until its PDF is stored |
+| Download all                                   | Preview         | Disabled with "Coming soon"                                                                                                                                                      |
 
 ### Spending page (`/billing/spending`, new)
 
