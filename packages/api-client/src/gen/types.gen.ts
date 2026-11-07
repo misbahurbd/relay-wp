@@ -1168,7 +1168,11 @@ export type GrantDto = {
     starts_at: string;
     status: 'active' | 'suspended';
     /**
-     * A missed installment; free limits apply until it is paid
+     * Only while suspended: past_due (a renewal failed past its grace period), installments (one was missed), dispute (a payment was disputed)
+     */
+    suspend_reason?: 'past_due' | 'installments' | 'dispute';
+    /**
+     * When free limits started to apply; null unless suspended
      */
     suspended_at: string | null;
 };

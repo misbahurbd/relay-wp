@@ -14,7 +14,9 @@ type GrantDTO struct {
 	Status      string     `json:"status" enum:"active,suspended"`
 	StartsAt    time.Time  `json:"starts_at"`
 	EndsAt      *time.Time `json:"ends_at" doc:"Null: lifetime"`
-	SuspendedAt *time.Time `json:"suspended_at" doc:"A missed installment; free limits apply until it is paid"`
+	SuspendedAt *time.Time `json:"suspended_at" doc:"When free limits started to apply; null unless suspended"`
+	// SuspendReason says what lifts the suspension.
+	SuspendReason string `json:"suspend_reason,omitempty" enum:"past_due,installments,dispute" doc:"Only while suspended: past_due (a renewal failed past its grace period), installments (one was missed), dispute (a payment was disputed)"`
 }
 
 type CurrentPlanDTO struct {
@@ -29,6 +31,7 @@ func ToCurrentPlanDTO(p model.CurrentPlan) CurrentPlanDTO {
 	if g := p.Grant; g != nil {
 		out.Grant = &GrantDTO{
 			ID: g.ID, Source: g.Source, Status: g.Status, StartsAt: g.StartsAt, EndsAt: g.EndsAt, SuspendedAt: g.SuspendedAt,
+			SuspendReason: g.SuspendReason,
 		}
 	}
 	return out

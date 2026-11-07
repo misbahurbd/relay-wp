@@ -3661,8 +3661,17 @@
             ],
             "type": "string"
           },
+          "suspend_reason": {
+            "description": "Only while suspended: past_due (a renewal failed past its grace period), installments (one was missed), dispute (a payment was disputed)",
+            "enum": [
+              "past_due",
+              "installments",
+              "dispute"
+            ],
+            "type": "string"
+          },
           "suspended_at": {
-            "description": "A missed installment; free limits apply until it is paid",
+            "description": "When free limits started to apply; null unless suspended",
             "format": "date-time",
             "type": [
               "string",

@@ -13,7 +13,7 @@ import {
 } from '../../api/billing.mutations'
 import { onSale, paymentMethodQueryOptions, plansQueryOptions } from '../../api/billing.queries'
 import { GRANT_SOURCE, SUBSCRIPTION_STATUS } from '../../schemas/billing.schema'
-import type { Overview, PaymentMethod, Price, Subscription } from '../../types'
+import type { CurrentPlan, Overview, PaymentMethod, Price, Subscription } from '../../types'
 import { formatDate, formatMonth } from '../kit/format'
 import { formatMoney, formatPrice } from '../kit/money'
 import { Section } from '../kit/section'
@@ -104,16 +104,12 @@ export function CurrentPlanCard({
 
       <Facts overview={overview} card={card.data} priceOf={priceOf} />
 
-      {suspended && (
+      {suspended && !(grant.suspend_reason === 'past_due' && sub?.status === 'past_due') && (
         <Alert variant="warning">
           <TriangleAlertIcon aria-hidden="true" />
           <AlertTitle>Free limits apply for now</AlertTitle>
           <AlertDescription>
-            <p>
-              An installment was missed
-              {grant.suspended_at && `, so access was limited on ${formatDate(grant.suspended_at)}`}
-              . Pay it below to get your plan back straight away.
-            </p>
+            <p>{suspendedText(grant)}</p>
           </AlertDescription>
         </Alert>
       )}
@@ -121,10 +117,7 @@ export function CurrentPlanCard({
       {sub?.status === 'past_due' && (
         <Alert variant="danger">
           <AlertDescription>
-            <p>
-              The last renewal failed. Update your card
-              {sub.grace_ends_at && ` before ${formatDate(sub.grace_ends_at)}`} to keep your plan.
-            </p>
+            <p>{pastDueText(sub, suspended ? grant : undefined)}</p>
             {canPay && card.data?.can_manage && (
               <Button
                 variant="outline"
@@ -283,4 +276,35 @@ function chargeTo(card: PaymentMethod | undefined) {
   if (card?.card) return `card •••• ${card.card.last4}`
   if (card && !card.card_details) return 'your card on file'
   return 'your saved card'
+}
+
+type Grant = NonNullable<CurrentPlan['grant']>
+
+const limitedOn = (grant: Grant) =>
+  grant.suspended_at ? `, so access was limited on ${formatDate(grant.suspended_at)}` : ''
+
+/** Why free limits apply, and what gets the plan back: each suspension has its own cure. */
+function suspendedText(grant: Grant) {
+  switch (grant.suspend_reason) {
+    case 'installments':
+      return `An installment was missed${limitedOn(grant)}. Pay it below to get your plan back straight away.`
+    case 'past_due':
+      return `A renewal payment failed past its grace period${limitedOn(grant)}. Update your card to get your plan back.`
+    case 'dispute':
+      return `A payment was disputed${limitedOn(grant)}. Contact support to get your plan back.`
+    default:
+      return `Your plan is on hold${limitedOn(grant)}. Contact support to get it back.`
+  }
+}
+
+/** A failed renewal: a deadline while the grace period runs, free limits once it has ended. */
+function pastDueText(sub: Subscription, suspended: Grant | undefined) {
+  if (suspended?.suspend_reason === 'past_due') {
+    return `The last renewal failed and the grace period ended${limitedOn(suspended)}. Free limits apply until you update your card.`
+  }
+  const grace = sub.grace_ends_at
+  if (grace && Date.parse(grace) > Date.now()) {
+    return `The last renewal failed. Update your card before ${formatDate(grace)} to keep your plan.`
+  }
+  return 'The last renewal failed. Update your card to keep your plan.'
 }
