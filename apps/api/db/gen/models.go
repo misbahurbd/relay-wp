@@ -484,6 +484,7 @@ type Invoice struct {
 	PaidAt            *time.Time
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
+	Proration         bool
 }
 
 type LimitChange struct {
@@ -631,6 +632,7 @@ type PaymentEvent struct {
 	ProcessedAt       *time.Time
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
+	ReportedAt        *time.Time
 }
 
 type Permission struct {
