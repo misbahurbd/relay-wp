@@ -98,6 +98,42 @@ func TestConsumeUnlimitedAndNotIncluded(t *testing.T) {
 	}
 }
 
+// AI replies have no feature yet; this pins that the quota works by key alone,
+// so the feature only has to call Consume and Release with "ai_replies".
+func TestAIRepliesQuotaWorksByKey(t *testing.T) {
+	e := newT3Env(t)
+	e.onPlan(`{"members": 3, "whatsapp_numbers": 1, "ai_replies": 2}`)
+	reply := func(env *t3Env) (time.Time, bool) {
+		period, ok, err := env.svc.Consume(env.ctx, env.ws, "ai_replies", 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return period, ok
+	}
+	if _, ok := reply(e); !ok {
+		t.Fatal("first reply refused under a cap of 2")
+	}
+	period, ok := reply(e)
+	if !ok {
+		t.Fatal("second reply refused under a cap of 2")
+	}
+	if _, ok := reply(e); ok {
+		t.Fatal("third reply allowed past a cap of 2")
+	}
+	if err := e.svc.Release(e.ctx, e.ws, "ai_replies", period, 1); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := reply(e); !ok {
+		t.Error("a released reply wasn't available again")
+	}
+
+	none := newT3Env(t)
+	none.onPlan(`{"members": 3, "whatsapp_numbers": 1}`)
+	if _, ok := reply(none); ok {
+		t.Error("a plan without AI replies allowed one")
+	}
+}
+
 func TestConsumeIsAtomicUnderConcurrency(t *testing.T) {
 	e := newT3Env(t)
 	e.onPlan(`{"members": 3, "whatsapp_numbers": 1, "broadcasts": 5}`)
