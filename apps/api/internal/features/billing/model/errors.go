@@ -19,7 +19,6 @@ var (
 	ErrIdempotencyKeyReused    = apperr.Conflict("idempotency_key_reused", "This Idempotency-Key was used for a different checkout.")
 	ErrAlreadySubscribed       = apperr.Conflict("already_subscribed", "This workspace already has a subscription. Change its plan instead.")
 	ErrHasLifetimeDeal         = apperr.Conflict("has_lifetime_deal", "This workspace has a lifetime deal. Upgrade it instead.")
-	ErrCheckoutPending         = apperr.Conflict("checkout_pending", "Another checkout is still open. Finish it, or try again once it expires.")
 	ErrPaymentProviderDeclined = apperr.Validation("payment_declined", "The payment provider declined this. Try another card.")
 	ErrPaymentProviderMissing  = apperr.Conflict("payment_provider_out_of_sync",
 		"The payment provider has no record of this. Contact support and we'll sort it out.")

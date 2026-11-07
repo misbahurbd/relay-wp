@@ -107,27 +107,30 @@ func TestDeactivatedPlanIsOffSale(t *testing.T) {
 	}
 }
 
-// A subscription checkout and a lifetime-deal checkout are never open at once:
-// both paid would leave two plans billing.
+// A subscription checkout and a lifetime-deal checkout are never open at once
+// (both paid would leave two plans billing), and an abandoned one never
+// blocks the other: the newest checkout expires the older one, as a second
+// subscription checkout does.
 func TestSubscriptionAndLifetimeCheckoutsDoNotOverlap(t *testing.T) {
 	e := newT3Env(t)
 	p := e.plan(t3PlanOpts{Monthly: 1000})
 	lifetime := e.price(p.ID, model.BillingOneTime, "", 30000)
-	try := func(priceID uuid.UUID) error {
-		_, err := e.svc.CreateCheckout(e.ctx, e.ws, e.user, model.CheckoutInput{PlanPriceID: priceID, IdempotencyKey: uuid.NewString()})
-		return err
+	status := func(id uuid.UUID) string {
+		got, err := e.svc.CheckoutSession(e.ctx, e.ws, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return got.Status
 	}
 
 	ltd := e.checkout(lifetime, "")
-	if err := try(p.Monthly); !errors.Is(err, model.ErrCheckoutPending) {
-		t.Errorf("subscription while a lifetime checkout is open: %v, want ErrCheckoutPending", err)
+	sub := e.checkout(p.Monthly, "")
+	if s := status(ltd.Session.ID); s != model.CheckoutExpired {
+		t.Errorf("lifetime checkout once a subscription checkout started: %s, want expired", s)
 	}
-	e.inTx(func(tx pgx.Tx) error {
-		return e.svc.FailCheckout(e.ctx, tx, e.ws, ltd.Session.ID, model.CheckoutExpired)
-	})
-	e.checkout(p.Monthly, "")
-	if err := try(lifetime); !errors.Is(err, model.ErrCheckoutPending) {
-		t.Errorf("lifetime deal while a subscription checkout is open: %v, want ErrCheckoutPending", err)
+	e.checkout(lifetime, "")
+	if s := status(sub.Session.ID); s != model.CheckoutExpired {
+		t.Errorf("subscription checkout once a lifetime checkout started: %s, want expired", s)
 	}
 }
 

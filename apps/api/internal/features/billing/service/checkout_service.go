@@ -112,9 +112,6 @@ func (s *Service) prepareSubscription(ctx context.Context, r repository.Reposito
 	} else if !repository.IsNoRows(err) {
 		return fmt.Errorf("get live order: %w", err)
 	}
-	if err := s.refusePendingCheckout(ctx, r, ws, model.PurposeLTD); err != nil {
-		return err
-	}
 	caps := c.gateway.Capabilities()
 	if !caps.RenewsSubscriptions {
 		// Relay-renewed (app) subscriptions come with SSLCommerz.
@@ -173,9 +170,6 @@ func (s *Service) prepareSubscription(ctx context.Context, r repository.Reposito
 // prepareOrder fills in a checkout for a one-time price, in full or through an
 // installment offer (purpose ltd). Track T4's QuoteOrder works out the money.
 func (s *Service) prepareOrder(ctx context.Context, r repository.Repository, c *checkoutStart, price loadedPrice, offer *model.InstallmentOffer, collection, code string) error {
-	if err := s.refusePendingCheckout(ctx, r, c.params.WorkspaceID, model.PurposeNew); err != nil {
-		return err
-	}
 	in := model.QuoteInput{PlanPriceID: price.ID, DiscountCode: code}
 	if offer != nil {
 		in.InstallmentOfferID = &offer.ID
@@ -235,22 +229,6 @@ func checkMinCharge(g payment.Gateway, q model.OrderQuote, offer *model.Installm
 		if p.AmountMinor < floor {
 			return model.ErrBelowProviderMinimum
 		}
-	}
-	return nil
-}
-
-// refusePendingCheckout is model.ErrCheckoutPending while the workspace has an
-// open checkout of purpose. A subscription and a lifetime deal are never open
-// at once: both paid would leave two plans charging.
-func (s *Service) refusePendingCheckout(ctx context.Context, r repository.Repository, workspaceID uuid.UUID, purpose string) error {
-	pending, err := r.HasPendingCheckout(ctx, gen.HasPendingCheckoutParams{
-		WorkspaceID: workspaceID, Purpose: purpose, Now: s.now(),
-	})
-	if err != nil {
-		return fmt.Errorf("has pending checkout: %w", err)
-	}
-	if pending {
-		return model.ErrCheckoutPending
 	}
 	return nil
 }
@@ -376,10 +354,8 @@ func (s *Service) openCheckout(ctx context.Context, workspaceID uuid.UUID, c che
 			return fmt.Errorf("create checkout session: %w", err)
 		}
 		session = toCheckoutSession(gen.GetCheckoutSessionRow(row))
-		if session.Purpose == model.PurposeNew {
-			if err := s.expireOtherSubscriptionCheckouts(ctx, tx, session); err != nil {
-				return err
-			}
+		if err := s.expireOtherPlanCheckouts(ctx, tx, session); err != nil {
+			return err
 		}
 		if c.discount != nil {
 			if err := s.ReserveDiscount(ctx, tx, workspaceID, session.ID, *c.discount); err != nil {
@@ -513,13 +489,26 @@ func (s *Service) checkoutReturnURL() string {
 	return strings.TrimRight(s.cfg.AppBaseURL, "/") + "/billing/checkout?session=return"
 }
 
-// expireOtherSubscriptionCheckouts expires the workspace's other open
-// subscription checkouts in tx: the newest one is the one the customer wants.
-// The provider may still take payment for an older one; CompleteCheckout
-// refunds that.
-func (s *Service) expireOtherSubscriptionCheckouts(ctx context.Context, tx pgx.Tx, session model.CheckoutSession) error {
+// expireOtherPlanCheckouts expires, in tx, the workspace's other open
+// checkouts that would clash with session: the newest one is the one the
+// customer wants. A subscription checkout expires other subscription and
+// lifetime-deal checkouts, and a lifetime-deal checkout expires subscription
+// checkouts, so an abandoned one never blocks the other kind and the two are
+// never open at once. The provider may still take payment for an older one:
+// CompleteCheckout refunds a late subscription, and a late lifetime deal
+// cancels the subscription it replaces.
+func (s *Service) expireOtherPlanCheckouts(ctx context.Context, tx pgx.Tx, session model.CheckoutSession) error {
+	var purposes []string
+	switch session.Purpose {
+	case model.PurposeNew:
+		purposes = []string{model.PurposeNew, model.PurposeLTD}
+	case model.PurposeLTD:
+		purposes = []string{model.PurposeNew}
+	default:
+		return nil
+	}
 	ids, err := repository.NewRepository(tx).ListOtherPendingCheckouts(ctx, gen.ListOtherPendingCheckoutsParams{
-		WorkspaceID: session.WorkspaceID, Purpose: model.PurposeNew, CheckoutSessionID: session.ID,
+		WorkspaceID: session.WorkspaceID, Purposes: purposes, CheckoutSessionID: session.ID,
 	})
 	if err != nil {
 		return fmt.Errorf("list other pending checkouts: %w", err)

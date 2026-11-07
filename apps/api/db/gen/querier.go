@@ -455,8 +455,6 @@ type Querier interface {
 	// Whether another invoice still pays for the installment (it was paid again
 	// after a refund, or twice at once).
 	HasOtherInstallmentPayment(ctx context.Context, arg HasOtherInstallmentPaymentParams) (bool, error)
-	// Whether the workspace has an open checkout of this purpose.
-	HasPendingCheckout(ctx context.Context, arg HasPendingCheckoutParams) (bool, error)
 	// ---------- Access log ----------
 	InsertAccessLog(ctx context.Context, arg InsertAccessLogParams) error
 	InsertAuthEvent(ctx context.Context, arg InsertAuthEventParams) error
@@ -576,7 +574,7 @@ type Querier interface {
 	// @started_before, in ID order after @after_id.
 	ListOpenCheckoutSessions(ctx context.Context, arg ListOpenCheckoutSessionsParams) ([]ListOpenCheckoutSessionsRow, error)
 	ListOrderInstallments(ctx context.Context, arg ListOrderInstallmentsParams) ([]ListOrderInstallmentsRow, error)
-	// The workspace's other open checkouts of this purpose.
+	// The workspace's other open checkouts of these purposes.
 	ListOtherPendingCheckouts(ctx context.Context, arg ListOtherPendingCheckoutsParams) ([]uuid.UUID, error)
 	// Job only (all workspaces): live provider-renewed subscriptions whose period
 	// ended at or before ended_before with no news, in ID order after after_id.
