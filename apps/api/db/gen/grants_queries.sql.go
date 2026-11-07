@@ -319,16 +319,17 @@ func (q *Queries) RestoreGrant(ctx context.Context, arg RestoreGrantParams) (int
 }
 
 const setGrantOverrides = `-- name: SetGrantOverrides :execrows
-UPDATE plan_grants SET overrides = $1, updated_at = now() WHERE id = $2
+UPDATE plan_grants SET overrides = $1, updated_at = now() WHERE workspace_id = $2 AND id = $3
 `
 
 type SetGrantOverridesParams struct {
-	Overrides []byte
-	GrantID   uuid.UUID
+	Overrides   []byte
+	WorkspaceID uuid.UUID
+	GrantID     uuid.UUID
 }
 
 func (q *Queries) SetGrantOverrides(ctx context.Context, arg SetGrantOverridesParams) (int64, error) {
-	result, err := q.db.Exec(ctx, setGrantOverrides, arg.Overrides, arg.GrantID)
+	result, err := q.db.Exec(ctx, setGrantOverrides, arg.Overrides, arg.WorkspaceID, arg.GrantID)
 	if err != nil {
 		return 0, err
 	}

@@ -68,6 +68,28 @@ func TestUnknownRouteReturnsJSON404(t *testing.T) {
 	}
 }
 
+func TestCheckoutSessionsAreRateLimitedPerIP(t *testing.T) {
+	h, err := testApp(t).Handler()
+	if err != nil {
+		t.Fatal(err)
+	}
+	post := func() int {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/v1/workspace/billing/checkout-sessions", nil)
+		req.RemoteAddr = "203.0.113.9:1234"
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	for i := range 20 {
+		if code := post(); code == http.StatusTooManyRequests {
+			t.Fatalf("request %d was limited", i+1)
+		}
+	}
+	if code := post(); code != http.StatusTooManyRequests {
+		t.Fatalf("the 21st checkout in an hour got %d, want 429", code)
+	}
+}
+
 func TestCORSAllowsConfiguredOriginOnly(t *testing.T) {
 	a := testApp(t)
 

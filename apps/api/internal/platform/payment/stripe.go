@@ -508,6 +508,10 @@ func (g *stripeGateway) CreateCoupon(ctx context.Context, req CouponRequest) (Co
 	return Coupon{ExternalCouponID: c.ID}, nil
 }
 
+// DeleteCoupon keeps Stripe coupons. Customers can't type one in (no
+// promotion code), and Relay never attaches an inactive discount's coupon.
+func (g *stripeGateway) DeleteCoupon(context.Context, Coupon) error { return nil }
+
 // CreatePrice creates a Stripe price and its product in one call.
 func (g *stripeGateway) CreatePrice(ctx context.Context, req PriceRequest) (string, error) {
 	if err := req.validate("stripe"); err != nil {

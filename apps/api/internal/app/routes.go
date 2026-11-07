@@ -151,5 +151,7 @@ func routeLimits() []middleware.RouteLimit {
 		{Method: http.MethodGet, Path: "/v1/integrations/shopify/callback", Requests: 30, Window: time.Minute},
 		{Method: http.MethodPost, Path: "/v1/integrations/woocommerce/callback", Requests: 30, Window: time.Minute},
 		{Method: http.MethodPost, Path: inboxhandler.MediaPath, Requests: 60, Window: time.Minute},
+		// Each checkout calls the payment provider; a real buyer needs a handful.
+		{Method: http.MethodPost, Path: "/v1/workspace/billing/checkout-sessions", Requests: 20, Window: time.Hour},
 	}
 }

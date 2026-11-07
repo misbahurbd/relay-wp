@@ -124,3 +124,15 @@ SELECT count(id) FROM provider_discounts WHERE discount_id = @discount_id AND pr
 -- name: RetireProviderDiscounts :execrows
 -- The provider's product set changed: the next use mirrors each discount again.
 UPDATE provider_discounts SET is_active = false WHERE provider = @provider AND is_active;
+
+-- name: ListUndeletedRetiredProviderDiscounts :many
+-- Retired mirrors still to delete on the provider: of one discount, or of one provider.
+SELECT id, provider, external_coupon_id, external_promotion_code_id
+FROM provider_discounts
+WHERE NOT is_active AND deleted_on_provider_at IS NULL
+  AND (sqlc.narg('discount_id')::uuid IS NULL OR discount_id = sqlc.narg('discount_id')::uuid)
+  AND (sqlc.narg('provider')::text IS NULL OR provider = sqlc.narg('provider')::text)
+ORDER BY created_at;
+
+-- name: MarkProviderDiscountDeleted :execrows
+UPDATE provider_discounts SET deleted_on_provider_at = now() WHERE id = @provider_discount_id AND NOT is_active;

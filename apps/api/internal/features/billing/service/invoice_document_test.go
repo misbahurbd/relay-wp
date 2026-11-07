@@ -306,7 +306,7 @@ func TestInvoiceDescriptions(t *testing.T) {
 		want string
 	}{
 		{"monthly period", gen.GetInvoiceDocumentRow{
-			PlanName: "Growth", PlanInterval: &month, SubtotalMinor: 7900, PlanAmountMinor: 7900,
+			PlanName: "Growth", PlanInterval: &month, SubtotalMinor: 7900,
 			PeriodStart: at(2026, 11, 7), PeriodEnd: at(2026, 12, 7),
 		}, "Growth plan · monthly · Nov 7 – Dec 7, 2026"},
 		{"month end clamped", gen.GetInvoiceDocumentRow{
@@ -322,7 +322,7 @@ func TestInvoiceDescriptions(t *testing.T) {
 			PeriodStart: at(2026, 11, 20), PeriodEnd: at(2026, 12, 7),
 		}, "Growth plan · change of plan (prorated)"},
 		{"proration over the full period", gen.GetInvoiceDocumentRow{
-			PlanName: "Growth", PlanInterval: &month, SubtotalMinor: 5000, PlanAmountMinor: 7900,
+			PlanName: "Growth", PlanInterval: &month, SubtotalMinor: 5000, Prorated: true,
 			PeriodStart: at(2026, 11, 7), PeriodEnd: at(2026, 12, 7),
 		}, "Growth plan · change of plan (prorated)"},
 		{"lifetime deal", gen.GetInvoiceDocumentRow{PlanName: "Growth", OrderID: &order}, "Growth plan · lifetime deal"},
@@ -383,5 +383,130 @@ func TestSweepRequeuesInvoicesStillWithoutAPDF(t *testing.T) {
 	}
 	if swept() {
 		t.Fatal("an invoice with a PDF was queued again")
+	}
+}
+
+// sweptNow runs the sweep at the real time and reports whether it queued inv.
+func (e *docsEnv) sweptNow(inv uuid.UUID) bool {
+	e.t.Helper()
+	e.svc.now = func() time.Time { return time.Now().UTC() }
+	e.queue.jobs = nil
+	if _, err := e.svc.SweepInvoiceDocuments(e.ctx); err != nil {
+		e.t.Fatal(err)
+	}
+	for _, j := range e.queue.all() {
+		if a, ok := j.(model.InvoiceDocumentArgs); ok && a.InvoiceID == inv {
+			return true
+		}
+	}
+	return false
+}
+
+func TestSweepRequeuesAnInvoiceWhoseEmailWasNeverSent(t *testing.T) {
+	e := newDocsEnv(t)
+	p := e.plan(t3PlanOpts{Monthly: 7900})
+	e.subscribe(p.Monthly)
+	inv := e.documentJobs()[0]
+	e.exec(`UPDATE invoices SET pdf_key = 'invoices/stored.pdf', created_at = '2000-01-01' WHERE id = $1`, inv)
+	if !e.sweptNow(inv) {
+		t.Fatal("an invoice with its PDF but no receipt email was not queued again")
+	}
+	e.exec(`UPDATE invoices SET emailed_at = now(), document_swept_at = NULL WHERE id = $1`, inv)
+	if e.sweptNow(inv) {
+		t.Fatal("a delivered invoice was queued again")
+	}
+}
+
+// An invoice whose job keeps failing waits longer each time, so it can't take
+// a slot from newer invoices on every sweep.
+func TestSweepBacksOffAnInvoiceThatKeepsFailing(t *testing.T) {
+	e := newDocsEnv(t)
+	p := e.plan(t3PlanOpts{Monthly: 7900})
+	e.subscribe(p.Monthly)
+	inv := e.documentJobs()[0]
+	e.exec(`UPDATE invoices SET created_at = '2000-01-01' WHERE id = $1`, inv)
+	if !e.sweptNow(inv) {
+		t.Fatal("the first sweep skipped an old invoice without a PDF")
+	}
+	if e.sweptNow(inv) {
+		t.Fatal("the next sweep queued it again at once")
+	}
+	e.exec(`UPDATE invoices SET document_swept_at = now() - interval '20 minutes' WHERE id = $1`, inv)
+	if !e.sweptNow(inv) {
+		t.Fatal("not queued again after its first backoff")
+	}
+	e.exec(`UPDATE invoices SET document_swept_at = now() - interval '20 minutes' WHERE id = $1`, inv)
+	if e.sweptNow(inv) {
+		t.Fatal("the second backoff is no longer than the first")
+	}
+}
+
+// The PDF names the price the invoice was paid for, not the price the
+// subscription has moved to since.
+func TestInvoiceDocumentNamesThePricePaidFor(t *testing.T) {
+	e := newDocsEnv(t)
+	p := e.plan(t3PlanOpts{Monthly: 7900})
+	other := e.plan(t3PlanOpts{Monthly: 9900})
+	sub := e.subscribe(p.Monthly)
+	e.queue.jobs = nil
+	e.renew(sub, "pay_"+uuid.NewString(), *sub.CurrentPeriodEnd, true)
+	inv := e.documentJobs()[0]
+	e.exec(`UPDATE subscriptions SET plan_price_id = $1 WHERE workspace_id = $2`, other.Yearly, e.ws)
+	if err := e.svc.DeliverInvoiceDocument(e.ctx, e.ws, inv); err != nil {
+		t.Fatal(err)
+	}
+	if page := e.renderer.pages[0]; !strings.Contains(page, "Plan "+p.Code+" plan · monthly") {
+		t.Fatalf("invoice HTML doesn't name the monthly %s price it was paid for", p.Code)
+	}
+}
+
+// The renewal that starts a scheduled downgrade is paid for the new price.
+func TestInvoiceDocumentNamesTheDowngradeARenewalStarts(t *testing.T) {
+	e := newDocsEnv(t)
+	p := e.plan(t3PlanOpts{Monthly: 7900})
+	smaller := e.plan(t3PlanOpts{Monthly: 2900})
+	sub := e.subscribe(p.Monthly)
+	e.exec(`UPDATE subscriptions SET pending_plan_price_id = $1, pending_change_at = current_period_end WHERE id = $2`,
+		smaller.Monthly, sub.ID)
+	e.queue.jobs = nil
+	e.renew(sub, "pay_"+uuid.NewString(), *sub.CurrentPeriodEnd, true)
+	if err := e.svc.DeliverInvoiceDocument(e.ctx, e.ws, e.documentJobs()[0]); err != nil {
+		t.Fatal(err)
+	}
+	if page := e.renderer.pages[0]; !strings.Contains(page, "Plan "+smaller.Code+" plan · monthly") {
+		t.Fatalf("the renewal invoice doesn't name the %s price it started", smaller.Code)
+	}
+}
+
+// A discount the provider applied (not one of Relay's) lowers the amount, but
+// the charge is still a full period, not a proration. A second charge inside
+// a paid period (Creem's upgrade) is one.
+func TestInvoiceDocumentTellsProrationsFromDiscounts(t *testing.T) {
+	e := newDocsEnv(t)
+	p := e.plan(t3PlanOpts{Monthly: 7900})
+	sub := e.subscribe(p.Monthly)
+	start := *sub.CurrentPeriodEnd
+	end := start.AddDate(0, 1, 0)
+	charge := func(total int64, at time.Time) {
+		t.Helper()
+		e.queue.jobs = nil
+		e.inTx(func(tx pgx.Tx) error {
+			return e.svc.ApplySubscriptionPayment(e.ctx, tx, e.ws, sub.ID, payment.Payment{
+				ExternalID: "pay_" + uuid.NewString(), SubtotalMinor: 7900, DiscountMinor: 7900 - total, TotalMinor: total,
+				Currency: "USD", PeriodStart: &start, PeriodEnd: &end, PaidAt: &at,
+			}, true)
+		})
+		if err := e.svc.DeliverInvoiceDocument(e.ctx, e.ws, e.documentJobs()[0]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	charge(6900, start)
+	charge(2000, start.Add(24*time.Hour))
+	pages := e.renderer.pages
+	if want := "monthly · " + dateRange(start, end); !strings.Contains(pages[len(pages)-2], want) {
+		t.Errorf("a provider-discounted renewal is not a full period (%q)", want)
+	}
+	if !strings.Contains(pages[len(pages)-1], "change of plan (prorated)") {
+		t.Error("a second charge inside a paid period is not shown as a proration")
 	}
 }

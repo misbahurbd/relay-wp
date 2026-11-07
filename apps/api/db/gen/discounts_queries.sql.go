@@ -380,6 +380,65 @@ func (q *Queries) ListDiscounts(ctx context.Context, activeOnly bool) ([]ListDis
 	return items, nil
 }
 
+const listUndeletedRetiredProviderDiscounts = `-- name: ListUndeletedRetiredProviderDiscounts :many
+SELECT id, provider, external_coupon_id, external_promotion_code_id
+FROM provider_discounts
+WHERE NOT is_active AND deleted_on_provider_at IS NULL
+  AND ($1::uuid IS NULL OR discount_id = $1::uuid)
+  AND ($2::text IS NULL OR provider = $2::text)
+ORDER BY created_at
+`
+
+type ListUndeletedRetiredProviderDiscountsParams struct {
+	DiscountID *uuid.UUID
+	Provider   *string
+}
+
+type ListUndeletedRetiredProviderDiscountsRow struct {
+	ID                      uuid.UUID
+	Provider                string
+	ExternalCouponID        string
+	ExternalPromotionCodeID *string
+}
+
+// Retired mirrors still to delete on the provider: of one discount, or of one provider.
+func (q *Queries) ListUndeletedRetiredProviderDiscounts(ctx context.Context, arg ListUndeletedRetiredProviderDiscountsParams) ([]ListUndeletedRetiredProviderDiscountsRow, error) {
+	rows, err := q.db.Query(ctx, listUndeletedRetiredProviderDiscounts, arg.DiscountID, arg.Provider)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListUndeletedRetiredProviderDiscountsRow{}
+	for rows.Next() {
+		var i ListUndeletedRetiredProviderDiscountsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Provider,
+			&i.ExternalCouponID,
+			&i.ExternalPromotionCodeID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const markProviderDiscountDeleted = `-- name: MarkProviderDiscountDeleted :execrows
+UPDATE provider_discounts SET deleted_on_provider_at = now() WHERE id = $1 AND NOT is_active
+`
+
+func (q *Queries) MarkProviderDiscountDeleted(ctx context.Context, providerDiscountID uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, markProviderDiscountDeleted, providerDiscountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const reclaimDiscount = `-- name: ReclaimDiscount :execrows
 WITH bumped AS (
     UPDATE discounts d

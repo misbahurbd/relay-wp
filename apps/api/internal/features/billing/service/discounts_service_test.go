@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -301,5 +302,68 @@ func TestNewRecurringProductRemirrorsProductScopedCoupons(t *testing.T) {
 	e.checkout(p.Monthly, d.Code)
 	if n := len(e.fake.Coupons()); n != coupons+1 {
 		t.Fatalf("the new mirror wasn't reused: %d coupons", n)
+	}
+	if !slices.Contains(e.fake.DeletedCoupons(), e.mirrorIDs(d.ID, false)[0]) {
+		t.Fatal("the retired mirror is still on the provider")
+	}
+}
+
+// mirrorIDs is the discount's provider coupon IDs, active or retired, oldest first.
+func (e *t3Env) mirrorIDs(discountID uuid.UUID, active bool) []string {
+	e.t.Helper()
+	rows, err := e.pool.Query(e.ctx, `SELECT external_coupon_id FROM provider_discounts
+		WHERE discount_id = $1 AND is_active = $2 ORDER BY created_at`, discountID, active)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	ids, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	return ids
+}
+
+// A provider coupon can be typed into the provider's own checkout, so it
+// carries the code's expiry, its uses left and its plan, and goes when the
+// code is deactivated.
+func TestProviderCouponKeepsRelaysLimits(t *testing.T) {
+	e := newT3Env(t)
+	p := e.plan(t3PlanOpts{Monthly: 1000})
+	e.plan(t3PlanOpts{Monthly: 2000}) // another plan's products stay out of the coupon
+	expires := e.clock.AddDate(0, 1, 0)
+	d := e.discount(func(d *model.NewDiscount) {
+		d.PlanID, d.ExpiresAt, d.MaxRedemptions = &p.ID, &expires, ptrTo(5)
+	})
+	e.pay(e.checkout(p.Monthly, d.Code))
+	e.ws = e.workspace()
+	if _, err := e.svc.UpdateProfile(e.ctx, e.ws, model.ProfileInput{LegalName: "Second", Email: "second@acme.test"}); err != nil {
+		t.Fatal(err)
+	}
+	e.checkout(p.Monthly, d.Code)
+
+	var req payment.CouponRequest
+	for _, c := range e.fake.Coupons() {
+		if c.DiscountID == d.ID {
+			req = c
+		}
+	}
+	if req.ExpiresAt == nil || !req.ExpiresAt.Equal(expires) || req.MaxRedemptions != 5 {
+		t.Fatalf("coupon expires %v after %d uses, want %v after 5", req.ExpiresAt, req.MaxRedemptions, expires)
+	}
+	var want []string
+	if err := e.pool.QueryRow(e.ctx, `SELECT array_agg(pp.external_price_id ORDER BY pp.external_price_id)
+		FROM provider_prices pp JOIN plan_prices x ON x.id = pp.plan_price_id WHERE x.plan_id = $1`, p.ID).Scan(&want); err != nil {
+		t.Fatal(err)
+	}
+	if slices.Compare(req.ExternalProductIDs, want) != 0 {
+		t.Fatalf("coupon products = %v, want the plan's own %v", req.ExternalProductIDs, want)
+	}
+
+	mirror := e.mirrorIDs(d.ID, true)
+	if err := e.svc.DeactivateDiscount(e.ctx, d.Code); err != nil {
+		t.Fatal(err)
+	}
+	if len(mirror) != 1 || !slices.Contains(e.fake.DeletedCoupons(), mirror[0]) {
+		t.Fatalf("mirror %v not deleted on the provider (deleted %v)", mirror, e.fake.DeletedCoupons())
 	}
 }

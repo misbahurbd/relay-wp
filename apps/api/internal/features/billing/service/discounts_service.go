@@ -194,9 +194,16 @@ func (s *Service) providerCoupon(ctx context.Context, g payment.Gateway, d model
 	if !repository.IsNoRows(err) {
 		return "", fmt.Errorf("get provider discount: %w", err)
 	}
+	// The provider's checkout may take the code typed in by hand, so the mirror
+	// carries Relay's limits it can express: the expiry, the uses left, and
+	// the plan (its products). It can't express per-workspace limits or a start
+	// date; a mirror is made only after the start, at a checkout that passed them.
 	req := payment.CouponRequest{
 		DiscountID: d.ID, Code: d.Code, Name: d.Name, Currency: deref(d.Currency), Duration: d.Duration,
-		DurationMonths: deref(d.DurationMonths),
+		DurationMonths: deref(d.DurationMonths), ExpiresAt: d.ExpiresAt,
+	}
+	if d.MaxRedemptions != nil {
+		req.MaxRedemptions = max(*d.MaxRedemptions-d.RedeemedCount, 1)
 	}
 	if d.Kind == model.DiscountPercent {
 		req.PercentBps = deref(d.PercentBps)
@@ -213,8 +220,14 @@ func (s *Service) providerCoupon(ctx context.Context, g payment.Gateway, d model
 		req.Code = d.Code + "-" + strconv.FormatInt(mirrors+1, 10)
 	}
 	// Coupons are only for renewals the provider charges, so they cover its recurring products.
-	if req.ExternalProductIDs, err = r.ListRecurringExternalPriceIDs(ctx, string(g.Provider())); err != nil {
+	if req.ExternalProductIDs, err = r.ListRecurringExternalPriceIDs(ctx, gen.ListRecurringExternalPriceIDsParams{
+		Provider: string(g.Provider()), PlanID: d.PlanID,
+	}); err != nil {
 		return "", fmt.Errorf("list recurring provider prices: %w", err)
+	}
+	if len(req.ExternalProductIDs) == 0 && d.PlanID != nil {
+		// Never let an empty list widen a plan's code to every product.
+		return "", model.ErrDiscountWrongPlan
 	}
 	c, err := g.CreateCoupon(ctx, req)
 	if err != nil {
@@ -380,7 +393,7 @@ func (s *Service) DeactivateDiscount(ctx context.Context, code string) error {
 	if err != nil {
 		return fmt.Errorf("get discount: %w", err)
 	}
-	return database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
+	if err := database.WithTx(ctx, s.pool, func(tx pgx.Tx) error {
 		r := repository.NewRepository(tx)
 		if _, err := r.DeactivateDiscount(ctx, row.ID); err != nil {
 			return fmt.Errorf("deactivate discount: %w", err)
@@ -389,7 +402,39 @@ func (s *Service) DeactivateDiscount(ctx context.Context, code string) error {
 			return fmt.Errorf("deactivate provider discounts: %w", err)
 		}
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
+	return s.deleteRetiredCoupons(ctx, gen.ListUndeletedRetiredProviderDiscountsParams{DiscountID: &row.ID})
+}
+
+// deleteRetiredCoupons deletes retired mirrors on their provider. It runs
+// after the retiring transaction commits, so no lock waits on a provider call.
+// A mirror that fails stays listed and is tried again by the next call that
+// covers it (deactivating the code again, or the provider's next retirement).
+func (s *Service) deleteRetiredCoupons(ctx context.Context, which gen.ListUndeletedRetiredProviderDiscountsParams) error {
+	r := repository.NewRepository(s.pool)
+	rows, err := r.ListUndeletedRetiredProviderDiscounts(ctx, which)
+	if err != nil {
+		return fmt.Errorf("list retired provider discounts: %w", err)
+	}
+	var failed error
+	for _, row := range rows {
+		g, ok := s.payments.Get(payment.Provider(row.Provider))
+		if !ok {
+			continue // the provider is off on this server; a later call deletes it
+		}
+		if err := g.DeleteCoupon(ctx, payment.Coupon{
+			ExternalCouponID: row.ExternalCouponID, ExternalPromotionCodeID: deref(row.ExternalPromotionCodeID),
+		}); err != nil {
+			failed = s.gatewayErr("delete coupon", err)
+			continue
+		}
+		if _, err := r.MarkProviderDiscountDeleted(ctx, row.ID); err != nil {
+			return fmt.Errorf("mark provider discount deleted: %w", err)
+		}
+	}
+	return failed
 }
 
 // discountEndsAt is when a discount stops applying to a subscription that

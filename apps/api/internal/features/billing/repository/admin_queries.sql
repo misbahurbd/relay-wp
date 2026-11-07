@@ -22,6 +22,17 @@ SELECT id, plan_price_id, installment_offer_id, provider, external_price_id, col
 FROM provider_prices
 ORDER BY plan_price_id, installment_offer_id NULLS FIRST, is_active DESC, provider, created_at DESC;
 
+-- name: GetPlanByPublishKey :one
+-- The plan an earlier try of the same CRM publish created.
+SELECT id, code FROM plans WHERE publish_key = @publish_key;
+
+-- name: GetActivePlanPriceInSlot :one
+-- The price on sale in a plan's slot (billing type, interval, currency): there is at most one.
+SELECT id, amount_minor
+FROM plan_prices
+WHERE plan_id = @plan_id AND billing_type = @billing_type AND interval IS NOT DISTINCT FROM sqlc.narg('interval')
+  AND currency = @currency AND is_active;
+
 -- name: NextPlanVersion :one
 -- A plan is never edited once sold: a new one with a used code is its next version.
 SELECT (COALESCE(max(version), 0) + 1)::int AS version

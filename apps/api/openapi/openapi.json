@@ -2889,6 +2889,10 @@
             "minLength": 1,
             "type": "string"
           },
+          "publish_key": {
+            "description": "Chosen by the client once per publish: a retry with the same key returns the plan already created",
+            "type": "string"
+          },
           "recommended": {
             "description": "Mark this as the plan the pricing table points people to",
             "type": "boolean"

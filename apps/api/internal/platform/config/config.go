@@ -2,7 +2,9 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/caarlos0/env/v11"
@@ -169,6 +171,34 @@ type Payment struct {
 	CreemWebhookSecret string `env:"CREEM_WEBHOOK_SECRET"`
 }
 
+// CreemTestMode reports a Creem test key (creem_test_…), which only works against Creem's test host.
+func (p Payment) CreemTestMode() bool { return strings.HasPrefix(p.CreemAPIKey, "creem_test_") }
+
+// StripeTestMode reports a Stripe test secret or restricted key.
+func (p Payment) StripeTestMode() bool {
+	return strings.HasPrefix(p.StripeSecretKey, "sk_test_") || strings.HasPrefix(p.StripeSecretKey, "rk_test_")
+}
+
+// Modes maps each PAYMENT_PROVIDERS entry to "test", "live" or "fake", for the startup log.
+func (p Payment) Modes() map[string]string {
+	modes := make(map[string]string, len(p.Providers))
+	for _, raw := range p.Providers {
+		entry := strings.TrimSpace(raw)
+		if entry == "" {
+			continue
+		}
+		mode := "live"
+		switch {
+		case strings.HasSuffix(entry, ":fake"):
+			mode = "fake"
+		case entry == "stripe" && p.StripeTestMode(), entry == "creem" && p.CreemTestMode():
+			mode = "test"
+		}
+		modes[entry] = mode
+	}
+	return modes
+}
+
 // Invoices configures the invoice documents Relay issues (docs/adr/0016-invoice-pdf-renderer.md).
 type Invoices struct {
 	// NumberPrefix starts every invoice number: "RLY" gives RLY-2026-000001.
@@ -210,6 +240,15 @@ func Load() (Config, error) {
 	cfg, err := env.ParseAs[Config]()
 	if err != nil {
 		return Config{}, fmt.Errorf("load config: %w", err)
+	}
+	// Case 94: production must charge real money, never a provider's sandbox.
+	if cfg.AppEnv == "production" {
+		if cfg.Payment.CreemTestMode() {
+			return Config{}, errors.New("load config: CREEM_API_KEY is a test key (creem_test_…) and APP_ENV is production")
+		}
+		if cfg.Payment.StripeTestMode() {
+			return Config{}, errors.New("load config: STRIPE_SECRET_KEY is a test key and APP_ENV is production")
+		}
 	}
 	return cfg, nil
 }

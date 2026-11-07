@@ -27,7 +27,6 @@ import (
 const (
 	creemLiveBaseURL = "https://api.creem.io"
 	creemTestBaseURL = "https://test-api.creem.io"
-	creemTestKeyPref = "creem_test_"
 )
 
 const (
@@ -58,7 +57,7 @@ func newCreem(cfg config.Payment, client *http.Client) (*creemGateway, error) {
 		return nil, errors.New("CREEM_API_KEY and CREEM_WEBHOOK_SECRET are required when PAYMENT_PROVIDERS includes creem")
 	}
 	base := creemLiveBaseURL
-	if strings.HasPrefix(cfg.CreemAPIKey, creemTestKeyPref) {
+	if cfg.CreemTestMode() {
 		base = creemTestBaseURL
 	}
 	return &creemGateway{apiKey: cfg.CreemAPIKey, webhookSecret: cfg.CreemWebhookSecret, baseURL: base, client: client}, nil
@@ -237,6 +236,9 @@ type creemDiscountRequest struct {
 	Duration          string   `json:"duration"`
 	DurationInMonths  int      `json:"duration_in_months,omitempty"`
 	AppliesToProducts []string `json:"applies_to_products"`
+	// ExpiryDate is RFC 3339, as Creem's docs show it.
+	ExpiryDate     string `json:"expiry_date,omitempty"`
+	MaxRedemptions int    `json:"max_redemptions,omitempty"`
 }
 
 // CancelSchedule implements Gateway: Creem runs no installment schedules.
@@ -310,6 +312,10 @@ func (g *creemGateway) CreateCoupon(ctx context.Context, req CouponRequest) (Cou
 		return Coupon{}, fmt.Errorf("creem: create coupon: the store has no active recurring products: %w", ErrInvalidRequest)
 	}
 	body.AppliesToProducts = products
+	if req.ExpiresAt != nil {
+		body.ExpiryDate = req.ExpiresAt.UTC().Format(time.RFC3339)
+	}
+	body.MaxRedemptions = req.MaxRedemptions
 
 	var out struct {
 		ID   string `json:"id"`
@@ -319,6 +325,19 @@ func (g *creemGateway) CreateCoupon(ctx context.Context, req CouponRequest) (Cou
 		return Coupon{}, fmt.Errorf("creem: create coupon: %w", err)
 	}
 	return Coupon{ExternalCouponID: out.Code, ExternalPromotionCodeID: out.ID}, nil
+}
+
+// DeleteCoupon deletes a Creem discount by its ID (Coupon.ExternalPromotionCodeID).
+// Creem has no way to expire or disable one, only this.
+func (g *creemGateway) DeleteCoupon(ctx context.Context, c Coupon) error {
+	if c.ExternalPromotionCodeID == "" {
+		return fmt.Errorf("creem: delete coupon %q: no discount id: %w", c.ExternalCouponID, ErrInvalidRequest)
+	}
+	err := g.do(ctx, http.MethodDelete, "/v1/discounts/"+url.PathEscape(c.ExternalPromotionCodeID)+"/delete", nil, nil)
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		return fmt.Errorf("creem: delete coupon: %w", err)
+	}
+	return nil
 }
 
 // creemProductRequest is the body of POST /v1/products.

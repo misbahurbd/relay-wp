@@ -42,6 +42,7 @@ import {
 } from './plan-draft'
 import { PlanIncludedStep } from './plan-included-step'
 import { PlanPricingStep } from './plan-pricing-step'
+import { clearPublish, savedFor, savePublish } from './plan-publish-store'
 import { PlanReviewStep } from './plan-review-step'
 import { PlanTrialFields } from './plan-trial-fields'
 
@@ -97,12 +98,15 @@ export function PlanEditor({
   const update = useUpdatePlan()
   const refresh = useRefreshAdmin()
 
-  const [draft, setDraft] = useState(() => initialDraft(mode, resources, sellWith.length > 0))
-  const [step, setStep] = useState<StepId>('basics')
-  const [visited, setVisited] = useState<StepId[]>(['basics'])
+  const [resumed] = useState(() => (mode.kind === 'edit' ? null : savedFor(mode)))
+  const [draft, setDraft] = useState(
+    () => resumed?.draft ?? initialDraft(mode, resources, sellWith.length > 0),
+  )
+  const [step, setStep] = useState<StepId>(resumed ? 'review' : 'basics')
+  const [visited, setVisited] = useState<StepId[]>(resumed ? stepsOf(mode) : ['basics'])
   const [shown, setShown] = useState<StepId[]>([])
   const [progress, setProgress] = useState<Record<string, StepState>>({})
-  const [ids, setIds] = useState<CreatedIds>({})
+  const [ids, setIds] = useState<CreatedIds>(resumed?.ids ?? {})
   const [running, setRunning] = useState(false)
   const [failure, setFailure] = useState<{ label: string } | null>(null)
   const body = useRef<HTMLDivElement>(null)
@@ -124,6 +128,12 @@ export function PlanEditor({
   const createdPrices = (['month', 'year', 'lifetime'] as const).filter((c) => ids[`price:${c}`])
 
   const patch = (p: Partial<PlanDraft>) => setDraft((d) => ({ ...d, ...p }))
+
+  /** Closing on purpose drops a saved publish; only a reload resumes one. */
+  const discard = () => {
+    if (!editing) clearPublish()
+    onClose()
+  }
 
   useEffect(() => {
     if (!focusInvalid.current) return
@@ -174,10 +184,13 @@ export function PlanEditor({
   }
 
   const publish = async () => {
+    if (mode.kind === 'edit') return
     const bad = firstInvalid(order.length - 1)
     if (bad) return stop(bad)
     setFailure(null)
     setRunning(true)
+    // Saved before the first call, so a reload mid-publish reopens it with the same publish key.
+    savePublish({ mode, draft, ids })
     const result = await runPublish(steps, ids, planPublishApi, (id, state) =>
       setProgress((p) => ({ ...p, [id]: state })),
     )
@@ -185,10 +198,12 @@ export function PlanEditor({
     setRunning(false)
     void refresh()
     if (!result.ok) {
+      savePublish({ mode, draft, ids: result.ids })
       const at = steps.findIndex((s) => s.id === result.failed)
       setFailure({ label: labels[at] })
       return
     }
+    clearPublish()
     const prices = steps.filter((s) => s.kind === 'price').length
     toast.success(
       mode.kind === 'version'
@@ -223,7 +238,7 @@ export function PlanEditor({
         : 'Create plan'
 
   return (
-    <Dialog open onOpenChange={(open) => !open && !pending && onClose()}>
+    <Dialog open onOpenChange={(open) => !open && !pending && discard()}>
       <DialogContent
         onInteractOutside={(e) => e.preventDefault()}
         className="top-0 left-0 flex h-dvh max-h-dvh max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 p-0 sm:top-[50%] sm:left-[50%] sm:h-[min(780px,calc(100dvh-48px))] sm:max-w-[min(940px,calc(100%-3rem))] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-xl sm:border"
@@ -246,6 +261,16 @@ export function PlanEditor({
             ref={body}
             className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-5 sm:px-6"
           >
+            {resumed && step === 'review' && !running && (
+              <Alert variant="info" className="mx-auto mb-5 max-w-[640px]">
+                <AlertDescription>
+                  <p>
+                    This publish was cut short. Publish again to finish it; nothing already created
+                    is created twice. Cancel to drop it.
+                  </p>
+                </AlertDescription>
+              </Alert>
+            )}
             {lockedNote && (
               <Alert variant="info" className="mx-auto mb-5 max-w-[640px]">
                 <AlertDescription>
@@ -339,7 +364,7 @@ export function PlanEditor({
                 )}
               </p>
               <div className="ml-auto flex flex-wrap justify-end gap-2">
-                <Button type="button" variant="outline" disabled={pending} onClick={onClose}>
+                <Button type="button" variant="outline" disabled={pending} onClick={discard}>
                   {planCreated ? 'Close' : 'Cancel'}
                 </Button>
                 {!editing && index > 0 && (

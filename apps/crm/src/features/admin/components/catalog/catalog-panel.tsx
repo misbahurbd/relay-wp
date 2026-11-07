@@ -10,6 +10,7 @@ import { OfferDialog } from './offer-dialog'
 import { type PlanAction, PlanCard } from './plan-card'
 import type { PlanEditorMode } from './plan-draft'
 import { PlanEditor } from './plan-editor'
+import { loadPublish } from './plan-publish-store'
 import { PriceDialog } from './price-dialog'
 import { ProviderPriceDialog } from './provider-price-dialog'
 
@@ -22,10 +23,19 @@ function editorMode(open: Extract<Open, { kind: 'plan' | 'version' | 'edit' }>):
     : { kind: 'edit', plan: open.plan }
 }
 
+/** A plan publish cut short by a reload reopens its editor, which finishes it. */
+function resumedOpen(): Open {
+  const saved = loadPublish()
+  if (!saved) return null
+  return saved.mode.kind === 'create'
+    ? { kind: 'plan' }
+    : { kind: 'version', plan: saved.mode.from }
+}
+
 export function CatalogPanel() {
   const catalog = useQuery(catalogQueryOptions())
   const resources = useQuery(resourcesQueryOptions())
-  const [open, setOpen] = useState<Open>(null)
+  const [open, setOpen] = useState<Open>(resumedOpen)
   const [showInactive, setShowInactive] = useState(false)
   const close = () => setOpen(null)
 

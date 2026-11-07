@@ -37,7 +37,7 @@ ORDER BY version DESC
 LIMIT 1;
 
 -- name: SetGrantOverrides :execrows
-UPDATE plan_grants SET overrides = @overrides, updated_at = now() WHERE id = @grant_id;
+UPDATE plan_grants SET overrides = @overrides, updated_at = now() WHERE workspace_id = @workspace_id AND id = @grant_id;
 
 -- name: SuspendGrant :execrows
 UPDATE plan_grants
