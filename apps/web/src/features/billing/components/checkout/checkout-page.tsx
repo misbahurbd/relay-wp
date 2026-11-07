@@ -8,7 +8,7 @@ import { Label } from '#/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '#/components/ui/radio-group'
 import { Separator } from '#/components/ui/separator'
 import { Skeleton } from '#/components/ui/skeleton'
-import { errorMessage } from '#/lib/api'
+import { errorMessage, isApiError } from '#/lib/api'
 import { cn } from '#/lib/utils'
 import { useCreateCheckout } from '../../api/billing.mutations'
 import {
@@ -194,7 +194,14 @@ function CheckoutBody({
         provider,
         returnUrl: checkoutReturnUrl(),
       },
-      { onSuccess: setStarted },
+      {
+        onSuccess: setStarted,
+        // The server answered, so this attempt is settled: the next try starts a fresh one. A
+        // network error keeps the key, so a retry gets the checkout the server may have made.
+        onError: (e) => {
+          if (isApiError(e)) idem.renew()
+        },
+      },
     )
 
   const [editingProfile, setEditingProfile] = useState(false)
